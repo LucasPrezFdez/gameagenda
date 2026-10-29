@@ -18,14 +18,27 @@
   font-size: 1rem;
 }
 
-.catalog-list {
+.catalog-skeleton {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
+}
+
+/* Lista virtual sobre la ventana: el alto total y la posición de cada fila los fija
+   `@tanstack/react-virtual` por CSSOM (la CSP no admite estilos en línea, ver §11.3). */
+.catalog-list {
+  position: relative;
+  contain: size layout;
+  width: 100%;
+}
+
+.catalog-list[hidden] {
+  display: none;
 }
 
 .catalog-row {
   display: flex;
+  box-sizing: border-box;
   align-items: center;
   gap: 10px;
   min-height: 56px;
@@ -40,7 +53,8 @@
   border-color: var(--control-border);
 }
 
-.catalog-row--skeleton .skeleton--line {
+.catalog-row--skeleton .skeleton--line,
+.catalog-row--loading .skeleton--line {
   flex: 1;
 }
 
@@ -61,6 +75,17 @@
 
 .catalog-row__title:hover {
   text-decoration: underline;
+}
+
+.catalog-list > .catalog-row {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+}
+
+.catalog-row--loading .catalog-row__title {
+  min-height: 1.25rem;
 }
 
 .catalog-row__meta {

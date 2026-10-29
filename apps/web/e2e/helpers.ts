@@ -1,30 +1,44 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page } from '@playwright/test';
 
-export interface FakeSearchOptions {
+/** Ganchos del Worker de búsqueda en el *build* del modo `e2e` (`src/search-client/e2e-hooks.ts`). */
+export interface SearchTestOptions {
+  /** Retraso de cada respuesta del Worker, en ms. */
   readonly latencyMs?: number;
-  readonly boot?: 'progressive' | 'full' | 'scan' | 'none' | 'error';
+  /** El Worker se queda en `none` o en `scan` hasta `releaseCatalog(page)`. */
+  readonly hold?: 'none' | 'scan';
+  /** La primera carga del catálogo falla como sin red. */
+  readonly failFirstLoad?: boolean;
 }
 
 declare global {
-  var __GA_FAKE_SEARCH__: FakeSearchOptions | undefined;
+  var __GA_SEARCH_TEST__: SearchTestOptions | undefined;
+  var __gaSearchTest: { release(): void } | undefined;
   var __cspViolations: string[];
 }
 
-/** Cliente falso a medida y registro de violaciones de CSP y errores de la página. */
-export async function setup(page: Page, fake: FakeSearchOptions = { boot: 'full' }) {
+/**
+ * Ganchos de la búsqueda (por defecto, ninguno: el Worker real con el mini-catálogo) y registro
+ * de violaciones de CSP y errores de la página y de sus Workers.
+ */
+export async function setup(page: Page, search: SearchTestOptions = {}) {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   page.on('console', (message) => {
     if (message.type() === 'error') errors.push(`${message.text()} (${message.location().url})`);
   });
+  page.on('worker', (worker) => {
+    worker.on('console', (message) => {
+      if (message.type() === 'error') errors.push(`Worker: ${message.text()}`);
+    });
+  });
   await page.addInitScript((options) => {
-    globalThis.__GA_FAKE_SEARCH__ = options;
+    globalThis.__GA_SEARCH_TEST__ = options;
     globalThis.__cspViolations = [];
     document.addEventListener('securitypolicyviolation', (event) => {
       globalThis.__cspViolations.push(`${event.violatedDirective} ${event.blockedURI}`);
     });
-  }, fake);
+  }, search);
   return {
     /** Al final de cada prueba: ni errores ni violaciones de CSP (ver §12.3). */
     async expectClean() {
@@ -32,6 +46,16 @@ export async function setup(page: Page, fake: FakeSearchOptions = { boot: 'full'
       expect(await page.evaluate(() => globalThis.__cspViolations)).toEqual([]);
     },
   };
+}
+
+/** Suelta el Worker parado con `hold`: sigue construyendo el índice. */
+export async function releaseCatalog(page: Page) {
+  await page.evaluate(() => globalThis.__gaSearchTest?.release());
+}
+
+/** Espera a que la búsqueda llegue a `state` (medidas `search:ready` y `search:full`). */
+export async function waitForSearch(page: Page, state: 'ready' | 'full') {
+  await expect.poll(() => measures(page, `search:${state}`)).toHaveLength(1);
 }
 
 export function paletteInput(page: Page) {

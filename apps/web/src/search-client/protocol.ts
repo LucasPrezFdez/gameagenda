@@ -1,5 +1,5 @@
 // Protocolo entre la interfaz y el Worker de búsqueda (ver §8.7 de prototipe.md).
-// Lo implementan el Worker real (`src/search-worker/`) y el cliente falso en memoria.
+// Lo implementa el Worker de búsqueda (`src/search-worker/`).
 
 /** Estados del catálogo en el Worker (ver §8.8). `boot` llega en M3. */
 export type CatalogState = 'none' | 'boot' | 'scan' | 'full';
@@ -24,8 +24,8 @@ export interface CoreGame {
   readonly flags: number;
 }
 
-/** Nivel de *ranking* que ha dado la fila (ver §8.4). */
-export type SearchTier = 0 | 1 | 2 | 3 | 4;
+/** Nivel de *ranking* que ha dado la fila (ver §8.4); −1 es un `appid:` explícito (§8.6). */
+export type SearchTier = -1 | 0 | 1 | 2 | 3 | 4;
 
 export interface SearchItem extends CoreGame {
   readonly tier: SearchTier;
@@ -36,8 +36,13 @@ export interface CatalogError {
   readonly retryable: boolean;
 }
 
-/** Filtros del Catálogo: en M1 no hay ninguno; los chips llegan en M2 (ver §9.1). */
-export type BrowseFilters = Readonly<Record<string, string | number | boolean>>;
+/** Filtros del Catálogo por bits de `flags` (ver §9.1); +18 lo decide `options`. */
+export interface BrowseFilters {
+  /** Bits que deben estar todos. */
+  readonly flagsAll?: number;
+  /** Bits que no debe tener ninguno. */
+  readonly flagsNone?: number;
+}
 
 // --- UI → Worker -----------------------------------------------------------
 
@@ -136,6 +141,17 @@ export type WorkerToUiMessage =
   | SuggestionsMessage
   | ReplyMessage
   | ErrorReplyMessage;
+
+/**
+ * Control de los E2E: solo lo atiende el *build* del modo `e2e` (ver §12.3), nunca el de
+ * producción. `hold` deja la construcción quieta en ese estado hasta recibir `hold: null`;
+ * `failFirstLoad` hace que la próxima carga del catálogo falle como sin red.
+ */
+export interface TestControlMessage {
+  readonly type: 'test';
+  readonly hold?: 'none' | 'scan' | null;
+  readonly failFirstLoad?: boolean;
+}
 
 /** Lo mínimo de un `Worker` que necesita el cliente: un `Worker` real ya lo cumple. */
 export interface SearchTransport {

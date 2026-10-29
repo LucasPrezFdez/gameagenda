@@ -1,7 +1,9 @@
 import { execSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import { catalogDevPlugin } from './catalog-dev-plugin.ts';
 import pkg from './package.json' with { type: 'json' };
 
 function gitSha(): string {
@@ -26,9 +28,12 @@ const PREVIEW_CSP = [
   "frame-ancestors 'none'",
 ].join('; ');
 
-export default defineConfig({
+const repoRoot = fileURLToPath(new URL('../..', import.meta.url));
+
+export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
+    catalogDevPlugin(repoRoot),
     VitePWA({
       // Service Worker propio con la precaché del *build*, registrado desde la app (ver §6.1).
       strategies: 'injectManifest',
@@ -89,6 +94,7 @@ export default defineConfig({
   },
   // `es` y no `iife`: el Worker de búsqueda necesita chunks diferidos (ver §6.2).
   worker: { format: 'es' },
-  // La puerta de tamaño lee el JS inicial de `.vite/manifest.json` (ver §12.4).
-  build: { manifest: true },
-});
+  // La puerta de tamaño lee el JS inicial de `.vite/manifest.json` (ver §12.4). El *build* del
+  // modo `e2e` (§12.3) lleva los ganchos de prueba y va aparte, para no pisar el de producción.
+  build: { manifest: true, outDir: mode === 'e2e' ? 'dist-e2e' : 'dist' },
+}));
