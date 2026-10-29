@@ -5,6 +5,17 @@
   "type": "module",
   "description": "Lógica pura compartida: normalización, búsqueda, formato del catálogo y reglas de la agenda.",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./normalize": "./src/normalize/index.ts",
+    "./search": "./src/search/index.ts",
+    "./catalog-format": "./src/catalog-format/index.ts",
+    "./entries": "./src/entries/index.ts",
+    "./sync": "./src/sync/index.ts",
+    "./steam-link": "./src/steam-link/index.ts",
+    "./schemas": "./src/schemas/index.ts"
+  },
+  "dependencies": {
+    "@leeoniya/ufuzzy": "1.0.19",
+    "zod": "4.6.7"
   }
 }

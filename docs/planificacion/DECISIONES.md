@@ -188,7 +188,7 @@ Total del prototipo (M0–M4): **22–30 días ideales** de una persona (día id
 | Vite / `@vitejs/plugin-react` | 8.3.5 / 6.1.2 |
 | `vite-plugin-pwa` (modo `injectManifest`) / `workbox-window` | 2.0.0 / 7.4.1 |
 | Dexie / `dexie-react-hooks` | 4.4.7 / 4.4.0 |
-| `@tanstack/react-virtual` | 3.14.23 |
+| `@tanstack/react-virtual` | 3.14.24 |
 | `@leeoniya/ufuzzy` | 1.0.19 |
 | Zod | 4.6.7 |
 | `uuid` (v7) | 14.0.3 |

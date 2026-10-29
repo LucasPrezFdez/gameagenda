@@ -4,5 +4,5 @@
     "module": "nodenext",
     "moduleResolution": "nodenext"
   },
-  "include": ["src", "test"]
+  "include": ["src"]
 }

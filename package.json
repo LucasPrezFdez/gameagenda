@@ -20,15 +20,18 @@
     "preview": "npm run preview -w @gameagenda/web",
     "lint": "biome check .",
     "format": "biome check --write .",
-    "typecheck": "tsc -p packages/core && tsc -p apps/web && tsc -p apps/web/tsconfig.node.json && tsc -p scripts",
+    "typecheck": "tsc -p packages/core && tsc -p packages/core/test && tsc -p apps/web && tsc -p apps/web/tsconfig.node.json && tsc -p scripts",
     "test": "vitest run",
     "check": "npm run lint && npm run typecheck && npm test && npm run build",
     "e2e": "npm run e2e -w @gameagenda/web"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
     "@biomejs/biome": "2.6.4",
     "@playwright/test": "1.64.1",
     "@types/node": "24.19.2",
+    "fake-indexeddb": "6.2.6",
+    "fast-check": "4.10.2",
     "typescript": "7.0.2",
     "vitest": "5.0.5",
     "wrangler": "4.155.0"

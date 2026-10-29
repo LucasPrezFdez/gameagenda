@@ -726,7 +726,7 @@ Versiones exactas comprobadas en el registro de npm el 28-10-2026 (Biome y `wran
 | *Build* | Vite + `@vitejs/plugin-react` | 8.3.5 / 6.1.2 | Rolldown; Workers de módulo y CSS Modules sin configurar | — |
 | PWA | `vite-plugin-pwa` (`injectManifest`) + `workbox-window` + `workbox-build` | 2.0.0 / 7.4.1 / 7.4.1 | Service Worker propio con la precaché del *build*; `injectRegister: false`: el Service Worker se registra desde la app con `workbox-window`; `workbox-build`, solo en desarrollo (ver §6.3) | — |
 | Datos en el cliente | Dexie + `dexie-react-hooks` | 4.4.7 / 4.4.0 | Esquema versionado, índices y `useLiveQuery` | SQLite WASM |
-| Lista virtual | `@tanstack/react-virtual` | 3.14.23 | Catálogo de ≈196 600 filas | — |
+| Lista virtual | `@tanstack/react-virtual` | 3.14.24 | Catálogo de ≈196 600 filas | — |
 | Búsqueda | Índice propio + `@leeoniya/ufuzzy` | — / 1.0.19 | p95 de 2,1 ms por pulsación en Edge con el núcleo real (8,7 ms con CPU ×4; ver §8.11); uFuzzy solo para «¿Quizás buscabas…?» (ver §8) | Fuse.js, FlexSearch, Orama, MiniSearch |
 | Contratos | Zod | 4.6.7 | Steam, micro-API e importación | — |
 | Ids | `uuid` (v7) | 14.0.3 | `manual:<uuidv7>` y `opId` ordenables por tiempo | UUID v4 |
