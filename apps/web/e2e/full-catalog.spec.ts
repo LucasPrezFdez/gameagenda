@@ -1,6 +1,6 @@
 // Comprobación a mano con el catálogo completo (§12.4; CA1.2, CA1.3 y CA1.11): mide
 // `search:ready`, `search:full` y la pulsación (`search:keystroke-to-results`) en `scan` y en
-// `full` con los 196 665 juegos, y comprueba el contador y la última fila del Catálogo. Se salta
+// `full` con el catálogo completo, y comprueba el contador y la última fila del Catálogo. Se salta
 // salvo con `GA_FULL_CATALOG=1`. Desde `apps/web`, en PowerShell (otro puerto: no reutiliza una
 // vista previa con el mini-catálogo):
 //   npm run catalog:frozen
@@ -130,8 +130,10 @@ test('catálogo completo: arranque, pulsación en `scan` y en `full` y última f
     .getByRole('link', { name: 'Catálogo' })
     .click();
   const list = page.getByRole('list', { name: 'Juegos del catálogo' });
-  await expect(page.getByText(/^196\s665 juegos$/)).toBeVisible(SLOW);
-  expect(manifest.counts.core).toBe(196_665);
+  // El recuento lo da el *manifest* del catálogo servido (CA1.1: ≥190 000 juegos).
+  expect(manifest.counts.core).toBeGreaterThanOrEqual(190_000);
+  const digits = String(manifest.counts.core).replace(/\B(?=(\d{3})+(?!\d))/g, '\\s');
+  await expect(page.getByText(new RegExp(`^${digits} juegos$`))).toBeVisible(SLOW);
   await list.getByRole('link').first().focus();
   await page.keyboard.press('End');
   const lastRow = list.getByRole('listitem').filter({ has: page.locator(':focus') });
