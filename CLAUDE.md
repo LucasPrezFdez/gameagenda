@@ -4,7 +4,7 @@ Agenda personal de videojuegos: apuntar en segundos los juegos que quieres jugar
 
 ## Estado
 
-- Planificación terminada el 28-10-2026. Hito **M0** (§15.3 de `prototipe.md`) en curso: pasos 1–3 hechos el 29-10-2026 (repositorio, *workspaces* y herramientas).
+- Planificación terminada el 28-10-2026. M0: pasos 1–3 hechos; CI y despliegues aplazados. **M1 en curso** (29-10-2026). Repositorio: https://github.com/LucasPrezFdez/gameagenda.
 - Para retomar el trabajo, lee primero `docs/planificacion/ESTADO-SESION.md`.
 
 ## Documentos
