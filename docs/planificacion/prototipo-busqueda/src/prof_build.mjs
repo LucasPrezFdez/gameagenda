@@ -1,0 +1,15 @@
+import fs from 'node:fs';
+import { parseCoreTsv, parseAliasesTsv } from './catalog.mjs';
+import { normalize, tokenize, numberExtras, stripArticle, compact, buildIndex } from './search-core.mjs';
+const games = parseCoreTsv(fs.readFileSync(process.argv[2] + '/core.tsv', 'utf8'));
+const aliases = parseAliasesTsv(fs.readFileSync(process.argv[2] + '/aliases.tsv', 'utf8'));
+let t = performance.now(); const nb = games.map(g => normalize(g.name)); console.log('normalize', (performance.now() - t).toFixed(1));
+t = performance.now(); const nb2 = games.map(g => normalize(g.name)); console.log('normalize warm', (performance.now() - t).toFixed(1));
+t = performance.now(); let c = 0; for (const n of nb) c += tokenize(n).length; console.log('tokenize', (performance.now() - t).toFixed(1), c);
+t = performance.now(); for (const n of nb) c += numberExtras(n).length; console.log('numberExtras', (performance.now() - t).toFixed(1));
+t = performance.now(); for (const n of nb) c += stripArticle(n).length; console.log('stripArticle', (performance.now() - t).toFixed(1));
+t = performance.now(); for (const n of nb) c += compact(n).length; console.log('compact', (performance.now() - t).toFixed(1));
+t = performance.now(); const m = new Map(); for (const n of nb) for (const w of n.split(' ')) { if (!m.has(w)) m.set(w, m.size); } console.log('map tokens', (performance.now() - t).toFixed(1), m.size);
+t = performance.now(); const arr = [...m.keys()]; arr.sort(); console.log('sort default', (performance.now() - t).toFixed(1));
+t = performance.now(); const ex = new Map(); nb.forEach((n, i) => ex.set(n, i)); console.log('exact map', (performance.now() - t).toFixed(1));
+t = performance.now(); buildIndex(games, aliases); console.log('buildIndex', (performance.now() - t).toFixed(1));

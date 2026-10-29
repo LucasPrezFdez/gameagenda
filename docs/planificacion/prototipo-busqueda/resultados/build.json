@@ -1,0 +1,72 @@
+{
+ "mode": "build",
+ "engine": "d09",
+ "node": "v24.21.0",
+ "date": "2026-10-28T11:24:40.767Z",
+ "haystack_ms": 111.4,
+ "N": 196665,
+ "tokens": 117849,
+ "postings": 614316,
+ "fwdTokensPerGame": 3.12,
+ "firstWordPostings": 209560,
+ "bitsetsAll": 29,
+ "bitsetsFirst": 22,
+ "haystackChars": 3153476,
+ "aliasKeys": 3192,
+ "esKeys": 3110,
+ "parse_ms": 70.5,
+ "build_ms": 610.3,
+ "read_ms": 18.1,
+ "heap_rows_mb": 7.86,
+ "heap_index_mb": 18.17,
+ "arraybuffers_index_mb": 11.54,
+ "heap_total_mb": 39.08,
+ "parse_plus_build_ms_warm": [
+  664.6,
+  660.5,
+  722.6
+ ],
+ "serialize_ms": 60.3,
+ "serialized": {
+  "raw": 19230204,
+  "gzip9": 10621409,
+  "br11": 6659825,
+  "br5": 9317784
+ },
+ "restore_ms": [
+  247.4,
+  250.1,
+  344.7,
+  225.9
+ ],
+ "restore_ms_without_haystack": [
+  90,
+  44.8,
+  78.5
+ ],
+ "restore_diff_queries": 0,
+ "serialized_parts": {
+  "appid": 786660,
+  "flags": 196665,
+  "year": 393330,
+  "pop": 196665,
+  "names": 3649059,
+  "nameEsIdx": 12884,
+  "nameEs": 97053,
+  "kBase": 3572180,
+  "artLen": 196665,
+  "esIdx": 12440,
+  "esKey": 88157,
+  "tokens": 938847,
+  "fwd": 2457264,
+  "fwdStart": 786664,
+  "post": 2457264,
+  "postStart": 471400,
+  "fwp": 838240,
+  "fwpStart": 471400,
+  "byAppid": 786660,
+  "sortedAppid": 786660,
+  "aliasK": 18861,
+  "aliasV": 14252
+ }
+}

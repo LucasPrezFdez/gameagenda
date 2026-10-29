@@ -1,0 +1,222 @@
+{
+  "lens": "Robustness, compliance and future-proofing: exposure to undocumented Steam endpoints and the fallbacks, key confidentiality and the Steam ToU, GDPR/LOPDGDD/LSSI, durability of user data (Safari eviction, backups, export, device loss), security and blast radius, the path to multi-device sync and multi-platform catalogs (IGDB, manual games, PlayStation), vendor lock-in.",
+  "evaluations": [
+    {
+      "proposal": "A",
+      "criteria": [
+        {
+          "criterion": "Steam source robustness (undocumented endpoints, fallbacks, rate limits, catalog correctness)",
+          "score": 8.5,
+          "rationale": "The only hard dependency is the documented, keyed GetAppList (about 1 call/day plus 4/week). GetItems enrichment is a separate, schema-validated stage; if it fails, the snapshot still has names plus the last-known enrichment, and enrichmentAgeDays shows the age. Browsers never call Steam. Cover paths live in 1024 content-hashed static shards, so art keeps working through a GetItems outage. Gates are strong (at least 190k games, -2/+5% vs the last run, at most 1% name churn, sentinel appids, size cap). One worker runs at 0.4 req/s with a global 429 pause and checkpoints. Keyless Query covers the listing while the key is pending, and ES region-locked titles are re-queried with a US context. Minor gaps: reconcile is weekly, so removals can linger up to 7 days; enrichment rotates every 28 days; and the promised 24 h edge cache for appdetails is not assured on workers.dev (Cloudflare documents working Cache API operations for custom domains; C flags this)."
+        },
+        {
+          "criterion": "Steam ToU & key confidentiality",
+          "score": 6.5,
+          "rationale": "Key handling is exemplary. The key lives only in GitHub and Worker secrets and travels only in the x-webapi-key header; CI greps the output for both the key and the header name; there are about 5 keyed calls/day, only to api.steampowered.com; the trademark notice is there and 'Steam' is not in the name or icon. But M5 Phase A exposes GET /api/v1/steam/library?steamid= with no authentication. Anyone can make our key fetch the library of any public profile. That breaks 'retrieve a user's data only as that user requests' and invites abuse that could get revoked the same key the catalog depends on. A postpones the fix (Sign in through Steam) to M6. CORS and a per-isolate token bucket are not access control."
+        },
+        {
+          "criterion": "GDPR / LOPDGDD / LSSI (minimisation, transparency, sequencing)",
+          "score": 7.5,
+          "rationale": "Privacy by design. There is no server-side personal data before M5. The Worker is a no-store pass-through with logs off on /steam/*. No cookies and no analytics, so no banner is needed under LSSI 22.2. Import fields are minimised, export and delete exist, the Facilita RGPD record is planned before public release, images use referrerpolicy=no-referrer, and covers can be switched off. Gaps: the pasted-profile import runs other people's Steam data through our server, and the layered notice and aviso legal only arrive in M4, although hotlinked covers start sending IPs to Valve in M2."
+        },
+        {
+          "criterion": "User-data durability (Safari eviction, backups, export, device loss)",
+          "score": 6,
+          "rationale": "The stopgaps are good: persist() after the first add, install prompts against Safari's 7-day purge, full-fidelity JSON with HLC stamps plus CSV, idempotent import, a 30-day export reminder, and entries that carry their own title and cover. But for the whole prototype the only copy lives in one browser profile. A lost phone, a cleared browser or a deleted Home Screen app loses everything the user did not export by hand. Sync only comes after the prototype (M6)."
+        },
+        {
+          "criterion": "Security posture & blast radius",
+          "score": 6.5,
+          "rationale": "The web hardening is solid: hash-mode CSP, nosniff and Permissions-Policy, text-only rendering, schema-validated imports capped at 10 MB and run in a worker, a fixed upstream allowlist, strict input validation, exact version pins, SHA-pinned actions and a key-leak grep. Weak points: (1) the unauthenticated keyed endpoint described above. (2) The pipeline's Cloudflare token ('Workers Scripts: Edit') covers the whole account. A compromised daily job, which ingests untrusted Steam data and runs third-party actions, could redeploy ga-web and read every user's local agenda. (3) /items and /details are unauthenticated relays to Steam from shared Cloudflare egress IPs, throttled only per isolate."
+        },
+        {
+          "criterion": "Future-proofing: multi-device sync, multi-platform catalogs, lock-in",
+          "score": 7.5,
+          "rationale": "Lock-in is the lowest of the three. The hot path is plain static files any host can serve, Hono is portable, and D1 only arrives for sync, with Turso/Neon as fallbacks. The catalog layer is source-agnostic, with an IGDB stage planned in the same job; flags are an open record; manual title-only games and platform chips exist from M1; the outbox and per-field HLC stamps exist from day one. But entry ids are random UUIDs with a separate unique gameKey. If two devices add the same Steam game offline, they create two entry streams, and the M6 server log (keyed by entry_id) has to collapse them. 'No redesign needed' is optimistic, and multi-device only arrives after the prototype."
+        }
+      ],
+      "total": 42.5,
+      "fatal_flaws": [
+        "M5 as written: GET /api/v1/steam/library?steamid= has no authentication, so the confidential key runs GetOwnedGames for any SteamID anyone submits. This breaks the ToU rule to retrieve a user's data only as that user requests, and it puts the key the catalog depends on at risk of abuse and revocation. Fatal for that milestone but cheap to fix: require Sign in through Steam (A's Phase B) before any per-user Steam call."
+      ],
+      "factual_errors": []
+    },
+    {
+      "proposal": "B",
+      "criteria": [
+        {
+          "criterion": "Steam source robustness (undocumented endpoints, fallbacks, rate limits, catalog correctness)",
+          "score": 6.5,
+          "rationale": "Diffing the full GetAppList every day (4 keyed calls) is a cheap daily reconcile. B also has a degraded mode (bit5), schema checks, a remote store_browse kill switch, and a full GetItems pass if Query breaks. But two undocumented endpoints sit in the core path: Query every week for popularity, adult flags and ES names, and GetItems for the rest. GetItems also runs in every client, because covers, ES names and dates are not in the snapshot. A Valve change therefore degrades every install, and the fix needs an updater release (the kill switch only stops the calls). The diff by last_modified cannot work from a published TSV that has no last_modified column. ES region-locked titles are never enriched."
+        },
+        {
+          "criterion": "Steam ToU & key confidentiality",
+          "score": 8,
+          "rationale": "The key lives only in GitHub and Worker secrets, never in the installer, binary or webview, and is sent only in the header. The keyed GetOwnedGames call happens only after a verified OpenID login, with a PKCE-style one-time handoff. There is a 'Datos de Steam que guardamos' screen, official buttons and a trademark notice. Minus: Level 1 lets anyone paste any profile and pull its wishlist and achievements. Those calls are keyless, but it is still someone else's data, fetched without their request. Also, the installer key-scan is placed in CI although the Windows builds are made on the dev PC."
+        },
+        {
+          "criterion": "GDPR / LOPDGDD / LSSI (minimisation, transparency, sequencing)",
+          "score": 8,
+          "rationale": "Lean. The agenda stays on the device until M4. Sync spaces are pseudonymous: no email, and the server keeps only the sha256 of the secret. The steamID64 is never synced. There is a layered notice, a list of processors, Facilita, an age-14 checkbox and space deletion; the clipboard is read locally and never stored. Minus: GetOwnedGames results sit in D1 for 10 minutes, and the 'nothing is kept' claim ignores Time Travel, which is always on. The privacy notice is scheduled with M5, although covers and native Steam calls start in M2."
+        },
+        {
+          "criterion": "User-data durability (Safari eviction, backups, export, device loss)",
+          "score": 8,
+          "rationale": "The best local durability. user.db is SQLite (WAL, synchronous=FULL) outside any browser eviction, with daily VACUUM INTO backups (7 kept), copies before each migration, an optional copy to a user folder such as OneDrive, JSON export/import, and a separate, regenerable catalog.db. The M4 relay protects the PWA companion. Before M4, losing the PC is covered only if the user turned on the folder copy."
+        },
+        {
+          "criterion": "Security posture & blast radius",
+          "score": 7,
+          "rationale": "Tauri capabilities are locked down (no http, fs or shell in the webview), and network access goes only through Rust with allowlists. CSP is strict, SQL is parameterised with escaped MATCH tokens, untrusted responses have size and time caps, files are checked against the manifest's sha256, deep links have an action allowlist, the updater is signed with minisign, and pairing uses 256-bit secrets. Minus: a native app has a large blast radius, since a stolen updater key on a personal PC means code execution on every install. The installer is unsigned, which trains testers to click through SmartScreen. Manifest authenticity is left to the backlog, and the bearer space secret is embedded in an iOS Shortcut."
+        },
+        {
+          "criterion": "Future-proofing: multi-device sync, multi-platform catalogs, lock-in",
+          "score": 6.5,
+          "rationale": "Ids are natural keys (steam:, manual:, igdb:, psn:), a flag_def table allows custom flags, an HLC/LWW relay is designed, and the Rust core does not depend on Tauri, so Android can reuse it. But fold, link parsing, state rules and the LWW merge exist twice (Rust and TS) and must stay identical for sync to be correct, alongside two search and storage engines. The app is Windows-first on WebView2 and reaches mobile only at M4. Android needs the SDK, NDK, JDK and a Kotlin plugin; iOS only gets the PWA. IGDB needs a backend, which B lacks until M4. Tauri 3 churn is ahead."
+        }
+      ],
+      "total": 44,
+      "fatal_flaws": [],
+      "factual_errors": [
+        "Achievements at '2 llamadas por juego': the verified figure is about 1 call per game, so the estimate for the 500-game sweep (about 17 min) is inflated.",
+        "'Tras el traspaso, D1 no guarda ningún dato de Steam': D1 Time Travel is always on and allows point-in-time restores (7 days on Free), so the parked GetOwnedGames rows stay recoverable after the row is deleted. The transparency screen would understate retention.",
+        "The daily lane diffs 'last_modified distinto' with the published snapshot as its only state, but the published TSV has no last_modified column.",
+        "'Query no devuelve los títulos bloqueados en ES; esos se completan con GetItems': with country_code ES, GetItems answers those ids with success 15 + unvailable_for_country_restriction and no store data, so nothing gets completed. They can only be enriched from another country context."
+      ]
+    },
+    {
+      "proposal": "C",
+      "criteria": [
+        {
+          "criterion": "Steam source robustness (undocumented endpoints, fallbacks, rate limits, catalog correctness)",
+          "score": 8,
+          "rationale": "The documented, keyed GetAppList is the only source for which games exist and their names. GetItems enrichment is additive, and the last good copy is kept. Zod contracts on every response, recorded fixtures and a nightly live canary give the best drift detection of the three. Smoke queries on the built index gate publishing; the manifest is written last; rollback exists; enrichment rotates every 7 days. R2 meta shards mean the API never needs Steam at request time, and Query is only a fallback. Minus: C runs at 1 req/s, 2.5 times the community-observed ~120 per 5 min, so 429 pauses from runner IPs are predictable. Catalog downloads go through the Worker (/catalog/*), sharing the 100k/day quota with sync and auth. And the claim that dispatch is safe from the 60-day rule does not hold (see errors)."
+        },
+        {
+          "criterion": "Steam ToU & key confidentiality",
+          "score": 9,
+          "rationale": "The best alignment of the three. The key lives only in GitHub and Worker secrets and is sent in the header, with at most 5 keyed calls/day. Imports happen only after Sign in through Steam and only on a tap; pasted-profile imports are explicitly refused because the profile could belong to someone else. The policy names which Steam data is stored and where (EU). Valve's official sign-in images and a trademark footer are used, and 'Steam' stays out of the name and icon."
+        },
+        {
+          "criterion": "GDPR / LOPDGDD / LSSI (minimisation, transparency, sequencing)",
+          "score": 7.5,
+          "rationale": "The most complete paperwork: Art. 6(1)(b), no email, IP or password columns, pseudonymous guests, D1 and R2 in the EU jurisdiction, DPA/SCCs, a retention schedule (sessions 90 days, tombstones 90 days, inactive guests 13 months, Time Travel 7 days, disclosed), export and delete, Facilita, minimum age 14. But it creates server-side personal data (the library plus free-text notes) from the first add in M1, while privacy notice v1 only lands in M2 and the record of processing in M6. A sync cookie created silently is 'strictly necessary' under LSSI 22.2 only if sync is clearly presented as the service the user asked for."
+        },
+        {
+          "criterion": "User-data durability (Safari eviction, backups, export, device loss)",
+          "score": 8.5,
+          "rationale": "The server is authoritative from the first add. The device credential is a cookie set by the server as HttpOnly, and the M1 acceptance test proves 'delete IndexedDB, reload, library restored'. So Safari's purge, a cleared IndexedDB, or a lost phone (once linked or paired) cost only the ops not yet synced. Export to JSON/CSV works offline and through the API, and Time Travel comes with a restore drill. Minus: an unlinked guest who loses the cookie loses access. Time Travel (7 days, same vendor) is the only server backup. And last-writer-wins on the same field silently drops one of two concurrent edits."
+        },
+        {
+          "criterion": "Security posture & blast radius",
+          "score": 7,
+          "rationale": "The most rigorous auth: a __Host- cookie that is HttpOnly, Secure and SameSite=Lax; 256-bit tokens stored as hashes and rotated; Origin checks, body caps and Zod on every input; a cap on future HLC skew; OpenID with the ticket bound into the signed return_to plus a PKCE-style redeem; an HMAC-signed pipeline report; an R2 token scoped to the bucket and a separate deploy token. Minus: pairing codes have only 6 digits (a million values), and the only real guard is a best-effort limiter per Cloudflare location. An attacker can enumerate codes within the free quota and pair into a victim's account, and the same flood takes sync and catalog downloads down. It also has the largest attack surface of the three (guest creation, account merges, and a dev-only R2 upload route that must never ship)."
+        },
+        {
+          "criterion": "Future-proofing: multi-device sync, multi-platform catalogs, lock-in",
+          "score": 8,
+          "rationale": "Sync and multi-device work from M1, with deterministic ids and one merge() shared by client and server, including invariant repair, property tests and e2e tests with two browser contexts. A backend already exists for IGDB (which is backend-only), Steam import and future reminders; manual games and igdb: ids are planned. Minus: flags are columns, so every new flag is a migration. Cloudflare coupling is the deepest of the three: D1's SQL dialect, R2 jurisdiction, Cron Triggers, the Rate Limiting binding, Time Travel and catalog delivery through the Worker. It is portable in principle (Hono on Node, Drizzle to libSQL/node:sqlite, plain files), but moving would be a real port."
+        }
+      ],
+      "total": 48,
+      "fatal_flaws": [],
+      "factual_errors": [
+        "'Dispatch is not affected by the rule that disables scheduled workflows after 60 days': in a public repo, GitHub auto-disables the workflow itself, and catalog.yml also carries the backup schedule. GitHub says disabling stops a workflow 'from being triggered', which includes dispatch, until it is re-enabled. The fix is a private repo, the schedule in a separate file, or an enable-workflow call before dispatching.",
+        "'The D1 attempt counter is the strict guard' for 6-digit pairing codes: a counter kept per code never sees guesses that match no code, so it gives no brute-force protection. Only the best-effort per-location limiter does."
+      ]
+    }
+  ],
+  "ranking": [
+    "C",
+    "B",
+    "A"
+  ],
+  "graft_ideas": [
+    {
+      "from_proposal": "A",
+      "idea": "Clients never call Steam APIs. The pipeline bakes cover paths (library_capsule, then header, then none), release dates and review data into 1024 static shards, hashed with fnv1a and named by content hash; unchanged shards keep their hash.",
+      "why": "A GetItems break only freezes enrichment on the server: no client release is needed, users' IPs never reach api.steampowered.com, and covers keep working."
+    },
+    {
+      "from_proposal": "A",
+      "idea": "Keep the app shell and the catalog on Workers Static Assets, and use the Worker only for optional /api routes.",
+      "why": "Static requests are unlimited and do not count against the 100k/day Worker quota. Running out of quota, a Worker bug or a move off Cloudflare can never break search or capture."
+    },
+    {
+      "from_proposal": "A",
+      "idea": "Publish gates: at least 190k games, -2%/+5% against the previous run, at most 1% of names changed, sentinel appids, strict parsing, a size cap. Add enrichmentAgeDays to the manifest, skip publishing and open an issue automatically on failure, and emit byte-identical output for identical input.",
+      "why": "The catalog cannot regress silently, and clients can see how stale it is."
+    },
+    {
+      "from_proposal": "A",
+      "idea": "CI fails if any build output contains the key value or the string 'x-webapi-key'.",
+      "why": "Key confidentiality becomes an enforced check rather than a policy."
+    },
+    {
+      "from_proposal": "A",
+      "idea": "Keep a per-field HLC change log and a full-fidelity export that includes the stamps, so that import runs through the same LWW merge as sync. Store flags as an open record.",
+      "why": "Import, restore and sync share one merge path, and new 'etc.' flags need no migration."
+    },
+    {
+      "from_proposal": "B",
+      "idea": "Use natural primary keys (steam:<appid>, manual:<uuidv7>, igdb:<id>) instead of a random UUID plus a unique gameKey.",
+      "why": "If two devices add the same game offline, both end up with one row instead of two entry streams."
+    },
+    {
+      "from_proposal": "B",
+      "idea": "Fetch the full GetAppList every day (4 keyed calls) and diff it against stored pipeline state that keeps last_modified for each appid.",
+      "why": "Removals and delistings show up within 24 h and cursor bugs fix themselves, for about 5 keyed calls/day against the 100k cap."
+    },
+    {
+      "from_proposal": "B",
+      "idea": "Treat the manifest as a control plane: remote kill switches (store_browse:false, a minimum client version) and an ed25519 signature checked against a public key built into the app.",
+      "why": "It gives an emergency brake for Steam-dependent features. A sha256 inside the same manifest only proves integrity; the signature proves authenticity even if the CDN or the deploy token is compromised."
+    },
+    {
+      "from_proposal": "B",
+      "idea": "A 'Datos de Steam que guardamos' screen that lists each piece of Steam data, where it lives (the device, Cloudflare in the EU, Valve in the USA via the image CDN), and one delete button.",
+      "why": "It puts the ToU duty to tell users which Steam data is stored, and in which countries, into the UI."
+    },
+    {
+      "from_proposal": "B",
+      "idea": "Pair devices with a single-use, high-entropy secret (128 bits or more) carried in a QR code or URL fragment; the server stores only its hash.",
+      "why": "Multi-device without email and without 6-digit codes that can be brute-forced."
+    },
+    {
+      "from_proposal": "C",
+      "idea": "Make no per-user Steam call, keyed or keyless, before a verified Sign in through Steam, and refuse pasted-profile imports. Bind the ticket into the signed return_to and redeem it with a PKCE-style verifier.",
+      "why": "It meets 'retrieve a user's data only as that user requests', blocks login and account-linking CSRF, and works with the separate cookie jar of iOS Home Screen apps."
+    },
+    {
+      "from_proposal": "C",
+      "idea": "Zod contracts on every Steam response, recorded fixtures in CI, a nightly live canary, and smoke queries on the built index as a publish gate.",
+      "why": "It catches changes in the undocumented endpoints before users see them, and checks that search works, not just that counts match."
+    },
+    {
+      "from_proposal": "C",
+      "idea": "Use a __Host- session cookie, set by the server as HttpOnly and holding a hashed 256-bit token, as the device credential. Make 'wipe IndexedDB, reload, library restored' an acceptance test on a real iPhone.",
+      "why": "WebKit's 7-day rule targets storage that scripts can write; a secret held in JavaScript would disappear along with IndexedDB."
+    },
+    {
+      "from_proposal": "C",
+      "idea": "Create D1 and R2 in the EU jurisdiction, write a retention schedule that includes Time Travel (always on, 7 days on Free), and run restore and catalog-rollback drills.",
+      "why": "It covers storage limitation and transparency, and tests recovery instead of assuming it."
+    },
+    {
+      "from_proposal": "C",
+      "idea": "Least-privilege publishing: the pipeline holds only a credential scoped to the R2 bucket or to a separate account, never one that can redeploy the app.",
+      "why": "A compromised daily job that ingests untrusted Steam data can at worst poison catalog data; it cannot ship code."
+    },
+    {
+      "from_proposal": "C",
+      "idea": "A Cloudflare Cron Trigger dispatches the pipeline, and an hourly watchdog dispatches it again when the manifest is older than 30 h. Extend it to call GitHub's enable-workflow endpoint first.",
+      "why": "Catalog freshness stops depending on GitHub's best-effort schedule and its 60-day auto-disable."
+    },
+    {
+      "from_proposal": "C",
+      "idea": "One merge() with invariant repair (the newer clock decides Platinado versus Completado), shared clocks for status and its dates, property tests and Playwright tests with two browser contexts.",
+      "why": "Sync correctness is proven, not assumed."
+    }
+  ],
+  "recommended_synthesis": "A ranks last as written only because of two sequencing faults: the keyed Steam import is unauthenticated, and there is no server copy of user data during the prototype. Its hot path and catalog are still the soundest base. The synthesis keeps them, adds C's durability and identity layer, and takes B's ids and manifest control plane. Hot path and catalog: A's static, installable PWA, with a prefix index in a Web Worker and optimistic writes to IndexedDB. No browser ever calls a Steam API, and the Worker is never involved in search or capture. The pipeline runs on Node 24 in a private GitHub repo. Its one hard dependency is the documented IStoreService/GetAppList/v1, with the key sent only in the x-webapi-key header from a GitHub secret. It fetches the full list daily (4 calls, as in B) and diffs it against stored state (appid, name, last_modified, price_change_number). Removals and delistings then show up within 24 h, for about 5 keyed calls/day; if_modified_since remains an optimisation. New and changed ids, plus a rotating 1/14 slice of the catalog, are enriched through keyless GetItems: country_code ES, language spanish, include_best_purchase_option=false, at most 200 ids per GET, one worker at 0.4 req/s, exponential backoff and a global pause on 429. Ids that vanish are classified: unlisted:true becomes 'Retirado', appid 0 is removed, region-locked titles stay flagged and are enriched from a US context. Every Steam response is checked against Zod contracts, with recorded fixtures in CI and a nightly live canary (from C). Publish gates combine A's checks (counts, sentinel appids, name churn, size) with C's smoke queries on the built index. If enrichment fails, the names still publish with the last-known enrichment and a growing enrichmentAgeDays. The output is A's core TSV, deltas and 1024 content-hashed details shards with cover paths: library_capsule, then header, then no cover, never a guessed filename. The manifest is signed with ed25519 and carries remote kill switches (from B). Everything is served from Workers Static Assets, deployed from a separate Cloudflare account, so the pipeline's credential cannot redeploy the app. For freshness, the GitHub schedule is backed by a Cloudflare Cron watchdog. When the manifest is older than 30 h, it re-enables the workflow and dispatches it; dispatch inputs are never interpolated into shell commands. Unknown or delisted appids that users paste are resolved on demand through the Worker: GetItems also answers for unlisted games, and appdetails is used only for the Ficha. Fallbacks are the keyless IStoreQueryService/Query listing if the key is missing or revoked, and the jsnli dump as a dev fixture only.\n\nUser data lives in Dexie with natural ids: steam:<appid>, manual:<uuidv7>, later igdb:<id>. Each entry has one of the five exclusive Estados, an open flags record (Platinado also sets Completado; Comprado, Próximo and custom flags), its own copy of title and cover, and per-field HLC stamps written to an outbox from the first commit. On top of that come storage.persist(), install prompts, A's full-fidelity JSON export with stamps plus CSV, import through the same LWW merge, and an automatic local snapshot before every schema migration or bulk import. The cloud copy moves from post-prototype to the milestone right after Estados and flags. It is an explicit one-tap 'Guardar copia y sincronizar', offered after the first few adds and whenever iOS Safari is used without installing. Because the user asks for it, its cookie counts as strictly necessary under LSSI 22.2, and no agenda data reaches our server before that. The protocol is C's: one POST /api/v1/sync per round trip, a per-user sequence number on the server, and one merge() shared by client and server with invariant repair and shared clocks. It is covered by property tests and Playwright tests with two browser contexts, and runs on a Hono Worker with D1 in the EU jurisdiction. The device credential is a __Host- cookie set by the server as HttpOnly, holding a hashed 256-bit token (from C). WebKit's 7-day rule targets storage that scripts can write, so a secret held in JavaScript, as in B, would disappear with IndexedDB. Prove the cookie approach on a real iPhone: wipe IndexedDB, reload, and check the library is restored. Pairing a new device uses a single-use token of at least 128 bits in a QR code or URL fragment, confirmed on the originating device: B's entropy, not C's 6-digit codes. Sign in through Steam is the optional way to recover an account. D1 is backed up beyond Time Travel with a weekly export into an EU R2 bucket. The export runs inside Cloudflare, and its short retention is disclosed.\n\nSteam account and compliance. No per-user Steam call, keyed or keyless, happens before a verified Sign in through Steam. This is C's flow: OpenID 2.0, server-side check_authentication with steam-signin 1.0.5, the ticket bound into the signed return_to, and a PKCE-style redeem that works with the separate cookie jar of iOS Home Screen apps. After sign-in the Worker calls:\n- GetOwnedGames with the key, to set Comprado. Family-shared games are excluded, playtime is only a hint, and the app shows Spanish guidance when 'Detalles de juego' is private.\n- The keyless wishlist.\n- Per-game achievements, which only suggest Platinado because the Achievement Sets beta changes what 100% means.\nResults come back in the response and are never stored in D1. /steam/* responses are no-store, with logging off. Legal texts ship together with the data they cover:\n- The first-layer notice ships with the first milestone that hotlinks covers, which sends IPs to Valve; images use referrerpolicy=no-referrer and a 'Cargar portadas' switch turns them off.\n- The full policy, the aviso legal and the Facilita RGPD record are in place before the first outside tester and before sync.\n- B's 'Datos de Steam que guardamos' screen and C's retention schedule (sessions, tombstones, inactive accounts, Time Travel, backups).\n- Turning on sync asks for a declaration of age 14 or older, ready to change to 16.\n- No analytics without consent, a trademark notice, Valve's official sign-in images, and 'Steam' kept out of the name and icon.\n\nSecurity and future-proofing. Keep A's hash-mode CSP and security headers, text-only rendering and schema-validated imports. The Worker gets a fixed upstream allowlist, Zod on every input, Origin checks on non-GET requests, body caps, and rate limits on every unauthenticated route (session creation, pairing, resolve). The free 100k/day quota is itself a denial-of-service surface, one more reason to keep the hot path static. Keep CI's key-leak grep, exact version pins, SHA-pinned actions and narrowly scoped tokens. Get a custom domain before relying on the Cache API. Lock-in stays low: the hot path is plain files any static host can serve, Hono runs on Node, and the SQL stays portable to libSQL/Turso or node:sqlite. For other platforms, IGDB arrives as a pipeline stage: backend-only, 4 req/s, with visible attribution. It maps Steam titles through external_games source 1, so they keep steam:<appid> and only non-Steam titles get igdb:<id>. Manual entries carry an optional catalogRef, so they can be linked to a catalog game later without changing their id. PlayStation 'platinado' stays manual (no NPSSO). Tauri on desktop (global shortcut) and Capacitor remain optional wrappers over the same PWA. B's Rust core is not adopted, so text folding, ranking and merge exist in exactly one TypeScript implementation."
+}

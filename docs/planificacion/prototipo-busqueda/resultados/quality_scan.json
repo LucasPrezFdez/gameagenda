@@ -1,0 +1,1535 @@
+{
+ "mode": "quality",
+ "engine": "scan",
+ "node": "v24.21.0",
+ "date": "2026-10-28T11:40:14.837Z",
+ "golden": {
+  "n": 98,
+  "top1": 85,
+  "top5": 86,
+  "top1_pct": 86.7,
+  "top5_pct": 87.8,
+  "top1_noFuzzy": 80,
+  "top5_noFuzzy": 81,
+  "missingExpected": [],
+  "fails": [
+   {
+    "q": "hades 2",
+    "cat": "romanos",
+    "rank": 0,
+    "rankNoFuzzy": 0,
+    "top": [
+     "The World's Hardest Game 3D 2",
+     "The World's Hardest Game 3D Nostalgia 2",
+     "the hardest game in the universe 2"
+    ],
+    "tierOfHit": null
+   },
+   {
+    "q": "halflife",
+    "cat": "compuesto",
+    "rank": 0,
+    "rankNoFuzzy": 0,
+    "top": [],
+    "tierOfHit": null
+   },
+   {
+    "q": "dark souls 3",
+    "cat": "romanos",
+    "rank": 0,
+    "rankNoFuzzy": 0,
+    "top": [],
+    "tierOfHit": null
+   },
+   {
+    "q": "spiderman",
+    "cat": "compuesto",
+    "rank": 0,
+    "rankNoFuzzy": 0,
+    "top": [
+     "SpikerMan Game",
+     "SpikerMan X"
+    ],
+    "tierOfHit": null
+   },
+   {
+    "q": "civilization 6",
+    "cat": "romanos",
+    "rank": 0,
+    "rankNoFuzzy": 0,
+    "top": [],
+    "tierOfHit": null
+   },
+   {
+    "q": "age of empires 2",
+    "cat": "romanos",
+    "rank": 0,
+    "rankNoFuzzy": 0,
+    "top": [],
+    "tierOfHit": null
+   },
+   {
+    "q": "kingdom come deliverance 2",
+    "cat": "romanos",
+    "rank": 0,
+    "rankNoFuzzy": 0,
+    "top": [],
+    "tierOfHit": null
+   },
+   {
+    "q": "mafia edicion definitiva",
+    "cat": "nombre ES",
+    "rank": 0,
+    "rankNoFuzzy": 0,
+    "top": [],
+    "tierOfHit": null
+   },
+   {
+    "q": "star wars jedi la orden caida",
+    "cat": "nombre ES",
+    "rank": 0,
+    "rankNoFuzzy": 0,
+    "top": [],
+    "tierOfHit": null
+   },
+   {
+    "q": "guardianes de la noche",
+    "cat": "nombre ES",
+    "rank": 0,
+    "rankNoFuzzy": 0,
+    "top": [],
+    "tierOfHit": null
+   },
+   {
+    "q": "witchr",
+    "cat": "errata",
+    "rank": 194,
+    "rankNoFuzzy": 0,
+    "top": [
+     "Witchroid Vania: A Magical Girl’s Fantastical Adventures",
+     "Witch Amelia",
+     "Witch and Council : The Card"
+    ]
+   },
+   {
+    "q": "eldenring",
+    "cat": "sin espacio",
+    "rank": 0,
+    "rankNoFuzzy": 0,
+    "top": [],
+    "tierOfHit": null
+   }
+  ],
+  "notTop1": [
+   [
+    "counter strike",
+    2,
+    "Counter-Strike"
+   ],
+   [
+    "hades 2",
+    0,
+    "The World's Hardest Game 3D 2"
+   ],
+   [
+    "halflife",
+    0,
+    null
+   ],
+   [
+    "dark souls 3",
+    0,
+    null
+   ],
+   [
+    "spiderman",
+    0,
+    "SpikerMan Game"
+   ],
+   [
+    "civilization 6",
+    0,
+    null
+   ],
+   [
+    "age of empires 2",
+    0,
+    null
+   ],
+   [
+    "kingdom come deliverance 2",
+    0,
+    null
+   ],
+   [
+    "mafia edicion definitiva",
+    0,
+    null
+   ],
+   [
+    "star wars jedi la orden caida",
+    0,
+    null
+   ],
+   [
+    "guardianes de la noche",
+    0,
+    null
+   ],
+   [
+    "witchr",
+    194,
+    "Witchroid Vania: A Magical Girl’s Fantastical Adventures"
+   ],
+   [
+    "eldenring",
+    0,
+    null
+   ]
+  ]
+ },
+ "golden_by_category": {
+  "prefijo": {
+   "n": 8,
+   "top1": 8,
+   "top5": 8
+  },
+  "exacta": {
+   "n": 30,
+   "top1": 30,
+   "top5": 30
+  },
+  "palabra": {
+   "n": 3,
+   "top1": 3,
+   "top5": 3
+  },
+  "apóstrofo": {
+   "n": 7,
+   "top1": 7,
+   "top5": 7
+  },
+  "puntuación": {
+   "n": 6,
+   "top1": 5,
+   "top5": 6
+  },
+  "artículo": {
+   "n": 3,
+   "top1": 3,
+   "top5": 3
+  },
+  "romanos": {
+   "n": 5,
+   "top1": 0,
+   "top5": 0
+  },
+  "número": {
+   "n": 1,
+   "top1": 1,
+   "top5": 1
+  },
+  "español": {
+   "n": 2,
+   "top1": 2,
+   "top5": 2
+  },
+  "compuesto": {
+   "n": 2,
+   "top1": 0,
+   "top5": 0
+  },
+  "marca ™": {
+   "n": 1,
+   "top1": 1,
+   "top5": 1
+  },
+  "siglas con puntos": {
+   "n": 1,
+   "top1": 1,
+   "top5": 1
+  },
+  "diacríticos": {
+   "n": 2,
+   "top1": 2,
+   "top5": 2
+  },
+  "nombre ES": {
+   "n": 4,
+   "top1": 1,
+   "top5": 1
+  },
+  "sigla": {
+   "n": 12,
+   "top1": 12,
+   "top5": 12
+  },
+  "alias": {
+   "n": 5,
+   "top1": 5,
+   "top5": 5
+  },
+  "errata": {
+   "n": 5,
+   "top1": 4,
+   "top5": 4
+  },
+  "sin espacio": {
+   "n": 1,
+   "top1": 0,
+   "top5": 0
+  }
+ },
+ "negative": [
+  {
+   "q": "pokemon",
+   "n": 0,
+   "strong": 0,
+   "top": []
+  },
+  {
+   "q": "pokémon",
+   "n": 0,
+   "strong": 0,
+   "top": []
+  },
+  {
+   "q": "zelda",
+   "n": 3,
+   "strong": 0,
+   "top": [
+    "Zelash: Dash and Slash [undefined]",
+    "ZeLastTank : Battle Royale [undefined]",
+    "Legume Of Zeldoom [undefined]"
+   ]
+  },
+  {
+   "q": "mario kart",
+   "n": 0,
+   "strong": 0,
+   "top": []
+  },
+  {
+   "q": "fortnite",
+   "n": 0,
+   "strong": 0,
+   "top": []
+  },
+  {
+   "q": "valorant",
+   "n": 0,
+   "strong": 0,
+   "top": []
+  }
+ ],
+ "exact2000": {
+  "top5": 1986,
+  "top5_pct": 99.3,
+  "fails_with_5plus_duplicates": 5,
+  "sample_fails": [
+   [
+    "Return",
+    0,
+    5
+   ],
+   [
+    "MAT",
+    0,
+    1
+   ],
+   [
+    "HEX",
+    0,
+    3
+   ],
+   [
+    "Poly",
+    0,
+    2
+   ],
+   [
+    "Lost&Found",
+    6,
+    5
+   ],
+   [
+    "SCP",
+    0,
+    3
+   ],
+   [
+    "Cube",
+    0,
+    9
+   ],
+   [
+    "Hope",
+    0,
+    5
+   ],
+   [
+    "DAEMON",
+    6,
+    2
+   ],
+   [
+    "RUIN",
+    0,
+    4
+   ],
+   [
+    "Fe",
+    0,
+    1
+   ],
+   [
+    "D.I.M",
+    0,
+    1
+   ],
+   [
+    "Prime",
+    9,
+    1
+   ],
+   [
+    "Blackout",
+    10,
+    7
+   ]
+  ]
+ },
+ "prefix4_top1000": {
+  "top10": 946,
+  "top10_pct": 94.6,
+  "sample_fails": [
+   [
+    "the",
+    "The First Descendant",
+    12
+   ],
+   [
+    "the",
+    "The Outlast Trials",
+    11
+   ],
+   [
+    "the",
+    "The Crew™ 2",
+    13
+   ],
+   [
+    "the",
+    "The Witcher: Enhanced Edition Director's Cut",
+    16
+   ],
+   [
+    "the",
+    "The Witcher 2: Assassins of Kings Enhanced Edition",
+    17
+   ],
+   [
+    "the",
+    "The Planet Crafter",
+    14
+   ],
+   [
+    "the",
+    "The Last of Us™ Part I",
+    15
+   ],
+   [
+    "the",
+    "The Elder Scrolls IV: Oblivion Remastered",
+    0
+   ],
+   [
+    "the",
+    "The Scroll of Taiwu : Beyond The Dome",
+    0
+   ],
+   [
+    "the",
+    "The Henry Stickmin Collection",
+    0
+   ],
+   [
+    "the",
+    "The Walking Dead",
+    19
+   ],
+   [
+    "the",
+    "The Long Drive",
+    18
+   ],
+   [
+    "the",
+    "The Hungry Lamb: Traveling in the Late Ming Dynasty",
+    0
+   ],
+   [
+    "the",
+    "The Binding of Isaac",
+    0
+   ],
+   [
+    "the",
+    "The Elder Scrolls IV: Oblivion® Game of the Year Edition (2009)",
+    0
+   ]
+  ]
+ },
+ "keystrokes_to_hit": [
+  "elden ring: 1/1",
+  "the witcher 3: 1/2",
+  "cyberpunk 2077: 1/2",
+  "hollow knight: 1/2",
+  "baldur's gate 3: 1/1",
+  "counter-strike 2: 1/1",
+  "grand theft auto v: 1/2",
+  "hades: 1/2",
+  "stardew valley: 1/1",
+  "los sims 4: 3/4"
+ ],
+ "golden_rows": [
+  {
+   "q": "elden",
+   "cat": "prefijo",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "ELDEN RING",
+    "ELDEN RING NIGHTREIGN",
+    "Elden Gunfire 2"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "elden ring",
+   "cat": "exacta",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "ELDEN RING",
+    "ELDEN RING NIGHTREIGN",
+    "Elder Ring"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "hollow",
+   "cat": "prefijo",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Hollow Knight",
+    "Hollow Knight: Silksong",
+    "Hollow"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "hollow knight",
+   "cat": "exacta",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Hollow Knight",
+    "Hollow Knight: Silksong",
+    "Halloween Knight"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "silksong",
+   "cat": "palabra",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Hollow Knight: Silksong"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "baldurs gate",
+   "cat": "apóstrofo",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Baldur's Gate 3",
+    "Baldur's Gate: Enhanced Edition",
+    "Baldur's Gate II: Enhanced Edition"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "baldurs gate 3",
+   "cat": "apóstrofo",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Baldur's Gate 3"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "baldur's gate 3",
+   "cat": "exacta",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Baldur's Gate 3"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "counter strike",
+   "cat": "puntuación",
+   "rank": 2,
+   "rankNoFuzzy": 2,
+   "top": [
+    "Counter-Strike",
+    "Counter-Strike 2",
+    "Counter-Strike: Source"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "counter-strike 2",
+   "cat": "exacta",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Counter-Strike 2",
+    "Stickman Counter Zombie Strike 2: Multiplayer"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "witcher 3",
+   "cat": "artículo",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "The Witcher 3: Wild Hunt — Remastered"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "the witcher 3",
+   "cat": "exacta",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "The Witcher 3: Wild Hunt — Remastered"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "witcher",
+   "cat": "artículo",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "The Witcher 3: Wild Hunt — Remastered",
+    "The Witcher: Enhanced Edition Director's Cut",
+    "The Witcher 2: Assassins of Kings Enhanced Edition"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "hades",
+   "cat": "exacta",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Hades",
+    "Hades II",
+    "Hades' Star"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "hades 2",
+   "cat": "romanos",
+   "rank": 0,
+   "rankNoFuzzy": 0,
+   "top": [
+    "The World's Hardest Game 3D 2",
+    "The World's Hardest Game 3D Nostalgia 2",
+    "the hardest game in the universe 2"
+   ],
+   "tierOfHit": null
+  },
+  {
+   "q": "stardew",
+   "cat": "prefijo",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Stardew Valley",
+    "Artificial Life 2061: Cybersys - Diva Of The VRchatworld, Babel Stardewitt Proyect: \"Kodota Komori 1416\" [Made by: Joseph Sanz]",
+    "Stardawn Heroes"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "cyberpunk",
+   "cat": "prefijo",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Cyberpunk 2077",
+    "cyberpunkdreams",
+    "VA-11 Hall-A: Cyberpunk Bartender Action"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "2077",
+   "cat": "número",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Cyberpunk 2077",
+    "Cyber-doge 2077: Meme runner",
+    "Kevin(1997-2077)"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "los sims 4",
+   "cat": "español",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "The Sims™ 4"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "sims 4",
+   "cat": "artículo",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "The Sims™ 4"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "los sims",
+   "cat": "español",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "The Sims™ 4"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "skyrim",
+   "cat": "palabra",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "The Elder Scrolls V: Skyrim Special Edition",
+    "The Elder Scrolls V: Skyrim VR",
+    "Skyrift"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "fallout 4",
+   "cat": "exacta",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Fallout 4",
+    "Fallout 4 VR"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "fallout new vegas",
+   "cat": "exacta",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Fallout: New Vegas"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "portal",
+   "cat": "exacta",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Portal",
+    "Portal 2",
+    "Portal Knights"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "portal 2",
+   "cat": "exacta",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Portal 2",
+    "Portal 2 - The Final Hours",
+    "Grand Emprise 2: Portals Apart"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "half life 2",
+   "cat": "puntuación",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Half-Life 2",
+    "Half-Life 2: Deathmatch"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "halflife",
+   "cat": "compuesto",
+   "rank": 0,
+   "rankNoFuzzy": 0,
+   "top": [],
+   "tierOfHit": null
+  },
+  {
+   "q": "left 4 dead 2",
+   "cat": "exacta",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Left 4 Dead 2"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "dota 2",
+   "cat": "exacta",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Dota 2"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "team fortress 2",
+   "cat": "exacta",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Team Fortress 2"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "terraria",
+   "cat": "exacta",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Terraria",
+    "Terracian Trails: Financial Frontier",
+    "Terracian Trails: Profit Playground"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "rust",
+   "cat": "exacta",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Rust",
+    "Rusty's Retirement",
+    "Rusty Lake: Roots"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "dead by daylight",
+   "cat": "exacta",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Dead by Daylight",
+    "Hooked on You: A Dead by Daylight Dating Sim™"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "among us",
+   "cat": "exacta",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Among Us",
+    "Among Us 3D",
+    "Among Us 3D: VR"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "apex",
+   "cat": "prefijo",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Apex Legends™",
+    "Apex",
+    "Apex Point"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "pubg",
+   "cat": "prefijo",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "PUBG: BATTLEGROUNDS",
+    "PUBG: DED.NET",
+    "PUBG: Black Budget"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "destiny 2",
+   "cat": "exacta",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Destiny 2",
+    "Onimusha 2: Samurai's Destiny",
+    "SpellForce 2: Faith in Destiny"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "warframe",
+   "cat": "exacta",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Warframe"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "monster hunter world",
+   "cat": "puntuación",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Monster Hunter: World"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "monster hunter wilds",
+   "cat": "exacta",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Monster Hunter Wilds"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "sekiro",
+   "cat": "prefijo",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Sekiro™: Shadows Die Twice - GOTY Edition",
+    "Sefirot Shards"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "dark souls 3",
+   "cat": "romanos",
+   "rank": 0,
+   "rankNoFuzzy": 0,
+   "top": [],
+   "tierOfHit": null
+  },
+  {
+   "q": "dark souls iii",
+   "cat": "exacta",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "DARK SOULS™ III"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "resident evil 4",
+   "cat": "exacta",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Resident Evil 4",
+    "Resident Evil 4 (2005)"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "god of war",
+   "cat": "exacta",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "God of War",
+    "God of War Ragnarök",
+    "Hermes: War of the Gods"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "spiderman",
+   "cat": "compuesto",
+   "rank": 0,
+   "rankNoFuzzy": 0,
+   "top": [
+    "SpikerMan Game",
+    "SpikerMan X"
+   ],
+   "tierOfHit": null
+  },
+  {
+   "q": "spider man",
+   "cat": "puntuación",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Marvel’s Spider-Man Remastered",
+    "Marvel's Spider-Man 2",
+    "Marvel’s Spider-Man: Miles Morales"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "assassins creed valhalla",
+   "cat": "apóstrofo",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Assassin's Creed Valhalla"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "civilization 6",
+   "cat": "romanos",
+   "rank": 0,
+   "rankNoFuzzy": 0,
+   "top": [],
+   "tierOfHit": null
+  },
+  {
+   "q": "age of empires 2",
+   "cat": "romanos",
+   "rank": 0,
+   "rankNoFuzzy": 0,
+   "top": [],
+   "tierOfHit": null
+  },
+  {
+   "q": "euro truck",
+   "cat": "prefijo",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Euro Truck Simulator 2",
+    "Euro Truck Simulator",
+    "FIA European Truck Racing Championship"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "satisfactory",
+   "cat": "exacta",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Satisfactory"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "valheim",
+   "cat": "exacta",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Valheim"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "phasmophobia",
+   "cat": "exacta",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Phasmophobia"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "lethal company",
+   "cat": "exacta",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Lethal Company"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "palworld",
+   "cat": "exacta",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Palworld",
+    "Palworld: Palfarm"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "helldivers 2",
+   "cat": "marca ™",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "HELLDIVERS™ 2"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "black myth wukong",
+   "cat": "puntuación",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Black Myth: Wukong"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "wukong",
+   "cat": "palabra",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Black Myth: Wukong",
+    "Wukong",
+    "Wukong's Pool"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "no mans sky",
+   "cat": "apóstrofo",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "No Man's Sky"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "slay the spire",
+   "cat": "exacta",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Slay the Spire",
+    "Slay the Spire 2"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "garrys mod",
+   "cat": "apóstrofo",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Garry's Mod"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "dont starve together",
+   "cat": "apóstrofo",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Don't Starve Together"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "five nights at freddys",
+   "cat": "apóstrofo",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Five Nights at Freddy's",
+    "Five Nights at Freddy's: Security Breach",
+    "Five Nights at Freddy's 2"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "kingdom come deliverance 2",
+   "cat": "romanos",
+   "rank": 0,
+   "rankNoFuzzy": 0,
+   "top": [],
+   "tierOfHit": null
+  },
+  {
+   "q": "persona 5 royal",
+   "cat": "exacta",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Persona 5 Royal"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "stalker 2",
+   "cat": "siglas con puntos",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "S.T.A.L.K.E.R. 2: Heart of Chornobyl",
+    "The Stalked 2"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "nier automata",
+   "cat": "puntuación",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "NieR:Automata™"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "okami",
+   "cat": "diacríticos",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Okami HD",
+    "Ookami Okami",
+    "Wandering Okali"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "brutal legend",
+   "cat": "diacríticos",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Brutal Legend"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "mafia edicion definitiva",
+   "cat": "nombre ES",
+   "rank": 0,
+   "rankNoFuzzy": 0,
+   "top": [],
+   "tierOfHit": null
+  },
+  {
+   "q": "star wars jedi la orden caida",
+   "cat": "nombre ES",
+   "rank": 0,
+   "rankNoFuzzy": 0,
+   "top": [],
+   "tierOfHit": null
+  },
+  {
+   "q": "guardianes de la noche",
+   "cat": "nombre ES",
+   "rank": 0,
+   "rankNoFuzzy": 0,
+   "top": [],
+   "tierOfHit": null
+  },
+  {
+   "q": "the last of us parte i",
+   "cat": "nombre ES",
+   "rank": 1,
+   "rankNoFuzzy": 0,
+   "top": [
+    "The Last of Us™ Part I",
+    "The Last of Us™ Part II Remastered"
+   ]
+  },
+  {
+   "q": "bg3",
+   "cat": "sigla",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Baldur's Gate 3",
+    "Battle Grounds III"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "cs2",
+   "cat": "sigla",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Counter-Strike 2",
+    "CS2D",
+    "Cities: Skylines II"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "csgo",
+   "cat": "alias",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Counter-Strike 2"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "rdr2",
+   "cat": "sigla",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Red Dead Redemption 2"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "gta 5",
+   "cat": "sigla",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Grand Theft Auto V Enhanced"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "gta v",
+   "cat": "sigla",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Grand Theft Auto V Enhanced",
+    "Grand Theft Auto: Vice City – The Definitive Edition",
+    "Gateball VR"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "ff7",
+   "cat": "alias",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "FINAL FANTASY VII REMAKE INTERGRADE",
+    "FINAL FANTASY VII REBIRTH"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "dbd",
+   "cat": "sigla",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Dead by Daylight"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "tf2",
+   "cat": "sigla",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Team Fortress 2",
+    "Transport Fever 2"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "l4d2",
+   "cat": "sigla",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Left 4 Dead 2"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "ets2",
+   "cat": "sigla",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Euro Truck Simulator 2"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "kcd2",
+   "cat": "sigla",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Kingdom Come: Deliverance II"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "p5r",
+   "cat": "sigla",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Persona 5 Royal"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "nms",
+   "cat": "sigla",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "No Man's Sky",
+    "Nick's Saturday Morning Games (NSMG)"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "civ 6",
+   "cat": "alias",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Sid Meier’s Civilization® VI"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "aoe2",
+   "cat": "alias",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Age of Empires II: Definitive Edition",
+    "Age of Empires II (Retired)"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "re4",
+   "cat": "alias",
+   "rank": 1,
+   "rankNoFuzzy": 1,
+   "top": [
+    "Resident Evil 4",
+    "Resident Evil 4 (2005)"
+   ],
+   "tierOfHit": 2
+  },
+  {
+   "q": "witchr",
+   "cat": "errata",
+   "rank": 194,
+   "rankNoFuzzy": 0,
+   "top": [
+    "Witchroid Vania: A Magical Girl’s Fantastical Adventures",
+    "Witch Amelia",
+    "Witch and Council : The Card"
+   ]
+  },
+  {
+   "q": "cyberpnk",
+   "cat": "errata",
+   "rank": 1,
+   "rankNoFuzzy": 0,
+   "top": [
+    "Cyberpunk 2077",
+    "Cyberpunk 3776",
+    "Cyberpunk Bar Sim"
+   ]
+  },
+  {
+   "q": "hollow knigth",
+   "cat": "errata",
+   "rank": 1,
+   "rankNoFuzzy": 0,
+   "top": [
+    "Hollow Knight",
+    "Hollow Knight: Silksong",
+    "Halloween Knight"
+   ]
+  },
+  {
+   "q": "eldenring",
+   "cat": "sin espacio",
+   "rank": 0,
+   "rankNoFuzzy": 0,
+   "top": [],
+   "tierOfHit": null
+  },
+  {
+   "q": "stardew valey",
+   "cat": "errata",
+   "rank": 1,
+   "rankNoFuzzy": 0,
+   "top": [
+    "Stardew Valley"
+   ]
+  },
+  {
+   "q": "palword",
+   "cat": "errata",
+   "rank": 1,
+   "rankNoFuzzy": 0,
+   "top": [
+    "Palworld",
+    "Palworld: Palfarm"
+   ]
+  }
+ ]
+}

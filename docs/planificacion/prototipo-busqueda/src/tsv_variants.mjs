@@ -1,0 +1,13 @@
+import fs from 'node:fs';
+import { brotliCompressSync, gzipSync, constants as Z } from 'node:zlib';
+import { parseCoreTsv } from './catalog.mjs';
+const games = parseCoreTsv(fs.readFileSync(process.argv[2] + '/core.tsv', 'utf8'));
+const br = (s) => brotliCompressSync(Buffer.from(s), { params: { [Z.BROTLI_PARAM_QUALITY]: 11, [Z.BROTLI_PARAM_LGWIN]: 24 } }).length;
+const out = {};
+const rankNames = games.map((g) => `${g.appid}\t${g.name}`).join('\n');
+out.rank_appid_name = br(rankNames);
+const byAppid = [...games].map((g, i) => ({ ...g, rank: i })).sort((a, b) => a.appid - b.appid);
+let prev = 0; out.appid_delta_name = br(byAppid.map((g) => { const d = g.appid - prev; prev = g.appid; return `${d}\t${g.name}`; }).join('\n'));
+prev = 0; out.appid_delta_full_plus_rank = br(byAppid.map((g) => { const d = g.appid - prev; prev = g.appid; return `${d}\t${g.name}\t${g.nameEs || ''}\t${g.flags || ''}\t${g.year || ''}\t${g.pop || ''}\t${g.rank}`; }).join('\n'));
+out.rank_full_no_appid = br(games.map((g) => `${g.name}\t${g.nameEs || ''}\t${g.flags || ''}\t${g.year || ''}\t${g.pop || ''}`).join('\n'));
+console.log(JSON.stringify(out));

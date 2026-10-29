@@ -1,0 +1,225 @@
+{
+  "lens": "Core use case and speed: capture a game in < 3 s from desktop AND phone, instant full-catalog search, offline behaviour, status/flag UX, perceived-performance budgets, and search-result quality (normalization, ranking, games-only).",
+  "evaluations": [
+    {
+      "proposal": "A",
+      "criteria": [
+        {
+          "criterion": "Capture < 3 s on desktop AND phone",
+          "score": 7,
+          "rationale": "The phone side is strong. On Android, the installed PWA's share target auto-adds with undo (about 1.5 s), and the 'Apuntar juego' shortcut opens with search focused. The warm path (tap, 3-5 letters, tap) takes about 2 s. Burst capture and a long-press state picker are included. Title-only manual add and link paste work offline before the catalog exists. iOS only has the paste chip (about 3-4 s). Desktop has no OS-level hotkey, only in-app '/' and Ctrl+K plus the jump-list shortcut, so finding or launching the window uses up much of the budget. Sync is deferred to post-prototype M6, so phone and desktop captures end up in two separate agendas that can only be merged by manual export/import."
+        },
+        {
+          "criterion": "Instant full-catalog search & readiness",
+          "score": 8,
+          "rationale": "Search runs in a worker on a bitset word-prefix index (measured 0-0.3 ms). One-letter bitsets and early exit in static-rank order cap the worst case for 1-2 letter queries. There is no debounce, the latest seq wins, and at most 30 rows cross postMessage. Weak spots: the index is rebuilt on every cold start (estimated 1-1.5 s on phones), and the brute-force fallback during that time is 7-14 ms on this PC, plausibly 30-70 ms on a phone. A persisted index exists only as a fallback. On a first visit there is no catalog search until about 2.2 MB has been downloaded, parsed and indexed."
+        },
+        {
+          "criterion": "Search result quality (normalization, ranking, games-only)",
+          "score": 7,
+          "rationale": "The base is sound: accent folding, apostrophes deleted (so 'baldurs' and 'garrys' work), an exact-title map, roman-numeral aliases, Spanish names indexed and shown, a compact-substring fallback, type 0 only, +18 hidden, a 'Retirado' badge, and a 100-query golden set (top-1 >= 90%). Defects: NFKD runs before ™ is removed. There are no acronym aliases. M1 has no popularity and no release state. Coming-soon games are penalized, although upcoming games are prime 'quiero jugar' captures. The 200-candidate cap can drop obscure title-start matches, and leading articles are not handled."
+        },
+        {
+          "criterion": "Offline behaviour",
+          "score": 8,
+          "rationale": "Offline is the normal state: precached shell, catalog in CacheStorage, IndexedDB writes, provisional entries from the URL slug, queued detail-shard fetches and runtime-cached covers. Durability depends only on storage.persist(), install prompts and manual export, and Safari deletes the storage of non-installed sites after 7 days. The first visit needs the network, which is unavoidable."
+        },
+        {
+          "criterion": "Status/flag UX",
+          "score": 9,
+          "rationale": "The model is right and ships in M2: 5 exclusive Estados and an open flag set (Platinado => Completado in one change set, Comprado, Próximo pinned). It also has a note, auto-stamped editable dates, a 5 s undo toast and tombstones. Results show 'Ya en tu agenda · Jugando' chips, a long-press picker sets the state at add, and every change is one tap from the agenda or from results. Two things are missing: keyboard shortcuts for states, and a rule for what happens to Platinado when the game is replayed."
+        },
+        {
+          "criterion": "Perceived-performance budgets (met + verified)",
+          "score": 9,
+          "rationale": "The most rigorous of the three: every budget has both a mechanism and a gate. A Playwright project at CDP 4x asserts keystroke p95 <= 50 ms over about 600 keystrokes. Taps are measured with Event Timing, and a Lighthouse mobile gate is set at LCP 2.0 s. Other gates: JS <= 90 KB brotli, an offline second-launch scenario and a 20% regression gate. It also uses a reference Android and an in-app p50/p95 panel, which is the only way to measure an iPhone without a Mac."
+        }
+      ],
+      "total": 48,
+      "fatal_flaws": [],
+      "factual_errors": [
+        "fold() applies NFKD before removing ™. NFKD rewrites ™ as 'TM' (and ℠ as 'SM'), so the removal step never sees it: 'The Division™ 2' folds to 'the divisiontm 2', which breaks exact-title matches for the ~1k names with trademark symbols. B gets this order right.",
+        "The claim that compact() makes 'cs2' match is false. 'Counter-Strike 2' compacts to 'counterstrike2', which does not contain 'cs2'; acronyms need an alias list.",
+        "The M1 tie-break 'released before coming soon' does nothing. The M1 core carries only GetAppList fields (appid, name, last_modified, price_change_number), and its flag/year/pop columns stay zero until M2. M1 ranking is therefore effectively shortest-name-first, so short obscure titles outrank popular ones."
+      ]
+    },
+    {
+      "proposal": "B",
+      "criteria": [
+        {
+          "criterion": "Capture < 3 s on desktop AND phone",
+          "score": 4,
+          "rationale": "Desktop capture is the best of the three: global Ctrl+Shift+Space (chosen to avoid AltGr), a pre-created hidden Quick-add window (<= 100 ms), clipboard Steam-link preselect, Enter / Shift+Enter bursts, Alt+1..5 for states, and a bookmarklet to the gameagenda:// deep link. That gives about 1.5-2 s from any app. But M1-M3 (about 18 dev-days) have no phone capture at all. M4 adds a separate React PWA: its share target needs an extra 'Añadir' tap, and iOS gets paste or a Shortcut to the inbox. Its captures reach the desktop only through a relay that is opt-in and off by default. The installer and the SmartScreen warning come before any first capture."
+        },
+        {
+          "criterion": "Instant full-catalog search & readiness",
+          "score": 9,
+          "rationale": "Native FTS5 trigram (measured 0.14-0.45 ms) uses rowid = popularity key, so ORDER BY rowid LIMIT returns the most popular matches first. A p1/p2 B-tree path handles 1-2 characters, and IPC adds 1-3 ms. The index lives on disk, so nothing is rebuilt at restart. The seed in the installer plus a brute-force bridge allow searching within about 3 s on a first run, even offline. The phone side (M4) is a JS prefix index that is not persisted."
+        },
+        {
+          "criterion": "Search result quality (normalization, ranking, games-only)",
+          "score": 7,
+          "rationale": "The strongest design: ™ stripped before NFKD, ligatures, a leading-article-stripped key, title-start candidates injected, tiers for exact / title-start / word-prefix / substring, roman numerals 1-20, an alias CSV, trigram fuzzy matching, no penalty for coming-soon, and large golden sets. But its fold turns apostrophes into spaces. As a result 'baldurs gate', 'garrys mod', 'dont starve' and 'five nights at freddys' miss both the trigram MATCH and the title-prefix range until the M3 fuzzy stage. Its M1 tests (exact names, 4-letter prefixes) cannot catch this. Substring-first retrieval, capped at 400 by popularity, can push out word-prefix hits. The M4 PWA ranks with a different engine."
+        },
+        {
+          "criterion": "Offline behaviour",
+          "score": 8,
+          "rationale": "Desktop is best-in-class: the installer seed allows an offline first run, user.db uses WAL with synchronous=FULL, a daily VACUUM INTO backup runs, catalog.db can be regenerated, and there is no browser eviction. The phone only gets offline support in M4. That PWA has no source of cover URLs: the snapshot has no paths, browsers cannot call GetItems, and there is no proxy route."
+        },
+        {
+          "criterion": "Status/flag UX",
+          "score": 9,
+          "rationale": "It has A's model plus user-defined flags (flag_def), a 20-step undo stack with Ctrl+Z, keys 1-5 / P / C / N / Supr, Alt+1..5 at add, and editable auto-stamped dates, all in M2. That is the best desktop status UX; the phone gets it only in M4."
+        },
+        {
+          "criterion": "Perceived-performance budgets (met + verified)",
+          "score": 8,
+          "rationale": "For the desktop it measures in the right places: Playwright over CDP on the real WebView2, a Rust search_bench (p95 <= 2 ms), Event Timing, web-vitals INP and a 10-launch startup script. Phone budgets are only measured from M4, and the CI thresholds are deliberately loose."
+        }
+      ],
+      "total": 45,
+      "fatal_flaws": [
+        "Fatal for this lens. Phone capture is missing for M1-M3 (about 18 dev-days), and the phone is the main capture device for a 'jot it down in seconds' agenda, so the core loop cannot be validated where it mostly happens. Even if M4 is pulled forward as B suggests, it arrives as a second stack (React PWA + JS prefix index + Dexie, with no covers) whose ranking and data differ from the Rust/FTS5 desktop. This is why B ranks below C despite the tied total."
+      ],
+      "factual_errors": [
+        "fold() maps apostrophes to spaces ('Baldur's Gate 3' becomes 'baldur s gate 3'). Queries typed without the apostrophe ('baldurs gate', 'garrys mod', 'dont starve') therefore match neither the trigram MATCH nor the norm_na range, which contradicts its M1 search-quality claims for some of Steam's most popular titles.",
+        "pop = floor(2·log2(review_count+1)) is said to range 0-41, but it exceeds 41 above about 1.48M reviews. Counter-Strike 2 has several million reviews, giving about 45. It does no harm only because 63 − pop stays positive in k.",
+        "The stateless daily job finds 'cambios (last_modified distinto)' by comparing against the published snapshot. The published TSV has no last_modified column, so that change detection cannot work as specified."
+      ]
+    },
+    {
+      "proposal": "C",
+      "criteria": [
+        {
+          "criterion": "Capture < 3 s on desktop AND phone",
+          "score": 8,
+          "rationale": "The PWA works on both devices from M1. It opens on Apuntar with a bottom bar within thumb reach, and one tap on a row adds the game. The field clears and keeps focus for bursts, and Android gives a haptic tap. The share target auto-adds, and Ctrl/Cmd+V anywhere parses links. Unknown or unlisted appids resolve in about 200-400 ms, and a first-time user can capture before the catalog is on the device. Guest sync (with pairing in M2) gives one agenda across devices. Desktop still has no OS-level shortcut, and iOS can only paste."
+        },
+        {
+          "criterion": "Instant full-catalog search & readiness",
+          "score": 8,
+          "rationale": "The typed-array prefix index is persisted in IndexedDB (restore in about 0.1-0.4 s), which gives the fastest cached restart of the web options. The first-visit fallback is server search (about 150-300 ms on 4G, debounced 120 ms): usable, but not instant, and Save-Data users stay on it permanently. There is no dedicated client path for 1-2 letter queries, which produce huge unions on phones. The catalog itself is served through the Worker, so it counts against the request quota. Common-token shards such as 'the' risk exceeding the 10 ms CPU cap."
+        },
+        {
+          "criterion": "Search result quality (normalization, ranking, games-only)",
+          "score": 6,
+          "rationale": "It deletes apostrophes correctly, handles roman numerals, indexes Spanish names as aliases, adds CJK/Kana bigrams and scores every candidate. But it has the same NFKD-before-™ bug and no acronyms. It penalizes coming-soon games. Its popularity has only 16 levels and tops out at about 32k reviews, so blockbusters tie. Quality is checked by about 5 smoke queries; there is no golden set."
+        },
+        {
+          "criterion": "Offline behaviour",
+          "score": 8,
+          "rationale": "A local replica and outbox mean reads and taps never wait for the network, with a persisted index and a precached shell. Once data has synced, Safari's eviction loses nothing. But the server fills in covers on the next pull, so games added offline have no cover. The catalog and deltas come through the Worker, and a guest who loses the cookie before linking loses the list."
+        },
+        {
+          "criterion": "Status/flag UX",
+          "score": 7,
+          "rationale": "The model is correct: 5 Estados, Platinado forcing Completado with invariant repair at merge time, Comprado, Próximo, a note, auto-stamped dates and undo. But it only ships in M3, after accounts and pairing (M2), and every new flag needs a D1 migration."
+        },
+        {
+          "criterion": "Perceived-performance budgets (met + verified)",
+          "score": 8,
+          "rationale": "Solid. Keystrokes and taps are tested at CDP 4x, and a long-task observer fails the E2E run. Lighthouse CI gates LCP at 2.0 s, cached restarts get timing marks, and a real Android device is used. Weaker points: the initial JS budget is 130 KB gzip, and the first-visit and Save-Data search paths are explicitly exempt from the 50 ms budget."
+        }
+      ],
+      "total": 45,
+      "fatal_flaws": [],
+      "factual_errors": [
+        "fold() also runs NFKD before dropping ™, so ™ survives as 'tm' attached to the preceding word.",
+        "The ~1-3 ms CPU claim for tier-2 search is unsupported for common tokens. Oversized shards are only split down to 3 characters, so a shard such as 'the' still holds tens of thousands of docs. Parsing it on a cold isolate can exceed the 10 ms Free CPU limit."
+      ]
+    }
+  ],
+  "ranking": [
+    "A",
+    "C",
+    "B"
+  ],
+  "graft_ideas": [
+    {
+      "from_proposal": "B",
+      "idea": "Fold order and ligatures: strip ™ ℠ ® © and every apostrophe form (' ’ ‘ ʼ) before NFKD, and map ß→ss, æ→ae, œ→oe, ø→o, ł→l, đ→d. Use one set of JSON test vectors for the worker, the pipeline and the tests. Delete apostrophes as A and C do; never turn them into spaces as B does.",
+      "why": "It removes the 'divisiontm' artefact in A and C without importing B's 'baldurs gate' miss."
+    },
+    {
+      "from_proposal": "B",
+      "idea": "Inject title-start candidates using an article-stripped key, and rank in tiers (exact > title-start > all tokens word-prefix > substring), using popularity only inside a tier. Never penalize coming-soon games.",
+      "why": "Obscure exact or prefix titles can no longer fall behind A's 200-candidate cutoff. Upcoming games have zero reviews but are prime 'quiero jugar' captures, and they stay visible."
+    },
+    {
+      "from_proposal": "B",
+      "idea": "Ship an alias CSV with the snapshot (gta, rdr2, cs2, ff7…), use roman numerals 1-20, and offer trigram/uFuzzy '¿Quizás buscabas…?' only when results are scarce.",
+      "why": "Players search by acronym, and A's compact() cannot produce acronyms."
+    },
+    {
+      "from_proposal": "B",
+      "idea": "The Quick-add pattern, as an optional thin Tauri 2 shell around the same web build once sync exists. It has a global hotkey that avoids Ctrl+Alt (AltGr on Spanish keyboards), a pre-created hidden always-on-top window, clipboard Steam-link preselect, Shift+Enter bursts and Alt+1..5 to set the state at add.",
+      "why": "It is the only way to capture in about 1.5-2 s from any Windows app. The prerequisites are already installed, and it needs no second search engine."
+    },
+    {
+      "from_proposal": "B",
+      "idea": "An iOS share-sheet Shortcut that POSTs the shared Steam URL to a write-only, revocable /inbox token.",
+      "why": "iOS has no Web Share Target. With this Shortcut a game is captured from the Steam app in about 2 s without opening Safari or the PWA."
+    },
+    {
+      "from_proposal": "B",
+      "idea": "Manual-then-match: a title captured before the catalog is ready is saved as a manual entry. It is linked to an appid automatically when exactly one catalog title matches after folding, and otherwise offered as a suggestion.",
+      "why": "Capture on a first visit or a slow network never waits for the ~2 MB download."
+    },
+    {
+      "from_proposal": "B",
+      "idea": "A pseudonymous pairing relay: a 256-bit secret is shared by QR code or URL fragment, and the server keeps only its hash. Changes are pushed and pulled through a D1 ops table, last write wins per field.",
+      "why": "It gives one agenda across phone and desktop inside the prototype, with no accounts or OpenID, and it plugs directly into A's HLC change log."
+    },
+    {
+      "from_proposal": "B",
+      "idea": "Quality gates at scale: 2,000 random exact names at >= 99% top-5, 4-letter prefixes of the 1,000 most popular games at >= 90% top-10, and 300 real Spanish queries including typos.",
+      "why": "A's 100-query set is too small to catch normalization regressions. Add cases typed without the apostrophe and acronym cases."
+    },
+    {
+      "from_proposal": "B",
+      "idea": "A keyboard-first agenda (1-5 for Estado, P/C/N for flags, Supr, Ctrl+Z with multi-step undo) plus user-defined flags (flag_def).",
+      "why": "It makes the desktop fast, and it covers the user's 'etc.' without migrations."
+    },
+    {
+      "from_proposal": "C",
+      "idea": "Persist the built typed-array index, keyed by catalog version, from M1 (restore in about 0.1-0.4 s).",
+      "why": "It removes the ~1-1.5 s rebuild on phones and A's over-budget brute-force window on every cold start."
+    },
+    {
+      "from_proposal": "C",
+      "idea": "Open on Apuntar with a bottom search bar within thumb reach. The whole row is the add button, the field clears and keeps focus, Android gives a 10 ms haptic tap, and Ctrl/Cmd+V anywhere parses Steam links.",
+      "why": "It saves a tap, supports one-handed bursts, and lets links be captured from any screen."
+    },
+    {
+      "from_proposal": "C",
+      "idea": "CJK/Hangul/Kana bigram tokens.",
+      "why": "They cover 6.3% of names, with better recall and speed than relying on the substring stage."
+    },
+    {
+      "from_proposal": "C",
+      "idea": "Pipeline publish gates that run smoke queries on the built index ('hollow knight' → 367520 at #1, 'baldurs gate' → 1086940 in the top 3, 'counter strike' → 730).",
+      "why": "A normalization or ranking regression never reaches clients."
+    },
+    {
+      "from_proposal": "C",
+      "idea": "A long-task observer that fails E2E on any main-thread task over 50 ms while typing or adding, plus single-tab sync with Web Locks, triggered on focus, online and visibility.",
+      "why": "It protects the keystroke and INP budgets, and background sync never blocks the UI."
+    },
+    {
+      "from_proposal": "A",
+      "idea": "Turn A's 'lazily loaded second file' into a popularity head file (about the top 20k games, ≈ 0.2-0.3 MB brotli) that is fetched first, with the tail fetched after load.",
+      "why": "First-visit search works in about 1 s on 4G from a static, offline-cacheable file. It replaces C's server search, which depends on the Worker and risks the CPU limit."
+    },
+    {
+      "from_proposal": "A",
+      "idea": "A bitset prefix index with ids in static-rank order, precomputed one-letter bitsets and early exit. It runs over a static, content-hashed catalog with deltas and details shards (fnv1a mod 1024) on Cloudflare static assets.",
+      "why": "It caps the 1-2 letter worst case on phones (C has no such path), keeps the hot path off any Worker quota, and gives a PWA a source for covers (B's companion has none)."
+    },
+    {
+      "from_proposal": "A",
+      "idea": "A share target that auto-adds with undo, the 'Apuntar juego' manifest shortcut, provisional entries titled from the URL slug, and the in-app p50/p95 perf panel.",
+      "why": "Android capture takes one action (B needs an extra tap), link capture still works offline, and the panel is the only way to measure an iPhone without a Mac."
+    }
+  ],
+  "recommended_synthesis": "Ship A's architecture, add B's search rigour and a thin slice of C's sync. It is one installable SvelteKit static PWA (TS 6, JS <= 90 KB brotli) for phone and desktop. Its hot paths, search and write, never touch the network and work fully offline after the first visit. The catalog stays A's static, content-hashed snapshot on Cloudflare static assets: a manifest checked at most every 12 h, the core, 14 daily deltas and 1,024 details shards with library_capsule/header paths and dates. GitHub Actions builds it from the keyed IStoreService/GetAppList (daily if_modified_since delta, weekly full reconcile) plus the keyless GetItems (ES context, <= 200 ids per call, about 0.4 req/s, global pause on 429). Move the minimal enrichment into M1: type 0 only, coming-soon/early-access, content descriptors 3/4, review_count → pop, Spanish name. That way ranking and the +18 filter exist from day one. Refuse to publish unless C-style smoke queries pass on the built index. The catalog is games-only by default. Optionally add the few thousand most-reviewed DLC/expansions (Shadow of the Erdtree, Phantom Liberty) under a 'DLC' badge, ranked below base games; never demos or soundtracks. Explorar keeps A's virtual list of all ~196.6k games.\n\nSearch runs in a module Web Worker over A's bitset word-prefix index (ids in static-rank order, precomputed one-letter bitsets, early exit). The fold is corrected: strip ™ ℠ ® © and every apostrophe form before NFKD, using B's order but A/C's deletion (never B's apostrophe→space). Then strip accents, lowercase, apply a ligature map and turn punctuation into spaces. Index both base and Spanish names, roman numerals 1-20 and CJK/Kana bigrams (C). Add an article-stripped title key and acronyms: B's curated CSV plus generated initials of 3+ characters for the ~5k most-reviewed games, so cs2, rdr2 and gta5 hit. Candidates are the prefix walk (<= 200), plus the exact-title map, plus a title-start range on the article-stripped key. They are ranked in tiers (exact or exact acronym > title-start > all tokens as word-prefixes in order > substring), with popularity used only inside a tier. Coming-soon is never penalized, delisted games go last with 'Retirado', and +18 is off by default. Compact-substring matching and uFuzzy run only when hits are scarce, and 'En tu agenda' matches come first. For readiness, split the core into a popularity head (~top 20k, ≈ 0.2-0.3 MB brotli) fetched first and the tail fetched after load; this replaces C's server search tier with a static file. Persist the built typed arrays per catalog seq (C), so a cached restart restores in about 0.1-0.4 s instead of rebuilding for 1-1.5 s on phones. Manual title-only add and link paste work before any catalog, and such titles auto-link when they match exactly one game (B).\n\nCapture: the agenda opens with a bottom 'Apuntar' bar within thumb reach (C). In the overlay, tapping the whole row (>= 56 px) adds to Quiero jugar in one tap (Enter on desktop). Long-press or Alt+Enter opens the Jugando/Completado/Platinado/Comprado/Próximo picker, and the field keeps focus for bursts. Saved games show their state chip instead of '+'. Every action gets an undo toast, never a dialog.\n- Android: the installed PWA's share target auto-adds with undo, plus the 'Apuntar juego' shortcut (A).\n- iOS: the 'Pegar enlace' chip, plus B's share-sheet Shortcut that POSTs the URL to a write-only, revocable /inbox token.\n- Desktop: '/', Ctrl+K, Shift+Enter and Ctrl+V-anywhere link parsing (C). Pin the installed PWA to the taskbar so Win+1 brings it up with the input focused. Add a bookmarklet that opens /share?url= in the same Chromium profile.\n- Only if measured desktop capture misses 3 s: add B's Quick-add as a thin Tauri 2 shell over the same build. It has a global Ctrl+Shift+Space (never Ctrl+Alt, because of AltGr), a pre-created hidden window and clipboard-link preselect. It is one more sync client, never a second engine.\n\nData lives in Dexie entries with A's model: 5 exclusive Estados and an open flag set. Platinado sets Completado and completedAt once but survives a later replay; Comprado; Próximo pinned. Entries also have a note, auto-stamped editable dates and tombstones. Add B's user-defined labels and keyboard shortcuts (1-5, P/C/N, Ctrl+Z with multi-step undo). A tap updates memory and paints in under 16 ms, then persists. Entries carry their own title and cover, so the agenda paints before the catalog loads. Because capture happens on both devices, pull a lean sync into the prototype instead of leaving it for M6:\n- B's pseudonymous pairing (a 256-bit secret shared by QR or URL fragment; the server stores only its hash) on one D1 (EU) ops table;\n- push/pull of A's per-field HLC change log;\n- single-tab sync via Web Locks on focus, online and visibility (C);\n- the /inbox.\nSteam OpenID (with C's PKCE ticket) and imports come later. Sequence: M1 search and capture on both devices, with popularity; M2 states, flags and covers; M3 capture surfaces, head/tail core, persisted index, sync and inbox; then edge details/resolve, Steam import and the optional Tauri Quick-add.\n\nCI gates:\n- keystroke→paint p95 <= 50 ms at CDP 4x over ~600 keystrokes (A), with C's long-task observer failing any main-thread task over 50 ms while typing or adding;\n- tap→feedback <= 100 ms (Event Timing);\n- INP p75 <= 200 ms;\n- LCP <= 2.5 s (Lighthouse gate at 2.0 s; the catalog is fetched in the worker after load);\n- first-visit search <= 1.5 s after load;\n- cached restart: agenda <= 1 s, search <= 1 s.\nMeasure on a real mid-range Android at each milestone exit, and use A's in-app p50/p95 panel for the iPhone. Golden sets are A's 100 Spanish queries plus B's 2,000 random exact names (>= 99% top-5) and the 4-letter prefixes of the 1,000 most popular games (>= 90% top-10). They explicitly include queries without apostrophes, acronyms, roman numerals, Spanish names and coming-soon games."
+}

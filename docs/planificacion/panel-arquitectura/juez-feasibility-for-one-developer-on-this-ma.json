@@ -1,0 +1,204 @@
+{
+  "lens": "Feasibility for ONE developer on THIS machine (Windows 11, Node 24.21/npm 11.19, Rust 1.99, no Docker/Postgres/Mac): time to first useful prototype, moving parts, learning curve, running cost and free-tier traps, maintainability, testing/CI simplicity. On 2026-10-28 I spot-checked the version and limit claims against the npm registry, crates.io, the steam-signin 1.0.5 source and the current Cloudflare/GitHub docs.",
+  "evaluations": [
+    {
+      "proposal": "A",
+      "criteria": [
+        {
+          "criterion": "Time to first useful prototype",
+          "score": 7,
+          "rationale": "No server code until M4. After M0+M1 (7.5 planned days) the PWA searches all ~196.6k games and saves to 'Quiero jugar' on Android and desktop, and manual/link add work before the catalog loads. But M1 also carries the whole cron pipeline (backfill, delta, reconcile, gates, Release state) next to search, Explorar and offline, so 6 days is roughly 2x optimistic, and estados/flags wait for M2."
+        },
+        {
+          "criterion": "Moving parts",
+          "score": 7,
+          "rationale": "One language. For the prototype it is just static files plus one Actions job. That is still more machinery than a single-device prototype needs: two Workers, Release-asset state, a client delta chain, 1024 details shards, per-field HLC stamps and an append-only change log. The log and the deltas can wait."
+        },
+        {
+          "criterion": "Learning curve and ecosystem fit",
+          "score": 6,
+          "rationale": "Its SvelteKit 3 specifics are right. I checked the 3.1.0 package: svelte.config.js is no longer supported, $service-worker is gone, $app/manifest, env and paths exist, and the peers are vite ^8.0.12 and typescript ^6.0.0. That is exactly why most Kit tutorials and AI answers are now wrong for this repo. It also holds the whole repo on TS 6 (svelte-check 4.7.7 peers ^5 or ^6). The custom bitset index and HLC are modest, but they are code the developer owns."
+        },
+        {
+          "criterion": "Running cost and free-tier traps",
+          "score": 8,
+          "rationale": "€0, unlimited static requests. It avoids the Vercel, Netlify, Render and Supabase traps and picks a private repo (GitHub docs confirm the 60-day schedule disable applies only to public repos). It under-counts CI minutes: three Playwright browsers, a perf project and Lighthouse on every preview all draw on the private repo's ~2,000 min."
+        },
+        {
+          "criterion": "Maintainability (solo, long-term)",
+          "score": 7,
+          "rationale": "packages/core is shared by the worker, the pipeline and the tests. Runtime dependencies are only svelte, kit, dexie and hono. The custom TSV/shard/delta formats and the HLC merge are owned code that needs versioning discipline."
+        },
+        {
+          "criterion": "Testing and CI simplicity",
+          "score": 7,
+          "rationale": "Everything runs on ubuntu and on this PC without Docker. The key-leak grep, size gates and sentinel gates are cheap wins. Failing CI on a >20% perf regression measured on shared runners will flake. 'Each of 200 random appids in the top 5' cannot be a hard gate either, because many Steam games share the same name."
+        }
+      ],
+      "total": 42,
+      "fatal_flaws": [],
+      "factual_errors": [
+        "Minor internal inconsistency: M1's static rank 'released before coming soon' has no input data in M1. GetAppList returns only appid, name, last_modified and price_change_number, and A's own M1 core leaves flags/year/pop at zero until the GetItems enrichment in M2."
+      ]
+    },
+    {
+      "proposal": "B",
+      "criteria": [
+        {
+          "criterion": "Time to first useful prototype",
+          "score": 4,
+          "rationale": "M1 (9 planned days) yields a Windows-only app. The phone, where most 'apuntar' moments happen, only gets capture in M4 (~25 planned days), through a second client. With Rust and Tauri still to learn, these are the least reliable estimates of the three."
+        },
+        {
+          "criterion": "Moving parts",
+          "score": 3,
+          "rationale": "A Rust core, a Tauri shell with 10 plugins, two SQLite DBs, an embedded seed, a signed updater, an NSIS installer, the React UI, a pipeline hitting three Steam endpoints, the CDN and healthchecks.io. Later, a PWA with its own Dexie storage and JS index, plus a Worker and a D1 relay."
+        },
+        {
+          "criterion": "Learning curve and ecosystem fit",
+          "score": 4,
+          "rationale": "Rust, Tauri 2 capabilities/IPC, rusqlite/FTS5 and tokio, on top of React/TS. Its 2.x pins exist (tauri 2.12.5, rust-version 1.90). But crates.io's 'latest' for tauri, tauri-plugin-http, global-shortcut and single-instance is already a 3.0.0-alpha (verified), so docs and examples mix the two majors."
+        },
+        {
+          "criterion": "Running cost and free-tier traps",
+          "score": 6,
+          "rationale": "€0 for infrastructure and the fewest Steam calls of the three. Distribution is the trap: an unsigned NSIS installer triggers SmartScreen, and Azure Artifact Signing is not open to EU individuals, so a public beta means an OV certificate (hundreds of €/year) or the Microsoft Store. Windows runners cost more, so releases are built by hand, and the updater keys need safekeeping."
+        },
+        {
+          "criterion": "Maintainability (solo, long-term)",
+          "score": 3,
+          "rationale": "Two clients, two search engines (FTS5 and a JS prefix index) and two storage schemas. The fold, link, state and HLC logic is duplicated in Rust and TS and kept aligned only by shared test vectors. One person maintains all of it, permanently."
+        },
+        {
+          "criterion": "Testing and CI simplicity",
+          "score": 5,
+          "rationale": "cargo test and Vitest run on Linux. The budgets, though, can only be measured on Windows WebView2 via CDP, so E2E, perf and release builds run on the dev PC. The M4 PWA then adds a second E2E stack."
+        }
+      ],
+      "total": 25,
+      "fatal_flaws": [
+        "Two-client architecture. Phone capture does not exist until M4, and then only through a second, separately built client (TS, Dexie, a JS prefix index) plus a sync relay. One developer would have to keep two search engines, two storage schemas and the same domain logic in Rust and TS in lockstep indefinitely. For an agenda whose main job is quick capture, that cost falls on the main use case."
+      ],
+      "factual_errors": [
+        "The change detection cannot work as written. The daily lane diffs 'cambios (last_modified distinto)' against 'el snapshot publicado como estado previo' and says 'el runner no guarda estado', but the published TSV (appid, name, name_es, flags, release_day, pop, score) has no last_modified column. It needs a state file or the if_modified_since cursor.",
+        "'pop = floor(2·log2(review_count+1)), de 0 a 41' gives the wrong range. Games with more than ~1.5M reviews (the top titles have several million) score 42-46. The values still fit the 6-bit k field, so nothing breaks.",
+        "Achievement checks are costed at '2 llamadas por juego', while the verified figure is ~1 call per game. That inflates its own bulk estimate (500 games ≈ 17 min)."
+      ]
+    },
+    {
+      "proposal": "C",
+      "criteria": [
+        {
+          "criterion": "Time to first useful prototype",
+          "score": 5,
+          "rationale": "The very first add needs the guest-session API, the outbox and /sync. M0+M1 (10 planned days) also includes server search and the R2 shards, so realistically double that, and estados/flags only arrive in M3 (around day 20). In its favour, the M1 result is a URL that works on any device."
+        },
+        {
+          "criterion": "Moving parts",
+          "score": 4,
+          "rationale": "One vendor and one language, but a long list:\n- an API Worker with ~12 route groups\n- sessions, guests, pairing codes and OpenID link/merge\n- D1 with Drizzle migrations\n- R2 with an S3 token\n- a Cloudflare cron that triggers GitHub through a PAT, plus a backup schedule\n- an hourly purge/watchdog and an HMAC report endpoint\n- server prefix shards and meta shards"
+        },
+        {
+          "criterion": "Learning curve and ecosystem fit",
+          "score": 5,
+          "rationale": "Everything is mainstream TS, and its tooling homework checks out. I verified that vitest-pool-workers 0.23.0 peers vitest ^4.1, that a D1 batch() counts as one query, and that steam-signin 1.0.5 require()s 'https' and drops the port from the realm. The hard part is getting auth, CSRF-proof account linking and the sync merge right, and that is the hardest thing to learn alone."
+        },
+        {
+          "criterion": "Running cost and free-tier traps",
+          "score": 5,
+          "rationale": "€0, but the design bends around the Free limits:\n- 10 ms CPU per request; Cloudflare's limits page says auth and large-payload handlers typically use 10-20 ms\n- 100k requests/day, shared with polling every 2 minutes\n- 100k D1 rows written/day\nOn top of that: a domain bought early, a PAT that expires, and GDPR duties for every visitor from the first add. Its 'custom domain needed for caching' argument also predates the new Workers Cache, which works on workers.dev but, once enabled, bills the Worker's otherwise-free static-asset requests."
+        },
+        {
+          "criterion": "Maintainability (solo, long-term)",
+          "score": 4,
+          "rationale": "Custom sync, account merge, tombstone resets and purge jobs are the most bug-prone, security-sensitive code a solo developer can own. Vitest stays on 4.1 until the Workers test pool supports v5."
+        },
+        {
+          "criterion": "Testing and CI simplicity",
+          "score": 6,
+          "rationale": "Local Miniflare/workerd parity without Docker is genuinely good, and everything runs on ubuntu. It also has the biggest suite to write and keep green: Worker integration tests, contract tests on recorded responses, two-context sync E2E, Lighthouse CI and a nightly live canary."
+        }
+      ],
+      "total": 29,
+      "fatal_flaws": [
+        "It inverts the prototype's priorities. A custom, security-critical multi-user backend is a prerequisite of the very first add: silent guest accounts, sessions, OpenID link/merge, pairing codes, server-side HLC merge and purge jobs. Every visitor's library becomes server-side personal data from day one, so the privacy notice, the record of processing and the retention jobs are needed before the first tester. Meanwhile the core estados/flags only arrive in M3."
+      ],
+      "factual_errors": [
+        "The tier-2 server search estimate of 'CPU about 1-3 ms' is too low. Shards for 3-character prefixes of very common tokens cannot be split further ('the' is typed on the 3rd keystroke of 'The Witcher'), so they hold tens of thousands of docs. Parsing one on a cold isolate is likely to exceed the 10 ms Free CPU cap (error 1102)."
+      ]
+    }
+  ],
+  "ranking": [
+    "A",
+    "C",
+    "B"
+  ],
+  "graft_ideas": [
+    {
+      "from_proposal": "B",
+      "idea": "Make the pipeline a single daily mode: the full GetAppList (4 keyed calls) diffed against stored state. Keep last_modified in that state, which fixes B's gap.",
+      "why": "It replaces A's if_modified_since cursor and the separate weekly reconcile. Deletions are caught every day, every run is idempotent, and 4 calls/day is nothing against the 100k/day cap."
+    },
+    {
+      "from_proposal": "B",
+      "idea": "Ping a dead-man switch (e.g. healthchecks.io) after each successful pipeline run, and show the catalog's age in Ajustes.",
+      "why": "GitHub emails when a run fails, but not when a schedule is delayed, dropped under load (documented) or never fires."
+    },
+    {
+      "from_proposal": "B",
+      "idea": "Put remote kill-switch flags in manifest.json, for example to turn off features that depend on GetItems or to stop loading covers.",
+      "why": "Lets one person react to a change in an undocumented Steam endpoint without shipping a new client."
+    },
+    {
+      "from_proposal": "B",
+      "idea": "Use natural primary keys 'steam:<appid>' or 'manual:<uuidv7>' instead of a random UUID plus a unique gameKey (C does the same).",
+      "why": "One less unique index to maintain, and import or sync merges need no id mapping."
+    },
+    {
+      "from_proposal": "B",
+      "idea": "Avoid Ctrl+Alt shortcuts. Once sync exists, add an optional thin Tauri 2 shell around the same web build that only adds a global hotkey and clipboard link detection.",
+      "why": "Ctrl+Alt is AltGr on Spanish keyboards. The shell gives B's best capture UX without a Rust core, and the Tauri prerequisites are already on the PC. Waiting for sync avoids a second, separate agenda in WebView2's own IndexedDB."
+    },
+    {
+      "from_proposal": "C",
+      "idea": "If schedule drops become a problem or the repo goes public, trigger the pipeline from a Cloudflare Cron Trigger via GitHub workflow_dispatch, with an hourly staleness watchdog. The dispatched workflow file must have no schedule trigger of its own.",
+      "why": "Dispatch avoids the top-of-hour schedule drops. GitHub's 60-day inactivity rule disables scheduled workflows in public repos, and a disabled workflow cannot be dispatched either, so any backup schedule goes in a separate file."
+    },
+    {
+      "from_proposal": "C",
+      "idea": "Add smoke queries on the built index as publish gates (hollow knight returns 367520 at #1; elden returns 1245620 in the top 3).",
+      "why": "Catches normalization or ranking regressions before a 196k-row file reaches clients, and complements A's sentinel-appid gates."
+    },
+    {
+      "from_proposal": "C",
+      "idea": "For the later Steam sign-in, use the PKCE-style ticket redeem and test it through a cloudflared quick tunnel (installable with winget).",
+      "why": "iOS Home Screen apps have separate cookie jars, and steam-signin 1.0.5's canonicalizeRealm drops the port (verified in its source), so localhost:5173 cannot work as the realm."
+    },
+    {
+      "from_proposal": "C",
+      "idea": "Test the Hono Worker with app.request() on plain Vitest 5, and postpone @cloudflare/vitest-pool-workers.",
+      "why": "Its latest release (0.23.0) peers vitest ^4.1 (verified), which would split the repo across two Vitest majors."
+    },
+    {
+      "from_proposal": "C",
+      "idea": "When sync arrives, create D1 and R2 in the EU jurisdiction and make each sync request a single db.batch().",
+      "why": "Gives the privacy notice a simple answer on where data is stored. Cloudflare's docs confirm a batch counts as one of the 50 queries allowed per invocation on Free."
+    },
+    {
+      "from_proposal": "A",
+      "idea": "Test on Android through chrome://inspect port-forwarding to http://localhost:5173, which is a secure context and needs no Android SDK. Add Playwright WebKit on Windows for engine coverage.",
+      "why": "Real-device budget checks are possible on a machine with no Mac and no Android SDK."
+    },
+    {
+      "from_proposal": "A",
+      "idea": "Keep A's cheap guards:\n- a CI grep for the key and 'x-webapi-key' in the build output\n- JS and core size gates\n- count and sentinel gates\n- an enrichment failure is not a pipeline failure: publish the names with the last known enrichment",
+      "why": "A few lines protect the key the ToU requires to stay secret and keep clients on a good snapshot."
+    },
+    {
+      "from_proposal": "A",
+      "idea": "Make manual add and link paste work before the catalog loads, with a brute-force scan as the bridge until the index is built.",
+      "why": "Covers the first visit without C's server-search tier or B's installer-embedded seed."
+    }
+  ],
+  "recommended_synthesis": "I would ship A, trimmed to what one person can finish in about three weeks on this PC, plus the best operational ideas from B and C. It is one TypeScript repo on npm workspaces, which are already installed (with .npmrc save-exact, .gitattributes eol=lf and core.longpaths):\n- apps/web: a React 19.3.1 + Vite 8.3.5 SPA with a hand-written static shell in index.html for LCP. It uses @vitejs/plugin-react 6.1.2, @tanstack/react-virtual 3.14.23 for Explorar, vite-plugin-pwa 2.0.0 (injectManifest) and Dexie 4.4.7.\n- packages/core: fold/tokenize, A's word-prefix index with substring fallback and roman-numeral aliases, ranking, the Steam-link parser, the TSV/shard codecs and the estado/flag rules, tested with Vitest 5.0.5 and a 100-query golden set.\n- pipeline/: zero-dependency Node 24 .ts scripts run by type stripping.\n\nTypeScript 7.0.2 (npm latest) is fine because nothing in this stack needs the compiler API; fall back to 6.0.3 only if some tool does. Lint with Biome 2.6.3, E2E with Playwright 1.64.1. I drop SvelteKit 3.1 even though A got it right (its Kit 3 details match the 3.1.0 package): a five-screen SPA needs no meta-framework, and Kit 3's moved config and service-worker modules make most tutorials and AI answers stale. The prototype has no server code, no database and no accounts. Two assets-only Workers on workers.dev serve it: ga-web deploys on every push and ga-catalog deploys data daily, and their static requests are free and unlimited. Never enable the new Workers Cache on them, because it bills static-asset requests that are otherwise free.\n\nThe catalog comes from one pipeline mode that runs the same way on the PC (node --env-file=.env pipeline/run.ts) and in a private-repo Actions cron at minute 17, plus workflow_dispatch. Each run:\n1. Fetches the full IStoreService/GetAppList: 4 keyed calls, key only in x-webapi-key.\n2. Diffs it against the master.ndjson.gz state (which includes last_modified), stored as a GitHub Release asset.\n3. Calls keyless GetItems (country ES, language spanish, at most 200 ids per call, include_best_purchase_option=false, one worker at 0.4 req/s or less, global pause on 429) for added, changed and vanished ids plus a rotating 1/28 slice: about 52 calls/day.\n4. Classifies: only type 0 enters; unlisted becomes 'Retirado'; success 15 with appid 0 is dropped; region-locked titles are kept.\n5. Emits the core TSV (appid delta, name, flags, year, pop, esName) as text/plain, plus 1024 content-hashed detail shards. Each shard row carries the name, the cover/header path built from asset_url_format (library_capsule, then header, never guessed), the release date and reviews. Check in M0 that Cloudflare really compresses the core on the fly.\n6. Runs the gates (count band, sentinel appids, smoke queries), deploys with wrangler, saves state and pings the dead-man switch.\n\nBefore the Steam key arrives, the M1 snapshot is built on the PC from the jsnli dump (prototype seed only), enriched by keyless GetItems (~983 calls, ~41 min). IStoreQueryService/Query (~197 calls) is the keyless fallback for the game list. Clients check the manifest every 12 h but re-download the ~2 MB core at most weekly or on demand. A pasted appid that is missing locally resolves from today's shard, so the prototype needs neither an /items endpoint nor a delta chain.\n\nOn the client, the Search Worker answers on every keystroke (0-0.3 ms measured on this PC) and uses a brute-force scan until the index is built; manual add and link paste work before the catalog loads. Entries are keyed 'steam:<appid>' or 'manual:<uuidv7>'. Each one carries one of the five estados, an open flag set (Platinado implies Completado; Comprado; Próximo), auto-stamped dates and per-field updatedAt stamps. There is no change log until sync; undo is an in-memory toast. Capture options:\n- '+' or Enter, with a long-press picker for other states\n- paste a link, the Android share target and manifest shortcuts\n- '/' and Ctrl+K on desktop (no Ctrl+Alt combinations, because that is AltGr on Spanish keyboards)\n\nAlso included: navigator.storage.persist(), JSON export/import, adult titles hidden by default, the Valve trademark notice, and a covers switch next to the disclosure that covers are hotlinked from Valve.\n\nMilestones:\n- M0, 1-2 days: repo, CI, deploys, and the Steam key request.\n- M1, 6-8 days: search, capture and the full estados/flags on the PC-built snapshot, usable on phone and desktop.\n- M2, 3-4 days: cron automation, enrichment, covers and gates.\n- M3, 3 days: PWA hardening.\n- M4, optional: Steam import through one thin Hono 4.13 Worker (key as a secret, pass-through, no storage), tested with app.request() on Vitest 5.\n\nAfter the prototype comes D1 sync in the EU jurisdiction, using steam-signin under nodejs_compat plus C's ticket redeem, tested through a cloudflared tunnel. Only then an optional Tauri 2 hotkey shell.\n\nCI runs on ubuntu in 5 minutes or less per push: Biome, tsc, Vitest, Playwright Chromium E2E (add, offline, the /share route), size gates and the key-leak grep. Perf budgets run at 4x CDP throttling and are reported in CI, not gated. The hard gate is a local npm run perf plus a reference Android phone through chrome://inspect; the iPhone is checked through an HTTPS tunnel and an in-app perf panel. Running cost is €0/month: about 120-150 pipeline minutes plus CI fit inside the private repo's 2,000, and there is no D1 or R2 until sync. Remaining traps:\n- Late or dropped schedules: a dead-man ping now, and C's Cloudflare-cron dispatch of a workflow without its own schedule if it becomes a problem.\n- Shared GitHub runner IPs drawing 429s: run backfills from the PC.\n- The Steam key prerequisites (at least US$5 spent and Steam Guard Mobile Authenticator): request the key on day 1."
+}

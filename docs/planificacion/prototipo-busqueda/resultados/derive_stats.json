@@ -1,0 +1,16 @@
+{
+ "query_unique": 196684,
+ "applist": 196595,
+ "rows": 196666,
+ "nameEsDiff": 3221,
+ "notInAppList": 323,
+ "inAppListNotQuery": 234,
+ "emptyName": 18,
+ "soon": 62625,
+ "early": 19311,
+ "adult": 10213,
+ "free": 23718,
+ "tba": 44250,
+ "withReviews": 120643,
+ "maxReviews": 9953844
+}

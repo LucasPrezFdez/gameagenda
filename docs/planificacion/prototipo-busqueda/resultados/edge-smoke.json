@@ -1,0 +1,85 @@
+{
+ "browser": "Edg/156.0.4314.50",
+ "results": [
+  {
+   "engine": "d09",
+   "mode": "main",
+   "rate": 1,
+   "reps": 1,
+   "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0",
+   "fetch_ms": 81.29999999701977,
+   "parse_ms": 100.09999999403954,
+   "build_ms": 736.7999999970198,
+   "haystack_ms": 135.80000001192093,
+   "ready_ms": 918.1999999880791,
+   "ready_with_haystack_ms": 1054,
+   "heap_mb": 39.77702808380127,
+   "draft": {
+    "cold": {
+     "n": 216,
+     "p50": 0.1,
+     "p95": 2.3,
+     "p99": 6.7,
+     "max": 10.4
+    },
+    "warm": {
+     "n": 216,
+     "p50": 0,
+     "p95": 2.2,
+     "p99": 6.2,
+     "max": 8.9
+    },
+    "over16": 0,
+    "over50": 0
+   },
+   "extra": {
+    "cold": {
+     "n": 111,
+     "p50": 0.1,
+     "p95": 2.2,
+     "p99": 4.9,
+     "max": 6.7
+    },
+    "warm": {
+     "n": 111,
+     "p50": 0.1,
+     "p95": 2.5,
+     "p99": 4.9,
+     "max": 6
+    },
+    "over16": 0,
+    "over50": 0
+   },
+   "realistic": {
+    "cold": {
+     "n": 2084,
+     "p50": 0,
+     "p95": 2,
+     "p99": 4.2,
+     "max": 12.9
+    },
+    "warm": {
+     "n": 2084,
+     "p50": 0,
+     "p95": 2.1,
+     "p99": 4.5,
+     "max": 8.9
+    },
+    "over16": 0,
+    "over50": 0
+   },
+   "fuzzy_deferred": {
+    "n": 32,
+    "p50": 11,
+    "p95": 16,
+    "p99": 16.9,
+    "max": 16.9
+   },
+   "sample": [
+    "ELDEN RING",
+    "ELDEN RING NIGHTREIGN",
+    "Elden Gunfire 2"
+   ]
+  }
+ ]
+}

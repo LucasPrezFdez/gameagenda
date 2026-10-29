@@ -1,0 +1,16 @@
+## 18. Preguntas abiertas
+
+Solo lo que el plan aún no resuelve. Ninguna impide empezar: mientras no haya respuesta, se aplica el supuesto.
+
+| Id | Pregunta | A quién | Supuesto mientras tanto | Qué cambia según la respuesta |
+|---|---|---|---|---|
+| PA-01 | ¿Apuntarás sobre todo en el móvil o en el PC? ¿Usarás los dos desde el principio? | Usuario | Los dos, pero hasta M4 se apunta sobre todo en uno; orden por defecto M3 → M4 | Si se apunta en los dos desde el principio, o en un iPhone sin instalar la app (ver §16, R-05), M4 va antes que M3 (ver §15.1); si casi todo es PC, la app de escritorio con atajo global (M3; ver §17.3) pasa a justo después de M1 |
+| PA-02 | ¿Tu móvil es iPhone o Android, y qué modelo? | Usuario | Un Android de gama media como referencia de rendimiento, con el modelo fijado en M0; el iPhone se comprueba por HTTPS con el panel de rendimiento | Con iPhone, «Pegar enlace» y el Atajo de iOS (M4) son la vía principal y sube R-05 (ver §16), así que conviene adelantar M4; sin un Android de gama media a mano, hay que conseguir uno o recalibrar la referencia antes de cerrar M1 (si no, sus mediciones pasan a M3 con un *issue*; ver §15) |
+| PA-03 | ¿Tienes una cuenta de Steam con ≥5 US$ gastados y Steam Guard móvil? | Usuario | Sí: la clave se pide en M0 y M1 no la necesita | Si no, el pipeline sigue con el plan B sin clave (ver §4) y R-01 pasa a impacto alto; se resuelve gastando 5 US$ en la tienda y activando el autenticador |
+| PA-04 | ¿«Platinado» es el 100 % del juego base o incluye los DLC? | Usuario | Marca manual; en Fase 2, la sugerencia usa el conjunto base de logros | Cambia la regla de la sugerencia al importar (ver §10) y si hace falta una marca «100 % con DLC» |
+| PA-05 | ¿Quieres los DLC y expansiones en el catálogo (≈63 000)? | Usuario | No en el prototipo; en Fase 2, solo los notables (umbral de reseñas) con insignia «DLC» | Todos los DLC suman ≈32 % de filas al núcleo y obligan a revisar los presupuestos de tamaño y memoria (ver §6 y §8) |
+| PA-06 | ¿Piensas monetizar (anuncios, suscripción, afiliados)? | Usuario; después, Valve | Uso personal y gratuito | Consultar a Valve antes de cobrar (ver §16, R-09), asociación con atribución si se usa IGDB, más obligaciones legales (ver §11) y quizá un plan de pago |
+| PA-07 | ¿Cuántas horas por semana dedicarás? | Usuario | 15 h/semana: M0–M4 en 9,2–12,8 semanas sin colchón (ver §15.2) | Solo el calendario, no el alcance |
+| PA-08 | ¿Habrá probadores externos antes de M4? ¿Quieres dominio propio? | Usuario | No; `workers.dev` | La política completa, el aviso legal y el registro de actividades se adelantan al primer probador (ver §11); un dominio propio obliga a revisar los orígenes de la CSP |
+| PA-09 | ¿Qué más quieres guardar por juego: otras marcas (Favorito, «Sin final»), valoración, precio pagado o precio actual? | Usuario | Solo Platinado, Comprado, Próximo y nota; `flags` admite marcas nuevas sin migración | Una marca fija cabe en cualquier hito; valoración y precio pagado son campos nuevos de la ficha; el precio actual exige datos diarios en los *shards* |
+| PA-10 | ¿Se puede registrar, sin asociarlo a nadie, el texto de las búsquedas sin resultados? | Usuario y asesoría legal | No se envía nada; el panel de rendimiento es local | Haría falta una ruta en la micro-API (M4), aviso de privacidad y base jurídica (ver §11) |

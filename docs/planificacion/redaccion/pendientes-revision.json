@@ -1,0 +1,140 @@
+[
+ {
+  "file": "08-busqueda.md",
+  "quote": "en CI, con Vitest sobre una copia congelada y comprimida del núcleo real, `fixtures/search/core.tsv.gz`",
+  "problem": "La §8.10 y la §8.11 («Al empezar M1, el núcleo pasa a `fixtures/search/core.tsv.gz`») ponen la copia congelada en otra ruta y sin alias. La §12.1, la §13.3, la §13.5, la §14.1 y la §14.2 la ponen en `fixtures/catalog-frozen/` (`core.<versión>.tsv.gz` + `aliases.<versión>.tsv`, creada con `npm run fixtures:freeze`). El conjunto dorado necesita los alias (tiene categorías de siglas y alias). Es el conflicto 8 del arquitecto, aún sin resolver en la §8.",
+  "fix": "En la §8.10 y la §8.11, poner: «`fixtures/catalog-frozen/` (núcleo `core.<versión>.tsv.gz` y `aliases.<versión>.tsv`, ≈3 MB gzip; los crea `npm run fixtures:freeze`; ver §12.1 y §14.2)»."
+ },
+ {
+  "file": "15-roadmap.md",
+  "quote": "LCP ≤2,5 s en Lighthouse móvil",
+  "problem": "CA1.5 mide el LCP con Lighthouse. Sin embargo, la §6.1 y la §6.4 descartan Lighthouse («El LCP se mide con `PerformanceObserver` (`largest-contentful-paint`) en el proyecto `perf` de Playwright»), y la §12.4 mide así el LCP en la app real. Un criterio de M1 depende de una herramienta que el stack excluye.",
+  "fix": "Poner: «LCP ≤2,5 s, medido con `PerformanceObserver` en el proyecto `perf` (ver §12.4)»."
+ },
+ {
+  "file": "11-seguridad-privacidad.md",
+  "quote": "privada solo en un secreto de GitHub",
+  "problem": "La clave privada de firma del manifest solo existe en GitHub. Pero la §4.5 y R-03 dan como salida ante los 429 lanzar el pipeline desde el PC con el mismo comando, y la §12.5 hace lo mismo si faltan minutos. Desde M2 (v0.2.0) el cliente descarta todo manifest sin firma válida, así que una ejecución desde el PC no puede publicar un catálogo que se acepte. Además, la §13.3 dice que desde M2 solo publica `catalog.yml`, y `.env.example` no incluye ni la clave de firma ni el ping de healthchecks.",
+  "fix": "Elegir una sola vía y escribirla en la §4.5, la §11.3, la §12.5, la §13.3 y R-03. Opción 1: el PC solo descarga y construye, y `catalog.yml` (lanzado con `workflow_dispatch` sobre ese artefacto) pasa las puertas, firma y publica. Opción 2: la clave de firma vive también en `.env.local`, con la misma búsqueda de su valor en el build que la clave de Steam."
+ },
+ {
+  "file": "18-preguntas-abiertas.md",
+  "quote": "Los dos, con el móvil como vía principal de captura",
+  "problem": "El supuesto de PA-01 responde «Los dos» a «¿Usarás los dos desde el principio?». La misma fila, la §15.1 y la §1.5 dicen que en ese caso M4 va antes que M3, y el perfil de la §1 y la §2.2 también «usa a diario el PC y el móvil». Aun así, la §1.4 y la §15 mantienen M3 → M4 (v0.3.0 / v0.4.0) como orden por defecto: el plan contradice su propio supuesto.",
+  "fix": "Precisar el supuesto, por ejemplo: «Los dos, pero hasta M4 se apunta sobre todo en uno; orden por defecto M3 → M4». Si el supuesto se mantiene tal cual, adoptar M4 → M3 en la §1.4 y la §15."
+ },
+ {
+  "file": "17-multiplataforma.md",
+  "quote": "Opcional (ADR-013): Tauri 2 (CLI 2.12.4) envuelve la misma *build*",
+  "problem": "El registro de la §5.6 asigna el ADR-012 al envoltorio Tauri (y el ADR-011 a la cuenta de Steam), y la §15.1 y la §15.8 repiten «ADR-011 y 012». No existe ningún ADR-013.",
+  "fix": "Poner «Opcional (ADR-012)»."
+ },
+ {
+  "file": "07-modelo-datos.md",
+  "quote": "En D1 solo hay agenda y *hashes* de tokens",
+  "problem": "La §5.2 guarda en D1 la caché de `resolve` («una tabla de D1 (`appid`, nombre, `fetched_at`)»), pero el DDL de la §7.7 no la define y la §7.8 dice que en D1 solo hay agenda y hashes. Además, la retención de la §11.2 («Agenda sin sincronizar en 13 meses | D1 | Se borra») necesita una fecha de última sincronización que ninguna tabla tiene: `agenda` solo lleva `id`, `seq`, `purged_seq` y `recovery_hash`.",
+  "fix": "Añadir a la §7.7 `CREATE TABLE resolve_cache (appid INTEGER PRIMARY KEY, name TEXT NOT NULL, fetched_at TEXT NOT NULL) STRICT;` y una columna `last_sync_at` en `agenda` (o quitar la regla de los 13 meses). En la §7.8, citar la caché como dato público, no de usuario."
+ },
+ {
+  "file": "16-riesgos.md",
+  "quote": "si no llegan comprimidos, se sirven como `text/plain; charset=utf-8` desde `_headers` (a verificar en M0) o ya comprimidos con gzip",
+  "problem": "La §7.6 ya fija como punto de partida servir los TSV como `text/plain; charset=utf-8` por `_headers`, y deja como única alternativa los ficheros ya comprimidos con gzip + `DecompressionStream`. En cambio, CA0.3 (§15.3) y R-16 presentan `text/plain` como remedio por si no llegan comprimidos. Además, R-16 valora la probabilidad como alta, como si se sirvieran con `text/tab-separated-values`.",
+  "fix": "Alinear CA0.3 y R-16 con la §7.6: `text/plain` por `_headers` desde M0; CA0.3 comprueba el `Content-Encoding`; si aun así no se comprime, ficheros con gzip + `DecompressionStream` (ADR-003). Revisar la probabilidad de R-16."
+ },
+ {
+  "file": "16-riesgos.md",
+  "quote": "Índice D-09 en un Web Worker y puente de escaneo en M1",
+  "problem": "«D-09» es un identificador de la lista interna de decisiones. `prototipe.md` solo define ADR-001…ADR-012, así que el lector no puede resolverlo: es una referencia interna del proceso de planificación.",
+  "fix": "Poner «Índice de la §8 en un Web Worker y puente de escaneo en M1»."
+ },
+ {
+  "file": "19-referencias.md",
+  "quote": "Documentación de trabajo que acompaña al plan, si se conserva: `docs/planificacion/` (investigación y decisiones del 28-10-2026).",
+  "problem": "Esta línea remite al material de trabajo de la planificación, que es una referencia interna del proceso. Además, la §19 omite fuentes citadas en el cuerpo: la compresión de Cloudflare (§7.6, R-16), la Cache API de Workers (§5.2), los límites de D1 (§7.7), `worker.format` de Vite (§6.2) y las notas de Dexie 4.0.1-beta.9 (§9.5).",
+  "fix": "Quitar la línea, o sustituirla por «Decisiones: `docs/adr/`». Añadir a la §19.3 y la §19.4: https://developers.cloudflare.com/speed/optimization/content/compression/, https://developers.cloudflare.com/workers/runtime-apis/cache/, https://developers.cloudflare.com/d1/platform/limits/, https://vite.dev/config/worker-options y https://github.com/dexie/Dexie.js/releases/tag/v4.0.1-beta.9."
+ },
+ {
+  "file": "02-vision.md",
+  "quote": "3–5 personas (al menos 2 ajenas al proyecto) × 10 juegos dictados",
+  "problem": "La prueba guiada de M3 cuenta con personas ajenas al proyecto. Sin embargo, PA-08 da por hecho que no habrá probadores externos antes de M4, y la §11.2 exige la política completa, el aviso legal y el registro de actividades «Antes del primer probador externo y de M4», textos que M3 no incluye.",
+  "fix": "Aclarar en O-1 y en la §11.2 que quienes hacen la prueba guiada en los dispositivos del desarrollador, sin datos propios, no cuentan como probadores externos. La otra opción es adelantar esos textos a M3."
+ },
+ {
+  "file": "11-seguridad-privacidad.md",
+  "quote": "enlaza con «Más información» a la política",
+  "problem": "El texto del aviso tiene su hogar en la §9.9 («… que reciben tu dirección IP. · Entendido · Desactivar portadas»), y ese texto no lleva «Más información». Además, la política completa no llega hasta «Antes del primer probador externo y de M4», así que entre M2 y M4 el enlace no tiene destino.",
+  "fix": "Añadir «Más información» al texto de la §9.9 y decir qué abre en M2–M3, por ejemplo la pantalla «Datos de Steam que guardamos» o una política breve publicada en M2."
+ },
+ {
+  "file": "12-calidad-ingenieria.md",
+  "quote": "Android de gama media (§13.4): **bloquea** el cierre de M1 y M3",
+  "problem": "La §15.4 y PA-02 permiten cerrar M1 sin ese Android («se cierra con `npm run perf` y lo que se mide en ese dispositivo pasa a M3 con un *issue*»), pero la §12.4 lo presenta como bloqueo sin excepción.",
+  "fix": "Añadir «(en M1, con la excepción de la §15.4)»."
+ },
+ {
+  "file": "03-requisitos.md",
+  "quote": "(Importante si el móvil principal es un iPhone, ver §18) | Deseable | M4",
+  "problem": "«Deseable» significa «si sobra tiempo», pero el buzón para el Atajo de iOS forma parte del alcance de M4 (§15.7) y tiene un criterio obligatorio (CA4.5). Pasa lo mismo con RF-16 (gestos, Deseable, M3): la §15.6 lo incluye en «Entra» y le pone el criterio CA3.4.",
+  "fix": "Subir RF-08 y RF-16 a «Importante», o marcar CA4.5 y CA3.4 como condicionales y sacarlos de «Entra»."
+ },
+ {
+  "file": "15-roadmap.md",
+  "quote": "CA3.5 axe sin violaciones graves ni críticas; pasada con NVDA, TalkBack y VoiceOver",
+  "problem": "RNF-09 exige una «pasada con NVDA y Narrador al cerrar cada hito». Sin embargo, CA1.10 no pide ninguna pasada con lector de pantalla y CA3.5 no incluye Narrador.",
+  "fix": "Añadir la pasada con NVDA y Narrador a CA1.10 y Narrador a CA3.5, o ajustar RNF-09 a lo que piden los criterios."
+ },
+ {
+  "file": "15-roadmap.md",
+  "quote": "borrar IndexedDB (con una acción de diagnóstico)",
+  "problem": "Ninguna sección define esa acción: no aparece en los Ajustes de la §9.1 ni en la §12.7. Además, la §12.7 guarda desde M1 un búfer con los 100 últimos errores «en IndexedDB», exportable «desde el panel». Pero la §7.2 no dice dónde se guarda (ni tabla ni clave de `meta`), y el panel no existe hasta M3.",
+  "fix": "Definir la acción en Ajustes › Rendimiento (§9.1 y §12.7). Añadir `meta.errorLog` (o una tabla) a la §7.2 y decir desde dónde se exportan los errores en M1–M2, por ejemplo Ajustes › Datos."
+ },
+ {
+  "file": "08-busqueda.md",
+  "quote": "índice leído de Dexie (`meta`, clave por versión de catálogo)",
+  "problem": "La §5.2 y la §7.6 dicen que el Worker de búsqueda no importa Dexie y lee `meta` con IndexedDB nativo. «Leído de Dexie» invita a importarlo.",
+  "fix": "Poner «índice leído de IndexedDB (`meta.searchIndex`, sin Dexie)»."
+ },
+ {
+  "file": "07-modelo-datos.md",
+  "quote": "no está en la lib de core (§14.3)",
+  "problem": "El comentario de `merge()` justifica la copia manual porque `structuredClone` no estaría disponible en `core`. Pero la §14.3 dice que `structuredClone`, `URL` y `TextEncoder` se declaran en un `globals.d.ts` propio de `core`, así que sí está disponible.",
+  "fix": "Cambiar el comentario (por ejemplo, «copia superficial: basta y evita structuredClone») o quitar `structuredClone` de la lista de la §14.3."
+ },
+ {
+  "file": "04-estudio-steam.md",
+  "quote": "(≈330–400 min/mes de Actions; ver §12)",
+  "problem": "La §12.5 da «≈360–400» para `catalog.yml`, con los mismos 11–13 min por ejecución.",
+  "fix": "Usar el mismo rango en las dos secciones: 30–31 ejecuciones × 11–13 min ≈ 330–400."
+ },
+ {
+  "file": "04-estudio-steam.md",
+  "quote": "recientes (≈4 000 filas en 14 días)",
+  "problem": "La tabla de tamaños de la §7.6 dice «`recent` (≈4 300 filas)».",
+  "fix": "Unificar la cifra: ≈264 altas + ≈17 renombrados al día × 14 ≈ 3 900–4 000."
+ },
+ {
+  "file": "05-arquitectura.md",
+  "quote": "se comería casi todo el presupuesto del *chunk* del Worker",
+  "problem": "La §7.6 dice que Dexie (26,5 KB con brotli 11) supone «dos tercios de su presupuesto»; 27 de 40 KB son ≈67 %, no «casi todo». Además, el mismo argumento aparece en dos secciones.",
+  "fix": "En la §5.2, poner «≈27 KB brotli: dos tercios del presupuesto del Worker», y que la §7.6 remita a la §5.2."
+ },
+ {
+  "file": "09-ux.md",
+  "quote": "Compra: [[Todos]] [Comprados] [Sin comprar]",
+  "problem": "La §3.3 llama a estos filtros «Por comprar» (Quiero jugar sin Comprado) y «Pendientes que tengo» (con Comprado).",
+  "fix": "Usar los mismos nombres en la §3.3 y en el wireframe."
+ },
+ {
+  "file": "04-estudio-steam.md",
+  "quote": "**«Próximamente»** (62 642, 32 %)",
+  "problem": "La §4.3 da 62 686 juegos «próximamente» (US). 62 642 es la cifra de ES, pero el texto no lo indica.",
+  "fix": "Poner «(62 642 en ES, 32 %)»."
+ },
+ {
+  "file": "08-busqueda.md",
+  "quote": "| `core` completo (196 665 filas) | 7,00 MB | 3,05 MB | 2,25 MB | 2,59 MB |",
+  "problem": "La §8.11 repite la tabla de tamaños del núcleo, el núcleo de arranque y los alias, cuyo hogar es la §7.6; la guía de estilo prohíbe repetir tablas. Además, R-16 remite a la §8.11 para esos tamaños.",
+  "fix": "Dejar en la §8.11 solo la fila del índice serializado y remitir a la §7.6. En R-16, poner «ver §7.6»."
+ }
+]

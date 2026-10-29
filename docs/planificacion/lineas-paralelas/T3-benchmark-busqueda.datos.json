@@ -1,0 +1,297 @@
+{
+  "dataset": {
+    "source": "https://github.com/jsnli/steamappidlist (data/games_appid.json, commit 6d300653 del 2026-10-27T04:15:29Z). Lo genera a diario una GitHub Action que llama a IStoreService/GetAppList/v1?include_games=true con clave secreta. Popularidad solo para el test: SteamSpy api.php?request=all, páginas 0-3.",
+    "fetched_at": "2026-10-27T23:52:29Z (cabecera HTTP Date; commit autopublish 2026-10-27T04:15:29Z). También se descargaron los commits del 26 y del 20 de octubre para medir deltas.",
+    "records": 196577,
+    "games_only": true,
+    "synthetic": false,
+    "notes": "Datos REALES, no sintéticos. 196.595 appids de tipo juego; se descartan 18 sin nombre y quedan 196.577. Campos: appid, name, last_modified, price_change_number. Nombres: 16,7 caracteres de media (p95 35, máx. 414); 8,1 % no ASCII; 6,3 % CJK/hangul; 749 con diacríticos latinos; 24 con ñ. Cambios reales: del 26 al 27 de oct, +264, -8 y 17 renombrados; del 20 al 27 de oct, +2.051, -43 y 100 renombrados. La lista NO es exhaustiva: falta 271590 'Grand Theft Auto V Legacy', aunque su appdetails devuelve success y type game; solo está 3240220 'Grand Theft Auto V Enhanced'. The Witcher 3 aparece hoy como 'The Witcher 3: Wild Hunt — Remastered'. Popularidad: SteamSpy top 4.000 por propietarios (3.998 únicos; 3.587 presentes en la lista), con reseñas positive+negative. Sus nombres están desfasados (730 = 'Counter-Strike: Global Offensive'), así que se une solo por appid. Repositorio con 57 estrellas; el README muestra un badge MIT, pero el campo license de GitHub está vacío."
+  },
+  "snapshot_sizes": [
+    {
+      "variant": "json [[appid,name]] (orden appid)",
+      "records": 196577,
+      "raw_bytes": 5978703,
+      "gzip_bytes": 2643124,
+      "brotli_bytes": 1912248
+    },
+    {
+      "variant": "json columnar {d: deltas appid, n: names}",
+      "records": 196577,
+      "raw_bytes": 4637444,
+      "gzip_bytes": 2041696,
+      "brotli_bytes": 1537769
+    },
+    {
+      "variant": "json [appid,name,reseñas?] (reseñas solo top 3.587)",
+      "records": 196577,
+      "raw_bytes": 5997983,
+      "gzip_bytes": 2660973,
+      "brotli_bytes": 1924787
+    },
+    {
+      "variant": "json columnar + clave normalizada solo si difiere de toLowerCase (53.561 nombres)",
+      "records": 196577,
+      "raw_bytes": 6591269,
+      "gzip_bytes": 2766524,
+      "brotli_bytes": 2018806
+    },
+    {
+      "variant": "json extendida [appid,name,releaseYear,typeFlags,coverHash40] (placeholders)",
+      "records": 196577,
+      "raw_bytes": 15812884,
+      "gzip_bytes": 8166325,
+      "brotli_bytes": 6528327
+    },
+    {
+      "variant": "json extendida columnar con deltas (placeholders)",
+      "records": 196577,
+      "raw_bytes": 13881913,
+      "gzip_bytes": 6447218,
+      "brotli_bytes": 5604881
+    },
+    {
+      "variant": "lista de arranque: top populares [appid,name]",
+      "records": 3585,
+      "raw_bytes": 111974,
+      "gzip_bytes": 49334,
+      "brotli_bytes": 41462
+    },
+    {
+      "variant": "delta real de 1 día (26 al 27 de oct: +264/-8/17 renombrados)",
+      "records": 289,
+      "raw_bytes": 8322,
+      "gzip_bytes": 4691,
+      "brotli_bytes": 3659
+    },
+    {
+      "variant": "delta real de 7 días (20 al 27 de oct: +2051/-43/100 renombrados)",
+      "records": 2194,
+      "raw_bytes": 64593,
+      "gzip_bytes": 31656,
+      "brotli_bytes": 25347
+    },
+    {
+      "variant": "sqlite mínima games(appid,name,pop) VACUUM (brotli q9)",
+      "records": 196577,
+      "raw_bytes": 5611520,
+      "gzip_bytes": 3589878,
+      "brotli_bytes": 3068437
+    },
+    {
+      "variant": "sqlite mínima + FTS5 unicode61 rd2 prefix='1 2 3' contentless (brotli q9)",
+      "records": 196577,
+      "raw_bytes": 17444864,
+      "gzip_bytes": 9787940,
+      "brotli_bytes": 8711854
+    },
+    {
+      "variant": "sqlite mínima + FTS5 prefix + trigram (brotli q9)",
+      "records": 196577,
+      "raw_bytes": 32108544,
+      "gzip_bytes": 18883511,
+      "brotli_bytes": 17284617
+    },
+    {
+      "variant": "sqlite extendida (year, flags, cover, pop) (brotli q9)",
+      "records": 196577,
+      "raw_bytes": 14675968,
+      "gzip_bytes": 9249957,
+      "brotli_bytes": 8462934
+    },
+    {
+      "variant": "sqlite extendida + FTS5 unicode61 sin prefix (brotli q9)",
+      "records": 196577,
+      "raw_bytes": 20385792,
+      "gzip_bytes": 12142841,
+      "brotli_bytes": 11170636
+    },
+    {
+      "variant": "sqlite extendida + FTS5 prefix='1 2 3' (brotli q9)",
+      "records": 196577,
+      "raw_bytes": 26509312,
+      "gzip_bytes": 15448290,
+      "brotli_bytes": 14115856
+    },
+    {
+      "variant": "sqlite extendida + trigram detail=full (brotli q9)",
+      "records": 196577,
+      "raw_bytes": 29339648,
+      "gzip_bytes": 18346125,
+      "brotli_bytes": 17036465
+    },
+    {
+      "variant": "sqlite extendida + FTS5 prefix + trigram (brotli q9)",
+      "records": 196577,
+      "raw_bytes": 41172992,
+      "gzip_bytes": 24543115,
+      "brotli_bytes": 22689657
+    }
+  ],
+  "engines": [
+    {
+      "engine": "scan-indexof (JS propio, sin librería)",
+      "version": "n/a",
+      "build_ms": 20,
+      "heap_mb": 6.88,
+      "index_bytes": 0,
+      "index_gzip_bytes": 0,
+      "p50_ms": 2.27,
+      "p95_ms": 7.172,
+      "max_ms": 8.657,
+      "quality_top1": "base 14/22 -> +prefijo 15/22 -> +popularidad 16/22 -> +alias 17/22",
+      "quality_top5": "base 16/22 -> +prefijo 16/22 -> +popularidad 16/22 -> +alias 18/22",
+      "notes": "Junta todos los nombres en un único string (' nombre' + salto de línea) ordenado por popularidad. Busca con indexOf(' ' + token más largo) y localiza el doc por búsqueda binaria; para al llegar a 100 candidatos. No tiene índice: index_bytes=0 y solo se descarga el snapshot (1,54-1,91 MB br). No tolera erratas. En Edge 156: p50/p95 de 2,2/6,7 ms (x1), 9,7/33 ms (CPU x4) y 26,5/89 ms (x10); listo en 0,27/1,30/3,4 s; heap 28 MB."
+    },
+    {
+      "engine": "pwa-hybrid (scan-indexof + fallback uFuzzy si hay <5 resultados)",
+      "version": "@leeoniya/ufuzzy 1.0.19",
+      "build_ms": 32,
+      "heap_mb": 7,
+      "index_bytes": 0,
+      "index_gzip_bytes": 0,
+      "p50_ms": 2.674,
+      "p95_ms": 14.743,
+      "max_ms": 20.081,
+      "quality_top1": "base 16/22 -> +prefijo 16/22 -> +popularidad 19/22 -> +alias 20/22",
+      "quality_top5": "base 18/22 -> +prefijo 18/22 -> +popularidad 19/22 -> +alias 21/22",
+      "notes": "Pipeline recomendado para la PWA. Si el escaneo da <5 resultados y la consulta tiene 3 o más caracteres, entra uFuzzy (intraMode 1, interLft 1) y todas sus coincidencias (≤1.000) se reordenan por popularidad. Resuelve witchr, cyberpnk y hollow knigth; falla con eldenring, y con gta queda top-2 (por delante GTA IV). Con zelda da 3 falsos positivos. El p95 lo marcan las consultas raras, que hacen dos pasadas; conviene diferir el fuzzy a la pausa de tecleo. En Edge: 2,5/12,9 ms (x1), 12,1/69 ms (x4), 33,6/194 ms (x10). En Worker, ida y vuelta 2,7/13,2 ms con 0,1 ms de overhead."
+    },
+    {
+      "engine": "naive (bucle startsWith/includes, sin librería)",
+      "version": "n/a",
+      "build_ms": 0,
+      "heap_mb": 0,
+      "index_bytes": 0,
+      "index_gzip_bytes": 0,
+      "p50_ms": 8.492,
+      "p95_ms": 10.724,
+      "max_ms": 14.481,
+      "quality_top1": "base 14/22 -> +prefijo 15/22 -> +popularidad 16/22 -> +alias 17/22",
+      "quality_top5": "base 16/22 -> +prefijo 16/22 -> +popularidad 16/22 -> +alias 18/22",
+      "notes": "Referencia: recorre el array normalizado comprobando prefijo de palabra por cada token, con salida temprana. Con K=10 da p50 2,1 ms. Es más lento que indexOf. En Edge: x4 52,7/60 ms y x10 172/208 ms. Sin erratas."
+    },
+    {
+      "engine": "@leeoniya/ufuzzy (top-100 candidatos)",
+      "version": "1.0.19",
+      "build_ms": 18,
+      "heap_mb": 0.11,
+      "index_bytes": 0,
+      "index_gzip_bytes": 0,
+      "p50_ms": 7.906,
+      "p95_ms": 10.341,
+      "max_ms": 13.382,
+      "quality_top1": "base 17/22 -> +prefijo 16/22 -> +popularidad 18/22 -> +alias 19/22",
+      "quality_top5": "base 18/22 -> +prefijo 18/22 -> +popularidad 18/22 -> +alias 20/22",
+      "notes": "No tiene índice: en cada pulsación aplica un filtro regex sobre los 196k nombres, con coste casi constante de unos 8 ms (lineal en N). Opciones: intraMode 1 (1 error por término) e interLft 1. Si solo se toman 100 candidatos en su orden, se pierde witchr -> The Witcher 3. Por defecto solo admite alfabeto latino: los nombres CJK necesitan unicode:true. En Edge: 7,1/9,6 ms (x1), 34,5/43,7 ms (x4), 110/150 ms (x10); heap 21 MB."
+    },
+    {
+      "engine": "@leeoniya/ufuzzy (reordenando todas las <=1000 coincidencias)",
+      "version": "1.0.19",
+      "build_ms": 15,
+      "heap_mb": 0.11,
+      "index_bytes": 0,
+      "index_gzip_bytes": 0,
+      "p50_ms": 7.74,
+      "p95_ms": 10.304,
+      "max_ms": 13.861,
+      "quality_top1": "base 17/22 -> +prefijo 16/22 -> +popularidad 19/22 -> +alias 20/22",
+      "quality_top5": "base 18/22 -> +prefijo 18/22 -> +popularidad 19/22 -> +alias 21/22",
+      "notes": "Es el mismo motor, pero pasa al reordenador todas las coincidencias ordenadas (hasta infoThresh=1000). Mismo coste y un acierto más: witchr -> The Witcher 3 sale top-1."
+    },
+    {
+      "engine": "flexsearch (Index tokenize forward + Charset.LatinBalance + suggest)",
+      "version": "0.8.212",
+      "build_ms": 2058,
+      "heap_mb": 180.27,
+      "index_bytes": 23620678,
+      "index_gzip_bytes": 7362125,
+      "p50_ms": 0.042,
+      "p95_ms": 8.591,
+      "max_ms": 14.509,
+      "quality_top1": "base 14/22 -> +prefijo 15/22 -> +popularidad 17/22 -> +alias 18/22",
+      "quality_top5": "base 17/22 -> +prefijo 16/22 -> +popularidad 17/22 -> +alias 19/22",
+      "notes": "Las consultas de un término tardan microsegundos; el p95 de unos 8,6 ms viene de las de varios términos. Coste: 180 MB de heap (252 MB de RSS) y 2,1 s de construcción en Node. En Edge, 112 MB y listo en 1,9 s (x1), 10,7 s (x4) y 40 s (x10). El índice exportado ocupa 23,6 MB (7,4 MB gzip, 3,9 veces el snapshot) y se importa en 212 ms. No tolera erratas de verdad: solo acierta hollow knigth gracias a suggest. Inviable en móvil de gama baja."
+    },
+    {
+      "engine": "minisearch (prefix+AND; fuzzy 0.2 solo si <5; boostDocument con popularidad)",
+      "version": "7.2.0",
+      "build_ms": 909,
+      "heap_mb": 127.74,
+      "index_bytes": 12906966,
+      "index_gzip_bytes": 3665588,
+      "p50_ms": 1.012,
+      "p95_ms": 65.357,
+      "max_ms": 148.671,
+      "quality_top1": "base 15/22 -> +prefijo 15/22 -> +popularidad 18/22 -> +alias 19/22",
+      "quality_top5": "base 16/22 -> +prefijo 16/22 -> +popularidad 18/22 -> +alias 20/22",
+      "notes": "Puntúa con BM25 todas las coincidencias, así que los prefijos de 1-2 letras dan p95 95 ms. Aplicando fuzzy en cada pulsación el p95 era todavía peor. loadJSON (2,1 s) es más lento que construir el índice (0,9 s). En Edge el p95 es 53 ms (x1), 319 ms (x4) y 1.044 ms (x10), con 4,8 s de construcción a x4; heap 84 MB."
+    },
+    {
+      "engine": "@orama/orama (threshold 0; tolerance 1 solo si <5)",
+      "version": "3.1.18",
+      "build_ms": 1689,
+      "heap_mb": 162.8,
+      "index_bytes": 43222198,
+      "index_gzip_bytes": 12993618,
+      "p50_ms": 0.608,
+      "p95_ms": 229.661,
+      "max_ms": 409.034,
+      "quality_top1": "base 15/22 -> +prefijo 15/22 -> +popularidad 17/22 -> +alias 18/22",
+      "quality_top5": "base 17/22 -> +prefijo 17/22 -> +popularidad 17/22 -> +alias 19/22",
+      "notes": "El fallback Levenshtein sobre el radix tree cuesta unos 230 ms; con tolerance en cada pulsación el p95 llegaba a unos 860 ms. Prefijos de 1-2 letras: p95 81 ms. save() genera 43 MB (13 MB gzip) y load tarda 0,9 s. El tokenizer inglés por defecto corta en la ñ ('España' -> 'espa' + 'a'). BM25 ignora la popularidad con prefijos cortos: The Witcher 3 necesita 10 letras para entrar en el top-5."
+    },
+    {
+      "engine": "fuse.js (threshold 0.3, ignoreLocation)",
+      "version": "7.5.0",
+      "build_ms": 28,
+      "heap_mb": 13.73,
+      "index_bytes": 8939416,
+      "index_gzip_bytes": 2683665,
+      "p50_ms": 305.426,
+      "p95_ms": 921.321,
+      "max_ms": 1272.148,
+      "quality_top1": "base 16/22 -> +prefijo 17/22 -> +popularidad 19/22 -> +alias 20/22",
+      "quality_top5": "base 19/22 -> +prefijo 18/22 -> +popularidad 19/22 -> +alias 21/22",
+      "notes": "Usa Bitap lineal: entre 130 y 650 ms por consulta. En orden appid el p50 fue 261 ms; la pasada por popularidad coincidió con la prueba de navegador. Solo se midió una pasada de 216 pulsaciones. Es el más tolerante (resuelve eldenring y cyberpnk), pero da 10 falsos positivos para zelda y pokemon. useTokenSearch es igual de lento (130-650 ms en una muestra). Inviable con 196k títulos."
+    },
+    {
+      "engine": "node:sqlite FTS5 (contentless, unicode61 remove_diacritics 2, prefix='1 2 3', rowid = rango de popularidad)",
+      "version": "SQLite 3.53.4 (node:sqlite, Node v24.21.0)",
+      "build_ms": 1109,
+      "heap_mb": 4.62,
+      "index_bytes": 17494016,
+      "index_gzip_bytes": 9100972,
+      "p50_ms": 0.201,
+      "p95_ms": 0.413,
+      "max_ms": 1.891,
+      "quality_top1": "base 15/22 -> +prefijo 15/22 -> +popularidad 16/22 -> +alias 17/22",
+      "quality_top5": "base 16/22 -> +prefijo 16/22 -> +popularidad 16/22 -> +alias 18/22",
+      "notes": "heap_mb es el delta de RSS (memoria nativa); el delta de heap V8 es 0,04 MB. Consulta MATCH '\"tok\"*' en orden de rowid con LIMIT 100 y sin ORDER BY. Con ORDER BY rank (bm25) sube a p50 0,45 / p95 32 / máx. 73 ms por los prefijos de 1 letra. Abrir la BD y hacer la primera consulta: 2 ms. Tras VACUUM, la BD mínima con este índice ocupa 17,4 MB (8,7 MB br). Sin erratas."
+    },
+    {
+      "engine": "node:sqlite FTS5 + trigram (fallback OR de trigramas si <5)",
+      "version": "SQLite 3.53.4 (node:sqlite, Node v24.21.0)",
+      "build_ms": 2052,
+      "heap_mb": 5.66,
+      "index_bytes": 33333248,
+      "index_gzip_bytes": 19099904,
+      "p50_ms": 0.251,
+      "p95_ms": 14.089,
+      "max_ms": 56.518,
+      "quality_top1": "base 17/22 -> +prefijo 15/22 -> +popularidad 17/22 -> +alias 18/22",
+      "quality_top5": "base 18/22 -> +prefijo 16/22 -> +popularidad 19/22 -> +alias 21/22",
+      "notes": "heap_mb es el delta de RSS. Las erratas se resuelven con un OR de los trigramas ordenado por bm25: cyberpnk, hollow knigth y eldenring sí; witchr no. Coste: BD 1,9 veces mayor (32,1 MB tras VACUUM) y p95 de 14 ms por el fallback. Devuelve 10 falsos positivos para zelda y pokemon (p. ej. 'Cockemon'): en la UI deben ir como sugerencias aparte."
+    }
+  ],
+  "sqlite": {
+    "available": true,
+    "fts5": true,
+    "trigram": true,
+    "remove_diacritics": true,
+    "db_bytes": 17444864,
+    "notes": "node:sqlite funciona en Node v24.21.0 sin flag y sin ExperimentalWarning; exporta DatabaseSync, StatementSync, Session, constants y backup. Lleva SQLite 3.53.4 compilado con ENABLE_FTS5, FTS3, RTREE y MATH_FUNCTIONS; no tiene ICU ni spellfix1. Funcionan los tokenizers unicode61 remove_diacritics 2 y trigram remove_diacritics 1, así como las tablas contentless con contentless_delete=1. Con detail='none', trigram no admite consultas de subcadena ('phrase queries are not supported (detail!=full)') y hay que usar detail=full; además no encuentra consultas de menos de 3 caracteres. db_bytes es la BD mínima (appid, name, pop) con FTS5 prefix='1 2 3' tras VACUUM: 17,4 MB (8,7 MB brotli). Si se añade trigram pasa a 32,1 MB, y con los campos extendidos más ambos índices a 41,2 MB. El índice FTS5 cuesta unos 5,7 MB y prefix '1 2 3' añade unos 6,1 MB más. Consulta en orden de rowid (= popularidad) con LIMIT 100: p50 0,20 / p95 0,41 ms. Con ORDER BY rank: p95 32 ms. rusqlite con la feature 'bundled' compila con SQLITE_ENABLE_FTS5, por lo que vale para Tauri."
+  },
+  "recommendation": "El ranking depende sobre todo de un dato: el nº de reseñas (o equivalente) por appid, que es un requisito de datos. Con él, el juego buscado aparece en el top-5 con 1 pulsación (6 de 7 juegos de prueba; GTA V con 3) y se aciertan 20/22 en top-1; sin él hacen falta 5-11 pulsaciones. (a) Web/PWA: servir un snapshot columnar ordenado por popularidad (1,54 MB brotli; 2,02 MB si incluye las claves normalizadas) cacheado por el Service Worker, con un delta diario de unos 3,7 KB br y una lista de arranque de los 3.585 juegos más populares (41 KB br) para el primer uso. La búsqueda va en un Web Worker: escaneo indexOf sobre un único string, con salida temprana a los 100 candidatos, reordenado por clase exacto/prefijo + 0,5·log10(reseñas) y con una capa de alias por acrónimos. Fallback uFuzzy 1.0.19 solo si hay <5 resultados, diferido a la pausa de tecleo. Medido en Edge 156: p50 2,2 / p95 6,7 ms en escritorio, 9,7 / 33 ms con CPU x4 (gama media) y 26,5 / 89 ms con x10 (gama baja); listo en 0,27 / 1,3 / 3,4 s, unos 28 MB de heap y overhead de Worker de 0,1 ms. No usar FlexSearch (112-180 MB; listo en 10,7 s a x4 y 40 s a x10), MiniSearch ni Orama (p95 de 65 y 230 ms ya en escritorio) ni Fuse (unos 0,3 s por pulsación) con 196k títulos. (b) Tauri: SQLite FTS5 nativo (rusqlite bundled o tauri-plugin-sql), tabla contentless unicode61 remove_diacritics 2 con prefix='1 2 3' y rowid = rango de popularidad, sin ORDER BY rank. Da p50 0,20 / p95 0,41 ms, abre y responde la primera consulta en 2 ms, usa unos 5 MB de RSS y la BD ocupa 17,4 MB (8,7 MB br). Para erratas, una tabla trigram (BD de 32,1 MB, p95 14 ms) o el fallback uFuzzy en el WebView. El IPC de Tauri no se ha medido. (c) Servidor: el mismo SQLite FTS5 (node:sqlite ya viene en Node 24, sin Docker ni Postgres) detrás de GET /search?q= cacheable. Consume unos 0,2-0,4 ms de CPU por consulta, pero la red añade entre 94 ms (RTT P75) y 150 ms (Slow 4G) en cada pulsación, así que no se percibe instantáneo. Debe ser el respaldo (primera visita, dispositivos con ≤2 GB) y el generador del snapshot y los deltas con la clave de Steam; en el cliente, debounce de 120-150 ms y AbortController.",
+  "markdown": "## T3 · Benchmark empírico: búsqueda instantánea sobre el catálogo completo de Steam\n\n> **Equipo y fecha.** AMD Ryzen 5 3600 (6 núcleos / 12 hilos, 2019) · 16 GB de RAM · Windows 11 Pro 10.0.26200 · Node.js v24.21.0 (V8 13.6) · `node:sqlite` con SQLite 3.53.4 · Microsoft Edge 156 en modo headless, controlado por CDP (`Emulation.setCPUThrottlingRate` ×1, ×4 y ×10) · 2026‑10‑28. **Datos reales**, no sintéticos.\n\n### Resumen\n\n- **Catálogo:** 196.577 juegos reales. Es la lista `include_games` de `IStoreService/GetAppList`, tomada de un espejo público que se publica a diario. Entran unos 250–290 juegos nuevos al día.\n- **Cabe en el cliente.** `[appid, name]` ocupa 5,98 MB en bruto, **1,91 MB en brotli** y 2,64 MB en gzip. En formato columnar con deltas de appid baja a **1,54 MB brotli**. El delta diario real pesa **3,7 KB brotli**.\n- **La búsqueda local ya es instantánea sin índice.** Un escaneo `indexOf` sobre un único string, ordenado por popularidad, da en Edge:\n  - Escritorio: **p50 2,2 ms / p95 6,7 ms**.\n  - CPU ×4 (≈ móvil de gama media): **9,7 / 33 ms**.\n  - CPU ×10 (≈ gama baja): **26,5 / 89 ms**.\n  - Usa unos 28 MB de heap y no hay que construir índice.\n- **Los índices clásicos no compensan en móvil:**\n  - FlexSearch responde en microsegundos, pero ocupa 112–180 MB y tarda en estar listo 1,9 s en escritorio, 10,7 s a ×4 y 40 s a ×10.\n  - MiniSearch y Orama ya tienen en escritorio un p95 de 65 y 230 ms.\n  - Fuse.js tarda unos 0,3 s por pulsación.\n- **SQLite FTS5** (para Tauri o servidor), con el `rowid` igual al rango de popularidad: **p50 0,20 ms / p95 0,41 ms** y una BD de 17,4 MB.\n- **La calidad depende de los datos, no del motor.** Ordenar por nº de reseñas, dar más peso a los nombres que empiezan por lo tecleado y añadir alias sube el top‑1 de 14–17/22 a **20/22** (top‑5: 21/22). Así el juego aparece en el top‑5 **con 1 pulsación** (6 de 7 juegos; GTA V con 3), frente a las 5–11 que hacen falta sin popularidad. → **Requisito de datos: nº de reseñas (o equivalente) por appid.**\n\n### 1. Método\n\n- **Ejecución:**\n  - Cada motor corre en su propio proceso Node (`node --expose-gc`), uno detrás de otro.\n  - Se prueban dos órdenes del catálogo: por `appid` (sin popularidad) y por popularidad (reseñas de mayor a menor).\n- **Normalización común**, la misma en cliente y servidor:\n  ```js\n  const norm = s => s.normalize('NFKD').replace(/[\\u0300-\\u036f]/g, '').normalize('NFC')\n    .toLowerCase().replace(/['’‘`´ʼ]/g, '').replace(/[™®©]/g, '')\n    .replace(/[^\\p{L}\\p{N}]+/gu, ' ').trim();\n  ```\n  Convierte \"Baldur's\" → \"baldurs\", \"Counter‑Strike\" → \"counter strike\", \"España\" → \"espana\" y \"Déjà Vu\" → \"deja vu\", sin romper kana ni hangul.\n- **Consultas.** 25 consultas tecleadas carácter a carácter, que dan **216 pulsaciones** (sin repetir las que quedan iguales tras normalizar):\n  - Los 7 juegos objetivo.\n  - Variantes sin puntuación: \"baldurs gate 3\", \"counter strike 2\".\n  - Erratas: \"witchr\", \"cyberpnk\", \"hollow knigth\", \"eldenring\".\n  - Un número: \"2077\".\n  - Abreviaturas: \"gta\", \"cs2\".\n  - Ñ y acentos: \"señorita\"/\"senorita\", \"españa\"/\"espana\", \"déjà vu\"/\"deja vu\".\n  - Negativas, que no existen en Steam: \"zelda\", \"pokemon\", \"pokémon\".\n- **Latencia.** Una pasada de calentamiento y 5 medidas (Fuse: 1) con `performance.now()`. El p50, p95 y máximo se calculan sobre **todas** las pulsaciones, incluidas las de 1–2 letras, que son el peor caso.\n- **Memoria.** `heapUsed` tras un `gc()` doble, antes y después de construir el índice. En SQLite se mide el Δ de RSS, porque su memoria es nativa. En Edge se usa `performance.memory` con `--enable-precise-memory-info`.\n- **Calidad.** Top‑1 y top‑5 de 22 consultas con respuesta conocida, en cuatro escalones:\n  1. **Base:** el ranking del propio motor.\n  2. **+prefijo:** se reordenan 100 candidatos. Primero el nombre idéntico, luego los que empiezan por la consulta, luego aquellos en que alguna palabra empieza por ella y por último el resto; a igualdad, el nombre más corto.\n  3. **+popularidad:** catálogo ordenado por reseñas y `score = −clase + 0,5·log10(1 + reseñas)`.\n  4. **+alias:** acrónimos automáticos de los 4.000 juegos más populares (\"gta\", \"cs2\", \"bg3\"…), buscados por bisección en menos de 0,01 ms.\n- **Ruido.** En la máquina corrían procesos de otros agentes, y la pasada de Fuse por popularidad coincidió con la primera prueba de navegador. Los p50 son estables; los máximos pueden variar unos ms.\n\n### 2. Dataset\n\n| | |\n|---|---|\n| Fuente | [`jsnli/steamappidlist`](https://github.com/jsnli/steamappidlist) → `data/games_appid.json`. Lo genera a diario una GitHub Action que llama a `IStoreService/GetAppList/v1?include_games=true` con una clave secreta |\n| Frescura | Último commit: 2026‑10‑27T04:15:29Z (`chore: autopublish`). Descargado el 2026‑10‑27T23:52Z |\n| Registros | 196.595; quitando 18 sin nombre quedan **196.577**. Campos: `appid, name, last_modified, price_change_number` |\n| Nombres | 16,7 caracteres de media (p95 35, máx. 414). 8,1 % no ASCII, **6,3 % CJK/hangul**, 749 con diacríticos latinos y 24 con ñ |\n| Cambios reales | Del 26 al 27 de oct: +264, −8 y 17 renombrados (3,7 KB br). Del 20 al 27 de oct: +2.051, −43 y 100 renombrados (25 KB br) |\n| Popularidad (solo para el test) | [SteamSpy](https://steamspy.com/api.php) `request=all`, páginas 0–3: los 4.000 juegos con más propietarios, de los que 3.587 están en la lista. Se usa `positive + negative` |\n\nHallazgos que afectan al plan:\n- **La lista no es exhaustiva.** `271590` \"Grand Theft Auto V Legacy\" tiene ficha (`appdetails` devuelve `type: game`) pero no aparece; solo está `3240220` \"Grand Theft Auto V Enhanced\". Hay que permitir dos cosas:\n  - Añadir juegos por appid o URL.\n  - Crear juegos manuales. Zelda y Pokémon no están en Steam, así que la búsqueda vacía debe ofrecer \"Añadir «zelda» como juego propio\".\n- **Los nombres cambian:** hoy es \"The Witcher 3: Wild Hunt — Remastered\", con raya \"—\". La clave tiene que ser siempre el **appid**.\n- **SteamSpy tiene nombres desfasados:** para el 730 sigue diciendo \"Counter‑Strike: Global Offensive\". Hay que unir solo por appid.\n- **Contenido adulto.** Sin popularidad, \"cyberpnk\" devuelve \"CyberpunkXXX\" y \"Cyberpunk sex\". Hace falta ranking por popularidad y, probablemente, filtrar ese contenido con los descriptores de contenido de `GetItems`.\n\n### 3. Tamaños\n\n**Snapshot JSON** (N = 196.577; gzip ‑9, brotli q11):\n\n| Variante | Bruto | gzip | brotli | `JSON.parse` (Node) |\n|---|---|---|---|---|\n| `[[appid, name], …]` | 5,98 MB | 2,64 MB | **1,91 MB** | 68 ms |\n| Columnar `{d: Δappid, n: names}` | 4,64 MB | 2,04 MB | **1,54 MB** | 29 ms |\n| `[appid, name, reseñas?]` | 6,00 MB | 2,66 MB | 1,92 MB | 63 ms |\n| Columnar + clave normalizada cuando ≠ `toLowerCase()` (53.561 nombres) | 6,59 MB | 2,77 MB | 2,02 MB | — |\n| Extendida `[appid, name, año, flags, coverHash]`* | 15,81 MB | 8,17 MB | 6,53 MB | 67 ms |\n| Extendida columnar* | 13,88 MB | 6,45 MB | 5,60 MB | 36 ms |\n| Lista de arranque: los 3.585 más populares | 112 KB | 49 KB | **41 KB** | — |\n| Delta de 1 día / de 7 días | 8,3 / 64,6 KB | 4,7 / 31,7 KB | **3,7** / 25,3 KB | — |\n\n\\* Año, flags y hash son valores de relleno plausibles. El hash de 40 caracteres hexadecimales no se comprime y supone unos 4 MB de los 5,6 MB. **Las portadas no deben ir en el snapshot de búsqueda**: se piden bajo demanda.\n\nEn memoria (V8), los nombres ocupan 8,5 MB y los nombres normalizados 9,3 MB: unos **18 MB** en total. Durante el parseo hay un pico de 32 MB con el formato de filas y de 18,5 MB con el columnar.\n\n**SQLite** (`node:sqlite`, tras `VACUUM`; gzip ‑9 y brotli q9):\n\n| BD | Tamaño | gzip | brotli | Construcción |\n|---|---|---|---|---|\n| Mínima `games(appid, name, pop)` | 5,61 MB | 3,59 MB | 3,07 MB | 0,4 s |\n| + FTS5 `unicode61 remove_diacritics 2`, `prefix='1 2 3'`, contentless | **17,44 MB** | 9,79 MB | 8,71 MB | 1,4 s |\n| + FTS5 prefix + `trigram` | 32,11 MB | 18,88 MB | 17,28 MB | 2,6 s |\n| Extendida (año, flags, cover) | 14,68 MB | 9,25 MB | 8,46 MB | 0,9 s |\n| Extendida + FTS5 sin / con prefix | 20,39 / 26,51 MB | 12,14 / 15,45 MB | 11,17 / 14,12 MB | 1,1 / 1,5 s |\n| Extendida + trigram / + ambos | 29,34 / 41,17 MB | 18,35 / 24,54 MB | 17,04 / 22,69 MB | 1,7 / 2,8 s |\n\nCapacidades:\n- `node:sqlite` funciona sin flag ni `ExperimentalWarning` en v24.21.0.\n- Disponible: **FTS5 ✓, `trigram` ✓ y `remove_diacritics` ✓** (con unicode61 y con trigram). No hay ICU ni `spellfix1`.\n- `trigram` con `detail='none'` **no** admite búsquedas de subcadena (error `phrase queries are not supported (detail!=full)`).\n- `trigram` no encuentra consultas de menos de 3 caracteres.\n\n### 4. Motores\n\nLas latencias son de Node, con el catálogo ordenado por popularidad, 216 pulsaciones × 5. Se mide el pipeline completo: 100 candidatos + reordenación + alias, en ms. La calidad se da en los cuatro escalones: base → +prefijo → +popularidad → +alias, sobre 22.\n\n| Motor | Versión | Build | Heap Δ | Índice serializado (bruto / gzip) · carga | p50 | p95 | máx | top‑1 | top‑5 |\n|---|---|---|---|---|---|---|---|---|---|\n| Escaneo `indexOf` (JS propio) | — | 20 ms | 6,9 MB | sin índice | 2,27 | 7,17 | 8,7 | 14→15→16→17 | 16→16→16→18 |\n| **Híbrido PWA** (`indexOf` + uFuzzy si < 5) | uFuzzy 1.0.19 | 32 ms | 7,0 MB | sin índice | 2,67 | 14,7 | 20,1 | 16→16→19→**20** | 18→18→19→**21** |\n| Bucle `startsWith`/`includes` | — | 0 | 0 | sin índice | 8,49 | 10,7 | 14,5 | 14→15→16→17 | 16→16→16→18 |\n| `@leeoniya/ufuzzy` (100 candidatos) | 1.0.19 | 18 ms | 0,1 MB | sin índice | 7,91 | 10,3 | 13,4 | 17→16→18→19 | 18→18→18→20 |\n| `@leeoniya/ufuzzy` (reordena ≤ 1.000) | 1.0.19 | 15 ms | 0,1 MB | sin índice | 7,74 | 10,3 | 13,9 | 17→16→19→**20** | 18→18→19→**21** |\n| `flexsearch` (`forward`, LatinBalance) | 0.8.212 | 2.058 ms | 180 MB | 23,6 / 7,4 MB · 212 ms | 0,04 | 8,6 | 14,5 | 14→15→17→18 | 17→16→17→19 |\n| `minisearch` (prefix, fuzzy si < 5) | 7.2.0 | 909 ms | 128 MB | 12,9 / 3,7 MB · 2.131 ms | 1,01 | 65,4 | 148,7 | 15→15→18→19 | 16→16→18→20 |\n| `@orama/orama` (tolerance si < 5) | 3.1.18 | 1.689 ms | 163 MB | 43,2 / 13,0 MB · 878 ms | 0,61 | 229,7 | 409,0 | 15→15→17→18 | 17→17→17→19 |\n| `fuse.js` (threshold 0,3) | 7.5.0 | 28 ms | 13,7 MB | 8,9 / 2,7 MB · 56 ms | 305 | 921 | 1.272 | 16→17→19→**20** | 19→18→19→**21** |\n| SQLite FTS5 prefix (rowid = popularidad) | 3.53.4 | 1.109 ms | ≈ 4,6 MB RSS | BD 17,5 / 9,1 MB · 2 ms | **0,20** | **0,41** | 1,9 | 15→15→16→17 | 16→16→16→18 |\n| SQLite FTS5 + trigram (fallback) | 3.53.4 | 2.052 ms | ≈ 5,7 MB RSS | BD 33,3 / 19,1 MB · 2 ms | 0,25 | 14,1 | 56,5 | 17→15→17→18 | 18→16→19→**21** |\n\nObservaciones:\n- **SQLite:** con `ORDER BY rank` (bm25) sube a un p95 de 32 ms y un máximo de 73 ms por los prefijos de 1 letra. Hay que **ordenar por `rowid` (= popularidad) con `LIMIT`** y reordenar después los 100 candidatos.\n- **Fuzzy en cada pulsación:** Orama llegaba a un p95 de unos 860 ms y MiniSearch también empeoraba. El fuzzy tiene que ser solo un **fallback**.\n- **`fuse.js` `useTokenSearch`:** igual de lento, 130–650 ms por consulta en una muestra.\n- **Nombres CJK:** uFuzzy solo maneja por defecto el alfabeto latino (\"大巫\" no se puede buscar sin `unicode: true`). El escaneo `indexOf` y SQLite sí encuentran nombres CJK por prefijo.\n\n**Pulsaciones hasta que aparece el juego.** Los resultados coinciden en el escaneo, FlexSearch, SQLite, uFuzzy y el híbrido:\n\n| Juego | Sin popularidad (+prefijo): top‑5 / top‑1 | Con popularidad + alias: top‑5 / top‑1 |\n|---|---|---|\n| ELDEN RING | 5 / 5 | **1 / 1** (basta con \"e\") |\n| The Witcher 3 | 11 / 13 | **1 / 3** |\n| Cyberpunk 2077 | 9 / 11 | **1 / 2** |\n| Hollow Knight | 8 / 8 | **1 / 4** |\n| Baldur's Gate 3 | 5 / 5 | **1 / 3** |\n| Counter‑Strike 2 | 9 / 16 | **1 / 1** |\n| Grand Theft Auto V | 8 / 13 | **3 / 18*** |\n\n\\* GTA IV tiene más reseñas que \"GTA V Enhanced\", y \"GTA V Legacy\" no está en la lista. Para entrar en el top‑5, MiniSearch necesita 1–5 pulsaciones, Orama 3–10 y Fuse 4–7: su puntuación (BM25 o fuzzy) no respeta la popularidad con prefijos cortos.\n\n**Calidad por categoría** (con popularidad + alias):\n- **Exactas (7) y sin puntuación (2):** 9/9 en todos los motores, gracias a `norm()`.\n- **Acentos y ñ (6):** 6/6 en todos con `norm()`. Con la configuración **por defecto** de cada motor (16 casos de prueba):\n\n  | Motor (por defecto) | Aciertos |\n  |---|---|\n  | uFuzzy | 9/16 (13/16 con `latinize()`) |\n  | FlexSearch | 14/16 |\n  | MiniSearch | 10/16 |\n  | Orama, tokenizer inglés | 10/16 (parte \"España\" en \"espa\" + \"a\") |\n  | Orama `spanish` | 12/16 (la \"à\" queda fuera) |\n  | Fuse | 16/16 (por tolerancia, no porque pliegue acentos) |\n  | SQLite unicode61 | 14/16 |\n  | SQLite trigram | 12/16 |\n\n  → **Conviene normalizar siempre con nuestra propia función.**\n- **Número \"2077\":** solo sale top‑1 con popularidad, porque 14 títulos lo contienen.\n- **Erratas** (witchr, cyberpnk, hollow knigth, eldenring):\n\n  | Motor | Aciertos |\n  |---|---|\n  | uFuzzy reordenando todo / híbrido | 3/4 |\n  | Fuse | 3/4 |\n  | SQLite trigram | 3/4 |\n  | uFuzzy con 100 candidatos | 2/4 |\n  | MiniSearch | 2/4 |\n  | FlexSearch | 1/4 |\n  | Orama | 1/4 |\n  | Escaneo y FTS5 por prefijo | 0/4 |\n\n  \"eldenring\" (sin espacio) solo lo resuelven Fuse y trigram.\n- **Abreviaturas (gta, cs2):** 0/2 sin alias. Con alias, \"cs2\" sale top‑1 y \"gta\" top‑2.\n- **Negativas (zelda, pokemon, pokémon):**\n  - Los motores de prefijo devuelven 0 resultados. Es lo correcto: se ofrece el alta manual.\n  - uFuzzy y el híbrido dan 3 falsos positivos para \"zelda\" (\"Zelash…\").\n  - Fuse y SQLite trigram devuelven 10 resultados en cada una (\"Grizzelda\", \"Cockemon\").\n\n### 5. Navegador y móviles\n\n**Medido en Edge 156.** Pipeline completo; \"listo\" incluye el fetch local, el parseo, la ordenación, la normalización y la construcción del índice:\n\n| Motor | ×1 (escritorio): listo · p50 / p95 | ×4 (≈ gama media): listo · p50 / p95 | ×10 (≈ gama baja): listo · p50 / p95 | Heap |\n|---|---|---|---|---|\n| Escaneo `indexOf` | 0,27 s · 2,2 / 6,7 ms | 1,30 s · 9,7 / 33 ms | 3,4 s · 26,5 / 89 ms | 28 MB |\n| Híbrido PWA | 0,29 s · 2,5 / 12,9 ms | 1,33 s · 12,1 / 69 ms | 3,7 s · 33,6 / 194 ms | 28 MB |\n| uFuzzy | 0,29 s · 7,1 / 9,6 ms | 1,22 s · 34,5 / 44 ms | 4,3 s · 110 / 150 ms | 21 MB |\n| Bucle `startsWith` | 0,34 s · 8,3 / 10,9 ms | 1,12 s · 52,7 / 60 ms | 3,8 s · 172 / 208 ms | 21 MB |\n| FlexSearch | 1,89 s · < 0,1 / 3,4 ms | 10,7 s · 0,2 / 19,5 ms | 40,3 s · 0,6 / 51 ms | 112 MB |\n| MiniSearch | 1,02 s · 1,3 / 53 ms | 6,1 s · 7,9 / 319 ms | 22,8 s · 25 / 1.044 ms | 84 MB |\n\n- **Node frente al navegador.** En escritorio, Node da prácticamente lo mismo que Chromium, porque ambos usan V8: el escaneo da 2,27 / 7,17 ms en Node y 2,2 / 6,7 ms en Edge. No se ha medido Safari (JavaScriptCore).\n- **Móviles.**\n  - Lighthouse aplica ×4 para llevar un escritorio potente al tramo de móvil de gama media, y sugiere ×10 (rango 5–20) para la gama baja ([Lighthouse throttling](https://github.com/GoogleChrome/lighthouse/blob/main/docs/throttling.md)).\n  - Un Galaxy A24 de 175 $ es \"más de 4,25× más lento\" en un solo núcleo que el iPhone puntero ([Russell, 2024](https://infrequently.org/2024/01/performance-inequality-gap-2024/)).\n  - En las medidas, la latencia escala casi en proporción: el p95 se multiplica por 5 a ×4 y por 13 a ×10.\n  - Este Ryzen de 2019 no es un escritorio de gama alta, así que los resultados a ×4 y ×10 son estimaciones prudentes.\n- **Web Worker.** Es imprescindible para cargar, normalizar y buscar sin bloquear la interfaz: a ×10, construir FlexSearch es una tarea larga de 36 s, y el umbral de [INP \"bueno\" es ≤ 200 ms](https://web.dev/articles/inp).\n  - El `postMessage` de ida y vuelta cuesta unos 0,1 ms de p50 y 0,2 ms de p95 en Edge (0,06 / 0,17 ms con `worker_threads` en Node).\n  - Hay que aplicar la regla de que \"la última consulta gana\" y descartar las respuestas antiguas.\n- **Arranque.** El coste dominante es la **normalización**: 170–200 ms a ×1, 0,8–0,9 s a ×4 y 2,4–3,2 s a ×10. Hay dos formas de reducirlo:\n  - Una ruta rápida para nombres ASCII, que baja de 153 a 100 ms en Node (−35 %).\n  - Enviar la clave normalizada cuando difiere de `toLowerCase()`. Cuesta +0,48 MB en brotli; aplicar `toLowerCase()` a todo el catálogo tarda 21 ms.\n- **Memoria.** Ni WebKit ni Android publican un límite por pestaña. Un objetivo razonable es que la búsqueda ocupe menos de 50 MB, lo que descarta FlexSearch, Orama y MiniSearch (84–180 MB). El escaneo y uFuzzy se quedan en 21–28 MB.\n- **Primera carga.** Transferir 1,54–1,91 MB cuesta 1,7–2,1 s con la red P75 (7,2 Mbps y 94 ms de RTT; Russell 2024) y 7,7–9,6 s con el perfil \"Slow 4G\" de Lighthouse (1,6 Mbps y 150 ms de RTT).\n  - **Enviar un índice ya construido no compensa.** El export de FlexSearch ocupa 7,4 MB en gzip (3,9 veces el snapshot), el `loadJSON` de MiniSearch tarda 2,1 s (más que construirlo, 0,9 s) y el `save()` de Orama ocupa 43 MB.\n  - Mientras llega el snapshot, se puede buscar en la **lista de arranque** de los 3.585 juegos más populares (41 KB br, embebida en el bundle) o en el servidor.\n\n### 6. Recomendación\n\n**(a) Web/PWA**\n- **Datos:**\n  - Snapshot columnar ordenado por popularidad, versionado e inmutable, servido desde un CDN: 1,54 MB en brotli, o 2,02 MB si incluye las claves normalizadas.\n  - Lo cachea el Service Worker y se actualiza con un **delta diario de unos 3,7 KB brotli**.\n  - La lista de arranque (41 KB) va dentro del bundle.\n- **Búsqueda, dentro de un Web Worker:**\n  1. Escaneo `indexOf` sobre un único string, que para al reunir 100 candidatos.\n  2. Reordenación por clase (idéntico o prefijo) + 0,5·log10(reseñas).\n  3. Capa de alias.\n  4. Se muestran los 8 primeros.\n\n  Si hay menos de 5 resultados, entra uFuzzy 1.0.19 (`intraMode: 1`) como fallback. Mejor **diferirlo a la pausa de tecleo** (unos 150 ms) para que nunca penalice una pulsación.\n- **Números medidos en Edge:**\n  - Escritorio: p50 2,2 / p95 6,7 ms.\n  - CPU ×4: 9,7 / 33 ms.\n  - CPU ×10: 26,5 / 89 ms.\n  - El fuzzy diferido, aparte: p95 de 69 ms a ×4 y 194 ms a ×10.\n  - Listo para buscar en 0,27 s, 1,3 s y 3,4 s respectivamente.\n  - Unos 28 MB de memoria.\n  - Calidad: 20/22 en top‑1 y 21/22 en top‑5.\n- No usar FlexSearch, MiniSearch, Orama ni Fuse con 196k títulos en móvil.\n\n**(b) Tauri**\n- SQLite FTS5 nativo, con rusqlite (la feature `bundled` compila con `SQLITE_ENABLE_FTS5`) o con `tauri-plugin-sql`.\n- Tabla contentless con `unicode61 remove_diacritics 2` y `prefix='1 2 3'`, cuyo `rowid` es el rango de popularidad; sin `ORDER BY rank`.\n- Números:\n  - **p50 0,20 / p95 0,41 ms.**\n  - Abrir la BD y responder la primera consulta: 2 ms.\n  - Unos 5 MB de RSS.\n  - BD de 17,4 MB (8,7 MB en brotli), incluida en el instalador o descargada una sola vez.\n- Las actualizaciones diarias se aplican con `INSERT` y `DELETE` (`contentless_delete=1`).\n- Para tolerar erratas: una tabla `trigram` (la BD pasa a 32,1 MB y el p95 a 14 ms con el fallback), o reutilizar el fallback uFuzzy en el WebView.\n- En escritorio, WebView2 es Chromium: si se prefiere compartir código, el worker de la PWA da los mismos números que Edge. No se ha medido el coste del IPC de Tauri.\n\n**(c) Servidor**\n- El mismo SQLite FTS5 detrás de `GET /search?q=`, cacheable en el CDN. Node 24 ya trae `node:sqlite`, así que no hacen falta Docker ni Postgres.\n- Cada consulta consume unos 0,2–0,4 ms de CPU: más de 1.000 consultas por segundo y núcleo (estimado).\n- Pero cada pulsación paga la red: entre 94 ms (RTT P75) y 150 ms (Slow 4G), es decir, 100–300 ms por pulsación. No se percibe instantáneo.\n- Por eso debe hacer de **respaldo** y de **generador**:\n  - Respaldo: primera visita, dispositivos con ≤ 2 GB de RAM y otras plataformas.\n  - Generador del snapshot y de los deltas, con la clave de Steam (`IStoreService` + `GetItems`).\n- En el cliente, *debounce* de 120–150 ms y `AbortController`.\n\n### 7. Supuestos y dependencias del otro flujo\n\n- **Fuente de popularidad en producción:** la decidirán los tracks de API y legal. SteamSpy solo se ha usado para el test (`request=all` admite una petición cada 60 s). Alternativas a verificar: `appreviews/<appid>?json=1` (resumen de reseñas, una llamada por juego) o `GetItems` con reseñas.\n- **CORS y ToS de Steam:** se asume que el cliente **no** llama a Steam; el snapshot se genera en un servidor o cron y se sirve desde nuestro CDN.\n- **Licencia y uso de datos:** el track legal debe validar la licencia del espejo (el README muestra un badge MIT, pero el campo `license` de GitHub está vacío) y el uso de nombres e imágenes de Steam.\n- **Versiones fijadas el 2026‑10‑28** (`npm --save-exact`): ufuzzy 1.0.19, flexsearch 0.8.212, minisearch 7.2.0, @orama/orama 3.1.18 y fuse.js 7.5.0.\n\n**Reproducibilidad.**\n- Scripts: `C:\\Users\\lucas\\AppData\\Local\\Temp\\claude\\C--Users-lucas-Documents-Programacion-GameAgenda\\56497ade-bd80-409d-8199-9f2b9ba10c3e\\scratchpad\\bench\\app` (`bench.mjs`, `bench2.mjs`, `snapshot.mjs`, `browser_driver.mjs`, `browser\\`).\n- Resultados: `C:\\Users\\lucas\\AppData\\Local\\Temp\\claude\\C--Users-lucas-Documents-Programacion-GameAgenda\\56497ade-bd80-409d-8199-9f2b9ba10c3e\\scratchpad\\bench\\out`, con `final\\res_*.json`, `browser_results.json`, `browser_results2.json`, `snapshot_results_json_variants.json` y `snapshot_results_db.json`.\n"
+}

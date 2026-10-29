@@ -1,0 +1,773 @@
+{
+ "nota": "Datos de detalle fijados por los redactores de cada sección el 28-10-2026. Si alguno choca con DECISIONES.md (incluida su §10), manda DECISIONES.md.",
+ "datos_de_detalle": [
+  {
+   "seccion": "§15 roadmap + §16 riesgos + §18 preguntas",
+   "datos": [
+    "Lista de ADR, numerada por orden de escritura (la §5 debe coincidir): M0 → ADR-001 Arquitectura (ya aceptada, se pasa a docs/adr/), ADR-002 Stack y repositorio, ADR-003 Hosting, despliegue y CI (también fija la alternativa si Cloudflare no comprime el TSV); M1 → ADR-004 Datos del usuario (Dexie, ids naturales, estados y marcas, HLC, outbox), ADR-005 Búsqueda local, ADR-006 Alcance y formato del catálogo; M2 → ADR-007 Pipeline diario, ADR-008 Portadas; M3 → ADR-009 Arranque rápido (índice persistido y núcleo de arranque); M4 → ADR-010 Sincronización.",
+    "Etiquetas por hito: M0 v0.0.1, M1 v0.1.0, M2 v0.2.0, M3 v0.3.0, M4 v0.4.0.",
+    "1 día ideal ≈ 6 h de trabajo concentrado; semanas = días × 6 ÷ horas semanales; supuesto por defecto de 15 h/semana, con M0–M4 en 7,6–10,4 semanas sin colchón; para planificar se suma un 20 %.",
+    "Reparto de alcance que DECISIONES no detalla: M1 incluye el +18 oculto por defecto, los alias, los bigramas CJK y uFuzzy en el Worker, un manifest sin firma, el selector con Alt+Intro o pulsación larga, Ctrl+K y /, el filtro por estado con contadores, la propuesta de vincular un juego manual, «Borrar todos mis datos», el aviso de marca en «Acerca de», el Service Worker sin red, Dexie con outbox y HLC, y exportar e importar JSON y CSV. M0 no tiene Service Worker ni Dexie.",
+    "M2 incluye la ficha (detalles del shard, nota, «Juego en» y fechas editables), «Datos de Steam que guardamos», la edad del catálogo con «Actualizar catálogo» en Ajustes, los recientes, la firma ed25519, los kill switches, el canario, el dead-man switch, la regla de los 7 días y la recuperación ante un 404.",
+    "M3 incluye Ctrl+Intro, Mayús+Intro, las teclas de fila, Ctrl+Z multinivel, los gestos con botón equivalente, reordenar «Quiero jugar» con y sin arrastre, Compartir en Android con el acceso directo «Apuntar juego», Ctrl+V en cualquier pantalla, el chip «Pegar enlace» en iOS, el panel de rendimiento y la verificación WCAG 2.2 AA. El Atajo de iOS es de M4.",
+    "Umbrales de aceptación fijados: CA1.3 ≥99 % de 2 000 nombres exactos al azar en el top 5 y ≥90 % de los prefijos de 4 letras de los 1 000 más populares en el top 10 (la §8 debe definir los mismos y los del conjunto dorado en español); CA1.4 mediana de 5 <3 s en el E2E y p50 ≤3 s en 10 altas en el Android de referencia.",
+    "Umbrales del pipeline (CA2.1): ≤10 llamadas con clave, ≤300 en total, ≤0,4 peticiones/s y ≤30 min por ejecución; el dead-man switch avisa a las 36 h sin una ejecución correcta.",
+    "Otros umbrales: CA2.4 ≤200 KB al día para un cliente que vuelve con núcleo de ≤7 días; CA2.6 ≥99 % de portadas en una agenda de prueba de 300 juegos; CA4.1 fast-check con ≥1 000 casos; CA4.5 nombre resuelto en ≤1,5 s con red; CA4.6 CPU del Worker ≤5 ms en el p99.",
+    "CA4.3 presupone una «acción de diagnóstico» que borra IndexedDB sin borrar las cookies (en el panel de rendimiento o en Ajustes); la §9 o la §12 deben prever esa acción.",
+    "Ids de riesgos R-01…R-15 (§16) e ids de preguntas PA-01…PA-10 (§18): otras secciones deben citarlos con estos ids.",
+    "Las remisiones de §15 dan por hecho que los presupuestos de rendimiento viven en la §3 (RNF), la definición del E2E «apuntar un juego» en la §12, el selector de estado y el mapa de atajos en la §9, y las reglas de estados y marcas en la §3."
+   ]
+  },
+  {
+   "seccion": "§5 arquitectura + §6 stack",
+   "datos": [
+    "En el dispositivo, el Worker de búsqueda descarga, verifica (sha256 y, desde M2, firma ed25519, también en la primera visita) y guarda en Cache Storage el manifest, el núcleo, los recientes y los alias. El Service Worker NO cachea esos ficheros: solo precachea el shell y lleva la caché LRU de ≈300 portadas (M2). El Worker escribe en Dexie `meta` la versión vigente y, desde M3, el índice persistido.",
+    "El Worker de búsqueda también sirve las páginas del Catálogo (lista virtual) y lee los shards de detalles. No toca los datos del usuario (entries/outbox los gestiona el hilo principal).",
+    "Protocolo interfaz↔Worker: texto + número de secuencia → resultados por niveles. Intro actúa sobre la consulta actual.",
+    "Primera visita: el Worker descarga manifest.json, núcleo, recientes y alias (los 1 024 shards no). Mientras tanto se apunta a mano o pegando un enlace. El núcleo pesa ≈2 MB en brotli (cifra aproximada; el tamaño exacto es de la §7).",
+    "Comprobación del manifest (≥12 h o al volver la red): manifest no-cache → firma, minClientVersion y kill switches → recientes y alias si cambió su hash → núcleo solo si es nuevo y el local tiene >7 días, o con «Actualizar catálogo» → guarda en Cache Storage → meta → intercambio atómico del índice. Ante un 404 se relee el manifest.",
+    "Flujo de sync (M4): disparadores foco/online/visibilitychange; Web Lock para una sola pestaña; POST /api/v1/sync con la cookie __Host-; el servidor busca el hash del token y valida con Zod; merge() de las operaciones y asignación de la secuencia por agenda; lectura de los cambios posteriores a la secuencia del cliente; respuesta = opId confirmados + cambios + secuencia nueva; el cliente aplica merge() en Dexie, borra de outbox lo confirmado y guarda la secuencia.",
+    "ga-web: Workers Static Assets con `not_found_handling: single-page-application`; desde M4, `run_worker_first: [\"/api/*\"]`. Si se agota la cuota Free, /api/* responde 429 y los assets se siguen sirviendo (documentación de Cloudflare, 28-10-2026).",
+    "Límites del plan Free de Cloudflare verificados el 28-10-2026 (https://developers.cloudflare.com/workers/platform/limits/): peticiones a assets estáticos gratis e ilimitadas; 100 000 peticiones/día al Worker; 10 ms de CPU por petición; 20 000 ficheros por versión; 25 MiB por fichero.",
+    "D1 se crea con `wrangler d1 create … --jurisdiction=eu`. La jurisdicción solo se fija al crear la base y no se puede cambiar después.",
+    "En el prototipo la clave de Steam solo la usa el pipeline (secreto de GitHub + .env.local). La micro-API de M4 solo llama a GetItems sin clave (resolve).",
+    "Llamadas a Steam en los diagramas: ≈4/día con clave (GetAppList) y ≈227/día sin clave (≈207 Query + ≈20 GetItems), ≈230/día en total.",
+    "Evaluación de arquitecturas: cada criterio sobre 60 (seis subcriterios de 0 a 10). Subcriterios citados A/B/C: captura en <3 s 7/4/8; piezas móviles 7/3/4; mantenibilidad 7/3/4; ToU y clave 6,5/8/9; durabilidad 6/8/8,5. B no permitía apuntar desde el móvil hasta el cuarto hito (tras ≈18 días de desarrollo).",
+    "Registro de ADR (docs/adr/NNN-titulo.md, MADR 4.0, en español, ≤1 página; una decisión aceptada no se edita, se sustituye por otro ADR): ADR-001 Arquitectura PWA local-first (M0) · ADR-002 React + Vite SPA, router propio y CSS nativo (M0) · ADR-003 Repositorio y herramientas con versiones exactas (M0) · ADR-004 Hosting en Workers Static Assets (M0) · ADR-005 Datos en el cliente: Dexie, ids naturales, HLC y outbox (M1) · ADR-006 Estados, marcas y reglas (M1) · ADR-007 Búsqueda local en un Web Worker (M1) · ADR-008 Fuentes de Steam y pipeline con plan B (M1) · ADR-009 Formato del catálogo y manifest firmado (M1) · ADR-010 Portadas y aviso de privacidad (M2) · ADR-011 Sincronización: micro-API, D1 UE y emparejamiento (M4) · ADR-012 Cuenta de Steam con OpenID 2.0 (Fase 2) · ADR-013 Envoltorio Tauri opcional (Fase 2). El fichero de ADR-001 es docs/adr/001-arquitectura-del-prototipo.md.",
+    "El presupuesto de JS tiene su hogar en la §6.2: inicial ≤150 KB brotli; Worker de búsqueda ≤40 KB brotli; diferidos el Catálogo (con @tanstack/react-virtual), Ajustes, exportar/importar y uFuzzy. Margen ≥55 KB brotli sobre la base medida de 94,5 KB.",
+    "Se fija `workbox-build` 7.4.1 como dependencia de desarrollo (peer de vite-plugin-pwa 2.0.0). Vitest 5.0.5 admite Vite ^6.4 || ^7 || ^8.",
+    "Node 26 se adopta al cerrar M4 (PR propia, CI y npm run perf en verde), antes si una dependencia lo exige, y siempre antes del 30-04-2028.",
+    "Tauri se queda en 2.x en Fase 2: en crates.io la versión más alta ya es 3.0.0-alpha.5 y la estable, 2.12.5 (comprobado el 28-10-2026).",
+    "La §5 remite a §4 (llamadas y puertas del pipeline), §7 (protocolo, merge(), DDL de D1, tamaño del núcleo y formatos), §8 (índice y ranking), §9 (pantallas y router), §11 (credencial, emparejamiento y seguridad), §12 (puerta de tareas largas), §14 (packages/core), §15 (criterios de aceptación) y §16 (mitigación de la pérdida de datos en un solo navegador)."
+   ]
+  },
+  {
+   "seccion": "§10 Steam + §11 seguridad + §17 multiplataforma",
+   "datos": [
+    "Rutas de Fase 2: POST /api/v1/steam/start {challenge} → {ticket, url}; GET /api/v1/steam/callback?t=<ticket>; POST /api/v1/steam/redeem {ticket, verificador}. Verificador de 256 bits, challenge = SHA-256(verificador), ticket de un solo uso que caduca en 10 min.",
+    "Fase 2: el redeem devuelve las propuestas y un token de importación firmado con HMAC (15 min, solo en memoria) que autoriza lotes de logros de ≤20 juegos por petición (plan gratuito de Workers: 50 subpeticiones por invocación, verificado).",
+    "Fase 2: no se llama a GetPlayerSummaries. Comprado solo en entradas existentes; añadir los demás juegos de la biblioteca como «Quiero jugar» es opcional; family_shared nunca es Comprado; ownedAt queda vacío; la lista de deseados propone «Quiero jugar» al final de la lista; la sugerencia de Platinado = conjuntos del juego base (dlcappid=0) completados.",
+    "Fase 2: metadatos de importación (rtime_last_played por appid y esquemas de logros por schema_hash) en la tabla Dexie meta, solo en el dispositivo; «Desconectar Steam y borrar datos» los elimina.",
+    "steam-signin 1.0.5 descarta el puerto del realm (canonicalizeRealm usa ^(https?://[^:/]+), comprobado en el código) y solo compara esquema y host de return_to: la ruta y el ticket los comprueba la micro-API. El login real se prueba con un túnel cloudflared en el puerto 443.",
+    "CSP de ga-web (página): default-src 'self'; script-src 'self' 'sha256-…'; style-src 'self'; img-src 'self' https://shared.akamai.steamstatic.com; connect-src 'self' https://ga-catalog.<subdominio>.workers.dev; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests. El script del Service Worker tiene su propia CSP con el CDN de portadas en connect-src (a verificar en M2). En Fase 2, img-src añade https://images.igdb.com.",
+    "_headers no se aplica a respuestas generadas por el Worker (verificado): las de /api/* las pone Hono. Cada línea de _headers admite como mucho 2 000 caracteres y hay un máximo de 100 reglas (verificado). Reglas que coinciden se combinan con coma; ! quita una cabecera.",
+    "Otras cabeceras: X-Content-Type-Options: nosniff, Referrer-Policy: strict-origin-when-cross-origin, Cross-Origin-Opener-Policy: same-origin, HSTS y una Permissions-Policy mínima. ga-catalog envía Access-Control-Allow-Origin solo para el origen de la app.",
+    "Calendario legal: M2 = aviso de primera capa + referrerpolicy=no-referrer + interruptor «Cargar portadas» + pantalla «Datos de Steam que guardamos» (coincide con §15). Antes del primer probador externo y de M4 = política completa, aviso legal y registro de actividades con Facilita RGPD. M4 = base art. 6.1.b, declaración de edad ≥14 configurable a 16, retención y borrado en el servidor.",
+    "Texto del aviso de primera capa (tuteo): «Las portadas se descargan de los servidores de Valve (EE. UU.), que reciben tu dirección IP. Puedes desactivarlas en Ajustes. Más información». Se muestra la primera vez que se cargan portadas y no pide consentimiento.",
+    "La cookie de dispositivo solo se crea con un gesto explícito («Activar sincronización» o «Emparejar»; las etiquetas son ilustrativas y debe confirmarlas §9), que informa en ese momento.",
+    "Tabla de retención (hogar: §11.2): agenda en el dispositivo hasta que se borre; agenda en D1 mientras exista; hashes de credenciales hasta revocarlas; hashes de tokens de emparejamiento 10 min; lápidas 90 días (§7 debe definir la purga); agenda sin sincronizar en 13 meses se borra (propuesta); ticket de login Fase 2 ≤10 min; Time Travel de D1 7 días (siempre activo, verificado).",
+    "M4: la cookie __Host- se renueva al sincronizar como mucho una vez al día (Chrome limita las cookies a 400 días); Ajustes lista los dispositivos y permite revocarlos.",
+    "M4: el token de emparejamiento se canjea solo con POST desde dentro de la app, nunca con GET; si va en una URL, en el fragmento (#). Token del buzón en la cabecera Authorization, de solo escritura y revocable; el buzón solo acepta enlaces de la tienda de Steam. Se rechazan HLC más de 5 min por delante del servidor.",
+    "Rate limiting con el binding ratelimits de Workers (periodos de 10 o 60 s, contadores aproximados por ubicación, verificado; disponibilidad en el plan gratuito a verificar en M4) en crear agenda, canjear emparejamiento, canjear código de recuperación, resolve y, en Fase 2, las rutas de Steam; por token en el buzón.",
+    "Manifest: el cliente rechaza una version anterior a la suya; volver a un catálogo anterior = republicar sus ficheros con una version nueva (§5 y §7 deben decirlo igual). La clave pública ed25519 va en la app con hueco para una segunda, para rotarla.",
+    "Token de Cloudflare: uno con «Workers Scripts: Edit» (y D1 en M4), como en §12; si en M0 se confirma que no se puede limitar a un script, ga-catalog pasa a otra cuenta gratuita de Cloudflare con su propio token.",
+    "Tauri (§17.3, ADR-013): carga el origen de ga-web, no ficheros empaquetados; la parte nativa registra Ctrl+Mayús+Espacio, muestra la ventana y abre /apuntar; la web no recibe permisos de Tauri; cuenta como un dispositivo más para emparejar; el login de Steam va por el navegador del sistema con el mismo canje.",
+    "IGDB (Fase 2): etapa del pipeline (credenciales de Twitch en un secreto de GitHub, barrido diario por updated_at, ficheros estáticos en ga-catalog); los juegos de Steam conservan steam:<appid>; igdb:<id> numérico solo para los que no están en Steam; atribución «Datos de juegos: IGDB.com» siempre visible; portadas IGDB t_cover_big.",
+    "Plan gratuito de Workers (verificado): 100 000 peticiones/día, 10 ms de CPU por petición HTTP, 50 subpeticiones por invocación; los assets estáticos son gratis e ilimitados; las rutas de run_worker_first reciben 429 al superar el límite gratuito."
+   ]
+  },
+  {
+   "seccion": "§4 estudio Steam",
+   "datos": [
+    "data_request de la pasada diaria de Query: {include_basic_info, include_release, include_assets, include_reviews, include_platforms, include_best_purchase_option:false}, contexto spanish/ES, count 1000, sort 2, start += 950. GetItems usa el mismo data_request en lotes ≤200: primero ES y, si hay restricción por país, US.",
+    "≈208 páginas de Query al día: total_matching_records en ES = 196 684 a las 12:14 del 28-10-2026; era 196 615 a las 01:30.",
+    "Presupuesto ≈220 llamadas/día (≤230; 0,23 % del límite de 100 000). Job ≈11–13 min. Unos 360–400 min/mes de GitHub Actions solo para el pipeline (para §12/§13/§16: es ≈20 % de los 2 000 min del plan Free privado).",
+    "Volumen diario estimado ≈80 MB gzip (≈0,4 GB de JSON sin comprimir); ≈50 MB sin include_basic_info. Página del pipeline: 306–506 KB gzip, 1,73–2,37 MB sin comprimir, 1,4–1,7 s.",
+    "Consultas de humo: «hollow knight» → 367520 en el puesto 1; «baldurs gate» → 1086940, «elden» → 1245620 y «counter strike» → 730 entre los 3 primeros. Para «counter strike» se espera 730 segundo, detrás del appid 10 «Counter-Strike» por coincidencia exacta. §8/§12 no deben exigir el puesto 1 para 730.",
+    "Adultos (descriptor 3 o 4) = 10 214 juegos en ES (28-10). Todo juego con el 3 tiene también el 4. Con el descriptor 3 solo: ≈9 700 (cifra canónica).",
+    "nameEs difiere del nombre base en 3 227 juegos (1,6 %); ≈3 000 siguen distintos tras la normalización de D-09.",
+    "Precisión de fecha (coming_soon_display) entre 62 642 «próximamente» en ES: date_full 5 068, date_month 2 637, date_quarter 4 704, date_year 5 954, text_comingsoon 28 466, text_tba 15 583. El flag «fecha por confirmar» corresponde a text_tba. Existen los valores date_month, date_quarter y date_year, que la investigación tenía como pregunta abierta.",
+    "Gratuitos 23 722; acceso anticipado 19 313; 76 040 juegos (39 %) sin reseñas (pop 0); pop máximo actual 46 (appid 730, 9 953 844 reseñas).",
+    "Query con include_games devuelve un intruso: 473930 «Steam Gift Cards», tipo 14. El pipeline filtra por type = 0.",
+    "18 juegos no tienen nombre ni en GetAppList ni en Query: se excluyen, de ahí 196 577 útiles.",
+    "Cambios diarios de GetAppList (26 → 27-10): ≈264 altas, ≈8 bajas, ≈17 renombrados (0,01 %). En 7 días: 2 051 / 43 / 100. recent.<hash>.tsv tendrá ≈4 000 filas en 14 días.",
+    "234 juegos de GetAppList (27-10) no salen en Query ES (28-10), ≈0,12 %, casi todos SKU antiguos o regionales (p. ej. 22490 Fallout: New Vegas). Faltan en el catálogo de M1 sin clave y se apuntan pegando el enlace (juego provisional).",
+    "Estado: state/master.ndjson.gz como asset de la Release catalog-state, con 7 copias. Campos: nombre, last_modified, price_change_number, clasificación (visible/retirado/bloqueado por región), último enriquecimiento con fecha.",
+    "Secretos del pipeline: clave de Steam, clave privada ed25519 de firma del manifest, token de Cloudflare y URL de healthchecks.io. El dead-man switch avisa tras 36 h sin ping.",
+    "Nombres de library_capsule: library_600x900.jpg, portrait.png (355 de los 1 000 juegos más antiguos), <sha1>/library_capsule.jpg (casi todos los nuevos) y variantes _spanish/_latam según el idioma pedido. El pipeline guarda la variante de spanish. 8 de 3 984 juegos de la muestra no tienen library_capsule; header falta muy rara vez.",
+    "El objeto platforms incluye steam_deck_compat_category (0 desconocido, 1 no compatible, 2 jugable, 3 verificado) y además steam_os_compat_category, steam_frame_compat_category y steam_machine_compat_category.",
+    "Modo sin clave (M1 y plan B): la lista L sale de los ids de Query. jsnli/steamappidlist solo sirve para el informe de diferencias en desarrollo: nunca se publica ni se versiona (no tiene fichero de licencia).",
+    "Política HTTP: un worker, ≤0,4 peticiones/s, Accept-Encoding gzip, comprobación de X-eresult. 429 → pausa global con backoff de 60 s a 15 min; tras 5 seguidos se aborta la etapa. 5xx → 5 reintentos (2, 4, 8, 16 y 32 s). 400 → no se reintenta. 403 con clave → parar y alertar."
+   ]
+  },
+  {
+   "seccion": "§12 calidad + §13 entorno + §14 repo",
+   "datos": [
+    "Nombres y definiciones de medida (su hogar es §12.4): `search:keystroke-to-results` (del event.timeStamp del input al fotograma con los resultados de esa consulta, misma secuencia), `ui:feedback` (del evento que actúa, Intro o pointerup, al fotograma con el cambio visible), `capture:palette-to-confirm` (de la apertura de la paleta al fotograma con la confirmación), `app:list-visible` y `search:ready` (desde el inicio de la navegación). «Fotograma» = el requestAnimationFrame tras el commit de React. El panel de rendimiento usa las mismas medidas.",
+    "Inicio de la captura: keydown de Ctrl+K o / en escritorio; en móvil, el toque en la barra «Apunta un juego…». Fin: el primer fotograma con «Apuntado en Quiero jugar: … · Deshacer» (microcopy de §9).",
+    "E2E: 5 juegos distintos del mini-catálogo (hollow, elden, baldurs, celeste, stardew), pressSequentially con delay 100 ms, mediana de las 5 ≤3 000 ms y ui:feedback ≤100 ms en cada una, sin reintentos. Falla ante cualquier securitypolicyviolation. Incluye axe-core en cada pantalla (alineado con RNF-08 de §3).",
+    "Proyecto perf: Chromium con CPU ×4 (Emulation.setCPUThrottlingRate por CDP), catálogo de tamaño real (pipeline/out/ o 200 000 juegos sintéticos con semilla fija) y 500 entradas en Mi lista. Un PerformanceObserver longtask hace fallar la prueba si una tarea supera 50 ms. En CI solo informa; en local, `npm run perf` bloquea; el Android de gama media bloquea el cierre de M1 y M3.",
+    "Flujos: ci.yml (PR y push a main salvo cambios solo en documentación, ≤10 min, ubuntu-latest, sin secretos); deploy-web.yml (workflow_run de ci en verde en main o manual; build de producción del mismo SHA; wrangler deploy de ga-web; prueba de humo; rollback con `npx wrangler rollback`); catalog.yml (diario a las 05:17 Europe/Madrid y manual; el canario es su primer paso; permissions contents: write e issues: write).",
+    "Secretos de repositorio: STEAM_WEB_API_KEY, CATALOG_SIGNING_KEY (privada ed25519), CLOUDFLARE_API_TOKEN («Workers Scripts: Edit», más D1 en M4), CLOUDFLARE_ACCOUNT_ID y HEALTHCHECKS_PING_URL. Variable de repositorio (no secreta): STEAM_KEY_SHA256. Si §11 separa ga-catalog en otra cuenta, catalog.yml necesitará su propio token y account id.",
+    "Búsqueda de la clave: scripts/scan-secrets.ts sobre dist/ (solo assets del cliente), con las cadenas x-webapi-key y STEAM_WEB_API_KEY y palabras de 32 caracteres alfanuméricos comparadas por SHA-256. catalog.yml revisa pipeline/out/ con el valor real.",
+    "El canario diario tiene su hogar en §12.2 (§4 ya remite a §12): una petición pequeña a cada endpoint que se vaya a usar, validada con los mismos esquemas Zod. Si falla, se actúa como ante una violación de contrato (ver §4) y se abre un issue.",
+    "Observabilidad: $GITHUB_STEP_SUMMARY y el artefacto run-report.json; si falla, email de GitHub e issue con la etiqueta `catalogo`. healthchecks.io: ping al terminar bien y /fail al fallar, periodo de 24 h con 12 h de gracia, aviso a las 36 h. Panel de rendimiento en Ajustes (M3): p50/p95 de las 500 últimas muestras y «Copiar informe». Errores desde M1: console.error y un anillo de 100 en IndexedDB, exportable en JSON (§7 podría añadir la clave meta.errorLog).",
+    "Versiones: v0.0.1 al cerrar M0 y v0.N.0 al cerrar MN (coincide con §15); correcciones como patch. Ajustes muestra versión y SHA; minClientVersion del manifest se compara con esa versión.",
+    "ADR en docs/adr/NNN-titulo.md con la plantilla MADR, en español (alineado con §5). CHANGELOG.md en español por hito, con las secciones Añadido, Cambiado, Corregido, Eliminado y Seguridad.",
+    "Árbol: apps/web/src/{screens, router, db, search-worker, i18n/es.ts, sw.ts}; apps/web/worker (micro-API, M4); apps/web/e2e; apps/web/public/_headers; apps/web/wrangler.jsonc (ga-web); packages/core/src/{normalize, search, steam-link, entries, catalog-format, sync, schemas}; pipeline/{build.ts, steam/, record-fixtures.ts, wrangler.jsonc (ga-catalog, assets de out/)}; fixtures/{steam, catalog}; scripts/; docs/adr; .github/workflows.",
+    "Paquetes: @gameagenda/web, @gameagenda/core y @gameagenda/pipeline. Entre paquetes se importa por nombre y subruta de exports (p. ej. @gameagenda/core/search). Los imports relativos llevan .ts. core no hace E/S, recibe el reloj y los aleatorios como parámetros y su tsconfig no tiene lib DOM ni @types/node.",
+    "Scripts npm: setup, dev (127.0.0.1:5173), preview (127.0.0.1:4173), test, check, e2e, perf, catalog:build (= node --env-file-if-exists=.env.local pipeline/build.ts; `-- --source=fixtures` regenera el mini-catálogo) y fixtures:record. Variables de .env.local: STEAM_WEB_API_KEY y CATALOG_DIR (fixtures/catalog o pipeline/out); el catálogo se sirve en /catalog-dev/, en el mismo origen. STEAM_MODE=fixtures|live.",
+    "Mini-catálogo: ≈300 juegos en el formato publicado, versionado en fixtures/catalog/, deterministas (regenerarlo da los mismos bytes). Incluye centinelas, Hades y Hades II, romanos, CJK, ™/®, retirados, próximamente, adultos, gratuitos, nombres vacíos y la lista negra exacta.",
+    "Entorno comprobado hoy: Node 24.21.0, npm 11.19.0, git 2.56.0.windows.2, winget 1.29.380, Rust 1.99.0, Chrome y Edge; faltan gh, cloudflared, pnpm, Docker y Python (solo el alias de la Store). Git trae core.autocrlf=true a nivel de sistema. npm ejecuta los scripts con cmd.exe. Equipo: Ryzen 5 3600 con 12 hilos y 16 GiB. IDs de winget: GitHub.cli (2.103.3) y Cloudflare.cloudflared (2026.10.5).",
+    "Estimación de minutos de Actions: ≈1 200 de 2 000 al mes (catalog.yml ≈450, ci.yml ≈640 en 80 ejecuciones de unos 8 min, despliegues ≈100)."
+   ]
+  },
+  {
+   "seccion": "§2 visión + §3 requisitos",
+   "datos": [
+    "Ids: RF-01 a RF-29, RNF-01 a RNF-14 y O-1 a O-5. RNF-01 Captura (p50 ≤3 s), RNF-02 Búsqueda, RNF-03 Respuesta, RNF-04 Arranque, RNF-05 Primera búsqueda, RNF-06 Peso (remite a §6), RNF-07 Sin conexión, RNF-08 Durabilidad, RNF-09 Accesibilidad, RNF-10 Privacidad, RNF-11 Seguridad, RNF-12 Compatibilidad, RNF-13 Coste, RNF-14 Idioma.",
+    "§3.2 es el hogar de los presupuestos de rendimiento y §3.3 el del modelo de estados. §5 (línea 212) dice «presupuestos (ver §2)»: conviene cambiarlo a §3 (§2.4 O-3 remite a §3.2 y la referencia sigue siendo válida).",
+    "Medición de los presupuestos: RNF-01 como O-1 (el E2E de §12.3 con la mediana de 5 juegos, más la prueba guiada); RNF-02 a RNF-05 como O-3 (`npm run perf` y dispositivos reales, §12).",
+    "RNF-04: «reinicio con caché ≤2 s» se mide hasta poder buscar, con Mi lista visible ≤1 s. RNF-05: «búsqueda lista ≤1,5 s tras la primera carga» se refiere a la primera visita con el núcleo de arranque (M3).",
+    "RNF-03 se mide con 500 entradas en Mi lista (coincide con §12).",
+    "Vista «Pendientes» en este orden: Jugando → A continuación → Quiero jugar (por rank, lo nuevo al final) → En pausa (plegada). Próximo solo actúa con el estado Quiero jugar: §9 (línea 18) dice «Quiero jugar o En pausa» y debe alinearse con §3.3 y con el `view` de §7.",
+    "La ficha, `Mayús+Intro` y la edición de nota, «Juego en» y fechas van en M2 (DECISIONES §4 y §15). §9 dice «Ficha: M1 básica, M2 completa» y pone `Mayús+Intro` en M1, así que debe alinearse.",
+    "RF-06: `Alt+Intro` en M1 y pulsación larga en M3 (como §9). §15 incluye la pulsación larga en M1 y debe alinearse.",
+    "Al apuntar directamente con otro estado o con marcas solo se fija addedAt; las demás fechas quedan vacías.",
+    "startedAt y completedAt se fijan la primera vez que el estado pasa a Jugando o a Completado y no se sobrescriben. Platinado fija completedAt solo cuando es lo que provoca el paso a Completado. platinumAt se fija al marcar y se vacía al quitar la marca. ownedAt nunca se fija sola.",
+    "En `merge()`: si Platinado se marcó después del último cambio de estado, el estado es Completado; un cambio de estado posterior gana y no quita Platinado (coincide con §7, línea 152).",
+    "Volver a apuntar tras «Quitar de mi lista» empieza de cero. §7 debe escribir deletedAt=null más los valores por defecto (want_to_play, flags vacías, fechas vacías salvo addedAt=ahora, nota y «Juego en» vacías) con HLC nuevos. Deshacer, en cambio, restaura los valores anteriores.",
+    "Definiciones: Platinado = «Trofeo de platino o 100 % de logros»; Completado = la historia principal o el objetivo que el usuario considere; Comprado = lo tengo (comprado, regalado o gratis); Próximo = lo siguiente que se va a jugar. «Por comprar» (Quiero jugar sin Comprado) y «Pendientes que tengo» (con Comprado) son filtros, no estados.",
+    "O-2: los umbrales del conjunto de referencia viven en §8. La prueba guiada (≥80 % sin flechas ni Deshacer; 5 personas × 10 juegos dictados; ninguna captura >5 s; en el móvil y el PC del desarrollador; M3) vive en §2.4.",
+    "O-4: catálogo con ≤36 h de antigüedad (`generatedAt` del manifest); el dead-man switch avisa a las 36 h (§12 ya usa 24 h + 12 h de gracia).",
+    "O-5: facturación a 0 € en Cloudflare, GitHub y healthchecks.io al cerrar cada hito.",
+    "RNF-08: `persist()` en la primera escritura; test de ida y vuelta exportar → borrar → importar con HLC incluidos; migraciones de Dexie probadas; aviso para exportar tras 30 días sin copia ni sincronización; sugerencia de instalar la app en iOS.",
+    "RNF-09: WCAG 2.2 AA con 0 violaciones graves o críticas de axe-core; uso completo con teclado; pasada con NVDA y Narrador al cerrar cada hito; objetivos táctiles ≥24 px (44 px los principales). Base en M1, conformidad en M3.",
+    "RNF-12, navegadores de prioridad 1: Chrome en Android, Safari en iOS (app de la pantalla de inicio), Chrome y Edge en Windows, en sus dos últimas versiones mayores. Mejor esfuerzo: Firefox, Samsung Internet y Safari en macOS. Anchos de 320 a 2 560 px. El camino crítico solo usa API Baseline «ampliamente disponibles».",
+    "RF-27: en Ajustes se ven y se desemparejan los dispositivos y se revoca el token del Atajo de iOS (M4; coincide con §11).",
+    "RF-23: exportar e importar en JSON (con HLC y a través de merge()) y en CSV (M1; coincide con §7 y §15)."
+   ]
+  },
+  {
+   "seccion": "búsqueda: benchmark revisado + §8",
+   "datos": [
+    "Orden del núcleo usado y medido: reseñas (reviews.summary_filtered.review_count de Query) descendentes; a igualdad, appid descendente (el más reciente primero); retirados al final. pop = min(63, floor(2·log2(reseñas+1))).",
+    "Bits de flags usados en las mediciones, en el orden de D-08: 1 próximamente, 2 acceso anticipado, 4 adulto (descriptores 3 o 4), 8 gratis, 16 retirado, 32 fecha por confirmar. La §7 fija los valores definitivos.",
+    "Tamaños del núcleo real D-08 (196 665 juegos de tipo 0, 28-10-2026): 6 999 253 B sin comprimir · 3 051 664 B gzip -9 · 2 251 845 B brotli 11 · 2 590 012 B brotli 5. Es más que los 1,91 MB de [appid, name] de la tabla canónica, porque el orden por rango impide los deltas de appid y hay más columnas.",
+    "Variantes de ordenación (brotli 11): [appid, name] por appid con deltas 1 544 070 B; [appid, name] por rango 2 012 283 B; columnas D-08 por rango sin appid 1 749 193 B; columnas D-08 por appid + columna de rango 2 328 136 B. De las opciones que conservan el rango, la de D-08 es la más pequeña.",
+    "Núcleo de arranque (las 20 000 primeras filas): 773 221 B sin comprimir, 344 604 B gzip, 269 367 B brotli 11.",
+    "aliases: 3 563 pares únicos (3 549 siglas generadas para los 5 000 juegos con más reseñas + 47 curados; 66 siglas descartadas), 45 152 B sin comprimir, 15 835 B brotli 11. Fichero curado propuesto: pipeline/aliases.curated.tsv. Formato: alias compacto (sin espacios) TAB appid.",
+    "Rutas propuestas: packages/core/test/normalize.vectors.json (vectores compartidos por Vitest y el pipeline), packages/core/test/golden.es.tsv (dorado) y una copia congelada del núcleo en fixtures/ para la puerta de calidad en CI. Las §12 y §14 deben coincidir.",
+    "Puertas de calidad de búsqueda: dorado ≥60 consultas (hoy 98) con top-1 ≥90 % y top-5 ≥95 %; 2 000 exactos al azar con ≥99 % en el top-5; prefijo de 4 letras de los 1 000 más populares con ≥90 % en el top-10; negativas sin resultados de nivel 0–1. Se aplican en CI (Vitest) y como puerta de publicación del pipeline, junto a las consultas de humo de D-07.",
+    "Protocolo del Worker: init, status (state none|boot|full, version, count, progress), query (seq, q, limit), results (seq, items con appid, name, nameEs, year, flags y tier; strong; ms), suggest/suggestions (≤3, nivel 4). La paleta pide limit = 8. Como mucho una consulta en vuelo y sin debounce. Intro espera ≤500 ms los resultados del seq actual.",
+    "Índice persistido (M3) en la tabla meta de Dexie, con clave = version del núcleo + hash de recent; si cambia, se sigue usando el anterior y se reconstruye en segundo plano. El índice se construye sobre el núcleo con recent ya aplicado.",
+    "Marcas de rendimiento propuestas: search-ready e index-restored. Presupuestos propios de la §8: nivel 4 ≤70 ms a CPU ×4; restauración ≤0,4 s a ×4 (hoy 0,55 s).",
+    "CDP Emulation.setCPUThrottlingRate no afecta a los Workers dedicados (medido en Edge 156). La prueba ×4 de npm run perf debe ejecutar el núcleo de búsqueda en el hilo principal de una página de prueba (afecta a la §12).",
+    "Descarga con Query (spanish/ES, 28-10-2026, data_request basic_info+release+reviews): 208 páginas, 0 errores, 0 respuestas 429, 624 s con 3 s entre peticiones, respuesta media 1 255 ms. Media por página: 1 153 389 B sin comprimir y 217 609 B gzip. Total: 239,9 MB sin comprimir y 45,3 MB gzip. total_matching_records pasó de 196 683 a 196 684 durante la descarga (la cifra canónica de 196 615 en ES es de las 00:20Z; la deriva es normal). Hubo 10 334 repetidos por el solapamiento de 50.",
+    "Recuentos del volcado de Query (tipo 0): próximamente 62 625; acceso anticipado 19 311; adulto (descriptor 3 o 4) 10 213 (descriptor 3: 9 685); gratis 23 718; fecha por confirmar 44 250; con al menos 1 reseña 120 643; máximo de reseñas 9 953 844 (CS2); 1 elemento con type 14.",
+    "Nombre en español: Query (spanish) devuelve un nombre distinto del base solo en 3 221 juegos (1,6 %). Tras normalizar, 3 110 aportan claves nuevas. «The Sims™ 4» y «Middle-earth™» no vienen traducidos.",
+    "El appid 271590 (GTA V Legacy) no aparece ni en GetAppList (espejo del 27-10) ni en Query ES (28-10); solo está 3240220 (GTA V Enhanced). Queda cubierto con «pegar enlace» y la resolución de M4.",
+    "Cruce GetAppList (27-10) / Query (28-10): 323 juegos solo en Query y 234 solo en GetAppList.",
+    "Estadísticas del índice (28-10-2026): 117 849 tokens; 614 316 postings (3,1 tokens por juego); 209 560 entradas de primera palabra; 29 + 22 bitsets de 1 letra (≈1,25 MB); pajar compacto de 3,15 M caracteres; ≈40 MiB entre heap y typed arrays.",
+    "Construcción del índice completo: 0,61 s en Node 24 (0,68 s con el parseo); en Edge 0,70 / 4,0 / 10,3 s a ×1/×4/×10, y «lista» en 0,86 / 4,56 / 11,4 s. M1 no cumple «búsqueda lista ≤1,5 s» en un móvil medio: hace falta el núcleo de arranque y el índice persistido de M3."
+   ]
+  },
+  {
+   "seccion": "§9 UX y pantallas",
+   "datos": [
+    "Rutas: `/` (Mi lista), `/apuntar` (paleta abierta, acceso directo «Apuntar juego» del manifest), `/catalogo`, `/juego/<id>` (p. ej. `/juego/steam:1145350`), `/ajustes`, `/share` (destino de «Compartir», sin interfaz). Vista, filtros y orden van en la URL y en la tabla `settings` de Dexie.",
+    "Vista Pendientes: Jugando ahora → A continuación (marca Próximo y estado Quiero jugar o En pausa) → Quiero jugar (por `rank`; lo nuevo entra al final) → En pausa (plegada). Otras vistas: Próximos (M2), una por estado y Todos. Órdenes: prioridad (el único con secciones y reordenación), fecha de apuntado, lanzamiento (M2) y nombre.",
+    "Ficha: básica en M1 (núcleo + campos de la entrada), completa en M2 (portada, fecha o «Por confirmar» con cuenta atrás, reseñas, plataformas, Steam Deck). Juego manual: propuesta «Vincular» solo con una única coincidencia exacta. Juego provisional: insignia hasta que lo resuelve el catálogo o, en M4, `/api/v1/resolve`.",
+    "Vista Próximos (M2), dentro de Mi lista. Grupos: Ya disponibles (últimos 14 días) · Esta semana · por meses · Más adelante (solo trimestre o año, ordenado por el final del periodo) · Por confirmar. Necesita la precisión de la fecha en los shards de detalles (§7).",
+    "Ajustes por hito: M1 Apariencia, Contenido (+18), Datos (exportar JSON y CSV, importar, «Actualizar catálogo», borrar todo) y Acerca de; M2 «Cargar portadas» y Privacidad («Datos de Steam que guardamos»); M3 Teclado y gestos y Rendimiento (panel p50/p95); M4 Sincronización (emparejar, código de recuperación, Atajo de iOS).",
+    "Atajos M1: `Ctrl+K` o `/` (paleta), `Ctrl+Z` (pila de 20), `Esc`; en la paleta `↑` `↓`, `Intro`, `Ctrl+Intro`, `Alt+Intro`, `Mayús+Intro`; en filas `↑` `↓`, `Intro` (ficha), `Tab` y `+` (apuntar en el Catálogo). Atajos M3: `?`, `G` y luego `L`/`C`/`A`, `J`/`K`, `1`–`5`, `C`, `P`, `A` (Próximo), `N`, `Supr`, `Alt+↑/↓`, `V` (Ver en Steam), `F` (filtro del Catálogo). Nunca `Ctrl+Alt` ni teclas con AltGr; del navegador solo se intercepta `Ctrl+K`.",
+    "Gestos (M3): deslizar a la derecha avanza el estado; a la izquierda muestra las marcas; pulsación larga abre el selector; arrastrar `::` reordena; deslizar hacia abajo cierra la hoja. Activación al 40 % del ancho, zonas muertas de ≥24 px en los dos bordes, vibración de 10 ms en Android, ningún gesto destructivo.",
+    "Aviso de 8 s pausable con foco o puntero; Deshacer en `Ctrl+Z` (pila de 20) o en «Deshacer último cambio» del menú `[...]` en móvil; solo «Borrar todos mis datos» se confirma (escribiendo BORRAR).",
+    "Paleta: hasta 8 resultados en una sola lista, marcados «En tu lista: <estado>» si ya están (sin duplicar); la última fila es siempre «Apuntar “…” a mano». Antes de que el índice esté listo se busca en Mi lista y la fila manual no se resalta sola.",
+    "Formatos de enlace reconocidos: `store.steampowered.com/app/<appid>`, `s.team/a/<appid>`, `steamcommunity.com/app/<appid>`, `steam://store/<appid>`, `steamdb.info/app/<appid>` y el prefijo `appid:<n>`. Un `appid` que no está en el catálogo local crea un juego provisional con el título sacado del slug.",
+    "`share_target`: GET a `/share` con los parámetros `title`, `text` y `url`; tras apuntar se hace `history.replaceState` a `/`; sin enlace de Steam se abre la paleta con el texto.",
+    "Tiempos de interfaz: esqueleto solo tras 300 ms; portadas de la paleta tras 150 ms sin teclear; plegado de fila en 150 ms; animaciones de 120–200 ms (solo `transform` y `opacity`) y ninguna con `prefers-reduced-motion`.",
+    "Tamaños: filas de 72 px con portada de 48 × 72 (2:3); filas de la paleta en móvil ≥56 px; objetivos táctiles de 44 × 44 px; nunca menos de 24 × 24 px. Puntos de corte: <768, 768–1279 y ≥1280 px.",
+    "Portada generada con CSS (iniciales + color derivado del id), no como imagen. Cadena: `library_capsule` → `header` → generada. Con «Cargar portadas» apagado o el kill switch `covers` activo, siempre la generada.",
+    "Tokens: `--bg` #0E1116/#F6F7F9, `--surface` #161B22/#FFFFFF, `--surface-2` #1E252E/#EEF1F5, `--control-border` #6B7787/#7A8594, `--text` #E7EBF0/#161B22, `--text-muted` #A3ADBA/#556170, `--accent`/`--focus` #FF6AA8/#C2185B. Colores de estado en la tabla de la §9.8. Marca Próximo nueva: icono de chincheta, #4DD0E1 sobre #1F3841 (6,72:1) en oscuro y #006875 sobre #E0EDEE (5,41:1) en claro.",
+    "Formato de números en la interfaz: espacio fino irrompible (U+202F) como separador de millares a partir de cinco cifras; los números de cuatro cifras van sin separador.",
+    "La auditoría de accesibilidad de M3 menciona axe-core en Playwright: §6 y §12 deben fijar la versión de `@axe-core/playwright` (no está en la tabla del stack) o quitarlo.",
+    "La §9 remite a la §3 para los estados y los presupuestos de rendimiento, a la §8 para el ranking y la carrera de `Intro`, a la §7 para los datos de la entrada y `outbox`, a la §5 para el buzón, a la §6 para el enrutador, a la §11 para los textos legales y de marca, y a la §12 para el panel de rendimiento y las pruebas."
+   ]
+  },
+  {
+   "seccion": "§7 modelo de datos",
+   "datos": [
+    "Ids: `steam:<appid>` (Zod `^steam:[1-9][0-9]{0,9}$`), `manual:<uuidv7>` y, en Fase 2, `igdb:<id>` solo para juegos sin appid. Se construyen solo con `steamEntryId(appid)` de packages/core, nunca concatenando en SQL.",
+    "Dexie: base 'gameagenda', version(1).stores({ entries: 'id, [view+rank], lastHlc, deletedAt', outbox: 'opId, [entryId+field]', settings: 'key', meta: 'key' }). Claves de meta: hlcClock, catalog, searchIndex (M3), syncCursor (M4), backup.",
+    "Entry: id, status, flags (platinum, owned, next; propias en Fase 2), rank, note (≤2000 caracteres), platform, addedAt, startedAt, completedAt, platinumAt, ownedAt, title, cover, deletedAt, mergedInto, hlc, y los derivados view y lastHlc.",
+    "Fechas de usuario: fecha local AAAA, AAAA-MM o AAAA-MM-DD, validada con Zod contra el calendario (años 1900–2100). deletedAt es un instante ISO 8601 UTC. cover = asset_url_format con ${FILENAME} sustituido (ruta relativa al CDN).",
+    "Identificadores de plataforma («Juego en»): pc, steam_deck, ps5, ps4, xbox_series, xbox_one, switch_2, switch, mobile, other.",
+    "«A continuación» = entradas con view 'next' (estado want_to_play y flags.next), en orden de rank. rank es una clave fraccionaria en base 62; los juegos nuevos van al final y los empates se resuelven por id.",
+    "HLC: `^\\d{13}-[0-9a-f]{4}-[0-9a-z]{8}$` (27 caracteres; ejemplo 1793178900000-0000-k3x9p2qa = 28-10-2026 09:15:00 UTC). Nodo aleatorio por sesión o pestaña; se rechazan las HLC con más de 24 h de adelanto.",
+    "Operación de outbox: {opId (uuidv7), entryId, field ('status', 'flags.owned'…), value (JSON), hlc}. Todas las operaciones de una acción comparten HLC y un lote nunca parte una acción. Deshacer = acción nueva con los valores anteriores y una HLC nueva.",
+    "merge() vive en packages/core: LWW por campo con desempate determinista por el valor canónico. Repara Platinado ⇒ Completado solo si hlc(flags.platinum) > hlc(status), con la HLC de la marca. Reenvía al destino los campos de usuario que lleguen para un manual con mergedInto (todos salvo title, cover, deletedAt y mergedInto). Las operaciones derivadas también se encolan.",
+    "«Marcar Platinado» escribe siempre status con la misma HLC que la marca, aunque el juego ya esté Completado. Las fechas nunca se reparan.",
+    "Lápida = deletedAt con su HLC; solo deletedAt = null resucita una entrada. Sin purga antes de M4; en M4, purga de lápidas a los 90 días.",
+    "Exportación JSON: {format: 'gameagenda-export', version: 1, exportedAt, appVersion, entries, settings}, con lápidas y HLC. La importación pasa por merge(), admite ≤10 MB y antes guarda meta.backup.",
+    "CSV: columnas id;title;status;statusLabel;platinum;owned;next;platform;addedAt;startedAt;completedAt;platinumAt;ownedAt;note. UTF-8 con BOM, separador ';', CRLF y comillas RFC 4180; prefijo ' contra la inyección de fórmulas. Importar CSV solo crea entradas nuevas.",
+    "Ficheros del catálogo: llevan en el nombre el prefijo de 16 dígitos hexadecimales de su SHA-256. Cabecera del núcleo: `#gacat-core v1⇥<versión>⇥appid⇥name⇥nameEs⇥flags⇥year⇥pop`.",
+    "Bits de flags: 1 próximamente, 2 acceso anticipado, 4 adulto (descriptores 3 o 4), 8 gratis, 16 retirado, 32 fecha por confirmar.",
+    "pop = min(63, floor(2·log2(reseñas+1))) con reviews.summary_filtered.review_count; Counter-Strike 2 (9 953 549 reseñas) → 46.",
+    "Orden del núcleo: no retirados por reseñas descendentes (a igualdad, appid ascendente) y luego los retirados.",
+    "recent: cabecera `#gacat-recent v1`, altas y renombrados de 14 días. aliases: `#gacat-aliases v1⇥<versión>⇥alias⇥appid`.",
+    "Shards: details/<nnnn>.<hash>.json con nnnn = FNV-1a de 32 bits de String(appid) en UTF-8, mod 1024, en 4 cifras (730 → 0765). Índice en details/index.<hash>.json. Fila: [fmt, capsule, header, release, [score, reviews, pct], plat, deck]; plat 1 Windows, 2 macOS, 4 Linux; deck 0–3.",
+    "Manifest: format, v, version (AAAAMMDD.N), generatedAt, counts, files {core, recent, aliases, details} con path, sha256 y bytes, enrichmentAgeDays, minClientVersion, killSwitches {covers, details} y sig {kid, ed25519}. La firma cubre el JSON canónico RFC 8785 sin sig y se verifica con WebCrypto Ed25519.",
+    "Tamaños estimados: núcleo ≈7,2 MB sin comprimir y ≈2,2 MB con brotli 11 (2,1 MiB); recent ≈0,15 MB y ≈55 KB; aliases ≈50 KB y ≈22 KB; shard ≈31 KB y ≈9 KB (todos ≈9,4 MB); manifest ≈1,5 KB. Puerta de tamaño del núcleo: 3 MiB con brotli 11 (propuesta para la §4).",
+    "Almacenamiento en el cliente: Cache Storage con la caché 'gacat-<versión>' (manifest, núcleo, recent, alias, índice de shards), 'gacat-details' (shards pedidos) y las portadas. IndexedDB guarda meta.catalog y meta.searchIndex (M3).",
+    "D1 (M4), tablas STRICT: agenda(id, seq, purged_seq, recovery_hash); device(id, agenda_id, kind 'app'|'inbox', token_hash UNIQUE, revoked_at); pairing_token(token_hash, agenda_id, expires_at, used_at); op(agenda_id, entry_id, field, value, hlc, seq) con PK (agenda_id, entry_id, field), WITHOUT ROWID e índice (agenda_id, seq); inbox_item(id, url, agenda_id).",
+    "Sync M4: POST /api/v1/sync con ≤500 operaciones por llamada en un batch() atómico. La bajada da las filas de op con seq > cursor, 1 000 por página. La respuesta lleva {seq, cambios, more, rechazos, enlaces del buzón para dispositivos app} y `reset: true` si el cursor es menor que purged_seq. Purga semanal con Cron Trigger (lápidas y esqueletos de más de 90 días) y tokens caducados a diario. Al emparejarse, el dispositivo sube todas sus entradas.",
+    "Volumen: entrada en Dexie ≈0,8–1,1 KB; D1 ≈2–3 KB por entrada (9–13 filas), ≈2–3 MB por agenda de 1 000 juegos, con 500 MB por base en el plan gratuito.",
+    "La §5 debe alojar la política de actualización del catálogo en el cliente (D-08); la §9, la composición de la URL de portada y el LRU de ≈300; la §12, las pruebas de propiedades (fast-check) sobre merge(), incluidas las operaciones derivadas y el reenvío por mergedInto."
+   ]
+  }
+ ],
+ "afirmaciones_sin_verificar": [
+  {
+   "seccion": "§15 roadmap + §16 riesgos + §18 preguntas",
+   "sin_verificar": [
+    "CA0.3: no se sabe si Workers Static Assets comprime el TSV al vuelo (brotli o gzip); se comprueba en M0, tal como pide DECISIONES.",
+    "CA2.4: los ≤200 KB diarios para manifest + recientes son una estimación sin medir (manifest con 1 024 entradas de shards + recientes de 14 días ≈ 100–150 KB).",
+    "CA4.5: los ≤1,5 s para resolver un appid con la micro-API son un objetivo; la investigación midió 0,6–1,0 s por llamada a GetItems, pero no a través del Worker.",
+    "CA4.6: el objetivo de CPU del Worker ≤5 ms en el p99 no está medido, y tampoco se ha comprobado que el panel de Cloudflare muestre ese percentil.",
+    "R-04: el disparo de respaldo desde un Cron Trigger de Cloudflare vía workflow_dispatch está marcado «a verificar en M2».",
+    "R-10: una búsqueda web del 28-10-2026 no encontró la aprobación definitiva del proyecto de ley que sube la edad a 16 (remitido al Congreso en marzo de 2025, calificado en abril de 2025); está marcado «a verificar en M4».",
+    "R-11: las fuentes de prensa sitúan el inicio de la beta de Achievement Sets entre el 15 y el 16-10-2026; en el texto figura «octubre de 2026».",
+    "CA4.3 se basa en que la cookie HttpOnly que pone el servidor sobrevive al borrado de 7 días de WebKit (que afecta al almacenamiento escribible por scripts); se comprueba en un iPhone real en M4.",
+    "Los desgloses de esfuerzo de cada hito y los 6 h por día ideal son estimaciones de planificación, no mediciones."
+   ]
+  },
+  {
+   "seccion": "§5 arquitectura + §6 stack",
+   "sin_verificar": [
+    "Ninguna pieza del stack necesita la API del compilador de TypeScript 7.0 (marcado «a verificar en M0» en la §6.3).",
+    "`zod/mini` bastaría para respetar el presupuesto del Worker: el export existe en zod 4.6.7, pero su tamaño no se ha medido (marcado «a verificar en M1»).",
+    "El núcleo de la primera visita pesa ≈2 MB en brotli. Es una estimación a partir de los 1,91 MB del índice [appid, nombre] más las columnas extra; la §7 debe dar la cifra real.",
+    "Margen de ≥55 KB brotli para el código propio: es aritmética sobre la medición (150 − 94,5); el código propio aún no existe.",
+    "La confirmación de ADR-001 y los presupuestos en el Android de referencia y en iPhone salen de las cifras canónicas, no de mediciones propias.",
+    "Puntuaciones, subcriterios y fallos fatales de las tres arquitecturas, copiados de los ficheros de evaluación sin volver a evaluarlos.",
+    "Que un Worker dedicado puede usar Cache Storage y Dexie/IndexedDB en todos los navegadores objetivo: es estándar, pero no se ha probado en este proyecto."
+   ]
+  },
+  {
+   "seccion": "§10 Steam + §11 seguridad + §17 multiplataforma",
+   "sin_verificar": [
+    "Las descargas que hace el Service Worker con fetch() se evalúan contra connect-src de la CSP de su propio script (marcado «a verificar en M2»).",
+    "Disponibilidad del binding ratelimits en el plan gratuito (marcado «a verificar en M4»).",
+    "Los tokens de Cloudflare con «Workers Scripts: Edit» no se pueden limitar a un solo script (marcado «a verificar en M0»).",
+    "Verificación Ed25519 con WebCrypto en los navegadores objetivo (marcado «a verificar en M2»).",
+    "steam-signin funciona en Workers con nodejs_compat (marcado «a verificar en Fase 2»); el código sí se revisó: usa https, querystring y Buffer.",
+    "Chrome limita la vida de las cookies a 400 días (dato conocido, no comprobado en esta sesión).",
+    "La purga de 7 días de WebKit no afecta a una cookie HttpOnly puesta por el servidor (razonamiento del evaluador de robustez; se prueba en M4 en un iPhone real).",
+    "Lectura del GT29 (WP194) sobre cookies de autenticación persistentes, de la guía de la AEPD sobre localStorage e IndexedDB y de la exención del art. 30.5 RGPD (hallazgos de la investigación que el verificador no comprobó).",
+    "Estado del proyecto de ley 121/000052 (edad de consentimiento a 16); la investigación no confirma su aprobación.",
+    "IGDB: ≈428 000 fichas en marzo de 2023 (Wikipedia) y la estimación de ≈860 peticiones por barrido completo; datos de game_time_to_beats (no comprobados por el verificador).",
+    "Achievement Sets: fecha de anuncio 16-10-2026 según la prensa (R3-17 no comprobado por el verificador; la cita de ach_guide sobre conjuntos completados sí).",
+    "Fichas de otras fuentes no comprobadas por el verificador: ITAD (términos), OpenXBL, HowLongToBeat (429 desde septiembre de 2026), Giant Bomb, RAWG, SteamSpy y los recuentos de Wikidata.",
+    "Tauri: carga del origen remoto sin permisos, aviso de SmartScreen y coste de firmar (marcados «a verificar/decidir en Fase 2»)."
+   ]
+  },
+  {
+   "seccion": "§4 estudio Steam",
+   "sin_verificar": [
+    "Volumen diario ≈80 MB gzip (≈0,4 GB sin comprimir) y ≈50 MB sin basic_info: extrapolado de 4 páginas medidas y de una pasada completa con otro data_request, interpolando el peso de las imágenes según el desplazamiento.",
+    "Duración del job ≈11–13 min y ≈360–400 min/mes de Actions: estimación (ritmo + construcción y despliegue), no medida en runners de GitHub.",
+    "GetItems ≈5 llamadas/día: estimado con 234 huecos (había 31 h entre el volcado de jsnli y la pasada de Query) y ≈8 bajas al día.",
+    "Que los ≈230 juegos que faltan en M1 estén «probablemente bloqueados en España»: solo se comprobó en una muestra (5 de los 16 primeros).",
+    "El puesto esperado de 730 (segundo) en la consulta de humo «counter strike» sale de las reglas de ranking de D-09, no de ejecutar el índice.",
+    "Peso de portrait.png (545 KB): medido en un solo juego (The Crew).",
+    "La explicación de la diferencia de DLC (63 919 frente a 63 079: filtro por país y un día de diferencia) es plausible, no investigada.",
+    "Que se pueda enviar la clave a Query si Valve empieza a exigirla: a verificar en M2.",
+    "≈120 peticiones/5 min por IP: medición de la comunidad. ≈200 peticiones/5 min de appdetails: dato histórico."
+   ]
+  },
+  {
+   "seccion": "§12 calidad + §13 entorno + §14 repo",
+   "sin_verificar": [
+    "`wrangler dev` aplica `_headers` en local a los assets: lo indica el changelog de wrangler (PR #8390), pero no se ha confirmado la versión; marcado «a verificar en M0».",
+    "La clave de la Web API de Steam tiene 32 caracteres alfanuméricos: solo hay fuentes secundarias; marcado «a verificar en M0».",
+    "Node resuelve el enlace simbólico de npm workspaces a la ruta real de packages/core y le aplica type stripping; marcado «a verificar en M0».",
+    "«Ninguna dependencia compila código nativo» (no hace falta Python ni node-gyp): no se ha contrastado con el lockfile final.",
+    "Las cifras de minutos de Actions (≈1 200 al mes) y que ci.yml quepa en ≤10 min son estimaciones con supuestos (80 ejecuciones de unos 8 min; pipeline de unos 15 min al día).",
+    "El plan Hobbyist de healthchecks.io es gratuito con 20 comprobaciones (verificado en su página de precios); que incluya avisos por email no se dice de forma explícita.",
+    "Las reglas de Biome `noRestrictedImports` y `noUndeclaredDependencies` y las opciones de TS 7.0.2 (`noUncheckedIndexedAccess`, `erasableSyntaxOnly`) se dan por existentes sin comprobarlas en la documentación de esas versiones.",
+    "Que algunos fabricantes exijan su controlador USB para `chrome://inspect` es conocimiento general, sin probar con el móvil del usuario.",
+    "Que la puerta de tamaño con brotli calidad 11 coincida con cómo se midió el presupuesto de la §6: el nivel que usa Cloudflare al vuelo se contrasta en M0 (ya previsto en ese hito)."
+   ]
+  },
+  {
+   "seccion": "§2 visión + §3 requisitos",
+   "sin_verificar": [
+    "Que todo el camino crítico (Workers de módulo, IndexedDB, Service Worker, Web Locks, storage.persist) use solo API Baseline «ampliamente disponibles»: a verificar en M0.",
+    "Que la captura p50 ≤3 s, el acierto y los presupuestos RNF-02 a RNF-05 se cumplan en el Android de gama media real: a verificar en M1 y M3.",
+    "Que Cloudflare (Workers Static Assets y D1), GitHub Free en repositorio privado y healthchecks.io sigan costando 0 €: tomado de DECISIONES D-12 y D-17, no lo he vuelto a comprobar.",
+    "WCAG 2.2 2.5.8 exige 24 × 24 px CSS como mínimo: dato conocido; la página del W3C se consultó, pero no se llegó a leer ese criterio."
+   ]
+  },
+  {
+   "seccion": "búsqueda: benchmark revisado + §8",
+   "sin_verificar": [
+    "Que guardar los bitsets ya construidos y decodificar los nombres bajo demanda baje la restauración a ≤0,4 s a CPU ×4. Es una estimación; a verificar en M3.",
+    "Que el índice del núcleo de arranque (20 000 filas) se construya en ≈0,4 s a ×4. Es una extrapolación lineal del índice completo; no se midió.",
+    "Que el nivel 4 troceado en bloques de 20 000 nombres permita abandonar sin bloquear el Worker. Es diseño, no medición.",
+    "Que CDP no estrangule los Workers solo se ha comprobado en Edge 156.0.4314.50 sin interfaz; no en el Chromium de Playwright ni en otras versiones.",
+    "Que el reloj del navegador esté redondeado a 0,1 ms se deduce de los valores cuantizados observados (sin aislamiento de origen cruzado); no hay fuente citada.",
+    "Que sin basic_info se mantenga is_free, y que include_best_purchase_option se pueda desactivar en Query.",
+    "Los alias curados apuntan a appids comprobados contra los nombres del catálogo de hoy. 39140 (FINAL FANTASY VII) y 72850 (Skyrim original) no están en Query ES y se descartaron."
+   ]
+  },
+  {
+   "seccion": "§9 UX y pantallas",
+   "sin_verificar": [
+    "Límite de altura de elemento en Firefox ≈17,9 Mpx, frente a 196 577 × 72 px ≈ 14,2 Mpx (marcado «a verificar en M1»; la cifra viene de la fuente principal).",
+    "La app de Steam manda el enlace dentro de `text` al compartir en Android (marcado «a verificar en M3»).",
+    "El Atajo de iOS puede pedir el token al importarse (marcado «a verificar en M4»).",
+    "Datos de los wireframes, ilustrativos y así marcados: años (Baldur's Gate: Enhanced Edition 2013, Baldur's Gate II 2013, ELDEN RING NIGHTREIGN 2025, Counter-Strike 2 2012, Terraria 2011, Hollow Knight 2017), etiquetas de Steam Deck, plataformas y reseñas de Hades II y Terraria, recuentos (186 877 juegos, 9 resultados) y el orden por popularidad.",
+    "`Win+1` abre la primera app anclada en la barra de tareas de Windows (comportamiento estándar, no comprobado en esta sesión).",
+    "La vibración de 10 ms solo funciona en Android (Safari en iOS no implementa la Vibration API) y en iOS hay zoom al enfocar campos con letra de menos de 16 px: conocimiento general, tomado de la fuente principal.",
+    "Lucide se publica con licencia ISC (no comprobado en esta sesión).",
+    "Los contrastes WCAG de todos los tokens y chips, incluido el color nuevo de Próximo, sí se recalcularon en esta sesión con la fórmula WCAG y coinciden con la fuente principal."
+   ]
+  },
+  {
+   "seccion": "§7 modelo de datos",
+   "sin_verificar": [
+    "Los tamaños de core, recent, aliases y shard son estimaciones: nombres reales del volcado de GetAppList del 27-10-2026 (196 577 juegos) con flags, year, pop y nameEs de relleno; recent extrapolado de 7 días reales (2 151 filas, 28 KB brotli); shards con rutas de 40 hex sintéticas.",
+    "Nivel y soporte de la compresión al vuelo del CDN para el TSV (marcado «a verificar en M0»).",
+    "Tamaño del índice persistido ≈16 MiB: es la medida del índice en memoria en Node; el tamaño serializado se mide en M3.",
+    "≈2–3 KB por entrada en D1: estimación por filas e índice, no medida en D1.",
+    "≈0,8–1,1 KB por entrada en Dexie: medido como longitud del JSON, no como ocupación real de IndexedDB.",
+    "Que Excel con configuración española abra bien un CSV con BOM y ';' es conocimiento general; no se ha probado.",
+    "Versiones con Ed25519 en WebCrypto (Chromium 137, Firefox 129, Safari 17) según un blog; la importación de claves en formato raw puede variar entre navegadores (conviene JWK o SPKI, no indicado en el texto).",
+    "La DDL y el SQL de subida (json_each, ON CONFLICT … WHERE) se validaron en SQLite 3.53.4 (node:sqlite) el 28-10-2026, no en D1; que batch() sea atómico y secuencial sale de la documentación de D1.",
+    "Que D1 enlace un number de JavaScript como REAL sale de su tabla de conversión de tipos, que no indica cuándo elige REAL o INTEGER; en node:sqlite está reproducido ('steam:730.0')."
+   ]
+  }
+ ],
+ "preguntas_abiertas": [
+  {
+   "seccion": "§15 roadmap + §16 riesgos + §18 preguntas",
+   "preguntas": [
+    "La §5 publica la lista de ADR iniciales; hay que alinear su numeración y sus títulos con los de §15 (ADR-001…ADR-010) o adaptar §15 a la §5.",
+    "¿Se queda docs/planificacion/ en el repositorio al terminar o se borra? Lo pide ESTADO-SESION §5.6. No se ha puesto en la §18 porque es una pregunta sobre el proceso, no sobre el producto.",
+    "Falta confirmar que la §8 fija los mismos umbrales de calidad de búsqueda que cita CA1.3 y el umbral top-1/top-5 del conjunto dorado en español.",
+    "Falta confirmar que la §9 define el cambio de estado a ≤2 toques en M1 (icono → selector) y el mapa de atajos completo que M3 da por supuesto.",
+    "Falta confirmar que la §12 define el inicio y el fin del E2E «apuntar un juego» (mediana de 5) al que remite CA1.4."
+   ]
+  },
+  {
+   "seccion": "§5 arquitectura + §6 stack",
+   "preguntas": [
+    "D1 no admite transacciones interactivas. ¿Cómo aplica el servidor merge() (leer-fusionar-escribir) de forma atómica en /api/v1/sync? Opciones: filas por campo con upsert condicional por HLC dentro de un db.batch, o control optimista sobre la secuencia de la agenda. Lo resuelve la §7; a verificar en M4.",
+    "Cache API en workers.dev: algunas versiones de la documentación de Cloudflare (https://developers.cloudflare.com/workers/runtime-apis/cache/) dicen que sus operaciones no tienen efecto en *.workers.dev. Si es así, la caché de /api/v1/resolve tendría que ir en una tabla de D1 o necesitar dominio propio en M4.",
+    "¿Cabe Zod 4 completo en el chunk del Worker (≤40 KB brotli), o hace falta `zod/mini`? Se mide con la puerta de tamaño en M1.",
+    "¿Está disponible Ed25519 en WebCrypto en los navegadores objetivo (Android de referencia, versión de iOS del iPhone) para verificar el manifest? A verificar en M2; si no, una librería JS pequeña.",
+    "Las peticiones del Worker de búsqueda pueden pasar por el Service Worker en algunos navegadores. Hay que confirmar en M1 (Chromium y WebKit) que el SW deja pasar los ficheros del catálogo sin cachearlos.",
+    "¿Alguna herramienta del stack necesita la API del compilador de TypeScript (7.0 no la tiene)? A verificar en M0 con tsc 7 en CI."
+   ]
+  },
+  {
+   "seccion": "§10 Steam + §11 seguridad + §17 multiplataforma",
+   "preguntas": [
+    "Base jurídica de cargar portadas desde el CDN de Valve: se propone interés legítimo (art. 6.1.f) con oposición en un toque; hay que validarla al redactar la política.",
+    "¿Se borran las agendas sin sincronizar en 13 meses? Si no queda ningún dispositivo activo, ¿cómo se avisa antes?",
+    "¿Hace falta una copia de D1 además de Time Travel (7 días), p. ej. una exportación semanal a R2 en la UE? No está en DECISIONES.",
+    "¿Servirá el login de Steam de Fase 2 también como vía de recuperación de la agenda, además del código de recuperación?",
+    "Disponibilidad del binding ratelimits en el plan gratuito de Workers (la documentación no lo dice).",
+    "¿Se puede limitar un token de API de Cloudflare a un solo Worker? Si no, ¿se acepta la segunda cuenta gratuita para ga-catalog?",
+    "Orden de los juegos importados de la lista de deseados: el campo priority de GetWishlist no está documentado.",
+    "Tauri: confirmar que cargar el origen remoto de ga-web con cero permisos de Tauri es viable y seguro, y si se firma el instalador (coste).",
+    "IGDB: tamaño real del catálogo no Steam, para decidir si va en un fichero aparte que solo se descarga al activar otras plataformas."
+   ]
+  },
+  {
+   "seccion": "§4 estudio Steam",
+   "preguntas": [
+    "¿La ficha muestra desarrollador y editor? Si sí, los shards de D-08 necesitan esos campos; si no, conviene quitar include_basic_info (≈30 MB/día menos).",
+    "¿Aguantan los runners de GitHub (IPs compartidas) ≈9 min a 0,4 peticiones/s sin 429? Solo se ha medido desde este PC, a 0,33 peticiones/s.",
+    "¿Cuánto pesan las portadas portrait.png (35 % de los 1 000 juegos más antiguos)? Una medida pesa 545 KB, lo que afecta a la caché LRU de ≈300 portadas de D-11. A verificar en M2.",
+    "¿Refleja last_modified los cambios de reseñas o el paso de «próximamente» a publicado? No está verificado; por eso se hace una pasada completa diaria.",
+    "¿Cuántos de los 234 huecos están bloqueados por región en ES y cuántos se retiraron en las 31 h entre el volcado y la pasada? Solo hay una muestra verificada.",
+    "¿Debe ser automático el paso a modo sin clave tras un 403? En la sección es manual.",
+    "Tras un parón del pipeline de más de ≈5 semanas (≈+1 % de altas por semana), la puerta de +5 % bloquearía la publicación. Hace falta una aprobación manual o forzar las puertas (para §12/§16).",
+    "¿Se muestran las nuevas compatibilidades (Steam Frame, Steam Machine) que ya aparecen en platforms?"
+   ]
+  },
+  {
+   "seccion": "§12 calidad + §13 entorno + §14 repo",
+   "preguntas": [
+    "§8: ¿se añaden ＇ (U+FF07), ´ (U+00B4), ` (U+0060) y ′ (U+2032) a las formas de apóstrofo que se quitan antes de NFKD? Con D-09 tal cual, «baldur´s gate» no encuentra Baldur's Gate 3 por prefijos (comprobado con Node 24.21).",
+    "§6 y §3: RNF-08 exige axe-core en los E2E, pero el stack no fija `@axe-core/playwright`. Tampoco fija `@types/node`, `@types/react` ni `@types/react-dom`, que hacen falta para `tsc`. Hay que fijar versiones exactas en M0.",
+    "§7 y §8: si el Worker de búsqueda persiste `meta.searchIndex` con Dexie (M3), Dexie puede comerse casi todo el presupuesto del chunk del Worker (ver §6). Conviene usar IndexedDB a pelo o Cache Storage dentro del Worker. Está por medir en M3.",
+    "M0: ¿aplica `wrangler dev` 4.154.0 las cabeceras de `_headers` a un Worker solo de assets? El changelog (PR #8390) sugiere que sí. Si no, los E2E necesitan otra forma de servir la CSP en local.",
+    "M0: confirmar el formato real de la clave de Steam (32 caracteres, ¿hexadecimal?) cuando llegue, para ajustar el patrón de la búsqueda por hash.",
+    "M0: confirmar que Node aplica type stripping a packages/core a través del enlace simbólico de npm workspaces. Node no lo hace dentro de node_modules; la alternativa son rutas relativas.",
+    "§7: ¿dónde vive el anillo de errores? La propuesta es la clave `meta.errorLog`, que hoy no figura en la lista de claves de `meta`.",
+    "§15: la numeración de ADR por hito no coincide entre §5 (ADR-004 hosting en M0, ADR-005 datos en M1…) y §15 (ADR-001 a 003 en M0, ADR-004 a 006 en M1…). Hay que unificarla al integrar."
+   ]
+  },
+  {
+   "seccion": "§2 visión + §3 requisitos",
+   "preguntas": [
+    "¿Al apuntar directamente como Jugando, Completado o con Platinado se dejan vacías startedAt, completedAt y platinumAt? D-05 no lo dice; se decidió que sí (solo addedAt) por «no inventar datos».",
+    "¿Próximo debe mostrar también en «A continuación» los juegos En pausa, como propone §9? Se decidió que no, por D-05 («arriba de Quiero jugar») y por la derivación de `view` en §7.",
+    "Volver a apuntar un juego quitado: ¿empieza de cero (decidido) o restaura los datos anteriores?",
+    "¿La ficha básica va en M1 (§9) o en M2 (DECISIONES §4, §15 y §3)? ¿Y la pulsación larga, en M1 (§15) o en M3 (§9 y §3)? El integrador debe unificarlo.",
+    "¿Quiénes harán la prueba guiada (5 personas × 10 juegos) y cuándo? Es viable para un solo desarrollador, pero hay que buscar a esas personas.",
+    "Modelo del Android de referencia y móvil principal del usuario (PA-02 de §18): cambia la prioridad de RF-08.",
+    "¿Platinado cubre el 100 % del juego base o incluye los DLC (PA-04)? Afecta al texto que acompaña a la marca."
+   ]
+  },
+  {
+   "seccion": "búsqueda: benchmark revisado + §8",
+   "preguntas": [
+    "¿Se adopta en M1 la variante «exacto siempre primero + popularidad cruzando entre los niveles 1 y 2»? Hay que decidirlo con el dorado y con uso real: arregla «wukong» sin perder exactos.",
+    "¿Con qué nivel de brotli sirve Cloudflare Workers Static Assets el TSV? ¿Acepta ficheros precomprimidos? El núcleo pesa 2,25 MB con brotli 11 y 2,59 MB con brotli 5. Ya está en el alcance de M0.",
+    "¿Dónde se guarda la copia congelada del núcleo para el dorado en CI (≈2,3 MB comprimido): en el repo, en Git LFS o como asset de una Release? Lo deciden las §12 y §14.",
+    "¿Admite Query data_request include_best_purchase_option:false? ¿Sigue llegando is_free sin include_basic_info? A verificar en M2.",
+    "Hacen falta alias curados en español para títulos que Steam no traduce («la tierra media sombras de guerra», «el señor de los anillos»…). ¿Quién mantiene esa lista y con qué criterio?",
+    "¿Se confirma en el Chromium de Playwright que CDP no estrangula los Workers dedicados? A verificar en M0, al montar npm run perf."
+   ]
+  },
+  {
+   "seccion": "§9 UX y pantallas",
+   "preguntas": [
+    "¿Se quita la marca Próximo de forma automática cuando el juego pasa a Jugando, Completado o Abandonado? La propuesta es que no: solo deja de tener efecto fuera de Quiero jugar o En pausa.",
+    "¿La vista Próximos entra en M2 o se aplaza a Fase 2 junto con los avisos de lanzamiento?",
+    "¿Es aceptable en móvil el peso de `library_capsule` (≈38–68 KB cada una, según la investigación) para miniaturas de 48 × 72, o se usa otra variante en las filas? D-11 fija `library_capsule`.",
+    "¿Qué precisión de fecha guardan los shards (día, mes, trimestre, año o por confirmar)? De ella depende el grupo «Más adelante» de Próximos.",
+    "¿Qué envía exactamente la app de Steam en Android al compartir (`url` o `text`, enlace corto `s.team`)? Hay que comprobarlo en M3.",
+    "¿Se mantiene el espacio fino como separador de millares en la interfaz frente al punto que da `Intl` es-ES por defecto?"
+   ]
+  },
+  {
+   "seccion": "§7 modelo de datos",
+   "preguntas": [
+    "¿Comprime Cloudflare Workers Static Assets al vuelo `text/tab-separated-values`, y con qué nivel de brotli? Si no, el núcleo se sirve como text/plain (M0).",
+    "¿Se quita la marca Próximo (next) automáticamente cuando el estado deja de ser Quiero jugar? Es una regla de la §3; aquí la vista solo la tiene en cuenta en want_to_play.",
+    "¿Los ajustes (settings) se sincronizan en M4 o son de cada dispositivo? Esta sección no lo fija.",
+    "¿Qué política de expulsión (LRU y tamaño) se aplica a la caché 'gacat-details' de shards pedidos?",
+    "¿Basta el rango de años 1900–2100 para las fechas de usuario?",
+    "Caso límite aceptado: si otro dispositivo edita la nota de un manual después de vincularlo, el reenvío por LWW puede sustituir la nota concatenada. ¿Se acepta para el prototipo?",
+    "Antes de M4 las lápidas locales no se purgan. ¿Se quiere un límite?"
+   ]
+  }
+ ],
+ "referencias": [
+  {
+   "title": "Steam Web API Terms of Use",
+   "url": "https://steamcommunity.com/dev/apiterms"
+  },
+  {
+   "title": "Steam Support: cuentas de usuario limitadas",
+   "url": "https://help.steampowered.com/en/faqs/view/71D3-35C2-AD96-AA3A"
+  },
+  {
+   "title": "GitHub Docs: eventos que activan flujos (schedule)",
+   "url": "https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows"
+  },
+  {
+   "title": "WebKit: Full Third-Party Cookie Blocking and More (borrado de almacenamiento a los 7 días)",
+   "url": "https://webkit.org/blog/10218/full-third-party-cookie-blocking-and-more/"
+  },
+  {
+   "title": "Cloudflare Workers: límites de la plataforma",
+   "url": "https://developers.cloudflare.com/workers/platform/limits/"
+  },
+  {
+   "title": "Cloudflare Workers Static Assets: facturación y límites",
+   "url": "https://developers.cloudflare.com/workers/static-assets/billing-and-limitations/"
+  },
+  {
+   "title": "BOE: Ley Orgánica 3/2018 (LOPDGDD), texto consolidado",
+   "url": "https://www.boe.es/buscar/act.php?id=BOE-A-2018-16673"
+  },
+  {
+   "title": "BOCG Congreso: Proyecto de Ley Orgánica de protección de las personas menores de edad en los entornos digitales",
+   "url": "https://www.congreso.es/public_oficiales/L15/CONG/BOCG/A/BOCG-15-A-52-1.PDF"
+  },
+  {
+   "title": "Steamworks: guía de logros (Achievement Sets)",
+   "url": "https://partner.steamgames.com/doc/features/achievements/ach_guide"
+  },
+  {
+   "title": "Cloudflare Workers Static Assets: binding y run_worker_first",
+   "url": "https://developers.cloudflare.com/workers/static-assets/binding/"
+  },
+  {
+   "title": "Cloudflare D1: ubicación de datos y jurisdicciones",
+   "url": "https://developers.cloudflare.com/d1/configuration/data-location/"
+  },
+  {
+   "title": "MADR: Markdown Architectural Decision Records (4.0)",
+   "url": "https://adr.github.io/madr/"
+  },
+  {
+   "title": "uFuzzy (benchmark de 162 000 frases: Fuse.js, FlexSearch, Orama, MiniSearch)",
+   "url": "https://github.com/leeoniya/uFuzzy"
+  },
+  {
+   "title": "SQLite WASM: persistencia (opfs-sahpool)",
+   "url": "https://sqlite.org/wasm/doc/trunk/persistence.md"
+  },
+  {
+   "title": "InstantDB: The Instant team joins OpenAI (cierre de la nube el 31-08-2027)",
+   "url": "https://www.instantdb.com/essays/instant_team_joins_openai"
+  },
+  {
+   "title": "Announcing TypeScript 7.0",
+   "url": "https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/"
+  },
+  {
+   "title": "Node.js: calendario de versiones",
+   "url": "https://nodejs.org/en/about/releases/"
+  },
+  {
+   "title": "Registro de npm (peerDependencies, engines y dist-tags consultados el 28-10-2026)",
+   "url": "https://registry.npmjs.org/"
+  },
+  {
+   "title": "Steamworks: IPlayerService (GetOwnedGames, logros)",
+   "url": "https://partner.steamgames.com/doc/webapi/IPlayerService"
+  },
+  {
+   "title": "Steamworks: autenticación de usuarios y OpenID",
+   "url": "https://partner.steamgames.com/doc/features/auth"
+  },
+  {
+   "title": "steam-signin (DoctorMcKay), código fuente",
+   "url": "https://github.com/DoctorMcKay/node-steam-signin"
+  },
+  {
+   "title": "steam-signin 1.0.5, index.js publicado en npm (revisado: canonicalizeRealm descarta el puerto)",
+   "url": "https://unpkg.com/steam-signin@1.0.5/index.js"
+  },
+  {
+   "title": "OpenID Authentication 2.0 (especificación)",
+   "url": "https://openid.net/specs/openid-authentication-2_0.html"
+  },
+  {
+   "title": "CVE-2026-82183 (verificador OpenID de Steam sin check_authentication)",
+   "url": "https://www.sentinelone.com/vulnerability-database/cve-2026-82183/"
+  },
+  {
+   "title": "Steamworks: uso de las marcas de Steam (branding)",
+   "url": "https://partner.steamgames.com/doc/marketing/branding"
+  },
+  {
+   "title": "Sentencia Renckhoff (TJUE, C-161/17), comentario",
+   "url": "https://legalblogs.wolterskluwer.com/copyright-blog/the-renckhoff-judgment-the-cjeu-swivels-the-faces-of-the-copyright-rubiks-cube-part-i/"
+  },
+  {
+   "title": "AEPD: Guía sobre el uso de las cookies",
+   "url": "https://www.aepd.es/guias/guia-cookies.pdf"
+  },
+  {
+   "title": "Cloudflare D1: Time Travel",
+   "url": "https://developers.cloudflare.com/d1/reference/time-travel/"
+  },
+  {
+   "title": "Cloudflare Workers Static Assets: fichero _headers",
+   "url": "https://developers.cloudflare.com/workers/static-assets/headers/"
+  },
+  {
+   "title": "Cloudflare Workers: binding de Rate Limiting",
+   "url": "https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/"
+  },
+  {
+   "title": "IGDB API v4 (documentación)",
+   "url": "https://api-docs.igdb.com/"
+  },
+  {
+   "title": "Wikidata: licencias (CC0)",
+   "url": "https://www.wikidata.org/wiki/Wikidata:Licensing"
+  },
+  {
+   "title": "IsThereAnyDeal API (documentación y términos)",
+   "url": "https://docs.isthereanydeal.com/"
+  },
+  {
+   "title": "PlayStation Network: Terms of Use (marzo de 2025)",
+   "url": "https://www.playstation.com/en-us/legal/terms-of-use-march-2025/"
+  },
+  {
+   "title": "Steamworks Web API — IStoreService (GetAppList)",
+   "url": "https://partner.steamgames.com/doc/webapi/IStoreService"
+  },
+  {
+   "title": "Steamworks Web API — ISteamApps (GetAppList obsoleto)",
+   "url": "https://partner.steamgames.com/doc/webapi/isteamapps"
+  },
+  {
+   "title": "Steamworks — Web API Overview (cabecera x-webapi-key)",
+   "url": "https://partner.steamgames.com/doc/webapi_overview"
+  },
+  {
+   "title": "Steam Web API — página de desarrolladores",
+   "url": "https://steamcommunity.com/dev"
+  },
+  {
+   "title": "SteamTracking — commit que retira ISteamApps/GetAppList (13-11-2025)",
+   "url": "https://github.com/SteamTracking/SteamTracking/commit/1978dcc003ebf42cfffbbbe7e0ce30e43fd94c52"
+  },
+  {
+   "title": "SteamDatabase Protobufs — service_storequery.proto",
+   "url": "https://github.com/SteamDatabase/Protobufs/blob/master/webui/service_storequery.proto"
+  },
+  {
+   "title": "SteamDatabase Protobufs — common.proto (StoreItem, StoreBrowseItemDataRequest)",
+   "url": "https://github.com/SteamDatabase/Protobufs/blob/master/webui/common.proto"
+  },
+  {
+   "title": "xPaw — Steam Web API Documentation",
+   "url": "https://github.com/xPaw/SteamWebAPIDocumentation"
+  },
+  {
+   "title": "IStoreQueryService/Query (endpoint medido)",
+   "url": "https://api.steampowered.com/IStoreQueryService/Query/v1/"
+  },
+  {
+   "title": "IStoreBrowseService/GetItems (endpoint)",
+   "url": "https://api.steampowered.com/IStoreBrowseService/GetItems/v1/"
+  },
+  {
+   "title": "jsnli/steamappidlist — volcado diario de GetAppList",
+   "url": "https://github.com/jsnli/steamappidlist"
+  },
+  {
+   "title": "mparmol/Removed_Steam_Games (límites por IP y detección de retirados)",
+   "url": "https://github.com/mparmol/Removed_Steam_Games"
+  },
+  {
+   "title": "SteamSpy API",
+   "url": "https://steamspy.com/api.php"
+  },
+  {
+   "title": "SteamDB FAQ (sin API, scraping prohibido)",
+   "url": "https://steamdb.info/faq"
+  },
+  {
+   "title": "Steamworks — Library Assets (cápsula 600×900)",
+   "url": "https://partner.steamgames.com/doc/store/assets/libraryassets"
+  },
+  {
+   "title": "node-steam-user (PICS)",
+   "url": "https://github.com/DoctorMcKay/node-steam-user"
+  },
+  {
+   "title": "Node.js — Modules: TypeScript (type stripping, node_modules, extensiones obligatorias)",
+   "url": "https://nodejs.org/api/typescript.html"
+  },
+  {
+   "title": "Cloudflare Workers — Rollbacks (wrangler rollback, 100 versiones)",
+   "url": "https://developers.cloudflare.com/workers/configuration/versions-and-deployments/rollbacks/"
+  },
+  {
+   "title": "Cloudflare — Quick Tunnels (TryCloudflare)",
+   "url": "https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/do-more-with-tunnels/trycloudflare/"
+  },
+  {
+   "title": "Vite — Server Options (server.allowedHosts)",
+   "url": "https://vite.dev/config/server-options"
+  },
+  {
+   "title": "Vite — Preview Options (preview.allowedHosts)",
+   "url": "https://vite.dev/config/preview-options"
+  },
+  {
+   "title": "Wrangler changelog (_headers y _redirects en wrangler dev)",
+   "url": "https://developers.cloudflare.com/workers/platform/changelog/wrangler"
+  },
+  {
+   "title": "Healthchecks.io — Pricing (plan Hobbyist gratuito)",
+   "url": "https://healthchecks.io/pricing/"
+  },
+  {
+   "title": "Web Content Accessibility Guidelines (WCAG) 2.2 — W3C Recommendation",
+   "url": "https://www.w3.org/TR/WCAG22/"
+  },
+  {
+   "title": "Interaction to Next Paint (INP) — web.dev",
+   "url": "https://web.dev/articles/inp"
+  },
+  {
+   "title": "Largest Contentful Paint (LCP) — web.dev",
+   "url": "https://web.dev/articles/lcp"
+  },
+  {
+   "title": "Baseline — web.dev",
+   "url": "https://web.dev/baseline"
+  },
+  {
+   "title": "Documentación no oficial de IStoreQueryService/Query (benhurk)",
+   "url": "https://github.com/benhurk/IStoreQueryService-Query-v1-Documentation"
+  },
+  {
+   "title": "Chrome DevTools Protocol: Emulation.setCPUThrottlingRate",
+   "url": "https://chromedevtools.github.io/devtools-protocol/tot/Emulation/#method-setCPUThrottlingRate"
+  },
+  {
+   "title": "Unicode Standard Annex #15: Unicode Normalization Forms",
+   "url": "https://unicode.org/reports/tr15/"
+  },
+  {
+   "title": "Lighthouse: throttling (×4 y ×10 como referencia de móviles)",
+   "url": "https://github.com/GoogleChrome/lighthouse/blob/main/docs/throttling.md"
+  },
+  {
+   "title": "WAI-ARIA Authoring Practices: Combobox Pattern",
+   "url": "https://www.w3.org/WAI/ARIA/apg/patterns/combobox/"
+  },
+  {
+   "title": "MDN: share_target (Web app manifest)",
+   "url": "https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Manifest/Reference/share_target"
+  },
+  {
+   "title": "WebKit: Async Clipboard API (botón «Pegar» en iOS)",
+   "url": "https://webkit.org/blog/10855/async-clipboard-api/"
+  },
+  {
+   "title": "Kulkarni et al., Logical Physical Clocks and Consistent Snapshots in Globally Distributed Databases (HLC, 2014)",
+   "url": "https://cse.buffalo.edu/tech-reports/2014-04.pdf"
+  },
+  {
+   "title": "Implementing Fractional Indexing (David Greenspan)",
+   "url": "https://observablehq.com/@dgreensp/implementing-fractional-indexing"
+  },
+  {
+   "title": "Indexed Database API (W3C)",
+   "url": "https://www.w3.org/TR/IndexedDB/"
+  },
+  {
+   "title": "OWASP: CSV Injection",
+   "url": "https://owasp.org/www-community/attacks/CSV_Injection"
+  },
+  {
+   "title": "RFC 4180: Common Format and MIME Type for CSV Files",
+   "url": "https://www.rfc-editor.org/rfc/rfc4180"
+  },
+  {
+   "title": "RFC 8785: JSON Canonicalization Scheme (JCS)",
+   "url": "https://www.rfc-editor.org/rfc/rfc8785"
+  },
+  {
+   "title": "Ed25519 Support in Chrome: Making the Web Faster and Safer (IPFS blog)",
+   "url": "https://blog.ipfs.tech/2025-08-ed25519/"
+  },
+  {
+   "title": "Cloudflare D1: Workers Binding API (conversión de tipos)",
+   "url": "https://developers.cloudflare.com/d1/worker-api/"
+  },
+  {
+   "title": "Cloudflare D1: D1Database (batch)",
+   "url": "https://developers.cloudflare.com/d1/worker-api/d1-database/"
+  },
+  {
+   "title": "Cloudflare D1: Query JSON (json_each, ->, ->>)",
+   "url": "https://developers.cloudflare.com/d1/sql-api/query-json/"
+  },
+  {
+   "title": "Cloudflare D1: Foreign keys",
+   "url": "https://developers.cloudflare.com/d1/sql-api/foreign-keys/"
+  },
+  {
+   "title": "Cloudflare D1: Limits (500 MB por base en el plan gratuito, 100 parámetros)",
+   "url": "https://developers.cloudflare.com/d1/platform/limits/"
+  }
+ ]
+}

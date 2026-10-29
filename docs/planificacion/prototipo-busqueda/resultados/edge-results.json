@@ -1,0 +1,621 @@
+{
+ "browser": "Edg/156.0.4314.50",
+ "results": [
+  {
+   "engine": "d09",
+   "mode": "main",
+   "rate": 1,
+   "reps": 3,
+   "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0",
+   "fetch_ms": 70.29999999701977,
+   "parse_ms": 92.5,
+   "build_ms": 699.5,
+   "haystack_ms": 138.20000000298023,
+   "ready_ms": 862.2999999970198,
+   "ready_with_haystack_ms": 1000.5,
+   "heap_mb": 39.77595615386963,
+   "draft": {
+    "cold": {
+     "n": 216,
+     "p50": 0,
+     "p95": 2.1,
+     "p99": 6.1,
+     "max": 7
+    },
+    "warm": {
+     "n": 648,
+     "p50": 0,
+     "p95": 2.2,
+     "p99": 6.3,
+     "max": 8.1
+    },
+    "over16": 0,
+    "over50": 0
+   },
+   "extra": {
+    "cold": {
+     "n": 111,
+     "p50": 0,
+     "p95": 2.4,
+     "p99": 5,
+     "max": 6.7
+    },
+    "warm": {
+     "n": 333,
+     "p50": 0.1,
+     "p95": 2.6,
+     "p99": 5.9,
+     "max": 7.8
+    },
+    "over16": 0,
+    "over50": 0
+   },
+   "realistic": {
+    "cold": {
+     "n": 2084,
+     "p50": 0,
+     "p95": 2.1,
+     "p99": 4.4,
+     "max": 11.1
+    },
+    "warm": {
+     "n": 4168,
+     "p50": 0,
+     "p95": 2.1,
+     "p99": 4.4,
+     "max": 8.4
+    },
+    "over16": 0,
+    "over50": 0
+   },
+   "fuzzy_deferred": {
+    "n": 32,
+    "p50": 9.2,
+    "p95": 13.4,
+    "p99": 13.7,
+    "max": 13.7
+   },
+   "sample": [
+    "ELDEN RING",
+    "ELDEN RING NIGHTREIGN",
+    "Elden Gunfire 2"
+   ]
+  },
+  {
+   "engine": "scan",
+   "mode": "main",
+   "rate": 1,
+   "reps": 3,
+   "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0",
+   "fetch_ms": 36.599999994039536,
+   "parse_ms": 90,
+   "build_ms": 282.70000000298023,
+   "ready_ms": 409.29999999701977,
+   "heap_mb": 53.24531269073486,
+   "draft": {
+    "cold": {
+     "n": 216,
+     "p50": 2.5,
+     "p95": 9.1,
+     "p99": 10.2,
+     "max": 11.6
+    },
+    "warm": {
+     "n": 648,
+     "p50": 2.5,
+     "p95": 8.8,
+     "p99": 9.8,
+     "max": 12.4
+    },
+    "over16": 0,
+    "over50": 0
+   },
+   "extra": {
+    "cold": {
+     "n": 111,
+     "p50": 2.6,
+     "p95": 8.8,
+     "p99": 9.2,
+     "max": 9.9
+    },
+    "warm": {
+     "n": 333,
+     "p50": 2.5,
+     "p95": 8.9,
+     "p99": 9.7,
+     "max": 10
+    },
+    "over16": 0,
+    "over50": 0
+   },
+   "realistic": {
+    "cold": {
+     "n": 2084,
+     "p50": 2.5,
+     "p95": 9.3,
+     "p99": 11,
+     "max": 22.5
+    },
+    "warm": {
+     "n": 4168,
+     "p50": 2.5,
+     "p95": 9.3,
+     "p99": 10.9,
+     "max": 33.2
+    },
+    "over16": 8,
+    "over50": 0
+   },
+   "sample": [
+    "ELDEN RING",
+    "ELDEN RING NIGHTREIGN",
+    "Elden Gunfire 2",
+    "Elden: Path of the Forgotten",
+    "Elden Gunfire",
+    "Elden Sword",
+    "Magic Garden : Insect from Elden World"
+   ]
+  },
+  {
+   "engine": "d09",
+   "mode": "persist",
+   "rate": 1,
+   "reps": 1,
+   "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0",
+   "fetch_ms": 43.79999999701977,
+   "parse_ms": 84.1000000089407,
+   "build_ms": 633.0999999940395,
+   "haystack_ms": 86.5,
+   "ready_ms": 761,
+   "ready_with_haystack_ms": 847.5,
+   "serialize_ms": 73.79999999701977,
+   "idb_put_ms": 2744.8999999910593,
+   "bytes": 19230204,
+   "heap_mb": 58.167099952697754
+  },
+  {
+   "engine": "d09",
+   "mode": "restore",
+   "rate": 1,
+   "reps": 1,
+   "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0",
+   "idb_get_ms": 53.70000000298023,
+   "deserialize_ms": 97.59999999403954,
+   "first_query_ms": 1.1000000089406967,
+   "ready_ms": 152.40000000596046,
+   "haystack_ms": 105.09999999403954,
+   "heap_mb": 47.160521507263184,
+   "sample": [
+    "ELDEN RING",
+    "ELDEN RING NIGHTREIGN",
+    "Elden Gunfire 2",
+    "Elden: Path of the Forgotten",
+    "Elden Gunfire",
+    "Elden Sword",
+    "Magic Garden : Insect from Elden World"
+   ]
+  },
+  {
+   "engine": "d09",
+   "mode": "worker",
+   "rate": 1,
+   "reps": 2,
+   "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0",
+   "worker_init": {
+    "type": "ready",
+    "fetch_ms": 34,
+    "build_ms": 848.5
+   },
+   "worker_ready_ms": 899.7000000029802,
+   "roundtrip": {
+    "n": 654,
+    "p50": 0.1,
+    "p95": 2.8,
+    "p99": 6.2,
+    "max": 7.3
+   },
+   "inner": {
+    "n": 654,
+    "p50": 0,
+    "p95": 2.4,
+    "p99": 6.1,
+    "max": 7.1
+   },
+   "overhead": {
+    "n": 654,
+    "p50": 0.1,
+    "p95": 0.2,
+    "p99": 0.6,
+    "max": 1.9
+   }
+  },
+  {
+   "engine": "d09",
+   "mode": "main",
+   "rate": 4,
+   "reps": 2,
+   "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0",
+   "fetch_ms": 128.59999999403954,
+   "parse_ms": 421.20000000298023,
+   "build_ms": 4005.4000000059605,
+   "haystack_ms": 659.8999999910593,
+   "ready_ms": 4555.20000000298,
+   "ready_with_haystack_ms": 5215.0999999940395,
+   "heap_mb": 39.78956317901611,
+   "draft": {
+    "cold": {
+     "n": 216,
+     "p50": 0.2,
+     "p95": 9.4,
+     "p99": 26,
+     "max": 39.3
+    },
+    "warm": {
+     "n": 432,
+     "p50": 0.2,
+     "p95": 10.5,
+     "p99": 27.2,
+     "max": 31.6
+    },
+    "over16": 11,
+    "over50": 0
+   },
+   "extra": {
+    "cold": {
+     "n": 111,
+     "p50": 0.2,
+     "p95": 11.6,
+     "p99": 20.5,
+     "max": 31.3
+    },
+    "warm": {
+     "n": 222,
+     "p50": 0.2,
+     "p95": 9.6,
+     "p99": 22.7,
+     "max": 30.2
+    },
+    "over16": 6,
+    "over50": 0
+   },
+   "realistic": {
+    "cold": {
+     "n": 2084,
+     "p50": 0.2,
+     "p95": 9.3,
+     "p99": 18.4,
+     "max": 32.9
+    },
+    "warm": {
+     "n": 2084,
+     "p50": 0.2,
+     "p95": 8.7,
+     "p99": 16.4,
+     "max": 25.3
+    },
+    "over16": 21,
+    "over50": 0
+   },
+   "fuzzy_deferred": {
+    "n": 32,
+    "p50": 46.1,
+    "p95": 62.3,
+    "p99": 63.6,
+    "max": 63.6
+   },
+   "sample": [
+    "ELDEN RING",
+    "ELDEN RING NIGHTREIGN",
+    "Elden Gunfire 2"
+   ]
+  },
+  {
+   "engine": "scan",
+   "mode": "main",
+   "rate": 4,
+   "reps": 2,
+   "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0",
+   "fetch_ms": 144.40000000596046,
+   "parse_ms": 395.79999999701977,
+   "build_ms": 1179.7999999970198,
+   "ready_ms": 1720,
+   "heap_mb": 53.24580097198486,
+   "draft": {
+    "cold": {
+     "n": 216,
+     "p50": 11,
+     "p95": 39.1,
+     "p99": 41.9,
+     "max": 46.6
+    },
+    "warm": {
+     "n": 432,
+     "p50": 11.5,
+     "p95": 42,
+     "p99": 45.5,
+     "max": 49.1
+    },
+    "over16": 138,
+    "over50": 0
+   },
+   "extra": {
+    "cold": {
+     "n": 111,
+     "p50": 11.3,
+     "p95": 39.8,
+     "p99": 43.8,
+     "max": 46.6
+    },
+    "warm": {
+     "n": 222,
+     "p50": 11.8,
+     "p95": 43.1,
+     "p99": 45.1,
+     "max": 48.5
+    },
+    "over16": 98,
+    "over50": 0
+   },
+   "realistic": {
+    "cold": {
+     "n": 2084,
+     "p50": 11.5,
+     "p95": 43.5,
+     "p99": 52.6,
+     "max": 112.8
+    },
+    "warm": {
+     "n": 2084,
+     "p50": 11.3,
+     "p95": 42.4,
+     "p99": 50.8,
+     "max": 108.5
+    },
+    "over16": 699,
+    "over50": 23
+   },
+   "sample": [
+    "ELDEN RING",
+    "ELDEN RING NIGHTREIGN",
+    "Elden Gunfire 2",
+    "Elden: Path of the Forgotten",
+    "Elden Gunfire",
+    "Elden Sword",
+    "Magic Garden : Insect from Elden World"
+   ]
+  },
+  {
+   "engine": "d09",
+   "mode": "restore",
+   "rate": 4,
+   "reps": 1,
+   "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0",
+   "idb_get_ms": 147.1000000089407,
+   "deserialize_ms": 393.70000000298023,
+   "first_query_ms": 6.399999991059303,
+   "ready_ms": 547.2000000029802,
+   "haystack_ms": 516.7999999970198,
+   "heap_mb": 47.15889644622803,
+   "sample": [
+    "ELDEN RING",
+    "ELDEN RING NIGHTREIGN",
+    "Elden Gunfire 2",
+    "Elden: Path of the Forgotten",
+    "Elden Gunfire",
+    "Elden Sword",
+    "Magic Garden : Insect from Elden World"
+   ]
+  },
+  {
+   "engine": "d09",
+   "mode": "worker",
+   "rate": 4,
+   "reps": 1,
+   "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0",
+   "worker_init": {
+    "type": "ready",
+    "fetch_ms": 42.29999999701977,
+    "build_ms": 1061.5
+   },
+   "worker_ready_ms": 3288.7999999970198,
+   "roundtrip": {
+    "n": 327,
+    "p50": 0.2,
+    "p95": 3.2,
+    "p99": 6.8,
+    "max": 9.2
+   },
+   "inner": {
+    "n": 327,
+    "p50": 0.1,
+    "p95": 2.4,
+    "p99": 6.5,
+    "max": 7.6
+   },
+   "overhead": {
+    "n": 327,
+    "p50": 0.2,
+    "p95": 0.7,
+    "p99": 2.3,
+    "max": 2.6
+   }
+  },
+  {
+   "engine": "d09",
+   "mode": "main",
+   "rate": 10,
+   "reps": 1,
+   "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0",
+   "fetch_ms": 257.3999999910593,
+   "parse_ms": 809.8000000119209,
+   "build_ms": 10306,
+   "haystack_ms": 1323.699999988079,
+   "ready_ms": 11373.20000000298,
+   "ready_with_haystack_ms": 12696.89999999106,
+   "heap_mb": 39.51162052154541,
+   "draft": {
+    "cold": {
+     "n": 216,
+     "p50": 0.7,
+     "p95": 28.7,
+     "p99": 75.2,
+     "max": 84.5
+    },
+    "warm": {
+     "n": 216,
+     "p50": 0.6,
+     "p95": 25,
+     "p99": 52.4,
+     "max": 84.2
+    },
+    "over16": 18,
+    "over50": 4
+   },
+   "extra": {
+    "cold": {
+     "n": 111,
+     "p50": 0.7,
+     "p95": 23.8,
+     "p99": 47.9,
+     "max": 48.3
+    },
+    "warm": {
+     "n": 111,
+     "p50": 0.8,
+     "p95": 24.6,
+     "p99": 32.2,
+     "max": 52.4
+    },
+    "over16": 11,
+    "over50": 1
+   },
+   "realistic": {
+    "cold": {
+     "n": 2084,
+     "p50": 0.4,
+     "p95": 20.3,
+     "p99": 40.3,
+     "max": 66.1
+    },
+    "warm": {
+     "n": 2084,
+     "p50": 0.3,
+     "p95": 17.3,
+     "p99": 37.1,
+     "max": 65.9
+    },
+    "over16": 121,
+    "over50": 8
+   },
+   "fuzzy_deferred": {
+    "n": 32,
+    "p50": 109.5,
+    "p95": 149.6,
+    "p99": 156.8,
+    "max": 156.8
+   },
+   "sample": [
+    "ELDEN RING",
+    "ELDEN RING NIGHTREIGN",
+    "Elden Gunfire 2"
+   ]
+  },
+  {
+   "engine": "scan",
+   "mode": "main",
+   "rate": 10,
+   "reps": 1,
+   "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0",
+   "fetch_ms": 214.40000000596046,
+   "parse_ms": 788.7000000029802,
+   "build_ms": 2542.5999999940395,
+   "ready_ms": 3545.7000000029802,
+   "heap_mb": 53.24586582183838,
+   "draft": {
+    "cold": {
+     "n": 216,
+     "p50": 20.9,
+     "p95": 85.8,
+     "p99": 98.3,
+     "max": 104
+    },
+    "warm": {
+     "n": 216,
+     "p50": 21,
+     "p95": 90.2,
+     "p99": 100.3,
+     "max": 106
+    },
+    "over16": 130,
+    "over50": 49
+   },
+   "extra": {
+    "cold": {
+     "n": 111,
+     "p50": 23.2,
+     "p95": 90.2,
+     "p99": 107.4,
+     "max": 127.4
+    },
+    "warm": {
+     "n": 111,
+     "p50": 27.7,
+     "p95": 86.1,
+     "p99": 114.8,
+     "max": 125.1
+    },
+    "over16": 63,
+    "over50": 42
+   },
+   "realistic": {
+    "cold": {
+     "n": 2084,
+     "p50": 22.9,
+     "p95": 96.9,
+     "p99": 121.5,
+     "max": 256.6
+    },
+    "warm": {
+     "n": 2084,
+     "p50": 24.5,
+     "p95": 96.1,
+     "p99": 125.3,
+     "max": 221.8
+    },
+    "over16": 1311,
+    "over50": 582
+   },
+   "sample": [
+    "ELDEN RING",
+    "ELDEN RING NIGHTREIGN",
+    "Elden Gunfire 2",
+    "Elden: Path of the Forgotten",
+    "Elden Gunfire",
+    "Elden Sword",
+    "Magic Garden : Insect from Elden World"
+   ]
+  },
+  {
+   "engine": "d09",
+   "mode": "restore",
+   "rate": 10,
+   "reps": 1,
+   "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0",
+   "idb_get_ms": 367.90000000596046,
+   "deserialize_ms": 986.8999999910593,
+   "first_query_ms": 10.5,
+   "ready_ms": 1365.2999999970198,
+   "haystack_ms": 1172.7000000029802,
+   "heap_mb": 47.15431880950928,
+   "sample": [
+    "ELDEN RING",
+    "ELDEN RING NIGHTREIGN",
+    "Elden Gunfire 2",
+    "Elden: Path of the Forgotten",
+    "Elden Gunfire",
+    "Elden Sword",
+    "Magic Garden : Insect from Elden World"
+   ]
+  }
+ ]
+}

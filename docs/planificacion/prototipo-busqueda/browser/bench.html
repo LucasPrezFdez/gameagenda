@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="utf-8"><title>Bench D-09</title></head>
+<body>
+<pre id="out">running...</pre>
+<script type="module">
+import { parseCore, buildIndex, buildHaystack, createSearcher, normalize, serializeIndex, deserializeIndex, TIER } from '/src/search-core.mjs';
+import { scanEngine, createFuzzy } from '/src/engines.mjs';
+import { DRAFT_FINALS, EXTRA_FINALS, typedSequences, realisticFinals } from '/src/golden.mjs';
+import uFuzzy from '/vendor/uFuzzy.mjs';
+const P = new URLSearchParams(location.search);
+const engine = P.get('engine') || 'd09', mode = P.get('mode') || 'main', reps = +(P.get('reps') || 2);
+const heap = () => (performance.memory ? performance.memory.usedJSHeapSize : -1);
+const gc = () => { if (window.gc) { window.gc(); window.gc(); } };
+const stats = (arr) => { const s = Float64Array.from(arr).sort(); const p = (q) => s[Math.min(s.length - 1, Math.max(0, Math.ceil(q * s.length) - 1))]; return { n: s.length, p50: +p(0.5).toFixed(3), p95: +p(0.95).toFixed(3), p99: +p(0.99).toFixed(3), max: +(s[s.length - 1] || 0).toFixed(3) }; };
+const parseAliases = (t) => t.split('\n').filter((l) => l && l[0] !== '#').map((l) => { const i = l.indexOf('\t'); return [l.slice(0, i), +l.slice(i + 1)]; });
+const R = { engine, mode, ua: navigator.userAgent };
+const idb = () => new Promise((res, rej) => { const r = indexedDB.open('bench-d09', 1); r.onupgradeneeded = () => r.result.createObjectStore('meta'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+const idbPut = async (k, v) => { const db = await idb(); await new Promise((res, rej) => { const tx = db.transaction('meta', 'readwrite'); tx.objectStore('meta').put(v, k); tx.oncomplete = res; tx.onerror = () => rej(tx.error); }); db.close(); };
+const idbGet = async (k) => { const db = await idb(); const v = await new Promise((res, rej) => { const tx = db.transaction('meta', 'readonly'); const r = tx.objectStore('meta').get(k); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); db.close(); return v; };
+function runSeqs(E, seqs, nreps) {
+  const cold = [], warm = []; let over16 = 0, over50 = 0;
+  for (let rep = 0; rep <= nreps; rep++) for (const seq of seqs) { E.reset(); for (const q of seq) { const a = performance.now(); E.query(q, { limit: 20 }); const d = performance.now() - a; if (rep === 0) cold.push(d); else { warm.push(d); if (d > 16) over16++; if (d > 50) over50++; } } }
+  return { cold: stats(cold), warm: stats(warm), over16, over50 };
+}
+try {
+  if (mode === 'main' || mode === 'persist') {
+    gc(); const h0 = heap();
+    const t0 = performance.now();
+    const [coreText, aliasText] = await Promise.all([fetch('/files/core.tsv').then((r) => r.text()), fetch('/files/aliases.tsv').then((r) => r.text())]);
+    const t1 = performance.now();
+    let E, cat;
+    if (engine === 'd09') {
+      cat = parseCore(coreText); const aliases = parseAliases(aliasText);
+      const t2 = performance.now();
+      const ix = buildIndex(cat, aliases, { haystack: false });
+      const t3 = performance.now();
+      buildHaystack(ix);
+      const t4 = performance.now();
+      Object.assign(R, { fetch_ms: t1 - t0, parse_ms: t2 - t1, build_ms: t3 - t2, haystack_ms: t4 - t3, ready_ms: t3 - t0, ready_with_haystack_ms: t4 - t0 });
+      const S = createSearcher(ix); const fz = createFuzzy(ix, uFuzzy);
+      E = { query: S.query, reset: S.reset, fuzzy: fz, ix };
+      if (mode === 'persist') {
+        const a = performance.now(); const buf = serializeIndex(ix); const b = performance.now();
+        await idbPut('index', buf.buffer); const c = performance.now();
+        Object.assign(R, { serialize_ms: b - a, idb_put_ms: c - b, bytes: buf.length });
+      }
+    } else {
+      cat = parseCore(coreText); const aliases = parseAliases(aliasText);
+      const games = cat.name.map((name, i) => ({ appid: cat.appid[i], name, pop: cat.pop[i], flags: cat.flags[i] }));
+      const t2 = performance.now();
+      E = scanEngine(games, aliases, null);
+      const t3 = performance.now();
+      Object.assign(R, { fetch_ms: t1 - t0, parse_ms: t2 - t1, build_ms: t3 - t2, ready_ms: t3 - t0 });
+    }
+    gc(); R.heap_mb = (heap() - h0) / 1048576;
+    if (mode === 'main') {
+      const games = cat.name.map((name) => ({ name }));
+      const sets = { draft: typedSequences(DRAFT_FINALS, normalize), extra: typedSequences(EXTRA_FINALS, normalize), realistic: typedSequences(realisticFinals(games), normalize) };
+      for (const [k, seqs] of Object.entries(sets)) R[k] = runSeqs(E, seqs, k === 'realistic' ? Math.max(1, reps - 1) : reps);
+      if (E.fuzzy) { const fz = []; for (const f of [...DRAFT_FINALS, ...EXTRA_FINALS]) { const r = E.query(f, { limit: 20 }); if (r.tiers.filter((t) => t <= TIER.WORDS).length < 5) { const a = performance.now(); E.fuzzy(f, r.ids); fz.push(performance.now() - a); } } R.fuzzy_deferred = stats(fz); }
+      R.sample = E.query('elden', { limit: 3 }).ids.map((g) => cat.name[g]);
+    }
+  } else if (mode === 'restore') {
+    gc(); const h0 = heap();
+    const t0 = performance.now();
+    const ab = await idbGet('index');
+    const t1 = performance.now();
+    const ix = deserializeIndex(new Uint8Array(ab), { haystack: false });
+    const t2 = performance.now();
+    const S = createSearcher(ix); const r = S.query('elden', { limit: 8 });
+    const t3 = performance.now();
+    buildHaystack(ix);
+    const t4 = performance.now();
+    gc();
+    Object.assign(R, { idb_get_ms: t1 - t0, deserialize_ms: t2 - t1, first_query_ms: t3 - t2, ready_ms: t3 - t0, haystack_ms: t4 - t3, heap_mb: (heap() - h0) / 1048576, sample: r.ids.map((g) => ix.cat.name[g]) });
+  } else if (mode === 'worker') {
+    const w = new Worker('/browser/worker.js', { type: 'module' });
+    const t0 = performance.now();
+    const ready = await new Promise((r) => { w.onmessage = (e) => r(e.data); w.postMessage({ type: 'init' }); });
+    Object.assign(R, { worker_init: ready, worker_ready_ms: performance.now() - t0 });
+    const seqs = typedSequences([...DRAFT_FINALS, ...EXTRA_FINALS], normalize);
+    const rt = [], inner = [];
+    for (let rep = 0; rep <= reps; rep++) for (const seq of seqs) { w.postMessage({ type: 'reset' }); for (const q of seq) { const a = performance.now(); const m = await new Promise((r) => { w.onmessage = (e) => r(e.data); w.postMessage({ type: 'q', q, seq: rep }); }); if (rep) { rt.push(performance.now() - a); inner.push(m.ms); } } }
+    R.roundtrip = stats(rt); R.inner = stats(inner); R.overhead = stats(rt.map((x, i) => x - inner[i]));
+    w.terminate();
+  }
+} catch (e) { R.error = String((e && e.stack) || e); }
+window.__results = R; window.__done = true;
+document.getElementById('out').textContent = JSON.stringify(R, null, 2);
+</script>
+</body>
+</html>
