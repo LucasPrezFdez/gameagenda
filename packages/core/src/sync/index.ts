@@ -21,3 +21,6 @@ export {
   receiveHlc,
   tickHlc,
 } from './hlc.ts';
+export { type ApplyResult, applyOps, type MergeResult, merge, opsFromEntry } from './merge.ts';
+export { beats, canon, type JsonValue, type NewOpId, type Op } from './op.ts';
+export { compactOutbox, SYNC_BATCH_SIZE, takeBatch } from './outbox.ts';
