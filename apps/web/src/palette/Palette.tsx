@@ -4,9 +4,11 @@
 import { manualEntryId } from '@gameagenda/core/entries';
 import {
   type ChangeEvent,
+  type CSSProperties,
   type FocusEvent,
   type KeyboardEvent,
   type Ref,
+  type UIEvent,
   useEffect,
   useId,
   useImperativeHandle,
@@ -127,7 +129,9 @@ export function Palette({ actions, showBar, onClose, ref }: PaletteProps) {
   const listboxId = `${baseId}-listbox`;
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const infoRefs = useRef(new Map<string, HTMLButtonElement>());
+  const popupRef = useRef<HTMLDivElement>(null);
+  /** ¿Se ha desplazado la lista? Lo actualiza `onPopupScroll`, sin leer el DOM al pintar. */
+  const popupScrolled = useRef(false);
   const openRef = useRef(false);
   const openedAt = useRef(0);
   const origin = useRef<Element | null>(null);
@@ -186,6 +190,8 @@ export function Palette({ actions, showBar, onClose, ref }: PaletteProps) {
     setHint(null);
     setChoice(null);
     search.setQuery('');
+    if (popupScrolled.current && popupRef.current) popupRef.current.scrollTop = 0;
+    popupScrolled.current = false;
     const from = origin.current;
     origin.current = null;
     if (
@@ -389,23 +395,19 @@ export function Palette({ actions, showBar, onClose, ref }: PaletteProps) {
     measureToNextFrame('search:keystroke-to-results', query.inputTimeStamp);
   }, [open, query, status.state]);
 
-  // Coloca cada `(i)` a la altura de su fila: está fuera de la `option` (ver §9.7, 4.1.2).
+  // La fila activa siempre a la vista, también con cada `seq` nuevo. `scrollIntoView` fuerza la
+  // maquetación dentro del *commit*, así que se evita en el caso de cada pulsación: la primera
+  // fila con la lista arriba del todo ya está a la vista (ver `onPopupScroll`).
+  const activeKey = activeOption?.key ?? null;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `query.seq` también la vuelve a mostrar.
   useLayoutEffect(() => {
-    for (const [key, button] of infoRefs.current) {
-      const option = document.getElementById(optionId(baseId, key));
-      if (!option) continue;
-      button.style.top = `${option.offsetTop}px`;
-      button.style.height = `${option.offsetHeight}px`;
-    }
-  });
+    if (activeKey === null || (activeIndex === 0 && !popupScrolled.current)) return;
+    document.getElementById(optionId(baseId, activeKey))?.scrollIntoView({ block: 'nearest' });
+  }, [activeKey, activeIndex, baseId, query.seq]);
 
-  // La fila activa siempre a la vista.
-  useLayoutEffect(() => {
-    if (!activeOption) return;
-    document
-      .getElementById(optionId(baseId, activeOption.key))
-      ?.scrollIntoView({ block: 'nearest' });
-  }, [activeOption, baseId]);
+  function onPopupScroll(event: UIEvent<HTMLDivElement>): void {
+    popupScrolled.current = event.currentTarget.scrollTop > 0;
+  }
 
   const trimmed = text.trim();
   const leading = model.options.filter(isGameRow);
@@ -413,6 +415,19 @@ export function Palette({ actions, showBar, onClose, ref }: PaletteProps) {
   const tail = model.options.filter((o) => o.kind === 'catalog' || o.kind === 'manual');
   const withInfo = [...leading, ...suggestionOptions];
   const showList = open && mode.kind === 'results' && model.options.length > 0;
+
+  // Fila de la cuadrícula de cada `option`: en móvil, cada `(i)` va en la fila de su `option`
+  // (está fuera de ella; ver §9.7, 4.1.2) con `subgrid`, sin medir nada (ver `palette.css`).
+  const gridRow = new Map<string, number>();
+  let rows = 0;
+  for (const option of leading) gridRow.set(option.key, ++rows);
+  if (suggestionOptions.length > 0) rows += 1; // título del grupo
+  for (const option of suggestionOptions) gridRow.set(option.key, ++rows);
+  rows += tail.length;
+  const gridStyle = {
+    '--palette-rows': Math.max(1, rows),
+    '--palette-group-rows': 1 + suggestionOptions.length,
+  } as CSSProperties;
 
   function renderOption(option: PaletteOption, index: number) {
     const selected = index === activeIndex;
@@ -549,8 +564,10 @@ export function Palette({ actions, showBar, onClose, ref }: PaletteProps) {
 
         {/* biome-ignore lint/a11y/noStaticElementInteractions: solo evita que un clic quite el foco del campo (Safari no enfoca los botones al pulsarlos). */}
         <div
+          ref={popupRef}
           className="palette__popup"
           hidden={!open}
+          onScroll={onPopupScroll}
           onMouseDown={(event) => {
             if (!isEditableTarget(event.target)) event.preventDefault();
           }}
@@ -599,7 +616,7 @@ export function Palette({ actions, showBar, onClose, ref }: PaletteProps) {
             <p className="palette__empty">{es.palette.emptyHint}</p>
           )}
 
-          <div className="palette__scroll" hidden={!showList}>
+          <div className="palette__scroll" hidden={!showList} style={gridStyle}>
             <div
               id={listboxId}
               role="listbox"
@@ -630,12 +647,9 @@ export function Palette({ actions, showBar, onClose, ref }: PaletteProps) {
                   return (
                     <button
                       key={option.key}
-                      ref={(element) => {
-                        if (element) infoRefs.current.set(option.key, element);
-                        else infoRefs.current.delete(option.key);
-                      }}
                       type="button"
                       className="icon-btn palette__info"
+                      style={{ gridRow: gridRow.get(option.key) }}
                       aria-label={es.palette.openSheet(resolved.target.title)}
                       onClick={() => openGame(resolved.target.id)}
                     >
