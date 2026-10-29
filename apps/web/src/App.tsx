@@ -13,6 +13,7 @@ import type { NoticeCenter } from './notices/notice-center.ts';
 import { Toaster } from './notices/Toaster.tsx';
 import { Palette, type PaletteActions, type PaletteHandle } from './palette/Palette.tsx';
 import { PaletteProvider } from './palette/palette-context.tsx';
+import { endFirstCommit } from './perf/measures.ts';
 import { Link, navigate, useLocation } from './router/router.tsx';
 import { gamePath, type Route, settingsPath, withSearch } from './router/routes.ts';
 import { GameScreen } from './screens/game/GameScreen.tsx';
@@ -164,6 +165,8 @@ export function App() {
 
   useTheme(settings.theme);
   useGlobalShortcuts(paletteRef, settings.slashOpensPalette, notices);
+  // Después de los efectos de los hijos: `app:list-visible` solo cuenta en el primer *commit*.
+  useLayoutEffect(() => endFirstCommit(), []);
 
   // `/apuntar` abre la paleta sobre Mi lista (acceso directo del *manifest*).
   useEffect(() => {

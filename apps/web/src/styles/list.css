@@ -148,6 +148,19 @@
   background: var(--surface);
 }
 
+/* Con cientos de entradas, las filas fuera de la pantalla no se maquetan ni se pintan (RNF-03):
+   sin esto, cada fotograma de la paleta y cada alta recorrían las 500 filas. `content-visibility`
+   contiene la pintura y crea un contexto de apilamiento, así que la fila con un menú abierto
+   vuelve a `visible` para no recortarlo ni dejarlo debajo de las filas siguientes. */
+.entry-row {
+  content-visibility: auto;
+  contain-intrinsic-block-size: auto var(--row-h);
+}
+
+.entry-row:has(.menu__popup) {
+  content-visibility: visible;
+}
+
 .entry-row:hover,
 .entry-row:focus-within {
   border-color: var(--control-border);

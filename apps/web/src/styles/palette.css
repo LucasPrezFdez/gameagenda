@@ -330,16 +330,38 @@
     padding-right: 56px;
   }
 
+  /* Cada `(i)` va fuera de su `option` (§9.7), pero en la misma fila: la lista y la columna de
+     botones comparten las filas de `.palette__scroll` con `subgrid`, sin medir nada. La paleta
+     fija `--palette-rows` (filas en total) y `--palette-group-rows` (título + sugerencias). */
+  .palette__scroll:not([hidden]) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .palette__listbox,
   .palette__aside {
-    display: block;
-    position: absolute;
-    inset: 0 0 0 auto;
-    width: 0;
+    display: grid;
+    grid-template-rows: subgrid;
+    grid-column: 1;
+    grid-row: 1 / span var(--palette-rows, 1);
+  }
+
+  .palette__group {
+    display: grid;
+    grid-template-rows: subgrid;
+    grid-row: span var(--palette-group-rows, 1);
+  }
+
+  .palette__aside {
+    justify-items: end;
+    pointer-events: none;
   }
 
   .palette__info {
-    position: absolute;
-    right: 4px;
+    align-self: stretch;
+    height: auto;
+    margin-right: 4px;
+    pointer-events: auto;
   }
 
   .palette__keep {

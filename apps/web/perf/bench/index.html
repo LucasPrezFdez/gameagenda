@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Marca de la página de prueba: `scripts/size-gate.ts` comprueba que no está en `dist/`. -->
+    <meta name="generator" content="gameagenda-perf-bench" />
+    <title>GameAgenda · banco de pruebas de búsqueda</title>
+  </head>
+  <body>
+    <main>
+      <h1>Banco de pruebas de búsqueda (<code>npm run perf</code>)</h1>
+      <p>La búsqueda de <code>packages/core</code> en el hilo principal (ver §8.9 y §12.4).</p>
+      <pre id="log"></pre>
+    </main>
+    <script type="module" src="./bench.ts"></script>
+  </body>
+</html>

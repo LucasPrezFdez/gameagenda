@@ -13,7 +13,8 @@
     "./entries": "./src/entries/index.ts",
     "./sync": "./src/sync/index.ts",
     "./steam-link": "./src/steam-link/index.ts",
-    "./schemas": "./src/schemas/index.ts"
+    "./schemas": "./src/schemas/index.ts",
+    "./bench": "./src/bench/index.ts"
   },
   "dependencies": {
     "@leeoniya/ufuzzy": "1.0.19",
