@@ -1,0 +1,89 @@
+.catalog__count {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+}
+
+.catalog__filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 28rem;
+  color: var(--text-muted);
+}
+
+.catalog__filter .field {
+  color: var(--text);
+  font-size: 1rem;
+}
+
+.catalog-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.catalog-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.catalog-row:hover,
+.catalog-row:focus-within {
+  border-color: var(--control-border);
+}
+
+.catalog-row--skeleton .skeleton--line {
+  flex: 1;
+}
+
+.catalog-row__main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.catalog-row__title {
+  overflow: hidden;
+  font-weight: 600;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.catalog-row__title:hover {
+  text-decoration: underline;
+}
+
+.catalog-row__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 10px;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+/* En móvil, el filtro ocupa el sitio de la barra de captura (ver §9.1). */
+@media (max-width: 767px) {
+  .catalog__filter {
+    position: fixed;
+    inset: auto 0 calc(var(--tabbar-h) + env(safe-area-inset-bottom));
+    z-index: var(--z-sticky);
+    max-width: none;
+    padding: 8px var(--gutter);
+    border-top: 1px solid var(--surface-2);
+    background: var(--surface);
+  }
+
+  .catalog__filter .field {
+    min-height: var(--target-touch);
+  }
+}

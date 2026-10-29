@@ -2,6 +2,7 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "types": ["node"],
+    "lib": ["es2024", "dom"],
     "module": "nodenext",
     "moduleResolution": "nodenext"
   },

@@ -1,0 +1,382 @@
+/* Carcasa: cabecera, barra lateral, pestañas en móvil, avisos y menús (ver §9.1 y §9.3).
+   Puntos de corte: 768 y 1 280 px; sin desplazamiento horizontal a 320 px. */
+
+.app {
+  display: grid;
+  min-height: 100dvh;
+  grid-template-columns: 200px minmax(0, 1fr);
+  grid-template-rows: var(--header-h) auto 1fr;
+  grid-template-areas:
+    "header header"
+    "nav banner"
+    "nav main";
+}
+
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: 8px;
+  z-index: 100;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.skip-link:focus {
+  top: 8px;
+}
+
+.app-header {
+  grid-area: header;
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  display: flex;
+  align-items: center;
+  gap: var(--gap);
+  padding: 0 var(--gutter);
+  border-bottom: 1px solid var(--surface-2);
+  background: var(--surface);
+}
+
+/* La cabecera es un contexto de apilamiento: con la paleta abierta pasa por encima de todo. */
+.app-header:has(.palette.is-open) {
+  z-index: var(--z-palette);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--target);
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.brand__mark {
+  width: 28px;
+  height: 28px;
+  flex: none;
+}
+
+.brand__mark rect {
+  fill: var(--accent);
+}
+
+.brand__mark path {
+  fill: none;
+  stroke: var(--on-accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.app-header > .palette {
+  flex: 1;
+  max-width: 40rem;
+  margin-inline: auto;
+}
+
+.app-header__menu {
+  margin-left: auto;
+}
+
+.app-nav {
+  grid-area: nav;
+  position: sticky;
+  top: var(--header-h);
+  align-self: start;
+  height: calc(100dvh - var(--header-h));
+  padding: var(--gutter) 8px;
+  border-right: 1px solid var(--surface-2);
+}
+
+.app-nav ul {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.app-nav__link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.app-nav__link:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.app-nav__link[aria-current="page"] {
+  background: var(--surface-2);
+  color: var(--text);
+  font-weight: 600;
+  box-shadow: inset 3px 0 var(--accent);
+}
+
+.app-banner {
+  grid-area: banner;
+  margin: 12px var(--gutter) 0;
+}
+
+.app-main {
+  grid-area: main;
+  min-width: 0;
+  padding: var(--gutter) var(--gutter) 112px;
+}
+
+.app-main:focus {
+  outline: none;
+}
+
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 60rem;
+  min-width: 0;
+}
+
+.screen__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 24px;
+  border: 1px dashed var(--control-border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.capture-button {
+  display: none;
+}
+
+.skeleton--title {
+  display: block;
+  width: min(60%, 20rem);
+  height: 1.75rem;
+}
+
+.skeleton--line {
+  display: block;
+  width: 50%;
+  height: 1rem;
+}
+
+.skeleton--block {
+  display: block;
+  height: 12rem;
+}
+
+/* Menús */
+.menu {
+  position: relative;
+  display: inline-flex;
+}
+
+.menu__popup {
+  position: absolute;
+  top: calc(100% + 4px);
+  z-index: var(--z-overlay);
+  min-width: 13rem;
+  padding: 4px;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.menu__popup--end {
+  right: 0;
+}
+
+.menu__popup--start {
+  left: 0;
+}
+
+.menu__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu__item:hover,
+.menu__item:focus {
+  background: var(--surface-2);
+}
+
+.menu__item[aria-disabled="true"] {
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.menu__check {
+  margin-left: auto;
+}
+
+.choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sheet__field.choice {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.sheet__field .choice__label {
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.choice__button {
+  justify-content: space-between;
+  min-width: 9rem;
+}
+
+/* Aviso con Deshacer */
+.toaster {
+  position: fixed;
+  bottom: 24px;
+  left: calc(50% + 100px);
+  z-index: var(--z-toast);
+  width: min(36rem, calc(100vw - 2 * var(--gutter) - 200px));
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 8px 8px 16px;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  pointer-events: auto;
+  animation: toast-in var(--motion) ease-out;
+}
+
+.toast__message {
+  flex: 1;
+}
+
+.toast__undo {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+  }
+}
+
+/* Móvil: pestañas abajo y la barra de captura encima (ver §9.1). */
+@media (max-width: 767px) {
+  .app {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 52px auto 1fr;
+    grid-template-areas:
+      "header"
+      "banner"
+      "main";
+  }
+
+  html {
+    scroll-padding-bottom: calc(var(--tabbar-h) + var(--capturebar-h) + 96px);
+  }
+
+  .app-header {
+    height: 52px;
+  }
+
+  .app-nav {
+    position: fixed;
+    inset: auto 0 0;
+    z-index: var(--z-sticky);
+    height: auto;
+    padding: 0 0 env(safe-area-inset-bottom);
+    border-top: 1px solid var(--surface-2);
+    border-right: 0;
+    background: var(--surface);
+  }
+
+  .app-nav ul {
+    flex-direction: row;
+    height: var(--tabbar-h);
+  }
+
+  .app-nav li {
+    flex: 1;
+  }
+
+  .app-nav__link {
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    height: 100%;
+    border-radius: 0;
+    font-size: 0.75rem;
+  }
+
+  .app-nav__link[aria-current="page"] {
+    box-shadow: inset 0 3px var(--accent);
+  }
+
+  .app-main {
+    padding-bottom: calc(var(--tabbar-h) + var(--capturebar-h) + 112px);
+  }
+
+  .capture-button {
+    display: inline-grid;
+  }
+
+  .toaster {
+    left: 50%;
+    bottom: calc(var(--tabbar-h) + var(--capturebar-h) + 12px + env(safe-area-inset-bottom));
+    width: calc(100vw - 2 * var(--gutter));
+  }
+
+  .app[data-route="catalog"] .toaster,
+  .app[data-route="game"] .toaster,
+  .app[data-route="settings"] .toaster {
+    bottom: calc(var(--tabbar-h) + 12px + env(safe-area-inset-bottom));
+  }
+}

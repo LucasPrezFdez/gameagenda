@@ -1,0 +1,340 @@
+/* Mi lista: chips de vista, filtros, secciones y filas; estados y marcas de la §9.8. */
+
+.status-text--want_to_play {
+  color: var(--want_to_play);
+}
+.status-text--playing {
+  color: var(--playing);
+}
+.status-text--on_hold {
+  color: var(--on_hold);
+}
+.status-text--completed {
+  color: var(--completed);
+}
+.status-text--dropped {
+  color: var(--dropped);
+}
+.status-text--platinum {
+  color: var(--platinum);
+}
+.status-text--owned {
+  color: var(--owned);
+}
+.status-text--next {
+  color: var(--next);
+}
+
+.status-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+}
+
+.chip .icon {
+  width: 14px;
+  height: 14px;
+}
+
+.chip--owned {
+  background: var(--owned-chip);
+  color: var(--owned);
+}
+.chip--platinum {
+  background: var(--platinum-chip);
+  color: var(--platinum);
+}
+.chip--next {
+  background: var(--next-chip);
+  color: var(--next);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.chips__label {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.chip-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 4px 12px;
+  border: 1px solid var(--control-border);
+  border-radius: 999px;
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.chip-button:hover {
+  background: var(--surface-2);
+}
+
+.chip-button[aria-pressed="true"] {
+  border-color: var(--text);
+  background: var(--text);
+  color: var(--surface);
+  font-weight: 600;
+}
+
+.list-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.list-filters__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.list-filter {
+  flex: 1 1 12rem;
+  max-width: 20rem;
+}
+
+.list-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.list-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.list-section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 32px;
+}
+
+.entry-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.entry-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--row-h);
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.entry-row:hover,
+.entry-row:focus-within {
+  border-color: var(--control-border);
+}
+
+.entry-row__rank {
+  width: 2ch;
+  flex: none;
+  color: var(--text-muted);
+  text-align: right;
+}
+
+.cover {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  aspect-ratio: 2 / 3;
+  border-radius: 4px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.cover--row {
+  width: 32px;
+  font-size: 0.75rem;
+}
+
+.cover--sheet {
+  width: 104px;
+  font-size: 1.75rem;
+}
+
+.cover--t0 {
+  background: var(--want_to_play-chip);
+  color: var(--want_to_play);
+}
+.cover--t1 {
+  background: var(--playing-chip);
+  color: var(--playing);
+}
+.cover--t2 {
+  background: var(--on_hold-chip);
+  color: var(--on_hold);
+}
+.cover--t3 {
+  background: var(--completed-chip);
+  color: var(--completed);
+}
+.cover--t4 {
+  background: var(--dropped-chip);
+  color: var(--dropped);
+}
+.cover--t5 {
+  background: var(--platinum-chip);
+  color: var(--platinum);
+}
+.cover--t6 {
+  background: var(--owned-chip);
+  color: var(--owned);
+}
+.cover--t7 {
+  background: var(--next-chip);
+  color: var(--next);
+}
+
+.entry-row__main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.entry-row__title {
+  overflow: hidden;
+  font-weight: 600;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.entry-row__title:hover {
+  text-decoration: underline;
+}
+
+.flag-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* Las acciones rápidas se ven con el puntero o el foco (WCAG 1.4.13). */
+.entry-row__actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+}
+
+.entry-row:hover .entry-row__actions,
+.entry-row:focus-within .entry-row__actions {
+  opacity: 1;
+}
+
+.entry-row__quick {
+  min-height: 32px;
+  padding: 4px 10px;
+}
+
+.flag-toggle[aria-pressed="true"].flag-toggle--owned {
+  background: var(--owned-chip);
+  color: var(--owned);
+}
+.flag-toggle[aria-pressed="true"].flag-toggle--platinum {
+  background: var(--platinum-chip);
+  color: var(--platinum);
+}
+.flag-toggle[aria-pressed="true"].flag-toggle--next {
+  background: var(--next-chip);
+  color: var(--next);
+}
+
+.status-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 4px 10px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.status-button.status-text--want_to_play {
+  background: var(--want_to_play-chip);
+}
+.status-button.status-text--playing {
+  background: var(--playing-chip);
+}
+.status-button.status-text--on_hold {
+  background: var(--on_hold-chip);
+}
+.status-button.status-text--completed {
+  background: var(--completed-chip);
+}
+.status-button.status-text--dropped {
+  background: var(--dropped-chip);
+}
+
+.status-button:hover {
+  border-color: currentcolor;
+}
+
+.status-button__chevron {
+  width: 14px;
+  height: 14px;
+}
+
+.notice--ios .notice__detail {
+  flex-basis: 100%;
+}
+
+@media (max-width: 767px), (pointer: coarse) {
+  .entry-row__actions {
+    display: none;
+  }
+
+  .status-button {
+    min-height: var(--target-touch);
+  }
+}
+
+@media (max-width: 479px) {
+  .status-button__label,
+  .status-button__chevron {
+    display: none;
+  }
+
+  .status-button {
+    min-width: var(--target-touch);
+    justify-content: center;
+    padding: 4px;
+  }
+
+  /* «Orden» sigue en el nombre accesible del botón. */
+  .list-order .choice__label {
+    display: none;
+  }
+}

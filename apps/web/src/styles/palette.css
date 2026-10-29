@@ -1,0 +1,361 @@
+/* Paleta: en escritorio, campo de la cabecera con la lista superpuesta debajo (nada se mueve
+   bajo el cursor); en móvil, barra fija abajo que se abre como hoja a pantalla completa. */
+
+.palette {
+  position: relative;
+}
+
+.palette__panel {
+  position: relative;
+  z-index: var(--z-palette);
+}
+
+.palette__field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 6px 0 12px;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.palette__field:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.palette__search-icon {
+  color: var(--text-muted);
+}
+
+.palette__input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 0;
+  border: 0;
+  background: transparent;
+  /* ≥16 px: iOS no amplía la página al enfocar (ver §9.2). */
+  font-size: 1rem;
+}
+
+.palette__input:focus {
+  outline: none;
+}
+
+.palette__input::placeholder {
+  color: var(--text-muted);
+  opacity: 1;
+}
+
+.palette__close {
+  display: none;
+}
+
+.palette__backdrop {
+  position: fixed;
+  inset: var(--header-h) 0 0;
+  z-index: calc(var(--z-palette) - 1);
+  padding: 0;
+  border: 0;
+  background: var(--backdrop);
+  cursor: default;
+}
+
+.palette__popup {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: min(70vh, 36rem);
+  padding: 6px;
+  overflow: auto;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.palette__popup[hidden],
+.palette__scroll[hidden] {
+  display: none;
+}
+
+.palette__notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.palette__notice p {
+  flex: 1 1 14rem;
+}
+
+.palette__scroll {
+  position: relative;
+}
+
+.palette__listbox:focus {
+  outline: none;
+}
+
+.palette__option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: var(--option-h);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.palette__option:hover {
+  background: var(--surface-2);
+}
+
+.palette__option.is-active {
+  background: var(--surface-2);
+  box-shadow: inset 3px 0 var(--accent);
+}
+
+.palette__name {
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.palette__option[data-kind="manual"] .palette__name,
+.palette__option[data-kind="catalog"] .palette__name {
+  font-weight: 400;
+}
+
+.palette__meta {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.palette__enter {
+  color: var(--text-muted);
+}
+
+.palette__group {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--surface-2);
+}
+
+.palette__group-title {
+  padding: 4px 12px;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+}
+
+.palette__aside {
+  display: none;
+}
+
+.palette__empty,
+.palette__subtitle {
+  padding: 6px 12px;
+}
+
+.palette__subtitle {
+  font-weight: 600;
+}
+
+.palette__hint {
+  padding: 0 12px;
+  font-weight: 600;
+}
+
+.palette__keep {
+  display: none;
+}
+
+.palette__keys {
+  padding: 4px 12px;
+  font-size: 0.75rem;
+}
+
+/* Alt+Intro */
+.capture-as__menu {
+  display: grid;
+  gap: 8px;
+}
+
+.capture-as__group {
+  display: flex;
+  flex-direction: column;
+}
+
+.capture-as__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.capture-as__item:hover,
+.capture-as__item:focus {
+  background: var(--surface-2);
+}
+
+.capture-as__item[aria-checked="true"] {
+  font-weight: 700;
+}
+
+.capture-as__key,
+.capture-as__check {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--control-border);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 0.75rem;
+}
+
+/* Alta manual */
+.manual-form {
+  display: grid;
+  gap: 6px;
+  padding: 6px 12px;
+}
+
+.manual-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.field-error {
+  color: var(--accent);
+  font-size: 0.875rem;
+}
+
+@media (min-width: 768px) {
+  .palette:not(.is-open) .palette__kbd--esc {
+    display: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .palette__kbd {
+    display: none;
+  }
+
+  .app-header > .palette:not(.is-open) {
+    position: fixed;
+    inset: auto 0 calc(var(--tabbar-h) + env(safe-area-inset-bottom));
+    z-index: var(--z-sticky);
+    max-width: none;
+    margin: 0;
+    padding: 8px var(--gutter);
+    border-top: 1px solid var(--surface-2);
+    background: var(--surface);
+  }
+
+  .palette__field {
+    min-height: var(--target-touch);
+  }
+
+  /* Fuera de Mi lista la barra no se ve, pero el campo sigue montado y enfocable (iOS). */
+  .app-header > .palette.is-barless:not(.is-open) {
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    border: 0;
+    clip-path: inset(50%);
+  }
+
+  .app-header > .palette.is-open {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-palette);
+    max-width: none;
+    margin: 0;
+    padding: 8px var(--gutter) env(safe-area-inset-bottom);
+    background: var(--surface);
+  }
+
+  .palette.is-open .palette__panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+
+  .palette.is-open .palette__close {
+    display: inline-grid;
+  }
+
+  .palette.is-open .palette__popup {
+    position: static;
+    flex: 1;
+    max-height: none;
+    padding: 8px 0;
+    border: 0;
+    box-shadow: none;
+  }
+
+  .palette__backdrop {
+    display: none;
+  }
+
+  .palette__option {
+    min-height: 56px;
+    padding-right: 56px;
+  }
+
+  .palette__aside {
+    display: block;
+    position: absolute;
+    inset: 0 0 0 auto;
+    width: 0;
+  }
+
+  .palette__info {
+    position: absolute;
+    right: 4px;
+  }
+
+  .palette__keep {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: var(--target-touch);
+    padding: 0 12px;
+  }
+
+  .palette__keep input {
+    width: 20px;
+    height: 20px;
+  }
+
+  .palette__keys {
+    display: none;
+  }
+}

@@ -1,0 +1,242 @@
+/* Ficha: junto a la lista desde 1 280 px, superpuesta entre 768 y 1 279 px y a pantalla
+   completa en móvil (ver §9.3). */
+
+.sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  padding: var(--gutter);
+  border: 1px solid var(--surface-2);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.sheet__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sheet__kicker {
+  flex: 1;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.sheet__back {
+  display: none;
+}
+
+.sheet__top {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.sheet__heading {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.sheet__heading h1 {
+  overflow-wrap: anywhere;
+}
+
+.sheet__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  color: var(--text-muted);
+}
+
+.badge {
+  padding: 1px 8px;
+  border: 1px solid var(--control-border);
+  border-radius: 999px;
+  color: var(--text);
+  font-size: 0.75rem;
+}
+
+.sheet__editor {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sheet__group,
+.sheet__field,
+.sheet__priority {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sheet__label {
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.sheet__options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.sheet__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.sheet__row .field {
+  width: auto;
+}
+
+.sheet__note {
+  resize: vertical;
+}
+
+.sheet__dates {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: 8px 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.sheet__dates legend {
+  margin-bottom: 6px;
+  padding: 0;
+}
+
+.date-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.date-field label {
+  font-size: 0.875rem;
+}
+
+.sheet__capture-actions,
+.sheet__footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.sheet__footer {
+  justify-content: space-between;
+  padding-top: 8px;
+  border-top: 1px solid var(--surface-2);
+}
+
+/* Estados y marcas pulsados, con el chip de su color (ver §9.8). */
+.chip-button.status-text--want_to_play[aria-pressed="true"] {
+  border-color: var(--want_to_play);
+  background: var(--want_to_play-chip);
+  color: var(--want_to_play);
+}
+.chip-button.status-text--playing[aria-pressed="true"] {
+  border-color: var(--playing);
+  background: var(--playing-chip);
+  color: var(--playing);
+}
+.chip-button.status-text--on_hold[aria-pressed="true"] {
+  border-color: var(--on_hold);
+  background: var(--on_hold-chip);
+  color: var(--on_hold);
+}
+.chip-button.status-text--completed[aria-pressed="true"] {
+  border-color: var(--completed);
+  background: var(--completed-chip);
+  color: var(--completed);
+}
+.chip-button.status-text--dropped[aria-pressed="true"] {
+  border-color: var(--dropped);
+  background: var(--dropped-chip);
+  color: var(--dropped);
+}
+.chip-button.status-text--owned[aria-pressed="true"] {
+  border-color: var(--owned);
+  background: var(--owned-chip);
+  color: var(--owned);
+}
+.chip-button.status-text--platinum[aria-pressed="true"] {
+  border-color: var(--platinum);
+  background: var(--platinum-chip);
+  color: var(--platinum);
+}
+.chip-button.status-text--next[aria-pressed="true"] {
+  border-color: var(--next);
+  background: var(--next-chip);
+  color: var(--next);
+}
+
+/* Sin pulsar, el texto es neutro y el color va en el icono. */
+.chip-button[class*="status-text--"]:not([aria-pressed="true"]) {
+  color: var(--text);
+}
+
+@media (min-width: 1280px) {
+  .app[data-route="game"] .app-main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 440px;
+    align-items: start;
+    gap: var(--gutter);
+  }
+
+  .app[data-route="game"] .sheet {
+    position: sticky;
+    top: calc(var(--header-h) + var(--gutter));
+    max-height: calc(100dvh - var(--header-h) - 2 * var(--gutter));
+    overflow: auto;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1279px) {
+  .app[data-route="game"] .sheet {
+    position: fixed;
+    top: var(--header-h);
+    right: 0;
+    bottom: 0;
+    z-index: var(--z-overlay);
+    width: min(480px, 100vw);
+    overflow: auto;
+    border-radius: 0;
+    box-shadow: var(--shadow);
+  }
+}
+
+@media (max-width: 767px) {
+  .app[data-route="game"] .screen-slot--list {
+    display: none;
+  }
+
+  .sheet {
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+
+  .sheet__back {
+    display: inline-grid;
+  }
+
+  .sheet__close {
+    display: none;
+  }
+
+  .cover--sheet {
+    width: 80px;
+  }
+}
