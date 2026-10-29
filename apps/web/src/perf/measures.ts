@@ -6,7 +6,8 @@ export type MeasureName =
   | 'capture:palette-to-confirm'
   | 'search:keystroke-to-results'
   | 'search:ready'
-  | 'search:full';
+  | 'search:full'
+  | 'app:list-visible';
 
 /** Mide desde el inicio de la navegación hasta ahora (`search:ready`, `search:full`). */
 export function measureSinceNavigation(name: MeasureName): void {
@@ -26,6 +27,21 @@ export function measureToNextFrame(name: MeasureName, start: number): void {
       // `start` fuera de rango (p. ej., de otra navegación): la medida se descarta.
     }
   });
+}
+
+// `app:list-visible` solo vale en el primer *commit* de la app (al abrirla o recargarla), no al
+// volver a Mi lista desde otra pantalla: `App` cierra la ventana en su efecto de *layout*, que
+// React ejecuta después de los de sus hijos.
+let firstCommit = true;
+
+/** `app:list-visible`: del inicio de la navegación al fotograma con Mi lista y sus datos. */
+export function measureListVisible(): void {
+  if (firstCommit) measureToNextFrame('app:list-visible', 0);
+}
+
+/** Lo llama `App` tras su primer *commit*. */
+export function endFirstCommit(): void {
+  firstCommit = false;
 }
 
 /** Momentos de inicio que acompañan a una acción hasta que se pinta su confirmación. */

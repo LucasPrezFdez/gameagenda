@@ -1,6 +1,14 @@
 // Mi lista (RF-09–RF-14; ver §9.1 y §9.3): vista «Pendientes» con secciones, filtros y orden en
 // la URL, filas con estado y marcas a un toque y orden manual desde el menú de la fila.
-import { type KeyboardEvent, useCallback, useId, useMemo, useRef, useState } from 'react';
+import {
+  type KeyboardEvent,
+  useCallback,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useCommands } from '../../agenda/commands.ts';
 import { useAgendaEntries, useServices } from '../../app/services.tsx';
 import { ChoiceMenu } from '../../components/ChoiceMenu.tsx';
@@ -8,6 +16,7 @@ import { Icon } from '../../components/icons.tsx';
 import { ScreenHeading } from '../../components/ScreenHeading.tsx';
 import { es } from '../../i18n/es.ts';
 import { isIosBrowserTab } from '../../lib/hooks.ts';
+import { measureListVisible } from '../../perf/measures.ts';
 import { Link, navigate, useLocation } from '../../router/router.tsx';
 import { settingsPath, withSearch } from '../../router/routes.ts';
 import { EntryRow, type RowActions, rowTitleId } from './EntryRow.tsx';
@@ -57,6 +66,9 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [iosNotice, setIosNotice] = useState(isIosBrowserTab);
   const [iosHelp, setIosHelp] = useState(false);
+
+  // Mi lista sale de Dexie antes del primer pintado (ver `main.tsx`): ya tiene sus datos.
+  useLayoutEffect(() => measureListVisible(), []);
 
   const sections = useMemo(() => buildSections(entries, params), [entries, params]);
   const counts = useMemo(() => countViews(entries, params.purchase), [entries, params.purchase]);
