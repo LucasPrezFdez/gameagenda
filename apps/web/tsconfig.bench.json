@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["es2024", "dom", "dom.iterable"],
+    "types": ["vite/client"],
+    "module": "esnext",
+    "moduleResolution": "bundler"
+  },
+  "include": ["perf/bench", "src/env.d.ts"]
+}
