@@ -1,5 +1,5 @@
-// Ajustes de la interfaz, de momento solo en memoria; en la siguiente fase van a la tabla
-// `settings` de Dexie (ver §7.2).
+// Ajustes de la interfaz, en la tabla `settings` de Dexie (ver §7.2): se leen antes de pintar
+// (sin parpadeo del tema) y se guardan en segundo plano, una fila por clave.
 
 export type ThemePreference = 'system' | 'light' | 'dark';
 
@@ -20,15 +20,74 @@ export const DEFAULT_SETTINGS: UiSettings = {
   listSearch: '',
 };
 
+export type SettingKey = keyof UiSettings;
+const SETTING_KEYS = Object.keys(DEFAULT_SETTINGS) as SettingKey[];
+const THEMES: readonly ThemePreference[] = ['system', 'light', 'dark'];
+const MAX_LIST_SEARCH = 2000;
+
+/** Valor válido de un ajuste, o `undefined` si no lo es (se queda el de por defecto). */
+function validValue(key: SettingKey, value: unknown): UiSettings[SettingKey] | undefined {
+  switch (key) {
+    case 'theme':
+      return THEMES.find((theme) => theme === value);
+    case 'slashOpensPalette':
+    case 'showAdult':
+      return typeof value === 'boolean' ? value : undefined;
+    case 'listSearch':
+      return typeof value === 'string' && value.length <= MAX_LIST_SEARCH ? value : undefined;
+  }
+}
+
+/** Ajustes desde filas guardadas o un fichero importado: lo desconocido o no válido se ignora. */
+export function parseSettings(record: Readonly<Record<string, unknown>>): UiSettings {
+  const settings: Record<string, unknown> = { ...DEFAULT_SETTINGS };
+  for (const key of SETTING_KEYS) {
+    const value = validValue(key, record[key]);
+    if (value !== undefined) settings[key] = value;
+  }
+  return settings as unknown as UiSettings;
+}
+
+/** Solo las claves válidas presentes en `record` (para importar sin tocar el resto). */
+export function settingsPatch(record: Readonly<Record<string, unknown>>): Partial<UiSettings> {
+  const patch: Record<string, unknown> = {};
+  for (const key of SETTING_KEYS) {
+    const value = validValue(key, record[key]);
+    if (value !== undefined) patch[key] = value;
+  }
+  return patch as Partial<UiSettings>;
+}
+
+/** Ajustes como clave → valor, para exportar. */
+export function settingsRecord(settings: UiSettings): Record<string, string | boolean> {
+  return { ...settings };
+}
+
+export interface SettingsStorage {
+  /** Guarda lo cambiado: `undefined` borra la fila (vuelve al valor por defecto). */
+  save(changes: Readonly<Partial<Record<SettingKey, UiSettings[SettingKey] | undefined>>>): void;
+}
+
 export interface SettingsStore {
   getSnapshot(): UiSettings;
   subscribe(listener: () => void): () => void;
   update(patch: Partial<UiSettings>): void;
+  /** Sustituye los ajustes sin guardarlos (llegan de otra pestaña o se han borrado). */
+  replace(next: UiSettings): void;
 }
 
-export function createSettingsStore(initial: UiSettings = DEFAULT_SETTINGS): SettingsStore {
+export function createSettingsStore(
+  initial: UiSettings = DEFAULT_SETTINGS,
+  storage?: SettingsStorage,
+): SettingsStore {
   let settings = initial;
   const listeners = new Set<() => void>();
+
+  function set(next: UiSettings): void {
+    settings = next;
+    for (const listener of listeners) listener();
+  }
+
   return {
     getSnapshot: () => settings,
     subscribe(listener) {
@@ -37,10 +96,20 @@ export function createSettingsStore(initial: UiSettings = DEFAULT_SETTINGS): Set
     },
     update(patch) {
       const next = { ...settings, ...patch };
-      const keys = Object.keys(patch) as (keyof UiSettings)[];
-      if (keys.every((key) => next[key] === settings[key])) return;
-      settings = next;
-      for (const listener of listeners) listener();
+      const keys = (Object.keys(patch) as SettingKey[]).filter(
+        (key) => next[key] !== settings[key],
+      );
+      if (keys.length === 0) return;
+      set(next);
+      const changes: Partial<Record<SettingKey, UiSettings[SettingKey] | undefined>> = {};
+      for (const key of keys) {
+        changes[key] = next[key] === DEFAULT_SETTINGS[key] ? undefined : next[key];
+      }
+      storage?.save(changes);
+    },
+    replace(next) {
+      if (SETTING_KEYS.every((key) => next[key] === settings[key])) return;
+      set(next);
     },
   };
 }

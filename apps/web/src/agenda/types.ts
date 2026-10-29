@@ -1,5 +1,7 @@
-// Contrato entre la interfaz y la agenda (ver §3.3 y §7.2). Hoy lo cumple una agenda en memoria;
-// en la siguiente fase, la de Dexie con las reglas de `@gameagenda/core/entries`.
+// Contrato entre la interfaz y la agenda (ver §3.3 y §7.2). Lo cumple `createAgenda()`: aplica en
+// memoria las acciones de `@gameagenda/core/entries` y las guarda después en Dexie.
+import type { Entry } from '@gameagenda/core/entries';
+import type { Op } from '@gameagenda/core/sync';
 
 export const STATUSES = ['want_to_play', 'playing', 'on_hold', 'completed', 'dropped'] as const;
 export type Status = (typeof STATUSES)[number];
@@ -62,6 +64,8 @@ export interface AgendaEntry {
 export interface CaptureTarget {
   readonly id: string;
   readonly title: string;
+  /** `steam:<appid>` que aún no está en el catálogo local: título del enlace (RF-04). */
+  readonly provisional?: boolean;
 }
 
 export interface CaptureOptions {
@@ -75,7 +79,12 @@ export type EntryPatch = Partial<Pick<AgendaEntry, EditableField>>;
 
 /** Qué ha cambiado, para que la interfaz escriba el aviso (ver §9.9). */
 export type AgendaEffect =
-  | { readonly kind: 'captured'; readonly title: string; readonly status: Status }
+  | {
+      readonly kind: 'captured';
+      readonly title: string;
+      readonly status: Status;
+      readonly provisional?: boolean;
+    }
   | { readonly kind: 'alreadyInList'; readonly title: string; readonly status: Status }
   | {
       readonly kind: 'status';
@@ -121,14 +130,70 @@ export interface AgendaActions {
   remove(id: string): AgendaResult;
   /** Vincula un juego manual con su juego de Steam (ver §7.3). */
   link(manualId: string, target: CaptureTarget): AgendaResult;
-  /** «Borrar todos mis datos» (ya confirmado con BORRAR). */
-  deleteAll(): void;
+  /**
+   * «Borrar todos mis datos» (ya confirmado con BORRAR): vacía la agenda en memoria al instante
+   * y `entries`, `outbox`, `settings` y `meta` en Dexie; los Deshacer pendientes dejan de valer.
+   */
+  deleteAll(): Promise<void>;
 }
 
-export interface AgendaStore extends AgendaActions {
+/** Lo que piden exportar e importar (Ajustes › Datos, §7.5), que viven en un *chunk* diferido. */
+export interface AgendaData {
+  /** Todas las entradas, lápidas y esqueletos incluidos. */
+  allEntries(): readonly Entry[];
+  get(id: string): Entry | undefined;
+  /** Contexto para `importExport` e `importCsv` de `@gameagenda/core/schemas`. */
+  importContext(): ImportContext;
+  /** Guarda la copia en `meta.backup` (antes de importar). */
+  backup(copy: unknown): Promise<void>;
+  /** Aplica un resultado ya fusionado con `get` y espera a que esté guardado. */
+  applyImport(result: ImportedChanges): Promise<void>;
+}
+
+export interface ImportContext {
+  readonly nowMs: number;
+  readonly offsetMs: number;
+  readonly today: string;
+  /** La mayor `rank` de Quiero jugar: lo importado va detrás. */
+  readonly lastRank: string | null;
+  nextHlc(): string;
+  newOpId(): string;
+  /** uuidv7 para los juegos manuales nuevos. */
+  newManualId(): string;
+}
+
+export interface ImportedChanges {
+  readonly entries: readonly Entry[];
+  readonly ops: readonly Op[];
+  /** La mayor HLC importada, para `clock.receive()`. */
+  readonly maxHlc: string | null;
+}
+
+/** Copia del catálogo para una entrada `steam:<appid>` (resuelve los provisionales). */
+export interface CatalogCopy {
+  readonly id: string;
+  readonly title: string;
+}
+
+export interface AgendaStore extends AgendaActions, AgendaData {
   subscribe(listener: () => void): () => void;
   /** Entradas vivas; la referencia no cambia mientras no cambie nada. */
   getSnapshot(): readonly AgendaEntry[];
+  /** Pone al día `title` desde el catálogo, sin aviso ni Deshacer (§7.3, «Provisional»). */
+  refreshFromCatalog(copies: readonly CatalogCopy[]): void;
+  /** Se resuelve cuando todo lo pendiente está guardado y releído. */
+  whenIdle(): Promise<void>;
+  /** Deja de escuchar los cambios de otras pestañas. */
+  dispose(): void;
+}
+
+/** Orden manual: por `rank` como texto (no `localeCompare`) y, a igual `rank`, por `id`. */
+export function compareRank(
+  a: Pick<AgendaEntry, 'rank' | 'id'>,
+  b: Pick<AgendaEntry, 'rank' | 'id'>,
+) {
+  if (a.rank !== b.rank) return a.rank < b.rank ? -1 : 1;
+  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 }
 
 /** `view` de la §7.2: Próximo solo actúa en Quiero jugar y En pausa. */

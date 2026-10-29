@@ -3,6 +3,7 @@
 
 import {
   type AgendaEntry,
+  compareRank,
   type EntryView,
   STATUSES,
   type Status,
@@ -112,9 +113,11 @@ function compare(order: ListOrder) {
   return (a: AgendaEntry, b: AgendaEntry): number => {
     if (order === 'name') return collator.compare(a.title, b.title);
     if (order === 'added') {
-      return (b.addedAt ?? '').localeCompare(a.addedAt ?? '') || b.rank.localeCompare(a.rank);
+      // Fecha de apuntado, lo último primero; a igual fecha, lo apuntado después (mayor rank).
+      const day = (b.addedAt ?? '').localeCompare(a.addedAt ?? '');
+      return day !== 0 ? day : compareRank(b, a);
     }
-    return a.rank.localeCompare(b.rank);
+    return compareRank(a, b);
   };
 }
 
@@ -177,8 +180,6 @@ export function priorityOf(
   entry: AgendaEntry,
 ): { position: number; total: number } {
   const view = viewOf(entry);
-  const siblings = entries
-    .filter((e) => viewOf(e) === view)
-    .sort((a, b) => a.rank.localeCompare(b.rank));
+  const siblings = entries.filter((e) => viewOf(e) === view).sort(compareRank);
   return { position: siblings.findIndex((e) => e.id === entry.id) + 1, total: siblings.length };
 }
