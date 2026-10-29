@@ -20,10 +20,11 @@
     "preview": "npm run preview -w @gameagenda/web",
     "lint": "biome check .",
     "format": "biome check --write .",
-    "typecheck": "tsc -p packages/core && tsc -p packages/core/test && tsc -p apps/web && tsc -p apps/web/tsconfig.sw.json && tsc -p apps/web/tsconfig.node.json && tsc -p scripts",
+    "typecheck": "tsc -p packages/core && tsc -p packages/core/test && tsc -p apps/web && tsc -p apps/web/tsconfig.sw.json && tsc -p apps/web/tsconfig.worker.json && tsc -p apps/web/tsconfig.node.json && tsc -p scripts",
     "test": "vitest run",
     "check": "npm run lint && npm run typecheck && npm test && npm run build",
-    "e2e": "npm run e2e -w @gameagenda/web"
+    "e2e": "npm run e2e -w @gameagenda/web",
+    "catalog:frozen": "node scripts/catalog-from-frozen.ts"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.14.0",

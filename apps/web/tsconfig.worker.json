@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["es2024", "webworker"],
+    "types": ["vite/client"],
+    "module": "esnext",
+    "moduleResolution": "bundler"
+  },
+  "include": ["src/search-worker", "src/env.d.ts"]
+}

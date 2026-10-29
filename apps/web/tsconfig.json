@@ -8,5 +8,5 @@
     "jsx": "react-jsx"
   },
   "include": ["src"],
-  "exclude": ["src/sw.ts"]
+  "exclude": ["src/sw.ts", "src/search-worker"]
 }

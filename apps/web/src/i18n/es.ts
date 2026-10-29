@@ -179,7 +179,7 @@ export const es = {
 
   catalog: {
     title: 'Catálogo de Steam',
-    count: (count: string) => `${count} juegos`,
+    count: (count: number, formatted: string) => (count === 1 ? '1 juego' : `${formatted} juegos`),
     scope: 'Sin DLC · +18 oculto',
     scopeAdult: 'Sin DLC · +18 visible',
     filter: 'Filtrar el catálogo',
@@ -187,6 +187,17 @@ export const es = {
     capture: (title: string) => `Apuntar ${title}`,
     noMatches: (text: string) => `No hemos encontrado «${text}» en Steam.`,
     loading: 'Cargando el catálogo…',
+    // Lista virtual y filtros sobre el Worker de búsqueda (ver §9.1).
+    list: 'Juegos del catálogo',
+    chips: 'Mostrar',
+    chip: {
+      all: 'Populares',
+      soon: 'Próximamente',
+      free: 'Gratis',
+      early: 'Acceso anticipado',
+    },
+    noFilterMatches: 'No hay juegos con este filtro.',
+    loadingRow: 'Cargando…',
   },
 
   game: {

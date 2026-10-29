@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { setup } from './helpers.ts';
+import { setup, waitForSearch } from './helpers.ts';
 
 test('el manifest está en español y sin marcas de Valve', async ({ request }) => {
   const response = await request.get('/manifest.webmanifest');
@@ -21,6 +21,8 @@ test('tras la primera visita, la app abre sin red (precaché del Service Worker)
   const checks = await setup(page);
   await page.goto('/');
   await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
+  // El catálogo queda en Cache Storage (lo guarda el Worker de búsqueda, no el Service Worker).
+  await waitForSearch(page, 'full');
 
   await context.setOffline(true);
   await page.reload();

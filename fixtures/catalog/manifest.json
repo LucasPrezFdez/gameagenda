@@ -1,0 +1,24 @@
+{
+  "format": "gacat",
+  "v": 1,
+  "version": "20261028.1",
+  "generatedAt": "2026-10-28T00:00:00Z",
+  "counts": {
+    "core": 298,
+    "aliases": 219
+  },
+  "files": {
+    "core": {
+      "path": "core.f7d1ce6bcb576d9b.tsv",
+      "sha256": "f7d1ce6bcb576d9bae9dcb2f67b83d922584e9116377c6ef93b742e04ad83ad3",
+      "bytes": 11219
+    },
+    "aliases": {
+      "path": "aliases.c2260f78db024b1a.tsv",
+      "sha256": "c2260f78db024b1af9dc29f68f1f4bcb74b3d2a64e155dc1f50697afad60bc3e",
+      "bytes": 2783
+    }
+  },
+  "enrichmentAgeDays": 0,
+  "minClientVersion": "0.0.0"
+}

@@ -11,7 +11,7 @@ test('navega por las rutas con la barra lateral o las pestañas y vuelve atrás'
   await nav.getByRole('link', { name: 'Catálogo' }).click();
   await expect(page).toHaveURL('/catalogo');
   await expect(page.getByRole('heading', { level: 1, name: 'Catálogo de Steam' })).toBeFocused();
-  await expect(page.getByText('40 juegos')).toBeVisible();
+  await expect(page.getByText('294 juegos')).toBeVisible();
 
   await nav.getByRole('link', { name: 'Ajustes' }).click();
   await expect(page).toHaveURL('/ajustes');

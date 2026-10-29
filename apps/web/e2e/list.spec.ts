@@ -114,7 +114,7 @@ test('el Catálogo filtra sin apuntar con Intro y apunta con `(+)` o con `+`', a
   const filter = page.getByRole('textbox', { name: 'Filtrar el catálogo' });
   await filter.fill('elden');
   await expect(page).toHaveURL('/catalogo?q=elden');
-  await expect(page.getByText('2 juegos')).toBeVisible();
+  await expect(page.getByText('3 juegos')).toBeVisible();
   await filter.press('Enter');
   await expect(toast(page)).toBeEmpty();
 

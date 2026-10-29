@@ -42,7 +42,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
     await expectAccessible(page, 'Ficha');
 
     await nav.getByRole('link', { name: 'Catálogo' }).click();
-    await expect(page.getByText('40 juegos')).toBeVisible();
+    await expect(page.getByText('294 juegos')).toBeVisible();
     await expectAccessible(page, 'Catálogo');
 
     await nav.getByRole('link', { name: 'Ajustes' }).click();
@@ -59,17 +59,23 @@ for (const colorScheme of ['light', 'dark'] as const) {
   });
 }
 
-test('axe en páginas abiertas directamente: ficha no apuntada, sin catálogo y 404', async ({
-  page,
-}) => {
-  const checks = await setup(page, { boot: 'none' });
+test('axe en páginas abiertas directamente: ficha no apuntada y 404', async ({ page }) => {
+  const checks = await setup(page);
   await page.goto('/juego/steam:367520');
   await expect(page.getByRole('heading', { level: 1, name: 'Hollow Knight' })).toBeVisible();
-  await expectAccessible(page, 'Ficha sin catálogo');
+  await expectAccessible(page, 'Ficha no apuntada');
+  await page.goto('/no-existe');
+  await expectAccessible(page, '404');
+  await checks.expectClean();
+});
+
+test('axe sin catálogo (`none`): Catálogo y ficha esperan al Worker', async ({ page }) => {
+  const checks = await setup(page, { hold: 'none' });
   await page.goto('/catalogo');
   await expect(page.getByText(/Preparando el catálogo/)).toBeVisible();
   await expectAccessible(page, 'Catálogo sin catálogo');
-  await page.goto('/no-existe');
-  await expectAccessible(page, '404');
+  await page.goto('/juego/steam:367520');
+  await expect(page.getByRole('main')).toBeVisible();
+  await expectAccessible(page, 'Ficha sin catálogo');
   await checks.expectClean();
 });

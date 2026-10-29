@@ -1,5 +1,14 @@
 import { expect, test } from '@playwright/test';
-import { capture, measures, openPalette, paletteInput, search, setup, toast } from './helpers.ts';
+import {
+  capture,
+  measures,
+  openPalette,
+  paletteInput,
+  search,
+  setup,
+  toast,
+  waitForSearch,
+} from './helpers.ts';
 
 const listRow = (page: import('@playwright/test').Page, title: string) =>
   page.getByRole('main').getByRole('link', { name: new RegExp(`${title}$`) });
@@ -183,8 +192,9 @@ test('`/` (Mayús+7 en el teclado español) abre la paleta y se puede desactivar
 
 test.describe('carrera de Intro', () => {
   test('con `delay: 0`, Intro apunta el resultado de la consulta completa', async ({ page }) => {
-    const checks = await setup(page, { boot: 'full', latencyMs: 150 });
+    const checks = await setup(page, { latencyMs: 150 });
     await page.goto('/');
+    await waitForSearch(page, 'full');
     await openPalette(page);
     await paletteInput(page).pressSequentially('celeste', { delay: 0 });
     await page.keyboard.press('Enter');
@@ -194,8 +204,9 @@ test.describe('carrera de Intro', () => {
   });
 
   test('si los resultados no llegan en 500 ms, no apunta nada', async ({ page }) => {
-    const checks = await setup(page, { boot: 'full', latencyMs: 900 });
+    const checks = await setup(page, { latencyMs: 900 });
     await page.goto('/');
+    await waitForSearch(page, 'full');
     await openPalette(page);
     await paletteInput(page).pressSequentially('celeste', { delay: 0 });
     await page.keyboard.press('Enter');
@@ -226,7 +237,7 @@ test('«¿Quizás buscabas…?»: Intro no apunta una sugerencia que no se ha el
 test('sin catálogo (`none`) busca en Mi lista y avisa del progreso; con error, Reintentar', async ({
   page,
 }) => {
-  const checks = await setup(page, { boot: 'error' });
+  const checks = await setup(page, { failFirstLoad: true });
   await page.goto('/');
   await openPalette(page);
   await page.keyboard.type('hades');
@@ -245,11 +256,11 @@ test('sin catálogo (`none`) busca en Mi lista y avisa del progreso; con error, 
 test('en `none` busca en Mi lista: lo apuntado a mano se encuentra y abre su ficha', async ({
   page,
 }) => {
-  const checks = await setup(page, { boot: 'none' });
+  const checks = await setup(page, { hold: 'none' });
   await page.goto('/');
   await openPalette(page);
   await page.keyboard.type('Hades');
-  await expect(page.getByText(/Preparando el catálogo de Steam… 40\s%/)).toBeVisible();
+  await expect(page.getByText(/Preparando el catálogo de Steam… \d+\s%/)).toBeVisible();
   await page.keyboard.press('ArrowUp');
   await page.keyboard.press('Enter');
   await page.keyboard.press('Enter');
@@ -267,6 +278,7 @@ test('apuntar 5 juegos: mediana <3 s y respuesta ≤100 ms (ver §12.3)', async 
 }, testInfo) => {
   const checks = await setup(page);
   await page.goto('/');
+  await waitForSearch(page, 'full');
   const mobile = testInfo.project.name.includes('movil');
   const games: [string, string][] = [
     ['hollow', 'Hollow Knight'],

@@ -4,7 +4,18 @@
 export type MeasureName =
   | 'ui:feedback'
   | 'capture:palette-to-confirm'
-  | 'search:keystroke-to-results';
+  | 'search:keystroke-to-results'
+  | 'search:ready'
+  | 'search:full';
+
+/** Mide desde el inicio de la navegación hasta ahora (`search:ready`, `search:full`). */
+export function measureSinceNavigation(name: MeasureName): void {
+  try {
+    performance.measure(name, { start: 0, end: performance.now() });
+  } catch {
+    // Sin `performance.measure` con opciones: la medida se descarta.
+  }
+}
 
 /** Mide desde `start` (un `event.timeStamp` o `performance.now()`) hasta el próximo fotograma. */
 export function measureToNextFrame(name: MeasureName, start: number): void {

@@ -6,5 +6,5 @@
     "module": "nodenext",
     "moduleResolution": "nodenext"
   },
-  "include": ["vite.config.ts", "playwright.config.ts", "e2e"]
+  "include": ["vite.config.ts", "catalog-dev-plugin.ts", "playwright.config.ts", "e2e"]
 }
