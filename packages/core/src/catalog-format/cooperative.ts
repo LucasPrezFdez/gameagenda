@@ -26,22 +26,23 @@ export interface Work<T> {
 /** Envuelve un generador en una tarea cooperativa con el reloj dado. */
 export function cooperate<T>(work: Work<T>, now: Clock): CooperativeTask<T> {
   let result: T | null = null;
-  let done = false;
+  // Al terminar se suelta el generador: lo que solo hacía falta para construir se puede liberar.
+  let pending: Work<T> | null = work;
   return {
     step(deadline: number): boolean {
-      while (!done) {
-        const r = work.gen.next();
+      while (pending) {
+        const r = pending.gen.next();
         if (r.done) {
           result = r.value;
-          done = true;
+          pending = null;
           break;
         }
         if (now() >= deadline) break;
       }
-      return done;
+      return pending === null;
     },
     get progress() {
-      return done ? 1 : Math.min(1, Math.max(0, work.progress()));
+      return pending ? Math.min(1, Math.max(0, pending.progress())) : 1;
     },
     get result() {
       return result;
