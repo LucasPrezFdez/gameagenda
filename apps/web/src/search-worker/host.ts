@@ -163,8 +163,9 @@ export function createSearchHost(deps: HostDeps): SearchHost {
     return searcher?.state ?? 'none';
   }
 
+  /** El catálogo más nuevo que ya responde, se está indexando o espera su turno. */
   function activeManifest(): CatalogManifest | null {
-    return job?.foreground ? job.texts.manifest : searcherManifest;
+    return pendingUpdate?.manifest ?? job?.texts.manifest ?? searcherManifest;
   }
 
   function progress(): number {

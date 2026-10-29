@@ -17,9 +17,16 @@ export interface SearchTestOptions {
   readonly failFirstLoad?: boolean;
 }
 
+export interface SearchTestHandle {
+  /** Suelta el Worker parado con `hold`. */
+  release(): void;
+  /** Tiempo de cada consulta dentro del Worker (`results.ms`), para las mediciones a mano. */
+  readonly workerMs: number[];
+}
+
 declare global {
   var __GA_SEARCH_TEST__: SearchTestOptions | undefined;
-  var __gaSearchTest: { release(): void } | undefined;
+  var __gaSearchTest: SearchTestHandle | undefined;
 }
 
 export function withTestHooks(worker: Worker, transport: SearchTransport): SearchTransport {
@@ -29,14 +36,18 @@ export function withTestHooks(worker: Worker, transport: SearchTransport): Searc
   if (options.hold || options.failFirstLoad) {
     control({ type: 'test', hold: options.hold ?? null, failFirstLoad: options.failFirstLoad });
   }
-  globalThis.__gaSearchTest = { release: () => control({ type: 'test', hold: null }) };
+  const handle: SearchTestHandle = {
+    release: () => control({ type: 'test', hold: null }),
+    workerMs: [],
+  };
+  globalThis.__gaSearchTest = handle;
   const latencyMs = options.latencyMs ?? 0;
-  if (latencyMs <= 0) return transport;
   return {
     postMessage: (message: UiToWorkerMessage) => transport.postMessage(message),
     listen(listener: (message: WorkerToUiMessage) => void) {
       return transport.listen((message) => {
-        if (message.type === 'status') listener(message);
+        if (message.type === 'results') handle.workerMs.push(message.ms);
+        if (message.type === 'status' || latencyMs <= 0) listener(message);
         else setTimeout(() => listener(message), latencyMs);
       });
     },

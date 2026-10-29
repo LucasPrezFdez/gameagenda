@@ -179,7 +179,7 @@ export const es = {
 
   catalog: {
     title: 'Catálogo de Steam',
-    count: (count: string) => `${count} juegos`,
+    count: (count: number, formatted: string) => (count === 1 ? '1 juego' : `${formatted} juegos`),
     scope: 'Sin DLC · +18 oculto',
     scopeAdult: 'Sin DLC · +18 visible',
     filter: 'Filtrar el catálogo',

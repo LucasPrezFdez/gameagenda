@@ -41,6 +41,8 @@ const ROW_HEIGHT = 72;
 const ROW_GAP = 4;
 /** Filas que avanzan RePág y AvPág. */
 const PAGE_KEYS_STEP = 10;
+/** Filas que se pintan fuera de la vista, por arriba y por abajo. */
+const OVERSCAN = 8;
 
 type Chip = 'all' | 'soon' | 'free' | 'early';
 
@@ -144,13 +146,15 @@ export default function CatalogScreen() {
   const virtualizer = useWindowVirtualizer({
     count,
     estimateSize: () => ROW_HEIGHT,
-    overscan: 8,
+    overscan: OVERSCAN,
     scrollMargin,
     rangeExtractor,
   });
   const items = virtualizer.getVirtualItems();
-  const firstIndex = items[0]?.index ?? 0;
-  const lastIndex = items[items.length - 1]?.index ?? -1;
+  // Lo visible (sin la fila activa, que puede estar lejos): solo esas ventanas se piden.
+  const visible = virtualizer.range;
+  const firstIndex = Math.max(0, (visible?.startIndex ?? 0) - OVERSCAN);
+  const lastIndex = Math.min(count - 1, (visible?.endIndex ?? -1) + OVERSCAN);
 
   // Posición de la lista en la página, para la virtualización sobre la ventana.
   useLayoutEffect(() => {
@@ -198,8 +202,8 @@ export default function CatalogScreen() {
     }
   }, [search, current, count, firstIndex, lastIndex, pages]);
 
-  // Mueve el foco a la fila pedida en cuanto existe (y otra vez cuando llegan sus datos).
-  useLayoutEffect(() => {
+  /** Enfoca la fila pedida si ya está pintada (y otra vez cuando llegan sus datos). */
+  function focusWanted(): void {
     const index = wantFocus.current;
     if (index === null) return;
     const title = listRef.current?.querySelector<HTMLElement>(
@@ -208,7 +212,9 @@ export default function CatalogScreen() {
     if (!title) return;
     if (document.activeElement !== title) title.focus({ preventScroll: true });
     if (title.tagName === 'A') wantFocus.current = null;
-  });
+  }
+
+  useLayoutEffect(focusWanted);
 
   function gameAt(index: number): CoreGame | undefined {
     if (pages.key !== current?.key) return undefined;
@@ -226,6 +232,8 @@ export default function CatalogScreen() {
     setActiveIndex(next);
     wantFocus.current = next;
     virtualizer.scrollToIndex(next, { align: 'auto' });
+    // Si la fila ya está pintada, el foco va ya: puede que no haya otro render (misma fila activa).
+    focusWanted();
   }
 
   function updateUrl(nextText: string, nextChip: Chip): void {
@@ -298,7 +306,7 @@ export default function CatalogScreen() {
         <ScreenHeading documentTitle={es.nav.catalog}>{es.catalog.title}</ScreenHeading>
         {current && (
           <p className="catalog__count">
-            <strong>{es.catalog.count(formatCount(count))}</strong>
+            <strong>{es.catalog.count(count, formatCount(count))}</strong>
             <span className="muted">{showAdult ? es.catalog.scopeAdult : es.catalog.scope}</span>
           </p>
         )}

@@ -13,7 +13,7 @@ export interface SearchTestOptions {
 
 declare global {
   var __GA_SEARCH_TEST__: SearchTestOptions | undefined;
-  var __gaSearchTest: { release(): void } | undefined;
+  var __gaSearchTest: { release(): void; readonly workerMs: number[] } | undefined;
   var __cspViolations: string[];
 }
 
