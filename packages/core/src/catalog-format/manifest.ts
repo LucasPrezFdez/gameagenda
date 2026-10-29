@@ -1,6 +1,7 @@
 // Esquema del manifest del catálogo (§7.6). El de M1 no lleva `sig`, `killSwitches`, `recent`
 // ni `details`: el esquema los admite como opcionales. Ignora los campos desconocidos.
 
+import '../zod-config.ts';
 import { z } from 'zod';
 
 const RE_VERSION = /^\d{8}\.[1-9]\d*$/;

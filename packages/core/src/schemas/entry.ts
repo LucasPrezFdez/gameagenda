@@ -1,5 +1,6 @@
 // Esquemas Zod de la agenda: ids (§7.3), fechas parciales (§7.4), Entry y Op.
 
+import '../zod-config.ts';
 import * as z from 'zod';
 import { isValidDay } from '../entries/day.ts';
 import { MANUAL_ENTRY_ID_PATTERN, STEAM_ENTRY_ID_PATTERN } from '../entries/ids.ts';
