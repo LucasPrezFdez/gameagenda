@@ -108,6 +108,8 @@ export default function CatalogScreen() {
   /** Fila que debe recibir el foco en cuanto esté pintada (Fin, ↓…). */
   const wantFocus = useRef<number | null>(null);
   const requested = useRef(new Set<string>());
+  /** Ventanas que no se pueden olvidar: las visibles y la de la fila activa. */
+  const keepPages = useRef(new Set<number>());
   const [scrollMargin, setScrollMargin] = useState(0);
   const ready = canSearchCatalog(status.state);
   // Sin el estado (`scan` → `full` no cambia las filas): así el foco no se pierde al pasar a `full`.
@@ -175,6 +177,7 @@ export default function CatalogScreen() {
       wanted.add(p);
     }
     wanted.add(Math.floor(Math.min(activeRef.current, count - 1) / PAGE_SIZE));
+    keepPages.current = wanted;
     for (const page of wanted) {
       const id = `${current.key}\u0000${page}`;
       if (pages.key === current.key && pages.map.has(page)) continue;
@@ -188,10 +191,15 @@ export default function CatalogScreen() {
             if (prev.key !== current.key) return prev;
             const map = new Map(prev.map);
             map.set(page, rows);
-            // Se olvidan las ventanas más lejanas de la que acaba de llegar.
+            // Se olvidan las ventanas más lejanas de la que acaba de llegar, nunca una de las
+            // que se ven ni la de la fila activa.
             while (map.size > MAX_PAGES) {
-              let far = page;
-              for (const p of map.keys()) if (Math.abs(p - page) > Math.abs(far - page)) far = p;
+              let far: number | null = null;
+              for (const p of map.keys()) {
+                if (keepPages.current.has(p)) continue;
+                if (far === null || Math.abs(p - page) > Math.abs(far - page)) far = p;
+              }
+              if (far === null) break;
               map.delete(far);
               requested.current.delete(`${current.key}\u0000${far}`);
             }

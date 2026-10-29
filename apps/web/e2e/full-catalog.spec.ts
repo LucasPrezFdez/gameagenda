@@ -140,9 +140,21 @@ test('catálogo completo: arranque, pulsación en `scan` y en `full` y última f
   const height = await page.evaluate(() => document.documentElement.scrollHeight);
   log(`Catálogo: ${manifest.counts.core} filas, ${height} px de alto; Fin llega a la última`);
   await page.keyboard.press('Home');
+  // La barra, a saltos por todo el catálogo (más ventanas de las que se guardan) y al final.
+  for (let k = 1; k <= 20; k++) {
+    await page.evaluate(
+      (f) => window.scrollTo(0, f * document.documentElement.scrollHeight),
+      k / 21,
+    );
+    await expect(list.getByRole('link').nth(2)).toBeVisible(SLOW);
+  }
   await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
   await expect(list.locator(`[aria-posinset="${manifest.counts.core}"]`)).toBeInViewport(SLOW);
+  await expect(list.locator(`[aria-posinset="${manifest.counts.core}"] a`)).toBeVisible();
   log('Catálogo: la barra llega a la última fila');
+  // La fila activa (la primera) sigue montada: ↓ baja a la segunda.
+  await page.keyboard.press('ArrowDown');
+  await expect(list.locator('[aria-posinset="2"] a')).toBeFocused(SLOW);
   await context.close();
 
   // 4. Pulsación en `scan` (puente de escaneo), con el Worker parado antes del índice.
