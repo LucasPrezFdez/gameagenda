@@ -18,7 +18,9 @@ import type {
 export function describeEffect(effect: AgendaEffect): string | null {
   switch (effect.kind) {
     case 'captured':
-      return es.toast.captured(effect.status, effect.title);
+      return effect.provisional
+        ? es.toast.provisional(effect.title)
+        : es.toast.captured(effect.status, effect.title);
     case 'alreadyInList':
       return es.palette.alreadyInList(effect.title, effect.status);
     case 'status':

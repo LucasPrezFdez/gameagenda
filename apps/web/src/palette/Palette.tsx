@@ -1,14 +1,17 @@
 // Paleta de captura (RF-01–RF-03, RF-06; ver §9.2–§9.5): *combobox* + *listbox* del APG.
 // El campo está siempre montado: en móvil, el toque en la barra lo enfoca sin esperar a React
 // (si no, iOS no abre el teclado).
+import { manualEntryId } from '@gameagenda/core/entries';
 import {
   type ChangeEvent,
   type FocusEvent,
   type KeyboardEvent,
   type Ref,
+  useEffect,
   useId,
   useImperativeHandle,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -20,15 +23,19 @@ import { Icon } from '../components/icons.tsx';
 import { es } from '../i18n/es.ts';
 import { isEditableTarget } from '../lib/hooks.ts';
 import { type FeedbackTiming, measureToNextFrame } from '../perf/measures.ts';
-import { canSearchCatalog } from '../search-client/index.ts';
+import { type CoreGame, canSearchCatalog } from '../search-client/index.ts';
 import { CaptureAsPanel } from './CaptureAsPanel.tsx';
 import { ManualForm } from './ManualForm.tsx';
 import {
   buildPaletteModel,
   displayName,
+  linkInText,
   type PaletteModel,
   type PaletteOption,
+  type PastedLink,
 } from './palette-model.ts';
+
+type LinkOption = Extract<PaletteOption, { kind: 'link' }>;
 
 /** Intro espera como mucho esto a los resultados del texto escrito (ver §8.7). */
 export const ENTER_WAIT_MS = 500;
@@ -80,9 +87,19 @@ function targetOf(option: PaletteOption): { target: CaptureTarget; entry?: Agend
       };
     case 'entry':
       return { target: { id: option.entry.id, title: option.entry.title }, entry: option.entry };
+    case 'link':
+      return {
+        target: { id: steamId(option.appid), title: option.title, provisional: option.provisional },
+        entry: option.entry,
+      };
     default:
       return null;
   }
+}
+
+/** Lo que dé el catálogo en `ms` como mucho; `undefined` si no llega a tiempo. */
+function within<T>(promise: Promise<T>, ms: number): Promise<T | undefined> {
+  return Promise.race([promise, new Promise<undefined>((resolve) => setTimeout(resolve, ms))]);
 }
 
 function optionId(base: string, key: string): string {
@@ -90,7 +107,7 @@ function optionId(base: string, key: string): string {
 }
 
 function isGameRow(option: PaletteOption): boolean {
-  return option.kind === 'game' || option.kind === 'entry';
+  return option.kind === 'game' || option.kind === 'entry' || option.kind === 'link';
 }
 
 export function Palette({ actions, showBar, onClose, ref }: PaletteProps) {
@@ -117,7 +134,30 @@ export function Palette({ actions, showBar, onClose, ref }: PaletteProps) {
   const enterPending = useRef(false);
   const measuredSeq = useRef(0);
 
-  const model = buildPaletteModel(query, status, entriesById);
+  // Enlace pegado (RF-04): su `appid` se busca en el catálogo local para dar el título.
+  const searchable = canSearchCatalog(status.state);
+  const found = useMemo(() => linkInText(text), [text]);
+  const linkAppid = found?.link.appid ?? null;
+  const [linkGame, setLinkGame] = useState<{ appid: number; game: CoreGame | null } | null>(null);
+  useEffect(() => {
+    if (linkAppid === null || !searchable) return;
+    let current = true;
+    search
+      .game(linkAppid)
+      .catch(() => null)
+      .then((game) => {
+        if (current) setLinkGame({ appid: linkAppid, game });
+      });
+    return () => {
+      current = false;
+    };
+  }, [linkAppid, searchable, search]);
+  const pasted: PastedLink | null = found && {
+    ...found,
+    game: linkGame?.appid === found.link.appid ? linkGame.game : undefined,
+  };
+
+  const model = buildPaletteModel(query, status, entriesById, pasted);
   const chosenIndex =
     choice !== null && choice.seq === query.seq
       ? model.options.findIndex((option) => option.key === choice.key)
@@ -126,8 +166,8 @@ export function Palette({ actions, showBar, onClose, ref }: PaletteProps) {
   const activeOption = model.options[activeIndex];
 
   // Los últimos valores, para la espera de Intro (que termina en otra tarea).
-  const latest = useRef({ actions, entriesById, status, keepOpen });
-  latest.current = { actions, entriesById, status, keepOpen };
+  const latest = useRef({ actions, entriesById, status, keepOpen, pasted });
+  latest.current = { actions, entriesById, status, keepOpen, pasted };
 
   function openPalette(timeStamp: number, from: Element | null): void {
     if (openRef.current) return;
@@ -194,8 +234,30 @@ export function Palette({ actions, showBar, onClose, ref }: PaletteProps) {
     latest.current.actions.openGame(id);
   }
 
+  /** Intro sobre un enlace aún sin buscar: espera al catálogo (500 ms como mucho). */
+  async function resolveLink(option: LinkOption): Promise<LinkOption> {
+    enterPending.current = true;
+    const game = await within(
+      search.game(option.appid).catch(() => null),
+      ENTER_WAIT_MS,
+    );
+    enterPending.current = false;
+    if (game === undefined) return { ...option, resolving: false };
+    setLinkGame({ appid: option.appid, game });
+    return game
+      ? { ...option, resolving: false, provisional: false, title: displayName(game) }
+      : { ...option, resolving: false };
+  }
+
   function activate(option: PaletteOption, kind: EnterKind, timeStamp: number): void {
     setHint(null);
+    if (option.kind === 'link' && option.resolving && kind !== 'sheet') {
+      if (enterPending.current) return;
+      void resolveLink(option).then((resolved) => {
+        if (openRef.current) activate(resolved, kind, timeStamp);
+      });
+      return;
+    }
     if (option.kind === 'catalog') {
       const current = text;
       close();
@@ -239,7 +301,8 @@ export function Palette({ actions, showBar, onClose, ref }: PaletteProps) {
   async function onEnter(kind: EnterKind, timeStamp: number): Promise<void> {
     if (enterPending.current || text.trim() === '') return;
     const searchable = canSearchCatalog(latest.current.status.state);
-    if (!searchable || query.fresh) {
+    // Un enlace pegado no depende de los resultados de la búsqueda.
+    if (!searchable || query.fresh || activeOption?.kind === 'link') {
       if (activeOption) activate(activeOption, kind, timeStamp);
       else setHint(hintFor(model));
       return;
@@ -252,7 +315,12 @@ export function Palette({ actions, showBar, onClose, ref }: PaletteProps) {
       if (openRef.current) setHint(es.palette.chooseResult);
       return;
     }
-    const freshModel = buildPaletteModel(fresh, latest.current.status, latest.current.entriesById);
+    const freshModel = buildPaletteModel(
+      fresh,
+      latest.current.status,
+      latest.current.entriesById,
+      latest.current.pasted,
+    );
     const option = freshModel.options[freshModel.defaultIndex];
     if (option) activate(option, kind, timeStamp);
     else setHint(hintFor(freshModel));
@@ -339,7 +407,6 @@ export function Palette({ actions, showBar, onClose, ref }: PaletteProps) {
       ?.scrollIntoView({ block: 'nearest' });
   }, [activeOption, baseId]);
 
-  const searchable = canSearchCatalog(status.state);
   const trimmed = text.trim();
   const leading = model.options.filter(isGameRow);
   const suggestionOptions = model.options.filter((option) => option.kind === 'suggestion');
@@ -375,12 +442,23 @@ export function Palette({ actions, showBar, onClose, ref }: PaletteProps) {
       );
     }
     const entry = option.entry;
-    const name = option.kind === 'entry' ? option.entry.title : displayName(option.game);
-    const year = option.kind === 'entry' ? null : option.game.year;
+    const name =
+      option.kind === 'entry'
+        ? option.entry.title
+        : option.kind === 'link'
+          ? option.entry
+            ? option.title
+            : es.palette.linkCapture(option.title)
+          : displayName(option.game);
+    const year =
+      option.kind === 'entry' ? null : option.kind === 'link' ? option.year : option.game.year;
     return (
       <div key={option.key} {...common} data-kind={option.kind}>
         <span className="palette__name">{name}</span>
         <span className="palette__meta">
+          {option.kind === 'link' && option.provisional && !option.resolving && (
+            <span className="badge">{es.game.provisional}</span>
+          )}
           {year !== null && <span>{year}</span>}
           {entry ? (
             <span className={`status-text status-text--${entry.status}`}>
@@ -505,7 +583,7 @@ export function Palette({ actions, showBar, onClose, ref }: PaletteProps) {
             <ManualForm
               initialTitle={mode.title}
               onSubmit={(title, timeStamp) =>
-                capture({ id: `manual:${uuidv7()}`, title }, undefined, timeStamp)
+                capture({ id: manualEntryId(uuidv7()), title }, undefined, timeStamp)
               }
               onBack={() => {
                 setMode({ kind: 'results' });

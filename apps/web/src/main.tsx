@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client';
 import { v7 as uuidv7 } from 'uuid';
 import { App } from './App.tsx';
 import { createAgenda } from './agenda/agenda.ts';
+import { startCatalogRefresh } from './agenda/catalog-refresh.ts';
 import { type AppServices, ServicesProvider } from './app/services.tsx';
 import { createDexieAgendaStorage } from './db/agenda-storage.ts';
 import { openDatabase } from './db/database.ts';
@@ -98,6 +99,7 @@ async function start(): Promise<void> {
 
   const services: AppServices = { agenda, search, settings, notices };
   search.init({ catalogVersion: null, showAdult });
+  startCatalogRefresh(search, agenda);
 
   const root = document.getElementById('root');
   if (!root) throw new Error('Falta el elemento #root');

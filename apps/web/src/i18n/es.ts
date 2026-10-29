@@ -94,6 +94,10 @@ export const es = {
     manualHint: 'Si luego llega al catálogo, podrás vincularlo con Steam.',
     manualEmpty: 'Escribe el título del juego.',
     back: 'Volver a los resultados',
+
+    // Pegar un enlace de Steam (RF-04; ver §9.2, «Enlaces»).
+    linkCapture: (title: string) => `Apuntar «${title}»`,
+    steamGame: (appid: number) => `Juego de Steam ${appid}`,
   },
 
   catalogState: {
@@ -123,6 +127,8 @@ export const es = {
     deletedAll: 'Hemos borrado todos tus datos de este dispositivo.',
 
     // Agenda en Dexie: provisionales (§9.9) y Ajustes › Datos.
+    provisional: (title: string) =>
+      `Apuntado: «${title}» (provisional). Lo completaremos cuando llegue al catálogo.`,
     exported: (file: string) => `Hemos exportado ${file}.`,
   },
 
