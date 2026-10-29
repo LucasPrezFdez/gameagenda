@@ -1,0 +1,116 @@
+{
+ "url": "https://api.steampowered.com/IStoreService/GetAppList/v1/?include_games=true&include_dlc=false&include_software=false&include_videos=false&include_hardware=false&max_results=40&last_appid=35030",
+ "status": 200,
+ "date": "2026-10-29T14:30:49.676Z",
+ "synthetic": "GetAppList exige clave: lista generada con los nombres de GetItems en inglés",
+ "json": {
+  "response": {
+   "apps": [
+    {
+     "appid": 47890,
+     "name": "The Sims™ 3"
+    },
+    {
+     "appid": 211970,
+     "name": "Test Drive: Ferrari Racing Legends"
+    },
+    {
+     "appid": 360430,
+     "name": "Mafia III: Definitive Edition"
+    },
+    {
+     "appid": 367520,
+     "name": "Hollow Knight"
+    },
+    {
+     "appid": 396420,
+     "name": ""
+    },
+    {
+     "appid": 473930,
+     "name": "Steam Gift Cards"
+    },
+    {
+     "appid": 639770,
+     "name": "UNTITLED"
+    },
+    {
+     "appid": 644560,
+     "name": "Mirror"
+    },
+    {
+     "appid": 708030,
+     "name": ""
+    },
+    {
+     "appid": 755800,
+     "name": "Hades' Star"
+    },
+    {
+     "appid": 837470,
+     "name": "Untitled Goose Game"
+    },
+    {
+     "appid": 866490,
+     "name": "TestApp"
+    },
+    {
+     "appid": 1025620,
+     "name": "Untitled"
+    },
+    {
+     "appid": 1086940,
+     "name": "Baldur's Gate 3"
+    },
+    {
+     "appid": 1145350,
+     "name": "Hades II"
+    },
+    {
+     "appid": 1145360,
+     "name": "Hades"
+    },
+    {
+     "appid": 1180320,
+     "name": "War of the Three Kingdoms"
+    },
+    {
+     "appid": 1245620,
+     "name": "ELDEN RING"
+    },
+    {
+     "appid": 1382330,
+     "name": "Persona® 5 Strikers"
+    },
+    {
+     "appid": 1462040,
+     "name": "FINAL FANTASY VII REMAKE INTERGRADE"
+    },
+    {
+     "appid": 1468810,
+     "name": "鬼谷八荒 Tale of Immortal"
+    },
+    {
+     "appid": 1609230,
+     "name": "Scarlet Hollow"
+    },
+    {
+     "appid": 1888930,
+     "name": "The Last of Us™ Part I"
+    },
+    {
+     "appid": 2909400,
+     "name": "FINAL FANTASY VII REBIRTH"
+    },
+    {
+     "appid": 4018990,
+     "name": "Potions of Veldenkeep"
+    },
+    {
+     "appid": 4354570,
+     "name": "FINAL FANTASY VII REVELATION"
+    }
+   ]
+  }
+ }
+}

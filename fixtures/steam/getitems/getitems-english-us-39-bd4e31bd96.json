@@ -1,0 +1,2544 @@
+{
+ "url": "https://api.steampowered.com/IStoreBrowseService/GetItems/v1/?input_json=%7B%22ids%22%3A%5B%7B%22appid%22%3A570%7D%2C%7B%22appid%22%3A730%7D%2C%7B%22appid%22%3A21130%7D%2C%7B%22appid%22%3A22380%7D%2C%7B%22appid%22%3A22490%7D%2C%7B%22appid%22%3A24810%7D%2C%7B%22appid%22%3A35030%7D%2C%7B%22appid%22%3A47890%7D%2C%7B%22appid%22%3A50300%7D%2C%7B%22appid%22%3A211970%7D%2C%7B%22appid%22%3A241560%7D%2C%7B%22appid%22%3A271590%7D%2C%7B%22appid%22%3A360430%7D%2C%7B%22appid%22%3A367520%7D%2C%7B%22appid%22%3A396420%7D%2C%7B%22appid%22%3A473930%7D%2C%7B%22appid%22%3A639770%7D%2C%7B%22appid%22%3A644560%7D%2C%7B%22appid%22%3A708030%7D%2C%7B%22appid%22%3A755800%7D%2C%7B%22appid%22%3A837470%7D%2C%7B%22appid%22%3A866490%7D%2C%7B%22appid%22%3A1025620%7D%2C%7B%22appid%22%3A1086940%7D%2C%7B%22appid%22%3A1145350%7D%2C%7B%22appid%22%3A1145360%7D%2C%7B%22appid%22%3A1180320%7D%2C%7B%22appid%22%3A1245620%7D%2C%7B%22appid%22%3A1293830%7D%2C%7B%22appid%22%3A1382330%7D%2C%7B%22appid%22%3A1462040%7D%2C%7B%22appid%22%3A1468810%7D%2C%7B%22appid%22%3A1609230%7D%2C%7B%22appid%22%3A1888930%7D%2C%7B%22appid%22%3A2909400%7D%2C%7B%22appid%22%3A3158110%7D%2C%7B%22appid%22%3A4018990%7D%2C%7B%22appid%22%3A4354570%7D%2C%7B%22appid%22%3A999999999%7D%5D%2C%22context%22%3A%7B%22language%22%3A%22english%22%2C%22country_code%22%3A%22US%22%7D%2C%22data_request%22%3A%7B%22include_release%22%3Atrue%2C%22include_assets%22%3Atrue%2C%22include_reviews%22%3Atrue%2C%22include_platforms%22%3Atrue%2C%22include_best_purchase_option%22%3Afalse%7D%7D",
+ "status": 200,
+ "date": "2026-10-29T14:30:49.674Z",
+ "json": {
+  "response": {
+   "store_items": [
+    {
+     "item_type": 0,
+     "id": 570,
+     "success": 1,
+     "visible": true,
+     "name": "Dota 2",
+     "store_url_path": "app/570/Dota_2",
+     "store_url_slug": "Dota_2",
+     "appid": 570,
+     "type": 0,
+     "is_free": true,
+     "content_descriptorids": [
+      5
+     ],
+     "categories": {
+      "supported_player_categoryids": [
+       1,
+       9
+      ],
+      "feature_categoryids": [
+       29,
+       30,
+       40,
+       35,
+       66,
+       67,
+       68,
+       8,
+       63
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 2807082,
+       "percent_positive": 80,
+       "review_score": 8,
+       "review_score_label": "Very Positive"
+      },
+      "summary_language_specific": {
+       "review_count": 842872,
+       "percent_positive": 87,
+       "review_score": 8,
+       "review_score_label": "Very Positive"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/570/${FILENAME}?t=1791407503",
+      "main_capsule": "capsule_616x353.jpg",
+      "small_capsule": "capsule_231x87.jpg",
+      "header": "header.jpg",
+      "header_2x": "header_2x.jpg",
+      "page_background": "page_bg_generated_v6b.jpg",
+      "hero_capsule": "hero_capsule.jpg",
+      "library_capsule": "6cddc26cb124bd87d3fbacd58cd83ba33e4cb0e7/library_capsule.jpg",
+      "library_capsule_2x": "6cddc26cb124bd87d3fbacd58cd83ba33e4cb0e7/library_capsule_2x.jpg",
+      "library_hero": "0e4a18e7b53d1d4d68bba65969919e6a85920b04/library_hero.jpg",
+      "library_hero_2x": "0e4a18e7b53d1d4d68bba65969919e6a85920b04/library_hero_2x.jpg",
+      "community_icon": "48eb825bb93787945065b460bdc109e395384ebf",
+      "page_background_path": "app/570?t=1791407503",
+      "raw_page_background": "page_bg_raw.jpg",
+      "last_modified": 1791407503
+     },
+     "release": {
+      "steam_release_date": 1373389200,
+      "original_release_date": 0
+     },
+     "platforms": {
+      "windows": true,
+      "mac": true,
+      "steamos_linux": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 2,
+      "steam_os_compat_category": 2,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 2
+     }
+    },
+    {
+     "item_type": 0,
+     "id": 730,
+     "success": 1,
+     "visible": true,
+     "name": "Counter-Strike 2",
+     "store_url_path": "app/730/CounterStrike_2",
+     "store_url_slug": "CounterStrike_2",
+     "appid": 730,
+     "type": 0,
+     "is_free": true,
+     "content_descriptorids": [
+      2,
+      5
+     ],
+     "categories": {
+      "supported_player_categoryids": [
+       1,
+       27
+      ],
+      "feature_categoryids": [
+       29,
+       30,
+       51,
+       35,
+       64,
+       66,
+       67,
+       68,
+       69,
+       70,
+       74,
+       8,
+       15,
+       41,
+       42,
+       43,
+       63
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 9955468,
+       "percent_positive": 85,
+       "review_score": 8,
+       "review_score_label": "Very Positive"
+      },
+      "summary_language_specific": {
+       "review_count": 2641516,
+       "percent_positive": 85,
+       "review_score": 8,
+       "review_score_label": "Very Positive"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/730/${FILENAME}?t=1793054556",
+      "main_capsule": "6328493f4cc4a8fb83e1149be1cac5a7823fe588/capsule_616x353.jpg",
+      "main_capsule_2x": "6328493f4cc4a8fb83e1149be1cac5a7823fe588/capsule_616x353_2x.jpg",
+      "small_capsule": "942c04efaa5bc87afb6f2a97dbf17ac614c8a84d/capsule_231x87.jpg",
+      "small_capsule_2x": "942c04efaa5bc87afb6f2a97dbf17ac614c8a84d/capsule_231x87_2x.jpg",
+      "header": "162664aa5da85f418105350c5d67ca565f6c3713/header.jpg",
+      "header_2x": "162664aa5da85f418105350c5d67ca565f6c3713/header_2x.jpg",
+      "page_background": "page_bg_generated_v6b.jpg",
+      "hero_capsule": "6fa459ed6388e8d5a8fd96cdb6ba60acd5210481/hero_capsule.jpg",
+      "hero_capsule_2x": "6fa459ed6388e8d5a8fd96cdb6ba60acd5210481/hero_capsule_2x.jpg",
+      "library_capsule": "library_600x900.jpg",
+      "library_capsule_2x": "library_600x900_2x.jpg",
+      "library_hero": "library_hero.jpg",
+      "library_hero_2x": "library_hero_2x.jpg",
+      "community_icon": "8dbc71957312bbd3baea65848b545be9eae2a355",
+      "page_background_path": "app/730?t=1793054556",
+      "raw_page_background": "page_bg_raw.jpg",
+      "last_modified": 1793054556
+     },
+     "release": {
+      "steam_release_date": 1345568400
+     },
+     "platforms": {
+      "windows": true,
+      "steamos_linux": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 2,
+      "steam_os_compat_category": 2,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 2
+     }
+    },
+    {
+     "item_type": 0,
+     "id": 21130,
+     "success": 1,
+     "visible": true,
+     "name": "LEGO® Harry Potter: Years 1-4",
+     "store_url_path": "app/21130/LEGO_Harry_Potter_Years_14",
+     "store_url_slug": "LEGO_Harry_Potter_Years_14",
+     "appid": 21130,
+     "type": 0,
+     "categories": {
+      "supported_player_categoryids": [
+       2,
+       1,
+       24
+      ],
+      "feature_categoryids": [
+       41,
+       42,
+       43,
+       44,
+       62
+      ],
+      "controller_categoryids": [
+       28
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 6476,
+       "percent_positive": 85,
+       "review_score": 8,
+       "review_score_label": "Very Positive"
+      },
+      "summary_language_specific": {
+       "review_count": 3089,
+       "percent_positive": 83,
+       "review_score": 8,
+       "review_score_label": "Very Positive"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/21130/${FILENAME}?t=1728579610",
+      "main_capsule": "capsule_616x353.jpg",
+      "small_capsule": "capsule_231x87.jpg",
+      "header": "header.jpg",
+      "hero_capsule": "hero_capsule.jpg",
+      "library_capsule": "library_600x900.jpg",
+      "library_capsule_2x": "library_600x900_2x.jpg",
+      "library_hero": "library_hero.jpg",
+      "community_icon": "49af7348b4b6c51181c6210cb91b858d497610a2",
+      "page_background_path": "app/21130?t=1728579610",
+      "last_modified": 1728579610
+     },
+     "release": {
+      "steam_release_date": 1277492880
+     },
+     "platforms": {
+      "windows": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 3,
+      "steam_os_compat_category": 2,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 3
+     }
+    },
+    {
+     "item_type": 0,
+     "id": 22380,
+     "success": 1,
+     "visible": true,
+     "name": "Fallout: New Vegas",
+     "store_url_path": "app/22380/Fallout_New_Vegas",
+     "store_url_slug": "Fallout_New_Vegas",
+     "appid": 22380,
+     "type": 0,
+     "categories": {
+      "supported_player_categoryids": [
+       2
+      ],
+      "feature_categoryids": [
+       22,
+       25,
+       41,
+       42,
+       62
+      ],
+      "controller_categoryids": [
+       18
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 212925,
+       "percent_positive": 95,
+       "review_score": 9,
+       "review_score_label": "Overwhelmingly Positive"
+      },
+      "summary_language_specific": {
+       "review_count": 171050,
+       "percent_positive": 96,
+       "review_score": 9,
+       "review_score_label": "Overwhelmingly Positive"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/22380/${FILENAME}?t=1765992876",
+      "main_capsule": "capsule_616x353.jpg",
+      "small_capsule": "capsule_231x87.jpg",
+      "header": "header.jpg",
+      "library_capsule": "library_600x900.jpg",
+      "library_capsule_2x": "library_600x900_2x.jpg",
+      "library_hero": "library_hero.jpg",
+      "community_icon": "1711fd8c46d739feec76bd4a64eaeeca5b87e3a7",
+      "page_background_path": "app/22380?t=1765992876",
+      "last_modified": 1765992876
+     },
+     "release": {
+      "steam_release_date": 1287474420
+     },
+     "platforms": {
+      "windows": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 2,
+      "steam_os_compat_category": 2,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 2
+     }
+    },
+    {
+     "item_type": 0,
+     "id": 22490,
+     "success": 15,
+     "visible": false,
+     "unvailable_for_country_restriction": true,
+     "name": "Fallout: New Vegas",
+     "store_url_path": "app/22490/Fallout_New_Vegas",
+     "store_url_slug": "Fallout_New_Vegas",
+     "appid": 22490
+    },
+    {
+     "item_type": 0,
+     "id": 24810,
+     "success": 1,
+     "visible": true,
+     "name": "Command & Conquer™ 3: Kane’s Wrath",
+     "store_url_path": "app/24810/Command_Conquer_3_Kanes_Wrath",
+     "store_url_slug": "Command_Conquer_3_Kanes_Wrath",
+     "appid": 24810,
+     "type": 0,
+     "categories": {
+      "supported_player_categoryids": [
+       2,
+       1
+      ],
+      "feature_categoryids": [
+       30,
+       23,
+       17,
+       62
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 5567,
+       "percent_positive": 93,
+       "review_score": 8,
+       "review_score_label": "Very Positive"
+      },
+      "summary_language_specific": {
+       "review_count": 2824,
+       "percent_positive": 94,
+       "review_score": 8,
+       "review_score_label": "Very Positive"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/24810/${FILENAME}?t=1779987212",
+      "small_capsule": "capsule_231x87.jpg",
+      "header": "header.jpg",
+      "library_capsule": "library_600x900.jpg",
+      "library_capsule_2x": "library_600x900_2x.jpg",
+      "library_hero": "library_hero.jpg",
+      "community_icon": "9a38dc5cbc37db48e5d4ff7e4f959f1864582268",
+      "page_background_path": "app/24810?t=1779987212",
+      "last_modified": 1779987212
+     },
+     "release": {
+      "steam_release_date": 1258140000
+     },
+     "platforms": {
+      "windows": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 2,
+      "steam_os_compat_category": 2,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 2
+     }
+    },
+    {
+     "item_type": 0,
+     "id": 35030,
+     "success": 15,
+     "visible": false,
+     "unvailable_for_country_restriction": true,
+     "name": "Championship Manager 2010",
+     "store_url_path": "app/35030/Championship_Manager_2010",
+     "store_url_slug": "Championship_Manager_2010",
+     "appid": 35030
+    },
+    {
+     "item_type": 0,
+     "id": 47890,
+     "success": 1,
+     "visible": true,
+     "name": "The Sims™ 3",
+     "store_url_path": "app/47890/The_Sims_3",
+     "store_url_slug": "The_Sims_3",
+     "appid": 47890,
+     "type": 0,
+     "categories": {
+      "supported_player_categoryids": [
+       2
+      ],
+      "feature_categoryids": [
+       62
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 31151,
+       "percent_positive": 85,
+       "review_score": 8,
+       "review_score_label": "Very Positive"
+      },
+      "summary_language_specific": {
+       "review_count": 20574,
+       "percent_positive": 86,
+       "review_score": 8,
+       "review_score_label": "Very Positive"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/47890/${FILENAME}?t=1738703889",
+      "main_capsule": "capsule_616x353.jpg",
+      "small_capsule": "capsule_231x87.jpg",
+      "header": "header.jpg",
+      "library_capsule": "library_600x900.jpg",
+      "library_capsule_2x": "library_600x900_2x.jpg",
+      "library_hero": "library_hero.jpg",
+      "community_icon": "9564e3a057b06fcafe81d816da9bdc07a51e8a60",
+      "page_background_path": "app/47890?t=1738703889",
+      "last_modified": 1738703889
+     },
+     "release": {
+      "steam_release_date": 1296149700,
+      "original_release_date": 1243926000
+     },
+     "platforms": {
+      "windows": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 1,
+      "steam_os_compat_category": 1,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 1
+     }
+    },
+    {
+     "item_type": 0,
+     "id": 50300,
+     "success": 1,
+     "visible": true,
+     "name": "Spec Ops: The Line",
+     "store_url_path": "app/50300/Spec_Ops_The_Line",
+     "store_url_slug": "Spec_Ops_The_Line",
+     "appid": 50300,
+     "type": 0,
+     "categories": {
+      "supported_player_categoryids": [
+       2,
+       1,
+       27
+      ],
+      "feature_categoryids": [
+       22,
+       23,
+       15,
+       25,
+       43,
+       62
+      ],
+      "controller_categoryids": [
+       28
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 56461,
+       "percent_positive": 93,
+       "review_score": 8,
+       "review_score_label": "Very Positive"
+      },
+      "summary_language_specific": {
+       "review_count": 27693,
+       "percent_positive": 92,
+       "review_score": 8,
+       "review_score_label": "Very Positive"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/50300/${FILENAME}?t=1706567828",
+      "main_capsule": "capsule_616x353.jpg",
+      "small_capsule": "capsule_231x87.jpg",
+      "header": "header.jpg",
+      "header_2x": "header.jpg",
+      "library_capsule": "library_600x900.jpg",
+      "library_capsule_2x": "library_600x900_2x.jpg",
+      "library_hero": "library_hero.jpg",
+      "library_hero_2x": "library_hero_2x.jpg",
+      "community_icon": "55ae859a90d61c08f18ed3aa0ee2579169d2c2bf",
+      "page_background_path": "app/50300?t=1706567828",
+      "last_modified": 1706567828
+     },
+     "release": {
+      "steam_release_date": 1340989200
+     },
+     "platforms": {
+      "windows": true,
+      "mac": true,
+      "steamos_linux": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 1,
+      "steam_os_compat_category": 1,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 1
+     },
+     "unlisted": true
+    },
+    {
+     "item_type": 0,
+     "id": 211970,
+     "success": 1,
+     "visible": true,
+     "name": "Test Drive: Ferrari Racing Legends",
+     "store_url_path": "app/211970/Test_Drive_Ferrari_Racing_Legends",
+     "store_url_slug": "Test_Drive_Ferrari_Racing_Legends",
+     "appid": 211970,
+     "type": 0,
+     "categories": {
+      "supported_player_categoryids": [
+       2,
+       1
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 283,
+       "percent_positive": 59,
+       "review_score": 5,
+       "review_score_label": "Mixed"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/211970/${FILENAME}?t=1447355830",
+      "main_capsule": "capsule_616x353.jpg",
+      "small_capsule": "capsule_231x87.jpg",
+      "header": "header.jpg",
+      "header_2x": "header.jpg",
+      "library_capsule": "portrait.png",
+      "community_icon": "a65a0d3483b49c3b4b8da9d92a2e753d4deb2577",
+      "page_background_path": "app/211970?t=1447355830",
+      "last_modified": 1447355830
+     },
+     "release": {
+      "steam_release_date": 1355162640
+     },
+     "platforms": {
+      "windows": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 1,
+      "steam_os_compat_category": 1,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 1
+     }
+    },
+    {
+     "item_type": 0,
+     "id": 241560,
+     "success": 1,
+     "visible": true,
+     "name": "The Crew™",
+     "store_url_path": "app/241560/The_Crew",
+     "store_url_slug": "The_Crew",
+     "appid": 241560,
+     "type": 0,
+     "categories": {
+      "supported_player_categoryids": [
+       2,
+       1,
+       20
+      ],
+      "feature_categoryids": [
+       35,
+       62
+      ],
+      "controller_categoryids": [
+       18
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 17078,
+       "percent_positive": 62,
+       "review_score": 5,
+       "review_score_label": "Mixed"
+      },
+      "summary_language_specific": {
+       "review_count": 6465,
+       "percent_positive": 56,
+       "review_score": 5,
+       "review_score_label": "Mixed"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/241560/${FILENAME}?t=1702566109",
+      "main_capsule": "capsule_616x353.jpg",
+      "small_capsule": "capsule_231x87.jpg",
+      "header": "header.jpg",
+      "header_2x": "header.jpg",
+      "library_capsule": "portrait.png",
+      "community_icon": "bab90962a5191e62e7be9784f9832441f6a88f89",
+      "page_background_path": "app/241560?t=1702566109",
+      "last_modified": 1702566109
+     },
+     "release": {
+      "steam_release_date": 1417543200
+     },
+     "platforms": {
+      "windows": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 1,
+      "steam_os_compat_category": 1,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 1
+     },
+     "unlisted": true
+    },
+    {
+     "item_type": 0,
+     "id": 271590,
+     "success": 1,
+     "visible": true,
+     "name": "Grand Theft Auto V Legacy",
+     "store_url_path": "app/271590/Grand_Theft_Auto_V_Legacy",
+     "store_url_slug": "Grand_Theft_Auto_V_Legacy",
+     "appid": 271590,
+     "type": 0,
+     "content_descriptorids": [
+      5
+     ],
+     "categories": {
+      "supported_player_categoryids": [
+       2,
+       1,
+       49,
+       36,
+       9,
+       38
+      ],
+      "feature_categoryids": [
+       22,
+       41,
+       42,
+       43
+      ],
+      "controller_categoryids": [
+       28
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 1899312,
+       "percent_positive": 88,
+       "review_score": 8,
+       "review_score_label": "Very Positive"
+      },
+      "summary_language_specific": {
+       "review_count": 586276,
+       "percent_positive": 84,
+       "review_score": 8,
+       "review_score_label": "Very Positive"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/271590/${FILENAME}?t=1765387725",
+      "main_capsule": "capsule_616x353.jpg",
+      "small_capsule": "capsule_231x87.jpg",
+      "header": "header.jpg",
+      "hero_capsule": "hero_capsule.jpg",
+      "library_capsule": "library_600x900.jpg",
+      "library_capsule_2x": "library_600x900_2x.jpg",
+      "library_hero": "library_hero.jpg",
+      "library_hero_2x": "library_hero_2x.jpg",
+      "community_icon": "1e72f87eb927fa1485e68aefaff23c7fd7178251",
+      "page_background_path": "app/271590?t=1765387725",
+      "last_modified": 1765387725
+     },
+     "release": {
+      "steam_release_date": 1428966000,
+      "original_release_date": 1428994800
+     },
+     "platforms": {
+      "windows": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 1,
+      "steam_os_compat_category": 1,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 1
+     },
+     "unlisted": true
+    },
+    {
+     "item_type": 0,
+     "id": 360430,
+     "success": 1,
+     "visible": true,
+     "name": "Mafia III: Definitive Edition",
+     "store_url_path": "app/360430/Mafia_III_Definitive_Edition",
+     "store_url_slug": "Mafia_III_Definitive_Edition",
+     "appid": 360430,
+     "type": 0,
+     "related_items": {
+      "demo_appid": [
+       600160
+      ],
+      "demos": [
+       {
+        "appid": 600160,
+        "label": "Note: Your saved progress will transfer to the full game, if purchased.",
+        "show_above_purchase": true
+       }
+      ]
+     },
+     "content_descriptorids": [
+      2,
+      5
+     ],
+     "categories": {
+      "supported_player_categoryids": [
+       2
+      ],
+      "feature_categoryids": [
+       22,
+       29,
+       23,
+       42,
+       43,
+       62
+      ],
+      "controller_categoryids": [
+       28
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 42135,
+       "percent_positive": 57,
+       "review_score": 5,
+       "review_score_label": "Mixed"
+      },
+      "summary_language_specific": {
+       "review_count": 16806,
+       "percent_positive": 61,
+       "review_score": 5,
+       "review_score_label": "Mixed"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/360430/${FILENAME}?t=1792623822",
+      "main_capsule": "capsule_616x353.jpg",
+      "small_capsule": "capsule_231x87.jpg",
+      "header": "header.jpg",
+      "page_background": "page_bg_generated_v6b.jpg",
+      "library_capsule": "library_600x900.jpg",
+      "library_capsule_2x": "library_600x900_2x.jpg",
+      "library_hero": "library_hero.jpg",
+      "library_hero_2x": "library_hero_2x.jpg",
+      "community_icon": "3df3ee0dfcb254bedbf15822c93a6983f67b0822",
+      "page_background_path": "app/360430?t=1792623822",
+      "raw_page_background": "page_bg_raw.jpg",
+      "last_modified": 1792623822
+     },
+     "release": {
+      "steam_release_date": 1589904000
+     },
+     "platforms": {
+      "windows": true,
+      "mac": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 2,
+      "steam_os_compat_category": 2,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 2
+     }
+    },
+    {
+     "item_type": 0,
+     "id": 367520,
+     "success": 1,
+     "visible": true,
+     "name": "Hollow Knight",
+     "store_url_path": "app/367520/Hollow_Knight",
+     "store_url_slug": "Hollow_Knight",
+     "appid": 367520,
+     "type": 0,
+     "categories": {
+      "supported_player_categoryids": [
+       2
+      ],
+      "feature_categoryids": [
+       22,
+       29,
+       23,
+       41,
+       42,
+       43,
+       62
+      ],
+      "controller_categoryids": [
+       28
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 507705,
+       "percent_positive": 96,
+       "review_score": 9,
+       "review_score_label": "Overwhelmingly Positive"
+      },
+      "summary_language_specific": {
+       "review_count": 185835,
+       "percent_positive": 97,
+       "review_score": 9,
+       "review_score_label": "Overwhelmingly Positive"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/367520/${FILENAME}?t=1776125684",
+      "main_capsule": "f30cc19e25cce7e46cd7dfe89f3ee7852e634232/capsule_616x353.jpg",
+      "main_capsule_2x": "f30cc19e25cce7e46cd7dfe89f3ee7852e634232/capsule_616x353_2x.jpg",
+      "small_capsule": "fba7289f4c7e90ae9c0caa87e4225f3f9111d7dd/capsule_231x87.jpg",
+      "small_capsule_2x": "fba7289f4c7e90ae9c0caa87e4225f3f9111d7dd/capsule_231x87_2x.jpg",
+      "header": "3c3489495136b26b34f8a9543c7f5645b99d388c/header.jpg",
+      "header_2x": "3c3489495136b26b34f8a9543c7f5645b99d388c/header_2x.jpg",
+      "hero_capsule": "e6cd56dba0de70a88e249fcf8721362ba24a9f82/hero_capsule.jpg",
+      "hero_capsule_2x": "e6cd56dba0de70a88e249fcf8721362ba24a9f82/hero_capsule_2x.jpg",
+      "library_capsule": "1eebc7e077ee345f126df35cd99c124273c4e4e3/library_capsule.jpg",
+      "library_capsule_2x": "1eebc7e077ee345f126df35cd99c124273c4e4e3/library_capsule_2x.jpg",
+      "library_hero": "0daf3933d392d7bb7c5a890917e20c917fcc458e/library_hero.jpg",
+      "library_hero_2x": "0daf3933d392d7bb7c5a890917e20c917fcc458e/library_hero_2x.jpg",
+      "community_icon": "f6ab055c2366237200b1a31cccbd6cf81e436d72",
+      "page_background_path": "app/367520?t=1776125684",
+      "last_modified": 1776125684
+     },
+     "release": {
+      "steam_release_date": 1487959251
+     },
+     "platforms": {
+      "windows": true,
+      "mac": true,
+      "steamos_linux": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 3,
+      "steam_os_compat_category": 2,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 3
+     }
+    },
+    {
+     "item_type": 0,
+     "id": 396420,
+     "success": 1,
+     "visible": true,
+     "name": "",
+     "store_url_path": "app/396420/",
+     "store_url_slug": "",
+     "appid": 396420,
+     "type": 0,
+     "is_free": true,
+     "categories": {
+      "feature_categoryids": [
+       62
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 73,
+       "percent_positive": 71,
+       "review_score": 6,
+       "review_score_label": "Mostly Positive"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/396420/${FILENAME}?t=1545256825",
+      "library_capsule": "portrait.png",
+      "community_icon": "acd146a794f91111e42fa43a8e2eb845c477a61a",
+      "page_background_path": "app/396420?t=1545256825",
+      "last_modified": 1545256825
+     },
+     "release": {
+      "steam_release_date": 1478035243,
+      "original_release_date": 1477983600
+     },
+     "platforms": {
+      "windows": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 0,
+      "steam_os_compat_category": 0,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 0
+     }
+    },
+    {
+     "item_type": 0,
+     "id": 473930,
+     "success": 1,
+     "visible": true,
+     "name": "Steam Gift Cards",
+     "store_url_path": "app/473930/Steam_Gift_Cards",
+     "store_url_slug": "Steam_Gift_Cards",
+     "appid": 473930,
+     "type": 14,
+     "categories": {
+      "feature_categoryids": [
+       62
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 0,
+       "percent_positive": 0,
+       "review_score": 0,
+       "review_score_label": "No user reviews"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/473930/${FILENAME}?t=1550882945",
+      "main_capsule": "capsule_616x353.jpg",
+      "small_capsule": "capsule_231x87.jpg",
+      "header": "header.jpg",
+      "header_2x": "header.jpg",
+      "page_background": "page_bg_generated_v6b.jpg",
+      "library_capsule": "portrait.png",
+      "page_background_path": "app/473930?t=1550882945",
+      "raw_page_background": "page_bg_raw.jpg",
+      "last_modified": 1550882945
+     },
+     "release": {
+      "steam_release_date": 1462125600
+     },
+     "platforms": {
+      "windows": true,
+      "mac": true,
+      "steamos_linux": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 0,
+      "steam_os_compat_category": 0,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 0
+     },
+     "store_url_path_override": "http://store.steampowered.com/digitalgiftcards/"
+    },
+    {
+     "item_type": 0,
+     "id": 639770,
+     "success": 1,
+     "visible": true,
+     "name": "UNTITLED",
+     "store_url_path": "app/639770/UNTITLED",
+     "store_url_slug": "UNTITLED",
+     "appid": 639770,
+     "type": 0,
+     "is_free": true,
+     "related_items": {
+      "demo_appid": [
+       673080
+      ],
+      "demos": [
+       {
+        "appid": 673080,
+        "label": "UNTITLED Demo",
+        "show_above_purchase": false
+       }
+      ]
+     },
+     "categories": {
+      "supported_player_categoryids": [
+       2
+      ],
+      "feature_categoryids": [
+       22,
+       52,
+       54,
+       29,
+       62
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 60,
+       "percent_positive": 95,
+       "review_score": 8,
+       "review_score_label": "Very Positive"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/639770/${FILENAME}?t=1699294047",
+      "main_capsule": "capsule_616x353.jpg",
+      "small_capsule": "capsule_231x87.jpg",
+      "header": "header.jpg",
+      "header_2x": "header.jpg",
+      "page_background": "page_bg_generated_v6b.jpg",
+      "library_capsule": "library_600x900.jpg",
+      "library_capsule_2x": "library_600x900_2x.jpg",
+      "library_hero": "library_hero.jpg",
+      "community_icon": "c4fca38c791b8dce7c6f2f92f2b0a502395a87af",
+      "page_background_path": "app/639770?t=1699294047",
+      "raw_page_background": "page_bg_raw.jpg",
+      "last_modified": 1699294047
+     },
+     "release": {
+      "steam_release_date": 1496422740
+     },
+     "platforms": {
+      "windows": true,
+      "vr_support": {
+       "vrhmd": true,
+       "vrhmd_only": true,
+       "htc_vive": true,
+       "oculus_rift": true,
+       "valve_index": true
+      },
+      "steam_deck_compat_category": 1,
+      "steam_os_compat_category": 0,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 0
+     }
+    },
+    {
+     "item_type": 0,
+     "id": 644560,
+     "success": 1,
+     "visible": true,
+     "name": "Mirror",
+     "store_url_path": "app/644560/Mirror",
+     "store_url_slug": "Mirror",
+     "appid": 644560,
+     "type": 0,
+     "content_descriptorids": [
+      1,
+      3,
+      4,
+      5
+     ],
+     "categories": {
+      "supported_player_categoryids": [
+       2
+      ],
+      "feature_categoryids": [
+       22,
+       29,
+       23,
+       41,
+       42,
+       62
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 72539,
+       "percent_positive": 96,
+       "review_score": 9,
+       "review_score_label": "Overwhelmingly Positive"
+      },
+      "summary_unfiltered": {
+       "review_count": 73166,
+       "percent_positive": 95,
+       "review_score": 9,
+       "review_score_label": "Overwhelmingly Positive"
+      },
+      "summary_language_specific": {
+       "review_count": 7487,
+       "percent_positive": 90,
+       "review_score": 8,
+       "review_score_label": "Very Positive"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/644560/${FILENAME}?t=1665690863",
+      "main_capsule": "capsule_616x353.jpg",
+      "small_capsule": "capsule_231x87.jpg",
+      "header": "header.jpg",
+      "header_2x": "header.jpg",
+      "page_background": "page_bg_generated_v6b.jpg",
+      "hero_capsule": "hero_capsule.jpg",
+      "library_capsule": "library_600x900.jpg",
+      "library_capsule_2x": "library_600x900_2x.jpg",
+      "library_hero": "library_hero.jpg",
+      "library_hero_2x": "library_hero_2x.jpg",
+      "community_icon": "557469e128dcd3574436cd970501b59d02661356",
+      "page_background_path": "app/644560?t=1665690863",
+      "raw_page_background": "page_bg_raw.jpg",
+      "last_modified": 1665690863
+     },
+     "release": {
+      "steam_release_date": 1524123240,
+      "original_steam_release_date": 1510112820
+     },
+     "platforms": {
+      "windows": true,
+      "mac": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 2,
+      "steam_os_compat_category": 2,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 3
+     }
+    },
+    {
+     "item_type": 0,
+     "id": 708030,
+     "success": 1,
+     "visible": true,
+     "name": "",
+     "store_url_path": "app/708030/",
+     "store_url_slug": "",
+     "appid": 708030,
+     "type": 0,
+     "is_free": true,
+     "categories": {
+      "feature_categoryids": [
+       62
+      ],
+      "controller_categoryids": [
+       18
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 0,
+       "percent_positive": 0,
+       "review_score": 0,
+       "review_score_label": "No user reviews"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/708030/${FILENAME}?t=1748562099",
+      "library_capsule": "portrait.png",
+      "community_icon": "5073dad54731fb1bb9fa427882cd2dff5829f0b8",
+      "page_background_path": "app/708030?t=1748562099",
+      "last_modified": 1748562099
+     },
+     "release": {
+      "is_coming_soon": true
+     },
+     "platforms": {
+      "windows": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 0,
+      "steam_os_compat_category": 0,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 0
+     },
+     "is_coming_soon": true
+    },
+    {
+     "item_type": 0,
+     "id": 755800,
+     "success": 1,
+     "visible": true,
+     "name": "Hades' Star",
+     "store_url_path": "app/755800/Hades_Star",
+     "store_url_slug": "Hades_Star",
+     "appid": 755800,
+     "type": 0,
+     "is_free": true,
+     "categories": {
+      "supported_player_categoryids": [
+       1,
+       20,
+       49,
+       36,
+       9,
+       38,
+       27
+      ],
+      "feature_categoryids": [
+       22,
+       35,
+       62
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 2696,
+       "percent_positive": 73,
+       "review_score": 6,
+       "review_score_label": "Mostly Positive"
+      },
+      "summary_language_specific": {
+       "review_count": 1239,
+       "percent_positive": 74,
+       "review_score": 6,
+       "review_score_label": "Mostly Positive"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/755800/${FILENAME}?t=1760538814",
+      "main_capsule": "capsule_616x353.jpg",
+      "small_capsule": "capsule_231x87.jpg",
+      "header": "header.jpg",
+      "page_background": "page_bg_generated_v6b.jpg",
+      "hero_capsule": "hero_capsule.jpg",
+      "library_capsule": "library_600x900.jpg",
+      "library_capsule_2x": "library_600x900_2x.jpg",
+      "library_hero": "library_hero.jpg",
+      "library_hero_2x": "library_hero_2x.jpg",
+      "community_icon": "e99d04ff4105b45a6e26931beb18805f1f7ecd10",
+      "page_background_path": "app/755800?t=1760538814",
+      "raw_page_background": "page_bg_raw.jpg",
+      "last_modified": 1760538814
+     },
+     "release": {
+      "steam_release_date": 1551282908
+     },
+     "platforms": {
+      "windows": true,
+      "mac": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 3,
+      "steam_os_compat_category": 2,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 3
+     }
+    },
+    {
+     "item_type": 0,
+     "id": 837470,
+     "success": 1,
+     "visible": true,
+     "name": "Untitled Goose Game",
+     "store_url_path": "app/837470/Untitled_Goose_Game",
+     "store_url_slug": "Untitled_Goose_Game",
+     "appid": 837470,
+     "type": 0,
+     "categories": {
+      "supported_player_categoryids": [
+       2,
+       1,
+       9,
+       39,
+       24
+      ],
+      "feature_categoryids": [
+       22,
+       23,
+       41,
+       42,
+       43,
+       44,
+       62
+      ],
+      "controller_categoryids": [
+       28,
+       55,
+       56
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 23022,
+       "percent_positive": 95,
+       "review_score": 9,
+       "review_score_label": "Overwhelmingly Positive"
+      },
+      "summary_language_specific": {
+       "review_count": 10399,
+       "percent_positive": 96,
+       "review_score": 9,
+       "review_score_label": "Overwhelmingly Positive"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/837470/${FILENAME}?t=1699052664",
+      "main_capsule": "capsule_616x353.jpg",
+      "small_capsule": "capsule_231x87.jpg",
+      "header": "header.jpg",
+      "header_2x": "header.jpg",
+      "hero_capsule": "hero_capsule.jpg",
+      "library_capsule": "library_600x900.jpg",
+      "library_capsule_2x": "library_600x900_2x.jpg",
+      "library_hero": "library_hero.jpg",
+      "library_hero_2x": "library_hero_2x.jpg",
+      "community_icon": "6e2e1a85218053fbb1bca010bf28d73f1bec1965",
+      "page_background_path": "app/837470?t=1699052664",
+      "last_modified": 1699052664
+     },
+     "release": {
+      "steam_release_date": 1600880340
+     },
+     "platforms": {
+      "windows": true,
+      "mac": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 3,
+      "steam_os_compat_category": 2,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 3
+     }
+    },
+    {
+     "item_type": 0,
+     "id": 866490,
+     "success": 1,
+     "visible": true,
+     "name": "TestApp",
+     "store_url_path": "app/866490/TestApp",
+     "store_url_slug": "TestApp",
+     "appid": 866490,
+     "type": 0,
+     "categories": {
+      "feature_categoryids": [
+       62
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 0,
+       "percent_positive": 0,
+       "review_score": 0,
+       "review_score_label": "No user reviews"
+      }
+     },
+     "release": {},
+     "platforms": {
+      "windows": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 0,
+      "steam_os_compat_category": 0,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 0
+     }
+    },
+    {
+     "item_type": 0,
+     "id": 1025620,
+     "success": 1,
+     "visible": true,
+     "name": "Untitled",
+     "store_url_path": "app/1025620/Untitled",
+     "store_url_slug": "Untitled",
+     "appid": 1025620,
+     "type": 0,
+     "is_free": true,
+     "categories": {
+      "supported_player_categoryids": [
+       2
+      ],
+      "feature_categoryids": [
+       62
+      ],
+      "controller_categoryids": [
+       18
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 0,
+       "percent_positive": 0,
+       "review_score": 0,
+       "review_score_label": "No user reviews"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/1025620/${FILENAME}?t=1708429678",
+      "library_capsule": "portrait.png",
+      "community_icon": "0608e7604efe80f546ef037556b721b125a1f943",
+      "page_background_path": "app/1025620?t=1708429678",
+      "last_modified": 1708429678
+     },
+     "release": {
+      "original_release_date": 0,
+      "is_coming_soon": true,
+      "custom_release_date_message": "Coming soon",
+      "coming_soon_display": "text_comingsoon"
+     },
+     "platforms": {
+      "windows": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 0,
+      "steam_os_compat_category": 0,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 0
+     },
+     "is_coming_soon": true
+    },
+    {
+     "item_type": 0,
+     "id": 1086940,
+     "success": 1,
+     "visible": true,
+     "name": "Baldur's Gate 3",
+     "store_url_path": "app/1086940/Baldurs_Gate_3",
+     "store_url_slug": "Baldurs_Gate_3",
+     "appid": 1086940,
+     "type": 0,
+     "content_descriptorids": [
+      1,
+      2,
+      5
+     ],
+     "categories": {
+      "supported_player_categoryids": [
+       2,
+       1,
+       9,
+       38,
+       48,
+       27
+      ],
+      "feature_categoryids": [
+       22,
+       29,
+       64,
+       65,
+       66,
+       67,
+       68,
+       69,
+       70,
+       74,
+       78,
+       79,
+       23,
+       43,
+       44,
+       62
+      ],
+      "controller_categoryids": [
+       28,
+       55,
+       56,
+       57,
+       58
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 760008,
+       "percent_positive": 96,
+       "review_score": 9,
+       "review_score_label": "Overwhelmingly Positive"
+      },
+      "summary_language_specific": {
+       "review_count": 451648,
+       "percent_positive": 96,
+       "review_score": 9,
+       "review_score_label": "Overwhelmingly Positive"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/1086940/${FILENAME}?t=1777363040",
+      "main_capsule": "59827b3d0abf2f29adacfe72fdfd11059d6974e2/capsule_616x353.jpg",
+      "main_capsule_2x": "59827b3d0abf2f29adacfe72fdfd11059d6974e2/capsule_616x353_2x.jpg",
+      "small_capsule": "3dd81008e9c385caf68152450c22353f6a8abec9/capsule_231x87.jpg",
+      "small_capsule_2x": "3dd81008e9c385caf68152450c22353f6a8abec9/capsule_231x87_2x.jpg",
+      "header": "48a2fcbda8565bb45025e98fd8ebde8a7203f6a0/header.jpg",
+      "header_2x": "48a2fcbda8565bb45025e98fd8ebde8a7203f6a0/header_2x.jpg",
+      "page_background": "page_bg_generated_v6b.jpg",
+      "hero_capsule": "hero_capsule.jpg",
+      "library_capsule": "library_600x900.jpg",
+      "library_capsule_2x": "library_600x900_2x.jpg",
+      "library_hero": "library_hero.jpg",
+      "library_hero_2x": "library_hero_2x.jpg",
+      "community_icon": "d866cae7ea1e471fdbc206287111f1b642373bd9",
+      "page_background_path": "app/1086940?t=1777363040",
+      "raw_page_background": "page_bg_raw.jpg",
+      "last_modified": 1777363040
+     },
+     "release": {
+      "steam_release_date": 1691074826
+     },
+     "platforms": {
+      "windows": true,
+      "mac": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 3,
+      "steam_os_compat_category": 2,
+      "steam_frame_compat_category": 1,
+      "steam_machine_compat_category": 3
+     }
+    },
+    {
+     "item_type": 0,
+     "id": 1145350,
+     "success": 1,
+     "visible": true,
+     "name": "Hades II",
+     "store_url_path": "app/1145350/Hades_II",
+     "store_url_slug": "Hades_II",
+     "appid": 1145350,
+     "type": 0,
+     "categories": {
+      "supported_player_categoryids": [
+       2
+      ],
+      "feature_categoryids": [
+       22,
+       29,
+       13,
+       23,
+       62
+      ],
+      "controller_categoryids": [
+       28,
+       55,
+       56,
+       57,
+       58
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 115552,
+       "percent_positive": 95,
+       "review_score": 9,
+       "review_score_label": "Overwhelmingly Positive"
+      },
+      "summary_language_specific": {
+       "review_count": 66197,
+       "percent_positive": 96,
+       "review_score": 9,
+       "review_score_label": "Overwhelmingly Positive"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/1145350/${FILENAME}?t=1779901265",
+      "main_capsule": "65e1c51cf2950d70209d63e288d1c5ba3f86044b/capsule_616x353.jpg",
+      "main_capsule_2x": "65e1c51cf2950d70209d63e288d1c5ba3f86044b/capsule_616x353_2x.jpg",
+      "small_capsule": "10c9138570a8d7ac9144f601ab0f2ccbc820337e/capsule_231x87.jpg",
+      "small_capsule_2x": "10c9138570a8d7ac9144f601ab0f2ccbc820337e/capsule_231x87_2x.jpg",
+      "header": "91ac334a2c137d08968ccc0bc474a02579602100/header.jpg",
+      "header_2x": "91ac334a2c137d08968ccc0bc474a02579602100/header_2x.jpg",
+      "page_background": "page_bg_generated_v6b.jpg",
+      "hero_capsule": "a783c3347d40597930d282fa6727044c214e4be1/hero_capsule.jpg",
+      "hero_capsule_2x": "a783c3347d40597930d282fa6727044c214e4be1/hero_capsule_2x.jpg",
+      "library_capsule": "2ba105370a00877459144db0dd68af5f2d338429/library_capsule.jpg",
+      "library_capsule_2x": "2ba105370a00877459144db0dd68af5f2d338429/library_capsule_2x.jpg",
+      "library_hero": "2d2e4115cc8ef9a9f64164714a6f18112dd4831a/library_hero.jpg",
+      "library_hero_2x": "2d2e4115cc8ef9a9f64164714a6f18112dd4831a/library_hero_2x.jpg",
+      "community_icon": "621d9f1cfa204c0bae07a981f41007d2cf03a56c",
+      "page_background_path": "app/1145350?t=1779901265",
+      "raw_page_background": "page_bg_raw.jpg",
+      "last_modified": 1779901265
+     },
+     "release": {
+      "steam_release_date": 1758816089,
+      "original_steam_release_date": 1715014173
+     },
+     "platforms": {
+      "windows": true,
+      "mac": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 3,
+      "steam_os_compat_category": 2,
+      "steam_frame_compat_category": 3,
+      "steam_machine_compat_category": 3
+     }
+    },
+    {
+     "item_type": 0,
+     "id": 1145360,
+     "success": 1,
+     "visible": true,
+     "name": "Hades",
+     "store_url_path": "app/1145360/Hades",
+     "store_url_slug": "Hades",
+     "appid": 1145360,
+     "type": 0,
+     "categories": {
+      "supported_player_categoryids": [
+       2
+      ],
+      "feature_categoryids": [
+       22,
+       29,
+       13,
+       23,
+       41,
+       42,
+       43,
+       62
+      ],
+      "controller_categoryids": [
+       28
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 287552,
+       "percent_positive": 97,
+       "review_score": 9,
+       "review_score_label": "Overwhelmingly Positive"
+      },
+      "summary_language_specific": {
+       "review_count": 143179,
+       "percent_positive": 98,
+       "review_score": 9,
+       "review_score_label": "Overwhelmingly Positive"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/1145360/${FILENAME}?t=1758127023",
+      "main_capsule": "capsule_616x353.jpg",
+      "small_capsule": "capsule_231x87.jpg",
+      "header": "header.jpg",
+      "page_background": "page_bg_generated_v6b.jpg",
+      "hero_capsule": "hero_capsule.jpg",
+      "library_capsule": "library_600x900.jpg",
+      "library_capsule_2x": "library_600x900_2x.jpg",
+      "library_hero": "library_hero.jpg",
+      "library_hero_2x": "library_hero_2x.jpg",
+      "community_icon": "8a3fca36a00883e8066263ad35dd15d77a1f9abc",
+      "page_background_path": "app/1145360?t=1758127023",
+      "raw_page_background": "page_bg_raw.jpg",
+      "last_modified": 1758127023
+     },
+     "release": {
+      "steam_release_date": 1600353507,
+      "original_steam_release_date": 1575997560
+     },
+     "platforms": {
+      "windows": true,
+      "mac": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 3,
+      "steam_os_compat_category": 2,
+      "steam_frame_compat_category": 3,
+      "steam_machine_compat_category": 3
+     }
+    },
+    {
+     "item_type": 0,
+     "id": 1180320,
+     "success": 1,
+     "visible": true,
+     "name": " War of the Three Kingdoms",
+     "store_url_path": "app/1180320/_War_of_the_Three_Kingdoms",
+     "store_url_slug": "_War_of_the_Three_Kingdoms",
+     "appid": 1180320,
+     "type": 0,
+     "is_free": true,
+     "categories": {
+      "supported_player_categoryids": [
+       1,
+       20,
+       49,
+       36,
+       9,
+       38
+      ],
+      "feature_categoryids": [
+       35,
+       62
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 82644,
+       "percent_positive": 10,
+       "review_score": 1,
+       "review_score_label": "Overwhelmingly Negative"
+      },
+      "summary_language_specific": {
+       "review_count": 508,
+       "percent_positive": 17,
+       "review_score": 1,
+       "review_score_label": "Overwhelmingly Negative"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/1180320/${FILENAME}?t=1789987026",
+      "main_capsule": "a7bc795430ee893972eeeaa88ff3ba36d0489942/capsule_616x353.jpg",
+      "main_capsule_2x": "a7bc795430ee893972eeeaa88ff3ba36d0489942/capsule_616x353_2x.jpg",
+      "small_capsule": "982a544fbf342e64045cc24e7db4835fa9411dce/capsule_231x87.jpg",
+      "small_capsule_2x": "982a544fbf342e64045cc24e7db4835fa9411dce/capsule_231x87_2x.jpg",
+      "header": "755fc1e2930bfe710310b1c3729be56e2b093ff6/header.jpg",
+      "header_2x": "755fc1e2930bfe710310b1c3729be56e2b093ff6/header_2x.jpg",
+      "page_background": "page_bg_generated_v6b.jpg",
+      "hero_capsule": "b53b282ff9d9c18b0d6c7bbcab7d3403def8d71c/hero_capsule.jpg",
+      "hero_capsule_2x": "b53b282ff9d9c18b0d6c7bbcab7d3403def8d71c/hero_capsule_2x.jpg",
+      "library_capsule": "fd3685002db284e50c1d2bc3af2131a289caa0f2/library_600x900.jpg",
+      "library_capsule_2x": "fd3685002db284e50c1d2bc3af2131a289caa0f2/library_600x900_2x.jpg",
+      "library_hero": "9529c9f1a1d75af6a178540b8c238d2669b5659e/library_hero.jpg",
+      "library_hero_2x": "9529c9f1a1d75af6a178540b8c238d2669b5659e/library_hero_2x.jpg",
+      "community_icon": "9ec984a978888c5911096cc2e978d201275706d4",
+      "page_background_path": "app/1180320?t=1789987026",
+      "raw_page_background": "page_bg_raw.jpg",
+      "last_modified": 1789987026
+     },
+     "release": {
+      "steam_release_date": 1639756680
+     },
+     "platforms": {
+      "windows": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 3,
+      "steam_os_compat_category": 2,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 3
+     }
+    },
+    {
+     "item_type": 0,
+     "id": 1245620,
+     "success": 1,
+     "visible": true,
+     "name": "ELDEN RING",
+     "store_url_path": "app/1245620/ELDEN_RING",
+     "store_url_slug": "ELDEN_RING",
+     "appid": 1245620,
+     "type": 0,
+     "content_descriptorids": [
+      2,
+      5
+     ],
+     "categories": {
+      "supported_player_categoryids": [
+       2,
+       1,
+       49,
+       36,
+       9,
+       38
+      ],
+      "feature_categoryids": [
+       22,
+       29,
+       67,
+       68,
+       69,
+       70,
+       74,
+       79,
+       23,
+       62
+      ],
+      "controller_categoryids": [
+       28
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 834970,
+       "percent_positive": 93,
+       "review_score": 8,
+       "review_score_label": "Very Positive"
+      },
+      "summary_language_specific": {
+       "review_count": 437153,
+       "percent_positive": 94,
+       "review_score": 8,
+       "review_score_label": "Very Positive"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/1245620/${FILENAME}?t=1790290043",
+      "main_capsule": "capsule_616x353.jpg",
+      "small_capsule": "capsule_231x87.jpg",
+      "header": "header.jpg",
+      "page_background": "page_bg_generated_v6b.jpg",
+      "hero_capsule": "hero_capsule.jpg",
+      "library_capsule": "library_600x900.jpg",
+      "library_capsule_2x": "library_600x900_2x.jpg",
+      "library_hero": "library_hero.jpg",
+      "library_hero_2x": "library_hero_2x.jpg",
+      "community_icon": "b6e290dd5a92ce98f89089a207733c70c41a1871",
+      "page_background_path": "app/1245620?t=1790290043",
+      "raw_page_background": "page_bg_raw.jpg",
+      "edition_comparison": "74a5e0bf6820afb6e0056cc7d5e3ed346f3ce083/edition_comparision.png",
+      "last_modified": 1790290043
+     },
+     "release": {
+      "steam_release_date": 1645744078
+     },
+     "platforms": {
+      "windows": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 3,
+      "steam_os_compat_category": 2,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 3
+     }
+    },
+    {
+     "item_type": 0,
+     "id": 1293830,
+     "success": 1,
+     "visible": true,
+     "name": "Forza Horizon 4",
+     "store_url_path": "app/1293830/Forza_Horizon_4",
+     "store_url_slug": "Forza_Horizon_4",
+     "appid": 1293830,
+     "type": 0,
+     "categories": {
+      "supported_player_categoryids": [
+       2,
+       1,
+       49,
+       36,
+       9,
+       38,
+       27
+      ],
+      "feature_categoryids": [
+       22,
+       29,
+       23,
+       62
+      ],
+      "controller_categoryids": [
+       28
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 303566,
+       "percent_positive": 90,
+       "review_score": 8,
+       "review_score_label": "Very Positive"
+      },
+      "summary_language_specific": {
+       "review_count": 58249,
+       "percent_positive": 89,
+       "review_score": 8,
+       "review_score_label": "Very Positive"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/1293830/${FILENAME}?t=1734336342",
+      "main_capsule": "capsule_616x353.jpg",
+      "small_capsule": "capsule_231x87.jpg",
+      "header": "header.jpg",
+      "page_background": "page_bg_generated_v6b.jpg",
+      "hero_capsule": "hero_capsule.jpg",
+      "library_capsule": "library_600x900.jpg",
+      "library_capsule_2x": "library_600x900_2x.jpg",
+      "library_hero": "library_hero.jpg",
+      "community_icon": "7c993f9089d54fe2767efec47b75a7009cdd632e",
+      "page_background_path": "app/1293830?t=1734336342",
+      "raw_page_background": "page_bg_raw.jpg",
+      "last_modified": 1734336342
+     },
+     "release": {
+      "steam_release_date": 1615312080,
+      "original_release_date": 0
+     },
+     "platforms": {
+      "windows": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 2,
+      "steam_os_compat_category": 2,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 2
+     },
+     "unlisted": true
+    },
+    {
+     "item_type": 0,
+     "id": 1382330,
+     "success": 1,
+     "visible": true,
+     "name": "Persona® 5 Strikers",
+     "store_url_path": "app/1382330/Persona_5_Strikers",
+     "store_url_slug": "Persona_5_Strikers",
+     "appid": 1382330,
+     "type": 0,
+     "content_descriptorids": [
+      1,
+      2,
+      5
+     ],
+     "categories": {
+      "supported_player_categoryids": [
+       2
+      ],
+      "feature_categoryids": [
+       22,
+       29,
+       62
+      ],
+      "controller_categoryids": [
+       28,
+       55,
+       56
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 12953,
+       "percent_positive": 88,
+       "review_score": 8,
+       "review_score_label": "Very Positive"
+      },
+      "summary_language_specific": {
+       "review_count": 7088,
+       "percent_positive": 90,
+       "review_score": 8,
+       "review_score_label": "Very Positive"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/1382330/${FILENAME}?t=1763530465",
+      "main_capsule": "capsule_616x353.jpg",
+      "small_capsule": "capsule_231x87.jpg",
+      "header": "header.jpg",
+      "page_background": "page_bg_generated_v6b.jpg",
+      "library_capsule": "library_600x900.jpg",
+      "library_capsule_2x": "library_600x900_2x.jpg",
+      "library_hero": "library_hero.jpg",
+      "library_hero_2x": "library_hero_2x.jpg",
+      "community_icon": "9b13b0d6d6776fccc99f38289502c127592a9c4e",
+      "page_background_path": "app/1382330?t=1763530465",
+      "raw_page_background": "page_bg_raw.jpg",
+      "last_modified": 1763530465
+     },
+     "release": {
+      "steam_release_date": 1614056220
+     },
+     "platforms": {
+      "windows": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 1,
+      "steam_os_compat_category": 1,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 1
+     }
+    },
+    {
+     "item_type": 0,
+     "id": 1462040,
+     "success": 1,
+     "visible": true,
+     "name": "FINAL FANTASY VII REMAKE INTERGRADE",
+     "store_url_path": "app/1462040/FINAL_FANTASY_VII_REMAKE_INTERGRADE",
+     "store_url_slug": "FINAL_FANTASY_VII_REMAKE_INTERGRADE",
+     "appid": 1462040,
+     "type": 0,
+     "categories": {
+      "supported_player_categoryids": [
+       2
+      ],
+      "feature_categoryids": [
+       22,
+       29,
+       68,
+       69,
+       70,
+       75,
+       78,
+       23,
+       62
+      ],
+      "controller_categoryids": [
+       55,
+       57,
+       58,
+       60,
+       18
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 45434,
+       "percent_positive": 86,
+       "review_score": 8,
+       "review_score_label": "Very Positive"
+      },
+      "summary_language_specific": {
+       "review_count": 21815,
+       "percent_positive": 86,
+       "review_score": 8,
+       "review_score_label": "Very Positive"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/1462040/${FILENAME}?t=1789446715",
+      "main_capsule": "capsule_616x353.jpg",
+      "small_capsule": "ec805ec87558eb40c712c7cca4eabc2e83cb57f7/capsule_231x87.jpg",
+      "small_capsule_2x": "ec805ec87558eb40c712c7cca4eabc2e83cb57f7/capsule_231x87_2x.jpg",
+      "header": "67aebedbdfc261278fc5e3cd45b519212ac0555a/header.jpg",
+      "header_2x": "67aebedbdfc261278fc5e3cd45b519212ac0555a/header_2x.jpg",
+      "page_background": "page_bg_generated_v6b.jpg",
+      "hero_capsule": "hero_capsule.jpg",
+      "library_capsule": "library_600x900.jpg",
+      "library_capsule_2x": "library_600x900_2x.jpg",
+      "library_hero": "library_hero.jpg",
+      "library_hero_2x": "library_hero_2x.jpg",
+      "community_icon": "3cf19bc8fa3bc953d68a9b46b0a7555839188da0",
+      "page_background_path": "app/1462040?t=1789446715",
+      "raw_page_background": "page_bg_raw.jpg",
+      "last_modified": 1789446715
+     },
+     "release": {
+      "steam_release_date": 1655449235
+     },
+     "platforms": {
+      "windows": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 3,
+      "steam_os_compat_category": 2,
+      "steam_frame_compat_category": 2,
+      "steam_machine_compat_category": 3
+     }
+    },
+    {
+     "item_type": 0,
+     "id": 1468810,
+     "success": 1,
+     "visible": true,
+     "name": "鬼谷八荒 Tale of Immortal",
+     "store_url_path": "app/1468810/鬼谷八荒_Tale_of_Immortal",
+     "store_url_slug": "鬼谷八荒_Tale_of_Immortal",
+     "appid": 1468810,
+     "type": 0,
+     "categories": {
+      "supported_player_categoryids": [
+       2
+      ],
+      "feature_categoryids": [
+       22,
+       30,
+       23,
+       42,
+       62
+      ],
+      "controller_categoryids": [
+       28,
+       55
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 190344,
+       "percent_positive": 56,
+       "review_score": 5,
+       "review_score_label": "Mixed"
+      },
+      "summary_language_specific": {
+       "review_count": 3820,
+       "percent_positive": 79,
+       "review_score": 6,
+       "review_score_label": "Mostly Positive"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/1468810/${FILENAME}?t=1769479020",
+      "main_capsule": "capsule_616x353.jpg",
+      "small_capsule": "capsule_231x87.jpg",
+      "header": "header.jpg",
+      "hero_capsule": "hero_capsule.jpg",
+      "library_capsule": "library_600x900.jpg",
+      "library_capsule_2x": "library_600x900_2x.jpg",
+      "library_hero": "library_hero.jpg",
+      "community_icon": "51a531645724df6f419ce89c1d8c34b2b2355428",
+      "page_background_path": "app/1468810?t=1769479020",
+      "last_modified": 1769479020
+     },
+     "release": {
+      "steam_release_date": 1685099515,
+      "original_release_date": 0,
+      "original_steam_release_date": 1611738077
+     },
+     "platforms": {
+      "windows": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 2,
+      "steam_os_compat_category": 2,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 2
+     }
+    },
+    {
+     "item_type": 0,
+     "id": 1609230,
+     "success": 1,
+     "visible": true,
+     "name": "Scarlet Hollow",
+     "store_url_path": "app/1609230/Scarlet_Hollow",
+     "store_url_slug": "Scarlet_Hollow",
+     "appid": 1609230,
+     "type": 0,
+     "is_early_access": true,
+     "related_items": {
+      "demo_appid": [
+       3512530
+      ],
+      "demos": [
+       {
+        "appid": 3512530,
+        "show_above_purchase": true
+       }
+      ]
+     },
+     "content_descriptorids": [
+      5
+     ],
+     "categories": {
+      "supported_player_categoryids": [
+       2
+      ],
+      "feature_categoryids": [
+       22,
+       64,
+       65,
+       66,
+       68,
+       71,
+       74,
+       75,
+       76,
+       79,
+       23,
+       62
+      ],
+      "controller_categoryids": [
+       28
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 4950,
+       "percent_positive": 97,
+       "review_score": 9,
+       "review_score_label": "Overwhelmingly Positive"
+      },
+      "summary_language_specific": {
+       "review_count": 4257,
+       "percent_positive": 98,
+       "review_score": 9,
+       "review_score_label": "Overwhelmingly Positive"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/1609230/${FILENAME}?t=1790184504",
+      "main_capsule": "1babf13c1137af5b72515e541b24c0cde0dae071/capsule_616x353.jpg",
+      "main_capsule_2x": "1babf13c1137af5b72515e541b24c0cde0dae071/capsule_616x353_2x.jpg",
+      "small_capsule": "04f5a3975b399c174de0708f1da9b89e78872cf9/capsule_231x87.jpg",
+      "small_capsule_2x": "04f5a3975b399c174de0708f1da9b89e78872cf9/capsule_231x87_2x.jpg",
+      "header": "d4f8fbd2a9e2dee092816572ffc1e45a30e24568/header.jpg",
+      "header_2x": "d4f8fbd2a9e2dee092816572ffc1e45a30e24568/header_2x.jpg",
+      "page_background": "page_bg_generated_v6b.jpg",
+      "hero_capsule": "629a96e775c540edf225e6398efc707429452855/hero_capsule.jpg",
+      "hero_capsule_2x": "629a96e775c540edf225e6398efc707429452855/hero_capsule_2x.jpg",
+      "library_capsule": "cd63dabf096f5320cf1e218acb60571c68cf3d06/library_600x900.jpg",
+      "library_capsule_2x": "cd63dabf096f5320cf1e218acb60571c68cf3d06/library_600x900_2x.jpg",
+      "library_hero": "library_hero.jpg",
+      "library_hero_2x": "library_hero_2x.jpg",
+      "community_icon": "fe99426fffbf5f37fd994ae82ad6340d68e5d120",
+      "page_background_path": "app/1609230?t=1790184504",
+      "raw_page_background": "page_bg_raw.jpg",
+      "last_modified": 1790184504
+     },
+     "release": {
+      "steam_release_date": 1623436899,
+      "is_early_access": true
+     },
+     "platforms": {
+      "windows": true,
+      "mac": true,
+      "steamos_linux": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 3,
+      "steam_os_compat_category": 2,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 3
+     }
+    },
+    {
+     "item_type": 0,
+     "id": 1888930,
+     "success": 1,
+     "visible": true,
+     "name": "The Last of Us™ Part I",
+     "store_url_path": "app/1888930/The_Last_of_Us_Part_I",
+     "store_url_slug": "The_Last_of_Us_Part_I",
+     "appid": 1888930,
+     "type": 0,
+     "content_descriptorids": [
+      2,
+      5
+     ],
+     "categories": {
+      "supported_player_categoryids": [
+       2
+      ],
+      "feature_categoryids": [
+       22,
+       29,
+       64,
+       65,
+       66,
+       67,
+       68,
+       69,
+       70,
+       71,
+       78,
+       79,
+       23,
+       43,
+       62
+      ],
+      "controller_categoryids": [
+       28,
+       55,
+       56,
+       57,
+       58,
+       60
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 67457,
+       "percent_positive": 85,
+       "review_score": 8,
+       "review_score_label": "Very Positive"
+      },
+      "summary_language_specific": {
+       "review_count": 29944,
+       "percent_positive": 84,
+       "review_score": 8,
+       "review_score_label": "Very Positive"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/1888930/${FILENAME}?t=1750959031",
+      "main_capsule": "capsule_616x353.jpg",
+      "small_capsule": "capsule_231x87.jpg",
+      "header": "header.jpg",
+      "page_background": "page_bg_generated_v6b.jpg",
+      "hero_capsule": "hero_capsule.jpg",
+      "library_capsule": "library_600x900.jpg",
+      "library_capsule_2x": "library_600x900_2x.jpg",
+      "library_hero": "library_hero.jpg",
+      "community_icon": "6991d13038a61e35bade3aabea400c74bbbf966d",
+      "page_background_path": "app/1888930?t=1750959031",
+      "raw_page_background": "page_bg_raw.jpg",
+      "last_modified": 1750959031
+     },
+     "release": {
+      "steam_release_date": 1680015509
+     },
+     "platforms": {
+      "windows": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 3,
+      "steam_os_compat_category": 2,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 3
+     }
+    },
+    {
+     "item_type": 0,
+     "id": 2909400,
+     "success": 1,
+     "visible": true,
+     "name": "FINAL FANTASY VII REBIRTH",
+     "store_url_path": "app/2909400/FINAL_FANTASY_VII_REBIRTH",
+     "store_url_slug": "FINAL_FANTASY_VII_REBIRTH",
+     "appid": 2909400,
+     "type": 0,
+     "categories": {
+      "supported_player_categoryids": [
+       2
+      ],
+      "feature_categoryids": [
+       22,
+       29,
+       68,
+       69,
+       70,
+       75,
+       78,
+       23,
+       61,
+       62
+      ],
+      "controller_categoryids": [
+       28,
+       55,
+       57,
+       58,
+       60
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 26660,
+       "percent_positive": 75,
+       "review_score": 6,
+       "review_score_label": "Mostly Positive"
+      },
+      "summary_language_specific": {
+       "review_count": 14081,
+       "percent_positive": 78,
+       "review_score": 6,
+       "review_score_label": "Mostly Positive"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/2909400/${FILENAME}?t=1789446799",
+      "main_capsule": "c4e617a13d511a72b2787c91e0e08fbe57c99191/capsule_616x353.jpg",
+      "main_capsule_2x": "c4e617a13d511a72b2787c91e0e08fbe57c99191/capsule_616x353_2x.jpg",
+      "small_capsule": "61fda2e598f865ba6e985830661b98f3167e4ccc/capsule_231x87.jpg",
+      "small_capsule_2x": "61fda2e598f865ba6e985830661b98f3167e4ccc/capsule_231x87_2x.jpg",
+      "header": "64a1006a85342c7d3e4b1e1b8e562fee2dc86578/header.jpg",
+      "header_2x": "64a1006a85342c7d3e4b1e1b8e562fee2dc86578/header_2x.jpg",
+      "page_background": "page_bg_generated_v6b.jpg",
+      "hero_capsule": "3be0bb75c17f5409788554f58d0925467fe9ab06/hero_capsule.jpg",
+      "hero_capsule_2x": "3be0bb75c17f5409788554f58d0925467fe9ab06/hero_capsule_2x.jpg",
+      "library_capsule": "771d94cceea4bf97bd8afeee5e09e31f15bd0196/library_600x900.jpg",
+      "library_capsule_2x": "771d94cceea4bf97bd8afeee5e09e31f15bd0196/library_600x900_2x.jpg",
+      "library_hero": "38c7084026055fdf0e23c789645a70855da77d58/library_hero.jpg",
+      "library_hero_2x": "38c7084026055fdf0e23c789645a70855da77d58/library_hero_2x.jpg",
+      "community_icon": "3dacad0a047962a94501d9d028c095993c48ce8b",
+      "page_background_path": "app/2909400?t=1789446799",
+      "raw_page_background": "page_bg_raw.jpg",
+      "last_modified": 1789446799
+     },
+     "release": {
+      "steam_release_date": 1737641006
+     },
+     "platforms": {
+      "windows": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 3,
+      "steam_os_compat_category": 2,
+      "steam_frame_compat_category": 1,
+      "steam_machine_compat_category": 3
+     }
+    },
+    {
+     "item_type": 0,
+     "id": 3158110,
+     "success": 1,
+     "visible": true,
+     "name": "Dino Age: Dinosaur Survival Game",
+     "store_url_path": "app/3158110/Dino_Age_Dinosaur_Survival_Game",
+     "store_url_slug": "Dino_Age_Dinosaur_Survival_Game",
+     "appid": 3158110,
+     "type": 0,
+     "categories": {
+      "supported_player_categoryids": [
+       2
+      ],
+      "feature_categoryids": [
+       62
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 3,
+       "percent_positive": 100,
+       "review_score": 0,
+       "review_score_label": "3 user reviews"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/3158110/${FILENAME}?t=1793280467",
+      "main_capsule": "59869644927a2f361b92e1c95af9ef59b3693d4b/capsule_616x353.jpg",
+      "main_capsule_2x": "59869644927a2f361b92e1c95af9ef59b3693d4b/capsule_616x353_2x.jpg",
+      "small_capsule": "60e167aa608f07f9bdb3f4a845f37827b7635c46/capsule_231x87.jpg",
+      "small_capsule_2x": "60e167aa608f07f9bdb3f4a845f37827b7635c46/capsule_231x87_2x.jpg",
+      "header": "header.jpg",
+      "header_2x": "header_2x.jpg",
+      "hero_capsule": "21d83f62f7432deba4b710acf60ff79cd8a25375/hero_capsule.jpg",
+      "hero_capsule_2x": "21d83f62f7432deba4b710acf60ff79cd8a25375/hero_capsule_2x.jpg",
+      "library_capsule": "library_600x900.jpg",
+      "library_capsule_2x": "library_600x900_2x.jpg",
+      "library_hero": "library_hero.jpg",
+      "library_hero_2x": "library_hero_2x.jpg",
+      "community_icon": "17da8ca54eb52b806c61e1b429eb2f24911447d5",
+      "page_background_path": "app/3158110?t=1793280467",
+      "last_modified": 1793280467
+     },
+     "release": {
+      "steam_release_date": 1730352240
+     },
+     "platforms": {
+      "windows": true,
+      "mac": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 0,
+      "steam_os_compat_category": 0,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 0
+     },
+     "unlisted": true
+    },
+    {
+     "item_type": 0,
+     "id": 4018990,
+     "success": 1,
+     "visible": true,
+     "name": "Potions of Veldenkeep",
+     "store_url_path": "app/4018990/Potions_of_Veldenkeep",
+     "store_url_slug": "Potions_of_Veldenkeep",
+     "appid": 4018990,
+     "type": 0,
+     "related_items": {
+      "demo_appid": [
+       4048570
+      ],
+      "demos": [
+       {
+        "appid": 4048570,
+        "show_above_purchase": true
+       }
+      ]
+     },
+     "categories": {
+      "supported_player_categoryids": [
+       2
+      ],
+      "feature_categoryids": [
+       68,
+       69,
+       74,
+       62
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 0,
+       "percent_positive": 0,
+       "review_score": 0,
+       "review_score_label": "No user reviews"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/4018990/${FILENAME}?t=1775550392",
+      "main_capsule": "bd637931a0165373d7e235de019f7563c7e2d1f8/capsule_616x353.jpg",
+      "main_capsule_2x": "bd637931a0165373d7e235de019f7563c7e2d1f8/capsule_616x353_2x.jpg",
+      "small_capsule": "a4c609afc4e0e879adad0d058febab9a7a79ea9e/capsule_231x87.jpg",
+      "small_capsule_2x": "a4c609afc4e0e879adad0d058febab9a7a79ea9e/capsule_231x87_2x.jpg",
+      "header": "ff8b1d0e90ae512ce04dba65ad4cd07f5f91e796/header.jpg",
+      "header_2x": "ff8b1d0e90ae512ce04dba65ad4cd07f5f91e796/header_2x.jpg",
+      "hero_capsule": "d491b745faf2e69d3b35b4279c67101991708fd5/hero_capsule.jpg",
+      "hero_capsule_2x": "d491b745faf2e69d3b35b4279c67101991708fd5/hero_capsule_2x.jpg",
+      "library_capsule": "5ce3836d71c5070fe8ec9a5f39acb4c49798f193/library_capsule.jpg",
+      "library_capsule_2x": "5ce3836d71c5070fe8ec9a5f39acb4c49798f193/library_capsule_2x.jpg",
+      "library_hero": "62dd2a0d2bcf6b8ed45c6a5b8ee2495f09cec645/library_hero.jpg",
+      "library_hero_2x": "62dd2a0d2bcf6b8ed45c6a5b8ee2495f09cec645/library_hero_2x.jpg",
+      "community_icon": "5a899ffd4e05303f0babd9c971bd240ed763b01c",
+      "page_background_path": "app/4018990?t=1775550392",
+      "last_modified": 1775550392
+     },
+     "release": {
+      "is_coming_soon": true,
+      "custom_release_date_message": "To be announced",
+      "coming_soon_display": "text_tba"
+     },
+     "platforms": {
+      "windows": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 0,
+      "steam_os_compat_category": 0,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 0
+     },
+     "is_coming_soon": true
+    },
+    {
+     "item_type": 0,
+     "id": 4354570,
+     "success": 1,
+     "visible": true,
+     "name": "FINAL FANTASY VII REVELATION",
+     "store_url_path": "app/4354570/FINAL_FANTASY_VII_REVELATION",
+     "store_url_slug": "FINAL_FANTASY_VII_REVELATION",
+     "appid": 4354570,
+     "type": 0,
+     "categories": {
+      "supported_player_categoryids": [
+       2
+      ],
+      "feature_categoryids": [
+       22,
+       29,
+       68,
+       69,
+       70,
+       75,
+       78,
+       23,
+       61,
+       62
+      ],
+      "controller_categoryids": [
+       28,
+       55,
+       57,
+       58,
+       60
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 0,
+       "percent_positive": 0,
+       "review_score": 0,
+       "review_score_label": "No user reviews"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/4354570/${FILENAME}?t=1791260852",
+      "main_capsule": "9063f18816557aa318ca4124156dd9a28c3e8292/capsule_616x353.jpg",
+      "main_capsule_2x": "9063f18816557aa318ca4124156dd9a28c3e8292/capsule_616x353_2x.jpg",
+      "small_capsule": "b881adcc158358729951620a75c804d213f41141/capsule_231x87.jpg",
+      "small_capsule_2x": "b881adcc158358729951620a75c804d213f41141/capsule_231x87_2x.jpg",
+      "header": "e1750093047ef96e99879977810c9b4c774bab68/header.jpg",
+      "header_2x": "e1750093047ef96e99879977810c9b4c774bab68/header_2x.jpg",
+      "hero_capsule": "b0256a1246427844d715cfef736b1630688a1318/hero_capsule.jpg",
+      "hero_capsule_2x": "b0256a1246427844d715cfef736b1630688a1318/hero_capsule_2x.jpg",
+      "library_capsule": "4ef64a06f35ba298f12ea3f64421756cd5dff9b6/library_capsule.jpg",
+      "library_capsule_2x": "4ef64a06f35ba298f12ea3f64421756cd5dff9b6/library_capsule_2x.jpg",
+      "library_hero": "43c430b34b62edf6ca86855441c6475859657d3a/library_hero.jpg",
+      "library_hero_2x": "43c430b34b62edf6ca86855441c6475859657d3a/library_hero_2x.jpg",
+      "community_icon": "d30747d8df19233db67744d819658d68b5afa6bf",
+      "page_background_path": "app/4354570?t=1791260852",
+      "last_modified": 1791260852
+     },
+     "release": {
+      "steam_release_date": 1807192800,
+      "is_coming_soon": true,
+      "coming_soon_display": "date_full"
+     },
+     "platforms": {
+      "windows": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 0,
+      "steam_os_compat_category": 0,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 0
+     },
+     "is_coming_soon": true
+    },
+    {
+     "item_type": 0,
+     "id": 999999999,
+     "success": 15,
+     "visible": false,
+     "name": "",
+     "store_url_path": "app/0/",
+     "store_url_slug": "",
+     "appid": 0
+    }
+   ]
+  }
+ }
+}

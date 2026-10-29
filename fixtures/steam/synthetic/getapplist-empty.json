@@ -1,0 +1,9 @@
+{
+ "url": "https://api.steampowered.com/IStoreService/GetAppList/v1/?include_games=true&include_dlc=false&include_software=false&include_videos=false&include_hardware=false&max_results=50000",
+ "status": 200,
+ "date": "2026-10-29T00:00:00.000Z",
+ "json": {
+  "response": {}
+ },
+ "synthetic": "GetAppList sin juegos"
+}

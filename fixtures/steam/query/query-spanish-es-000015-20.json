@@ -1,0 +1,1478 @@
+{
+ "url": "https://api.steampowered.com/IStoreQueryService/Query/v1/?input_json=%7B%22query%22%3A%7B%22start%22%3A15%2C%22count%22%3A20%2C%22sort%22%3A2%2C%22filters%22%3A%7B%22type_filters%22%3A%7B%22include_games%22%3Atrue%7D%7D%7D%2C%22context%22%3A%7B%22language%22%3A%22spanish%22%2C%22country_code%22%3A%22ES%22%7D%2C%22data_request%22%3A%7B%22include_release%22%3Atrue%2C%22include_assets%22%3Atrue%2C%22include_reviews%22%3Atrue%2C%22include_platforms%22%3Atrue%2C%22include_best_purchase_option%22%3Afalse%7D%7D",
+ "status": 200,
+ "date": "2026-10-29T14:30:46.675Z",
+ "json": {
+  "response": {
+   "metadata": {
+    "total_matching_records": 197053,
+    "start": 15,
+    "count": 20
+   },
+   "ids": [
+    {
+     "appid": 440
+    },
+    {
+     "appid": 500
+    },
+    {
+     "appid": 550
+    },
+    {
+     "appid": 570
+    },
+    {
+     "appid": 620
+    },
+    {
+     "appid": 630
+    },
+    {
+     "appid": 730
+    },
+    {
+     "appid": 1002
+    },
+    {
+     "appid": 1200
+    },
+    {
+     "appid": 1250
+    },
+    {
+     "appid": 1300
+    },
+    {
+     "appid": 1313
+    },
+    {
+     "appid": 1500
+    },
+    {
+     "appid": 1510
+    },
+    {
+     "appid": 1520
+    },
+    {
+     "appid": 1530
+    },
+    {
+     "appid": 1600
+    },
+    {
+     "appid": 1610
+    },
+    {
+     "appid": 1620
+    },
+    {
+     "appid": 1630
+    }
+   ],
+   "store_items": [
+    {
+     "item_type": 0,
+     "id": 440,
+     "success": 1,
+     "visible": true,
+     "name": "Team Fortress 2",
+     "store_url_path": "app/440/Team_Fortress_2",
+     "store_url_slug": "Team_Fortress_2",
+     "appid": 440,
+     "type": 0,
+     "is_free": true,
+     "categories": {
+      "supported_player_categoryids": [
+       1,
+       27
+      ],
+      "feature_categoryids": [
+       22,
+       29,
+       13,
+       30,
+       35,
+       66,
+       67,
+       68,
+       69,
+       70,
+       8,
+       15,
+       17,
+       14,
+       41,
+       42
+      ],
+      "controller_categoryids": [
+       18
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 1256030,
+       "percent_positive": 91,
+       "review_score": 8,
+       "review_score_label": "Muy positivas"
+      },
+      "summary_language_specific": {
+       "review_count": 64609,
+       "percent_positive": 94,
+       "review_score": 8,
+       "review_score_label": "Muy positivas"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/440/${FILENAME}?t=1757348372",
+      "main_capsule": "capsule_616x353.jpg",
+      "small_capsule": "capsule_231x87.jpg",
+      "header": "header.jpg",
+      "page_background": "page_bg_generated_v6b.jpg",
+      "hero_capsule": "hero_capsule.jpg",
+      "library_capsule": "library_600x900.jpg",
+      "library_capsule_2x": "library_600x900_2x.jpg",
+      "library_hero": "library_hero.jpg",
+      "community_icon": "f568912870a4684f9ec76277a1a404dda6bab213",
+      "page_background_path": "app/440?t=1757348372",
+      "raw_page_background": "page_bg_raw.jpg",
+      "last_modified": 1757348372
+     },
+     "release": {
+      "steam_release_date": 1191999600,
+      "original_release_date": 1191999600
+     },
+     "platforms": {
+      "windows": true,
+      "steamos_linux": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 2,
+      "steam_os_compat_category": 2,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 2
+     }
+    },
+    {
+     "item_type": 0,
+     "id": 500,
+     "success": 1,
+     "visible": true,
+     "name": "Left 4 Dead",
+     "store_url_path": "app/500/Left_4_Dead",
+     "store_url_slug": "Left_4_Dead",
+     "appid": 500,
+     "type": 0,
+     "content_descriptorids": [
+      2,
+      5
+     ],
+     "categories": {
+      "supported_player_categoryids": [
+       2,
+       1,
+       9
+      ],
+      "feature_categoryids": [
+       22,
+       13,
+       66,
+       67,
+       68,
+       69,
+       70,
+       78,
+       23,
+       8,
+       15,
+       25,
+       16,
+       14,
+       43,
+       62
+      ],
+      "controller_categoryids": [
+       28,
+       55,
+       56,
+       57,
+       58
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 58665,
+       "percent_positive": 96,
+       "review_score": 9,
+       "review_score_label": "Extremadamente positivas"
+      },
+      "summary_language_specific": {
+       "review_count": 9421,
+       "percent_positive": 98,
+       "review_score": 9,
+       "review_score_label": "Extremadamente positivas"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/500/${FILENAME}?t=1745368560",
+      "main_capsule": "capsule_616x353.jpg",
+      "small_capsule": "capsule_231x87.jpg",
+      "header": "header.jpg",
+      "hero_capsule": "hero_capsule.jpg",
+      "library_capsule": "library_600x900.jpg",
+      "library_capsule_2x": "library_600x900_2x.jpg",
+      "library_hero": "library_hero.jpg",
+      "library_hero_2x": "library_hero_2x.jpg",
+      "community_icon": "428df26bc35b09319e31b1ffb712487b20b3245c",
+      "page_background_path": "app/500?t=1745368560",
+      "last_modified": 1745368560
+     },
+     "release": {
+      "steam_release_date": 1226983860,
+      "original_release_date": 1226908800,
+      "mac_release_date": 1288220220
+     },
+     "platforms": {
+      "windows": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 2,
+      "steam_os_compat_category": 2,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 2
+     }
+    },
+    {
+     "item_type": 0,
+     "id": 550,
+     "success": 1,
+     "visible": true,
+     "name": "Left 4 Dead 2",
+     "store_url_path": "app/550/Left_4_Dead_2",
+     "store_url_slug": "Left_4_Dead_2",
+     "appid": 550,
+     "type": 0,
+     "content_descriptorids": [
+      2,
+      5
+     ],
+     "categories": {
+      "supported_player_categoryids": [
+       2,
+       1,
+       49,
+       36,
+       9,
+       38
+      ],
+      "feature_categoryids": [
+       22,
+       29,
+       13,
+       30,
+       66,
+       67,
+       68,
+       69,
+       70,
+       74,
+       78,
+       23,
+       8,
+       15,
+       16,
+       14,
+       41,
+       42,
+       43,
+       44,
+       62,
+       63
+      ],
+      "controller_categoryids": [
+       28,
+       55,
+       56,
+       57,
+       58,
+       59
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 824083,
+       "percent_positive": 97,
+       "review_score": 9,
+       "review_score_label": "Extremadamente positivas"
+      },
+      "summary_language_specific": {
+       "review_count": 144979,
+       "percent_positive": 98,
+       "review_score": 9,
+       "review_score_label": "Extremadamente positivas"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/550/${FILENAME}?t=1772742214",
+      "main_capsule": "capsule_616x353.jpg",
+      "small_capsule": "capsule_231x87.jpg",
+      "header": "header.jpg",
+      "hero_capsule": "hero_capsule.jpg",
+      "library_capsule": "library_600x900.jpg",
+      "library_capsule_2x": "library_600x900_2x.jpg",
+      "library_hero": "library_hero.jpg",
+      "community_icon": "7d5a243f9500d2f8467312822f8af2a2928777ed",
+      "page_background_path": "app/550?t=1772742214",
+      "last_modified": 1772742214
+     },
+     "release": {
+      "steam_release_date": 1258434000,
+      "original_release_date": 0,
+      "mac_release_date": 1286298000
+     },
+     "platforms": {
+      "windows": true,
+      "steamos_linux": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 3,
+      "steam_os_compat_category": 2,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 3
+     }
+    },
+    {
+     "item_type": 0,
+     "id": 570,
+     "success": 1,
+     "visible": true,
+     "name": "Dota 2",
+     "store_url_path": "app/570/Dota_2",
+     "store_url_slug": "Dota_2",
+     "appid": 570,
+     "type": 0,
+     "is_free": true,
+     "content_descriptorids": [
+      5
+     ],
+     "categories": {
+      "supported_player_categoryids": [
+       1,
+       9
+      ],
+      "feature_categoryids": [
+       29,
+       30,
+       40,
+       35,
+       66,
+       67,
+       68,
+       8,
+       63
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 2807082,
+       "percent_positive": 80,
+       "review_score": 8,
+       "review_score_label": "Muy positivas"
+      },
+      "summary_language_specific": {
+       "review_count": 122529,
+       "percent_positive": 90,
+       "review_score": 8,
+       "review_score_label": "Muy positivas"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/570/${FILENAME}?t=1791407503",
+      "main_capsule": "capsule_616x353.jpg",
+      "small_capsule": "capsule_231x87.jpg",
+      "header": "header.jpg",
+      "header_2x": "header_2x.jpg",
+      "page_background": "page_bg_generated_v6b.jpg",
+      "hero_capsule": "hero_capsule.jpg",
+      "library_capsule": "6cddc26cb124bd87d3fbacd58cd83ba33e4cb0e7/library_capsule.jpg",
+      "library_capsule_2x": "6cddc26cb124bd87d3fbacd58cd83ba33e4cb0e7/library_capsule_2x.jpg",
+      "library_hero": "0e4a18e7b53d1d4d68bba65969919e6a85920b04/library_hero.jpg",
+      "library_hero_2x": "0e4a18e7b53d1d4d68bba65969919e6a85920b04/library_hero_2x.jpg",
+      "community_icon": "48eb825bb93787945065b460bdc109e395384ebf",
+      "page_background_path": "app/570?t=1791407503",
+      "raw_page_background": "page_bg_raw.jpg",
+      "last_modified": 1791407503
+     },
+     "release": {
+      "steam_release_date": 1373389200,
+      "original_release_date": 0
+     },
+     "platforms": {
+      "windows": true,
+      "mac": true,
+      "steamos_linux": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 2,
+      "steam_os_compat_category": 2,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 2
+     }
+    },
+    {
+     "item_type": 0,
+     "id": 620,
+     "success": 1,
+     "visible": true,
+     "name": "Portal 2",
+     "store_url_path": "app/620/Portal_2",
+     "store_url_slug": "Portal_2",
+     "appid": 620,
+     "type": 0,
+     "categories": {
+      "supported_player_categoryids": [
+       2,
+       1,
+       9,
+       38,
+       39,
+       24
+      ],
+      "feature_categoryids": [
+       22,
+       29,
+       13,
+       30,
+       51,
+       67,
+       68,
+       69,
+       70,
+       74,
+       79,
+       23,
+       15,
+       17,
+       14,
+       41,
+       42,
+       43,
+       44,
+       62
+      ],
+      "controller_categoryids": [
+       28,
+       55,
+       56,
+       57,
+       58,
+       59
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 392456,
+       "percent_positive": 98,
+       "review_score": 9,
+       "review_score_label": "Extremadamente positivas"
+      },
+      "summary_language_specific": {
+       "review_count": 20900,
+       "percent_positive": 99,
+       "review_score": 9,
+       "review_score_label": "Extremadamente positivas"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/620/${FILENAME}?t=1790187113",
+      "main_capsule": "02b755eb0cf5f41c1838a99c9a353ebce32a88cd/capsule_616x353.jpg",
+      "main_capsule_2x": "02b755eb0cf5f41c1838a99c9a353ebce32a88cd/capsule_616x353_2x.jpg",
+      "small_capsule": "bd23943dcd0280aa2cdc066e2f86d2185cfd4cce/capsule_231x87.jpg",
+      "small_capsule_2x": "bd23943dcd0280aa2cdc066e2f86d2185cfd4cce/capsule_231x87_2x.jpg",
+      "header": "faffc0f560786e2f05104a8d2fac837c6969bf13/header.jpg",
+      "header_2x": "faffc0f560786e2f05104a8d2fac837c6969bf13/header_2x.jpg",
+      "hero_capsule": "9a8ae9bb0b85f125bd956024f86f30a3aeb799e8/hero_capsule.jpg",
+      "hero_capsule_2x": "9a8ae9bb0b85f125bd956024f86f30a3aeb799e8/hero_capsule_2x.jpg",
+      "library_capsule": "library_600x900.jpg",
+      "library_capsule_2x": "library_600x900_2x.jpg",
+      "library_hero": "a58588d857b8683f8065e55f97ab82ad8a945c51/library_hero.jpg",
+      "library_hero_2x": "a58588d857b8683f8065e55f97ab82ad8a945c51/library_hero_2x.jpg",
+      "community_icon": "25a5a16b2423bf7487ac5340b5b0948cef48c5f8",
+      "page_background_path": "app/620?t=1790187113",
+      "last_modified": 1790187113
+     },
+     "release": {
+      "steam_release_date": 1303186800
+     },
+     "platforms": {
+      "windows": true,
+      "steamos_linux": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 3,
+      "steam_os_compat_category": 2,
+      "steam_frame_compat_category": 3,
+      "steam_machine_compat_category": 3
+     }
+    },
+    {
+     "item_type": 0,
+     "id": 630,
+     "success": 1,
+     "visible": true,
+     "name": "Alien Swarm",
+     "store_url_path": "app/630/Alien_Swarm",
+     "store_url_slug": "Alien_Swarm",
+     "appid": 630,
+     "type": 0,
+     "is_free": true,
+     "content_descriptorids": [
+      2,
+      5
+     ],
+     "categories": {
+      "supported_player_categoryids": [
+       2,
+       1,
+       9
+      ],
+      "feature_categoryids": [
+       22,
+       13,
+       66,
+       67,
+       68,
+       69,
+       70,
+       78,
+       23,
+       15,
+       17,
+       62
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 21654,
+       "percent_positive": 94,
+       "review_score": 8,
+       "review_score_label": "Muy positivas"
+      },
+      "summary_language_specific": {
+       "review_count": 1327,
+       "percent_positive": 95,
+       "review_score": 9,
+       "review_score_label": "Extremadamente positivas"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/630/${FILENAME}?t=1763407010",
+      "main_capsule": "capsule_616x353.jpg",
+      "small_capsule": "capsule_231x87.jpg",
+      "header": "header.jpg",
+      "library_capsule": "library_600x900.jpg",
+      "library_capsule_2x": "library_600x900_2x.jpg",
+      "library_hero": "library_hero.jpg",
+      "community_icon": "67126b5081b423af53f5e88e8e81d91b15daa644",
+      "page_background_path": "app/630?t=1763407010",
+      "last_modified": 1763407010
+     },
+     "release": {
+      "steam_release_date": 1279569600,
+      "original_release_date": 1279522800
+     },
+     "platforms": {
+      "windows": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 2,
+      "steam_os_compat_category": 2,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 2
+     }
+    },
+    {
+     "item_type": 0,
+     "id": 730,
+     "success": 1,
+     "visible": true,
+     "name": "Counter-Strike 2",
+     "store_url_path": "app/730/CounterStrike_2",
+     "store_url_slug": "CounterStrike_2",
+     "appid": 730,
+     "type": 0,
+     "is_free": true,
+     "content_descriptorids": [
+      2,
+      5
+     ],
+     "categories": {
+      "supported_player_categoryids": [
+       1,
+       27
+      ],
+      "feature_categoryids": [
+       29,
+       30,
+       51,
+       35,
+       64,
+       66,
+       67,
+       68,
+       69,
+       70,
+       74,
+       8,
+       15,
+       41,
+       42,
+       43,
+       63
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 9955468,
+       "percent_positive": 85,
+       "review_score": 8,
+       "review_score_label": "Muy positivas"
+      },
+      "summary_language_specific": {
+       "review_count": 356843,
+       "percent_positive": 88,
+       "review_score": 8,
+       "review_score_label": "Muy positivas"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/730/${FILENAME}?t=1793054556",
+      "main_capsule": "6328493f4cc4a8fb83e1149be1cac5a7823fe588/capsule_616x353.jpg",
+      "main_capsule_2x": "6328493f4cc4a8fb83e1149be1cac5a7823fe588/capsule_616x353_2x.jpg",
+      "small_capsule": "942c04efaa5bc87afb6f2a97dbf17ac614c8a84d/capsule_231x87.jpg",
+      "small_capsule_2x": "942c04efaa5bc87afb6f2a97dbf17ac614c8a84d/capsule_231x87_2x.jpg",
+      "header": "162664aa5da85f418105350c5d67ca565f6c3713/header.jpg",
+      "header_2x": "162664aa5da85f418105350c5d67ca565f6c3713/header_2x.jpg",
+      "page_background": "page_bg_generated_v6b.jpg",
+      "hero_capsule": "6fa459ed6388e8d5a8fd96cdb6ba60acd5210481/hero_capsule.jpg",
+      "hero_capsule_2x": "6fa459ed6388e8d5a8fd96cdb6ba60acd5210481/hero_capsule_2x.jpg",
+      "library_capsule": "library_600x900.jpg",
+      "library_capsule_2x": "library_600x900_2x.jpg",
+      "library_hero": "library_hero.jpg",
+      "library_hero_2x": "library_hero_2x.jpg",
+      "community_icon": "8dbc71957312bbd3baea65848b545be9eae2a355",
+      "page_background_path": "app/730?t=1793054556",
+      "raw_page_background": "page_bg_raw.jpg",
+      "last_modified": 1793054556
+     },
+     "release": {
+      "steam_release_date": 1345568400
+     },
+     "platforms": {
+      "windows": true,
+      "steamos_linux": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 2,
+      "steam_os_compat_category": 2,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 2
+     }
+    },
+    {
+     "item_type": 0,
+     "id": 1002,
+     "success": 1,
+     "visible": true,
+     "name": "Rag Doll Kung Fu",
+     "store_url_path": "app/1002/Rag_Doll_Kung_Fu",
+     "store_url_slug": "Rag_Doll_Kung_Fu",
+     "appid": 1002,
+     "type": 0,
+     "related_items": {
+      "demo_appid": [
+       1003
+      ],
+      "demos": [
+       {
+        "appid": 1003,
+        "show_above_purchase": false
+       }
+      ]
+     },
+     "categories": {
+      "supported_player_categoryids": [
+       2,
+       1
+      ],
+      "feature_categoryids": [
+       62
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 83,
+       "percent_positive": 78,
+       "review_score": 6,
+       "review_score_label": "Mayormente positivas"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/1002/${FILENAME}?t=1611415705",
+      "small_capsule": "capsule_231x87.jpg",
+      "header": "header.jpg",
+      "header_2x": "header.jpg",
+      "library_capsule": "portrait.png",
+      "community_icon": "59e302e982bedbe07b75ca570eb9ed888ec60a67",
+      "page_background_path": "app/1002?t=1611415705",
+      "last_modified": 1611415705
+     },
+     "release": {
+      "steam_release_date": 1129100400
+     },
+     "platforms": {
+      "windows": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 1,
+      "steam_os_compat_category": 2,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 0
+     }
+    },
+    {
+     "item_type": 0,
+     "id": 1200,
+     "success": 1,
+     "visible": true,
+     "name": "Red Orchestra: Ostfront 41-45",
+     "store_url_path": "app/1200/Red_Orchestra_Ostfront_4145",
+     "store_url_slug": "Red_Orchestra_Ostfront_4145",
+     "appid": 1200,
+     "type": 0,
+     "content_descriptorids": [
+      2,
+      5
+     ],
+     "categories": {
+      "supported_player_categoryids": [
+       1
+      ],
+      "feature_categoryids": [
+       22,
+       8,
+       62
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 1508,
+       "percent_positive": 85,
+       "review_score": 8,
+       "review_score_label": "Muy positivas"
+      },
+      "summary_unfiltered": {
+       "review_count": 1522,
+       "percent_positive": 84,
+       "review_score": 8,
+       "review_score_label": "Muy positivas"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/1200/${FILENAME}?t=1789667237",
+      "small_capsule": "capsule_231x87.jpg",
+      "header": "header.jpg",
+      "library_capsule": "portrait.png",
+      "community_icon": "66519d69efc5b98bdafe61347db4ec8be01dff7b",
+      "page_background_path": "app/1200?t=1789667237",
+      "last_modified": 1789667237
+     },
+     "release": {
+      "steam_release_date": 1142323200,
+      "mac_release_date": 1365113340
+     },
+     "platforms": {
+      "windows": true,
+      "mac": true,
+      "steamos_linux": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 0,
+      "steam_os_compat_category": 0,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 0
+     }
+    },
+    {
+     "item_type": 0,
+     "id": 1250,
+     "success": 1,
+     "visible": true,
+     "name": "Killing Floor",
+     "store_url_path": "app/1250/Killing_Floor",
+     "store_url_slug": "Killing_Floor",
+     "appid": 1250,
+     "type": 0,
+     "content_descriptorids": [
+      2,
+      5
+     ],
+     "categories": {
+      "supported_player_categoryids": [
+       2,
+       1,
+       9,
+       27
+      ],
+      "feature_categoryids": [
+       22,
+       29,
+       30,
+       8,
+       15,
+       17,
+       62
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 39917,
+       "percent_positive": 95,
+       "review_score": 9,
+       "review_score_label": "Extremadamente positivas"
+      },
+      "summary_unfiltered": {
+       "review_count": 40158,
+       "percent_positive": 95,
+       "review_score": 9,
+       "review_score_label": "Extremadamente positivas"
+      },
+      "summary_language_specific": {
+       "review_count": 2608,
+       "percent_positive": 97,
+       "review_score": 9,
+       "review_score_label": "Extremadamente positivas"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/1250/${FILENAME}?t=1789667388",
+      "main_capsule": "capsule_616x353.jpg",
+      "small_capsule": "capsule_231x87.jpg",
+      "header": "header.jpg",
+      "library_capsule": "library_600x900.jpg",
+      "library_capsule_2x": "library_600x900_2x.jpg",
+      "library_hero": "library_hero.jpg",
+      "community_icon": "d8a2d777cb4c59cf06aa244166db232336520547",
+      "page_background_path": "app/1250?t=1789667388",
+      "last_modified": 1789667388
+     },
+     "release": {
+      "steam_release_date": 1242284400,
+      "original_release_date": 1242284400
+     },
+     "platforms": {
+      "windows": true,
+      "mac": true,
+      "steamos_linux": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 2,
+      "steam_os_compat_category": 2,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 2
+     }
+    },
+    {
+     "item_type": 0,
+     "id": 1300,
+     "success": 1,
+     "visible": true,
+     "name": "SiN Episodes: Emergence",
+     "store_url_path": "app/1300/SiN_Episodes_Emergence",
+     "store_url_slug": "SiN_Episodes_Emergence",
+     "appid": 1300,
+     "type": 0,
+     "content_descriptorids": [
+      5
+     ],
+     "categories": {
+      "supported_player_categoryids": [
+       2
+      ],
+      "feature_categoryids": [
+       15,
+       62
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 1146,
+       "percent_positive": 88,
+       "review_score": 8,
+       "review_score_label": "Muy positivas"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/1300/${FILENAME}?t=1791848345",
+      "small_capsule": "capsule_231x87.jpg",
+      "header": "header.jpg",
+      "library_capsule": "cc3801a95be9fc7b9fe8eb7bc3af84d4d91b461d/library_capsule.jpg",
+      "library_capsule_2x": "cc3801a95be9fc7b9fe8eb7bc3af84d4d91b461d/library_capsule_2x.jpg",
+      "library_hero": "b5aa9181de163ea3c0e0b795cdad1e88b363a04f/library_hero.jpg",
+      "library_hero_2x": "b5aa9181de163ea3c0e0b795cdad1e88b363a04f/library_hero_2x.jpg",
+      "community_icon": "bc2a1f39ae91838af546095c32c3b702754e5b3f",
+      "page_background_path": "app/1300?t=1791848345",
+      "last_modified": 1791848345
+     },
+     "release": {
+      "steam_release_date": 1147244400
+     },
+     "platforms": {
+      "windows": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 1,
+      "steam_os_compat_category": 1,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 1
+     }
+    },
+    {
+     "item_type": 0,
+     "id": 1313,
+     "success": 1,
+     "visible": true,
+     "name": "SiN Gold (1998)",
+     "store_url_path": "app/1313/SiN_Gold_1998",
+     "store_url_slug": "SiN_Gold_1998",
+     "appid": 1313,
+     "type": 0,
+     "related_items": {
+      "parent_appid": 1300
+     },
+     "categories": {
+      "supported_player_categoryids": [
+       2,
+       1,
+       49,
+       36,
+       47
+      ],
+      "feature_categoryids": [
+       62
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 392,
+       "percent_positive": 78,
+       "review_score": 6,
+       "review_score_label": "Mayormente positivas"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/1313/${FILENAME}?t=1790276667",
+      "main_capsule": "capsule_616x353.jpg",
+      "small_capsule": "capsule_231x87.jpg",
+      "header": "header.jpg",
+      "page_background": "page_bg_generated_v6b.jpg",
+      "library_capsule": "library_600x900.jpg",
+      "library_capsule_2x": "library_600x900_2x.jpg",
+      "library_hero": "library_hero.jpg",
+      "library_hero_2x": "library_hero_2x.jpg",
+      "community_icon": "d046d5d3609d451a8d788790c55790dc5977516b",
+      "page_background_path": "app/1313?t=1790276667",
+      "raw_page_background": "page_bg_raw.jpg",
+      "last_modified": 1790276667
+     },
+     "release": {
+      "steam_release_date": 1584551520,
+      "original_release_date": 909820800
+     },
+     "platforms": {
+      "windows": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 2,
+      "steam_os_compat_category": 2,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 2
+     }
+    },
+    {
+     "item_type": 0,
+     "id": 1500,
+     "success": 1,
+     "visible": true,
+     "name": "Darwinia",
+     "store_url_path": "app/1500/Darwinia",
+     "store_url_slug": "Darwinia",
+     "appid": 1500,
+     "type": 0,
+     "related_items": {
+      "demo_appid": [
+       1502
+      ],
+      "demos": [
+       {
+        "appid": 1502,
+        "show_above_purchase": true
+       }
+      ]
+     },
+     "categories": {
+      "supported_player_categoryids": [
+       2
+      ],
+      "feature_categoryids": [
+       23,
+       17,
+       62
+      ],
+      "controller_categoryids": [
+       28
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 783,
+       "percent_positive": 78,
+       "review_score": 6,
+       "review_score_label": "Mayormente positivas"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/1500/${FILENAME}?t=1779028568",
+      "main_capsule": "capsule_616x353.jpg",
+      "small_capsule": "capsule_231x87.jpg",
+      "header": "header.jpg",
+      "hero_capsule": "hero_capsule.jpg",
+      "library_capsule": "library_600x900.jpg",
+      "library_capsule_2x": "library_600x900_2x.jpg",
+      "library_hero": "library_hero.jpg",
+      "library_hero_2x": "library_hero_2x.jpg",
+      "community_icon": "4af4ed49b443228dc2ae2f0a9aac13da48892fb2",
+      "page_background_path": "app/1500?t=1779028568",
+      "last_modified": 1779028568
+     },
+     "release": {
+      "steam_release_date": 1133424000,
+      "original_release_date": 1121324400
+     },
+     "platforms": {
+      "windows": true,
+      "mac": true,
+      "steamos_linux": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 2,
+      "steam_os_compat_category": 2,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 3
+     }
+    },
+    {
+     "item_type": 0,
+     "id": 1510,
+     "success": 1,
+     "visible": true,
+     "name": "Uplink",
+     "store_url_path": "app/1510/Uplink",
+     "store_url_slug": "Uplink",
+     "appid": 1510,
+     "type": 0,
+     "categories": {
+      "supported_player_categoryids": [
+       2
+      ],
+      "feature_categoryids": [
+       62
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 1769,
+       "percent_positive": 89,
+       "review_score": 8,
+       "review_score_label": "Muy positivas"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/1510/${FILENAME}?t=1739068939",
+      "main_capsule": "capsule_616x353.jpg",
+      "small_capsule": "capsule_231x87.jpg",
+      "header": "header.jpg",
+      "hero_capsule": "hero_capsule.jpg",
+      "library_capsule": "library_600x900.jpg",
+      "library_capsule_2x": "library_600x900_2x.jpg",
+      "library_hero": "library_hero.jpg",
+      "library_hero_2x": "library_hero_2x.jpg",
+      "community_icon": "3f24e709b546f06641586190a6a84be791161830",
+      "page_background_path": "app/1510?t=1739068939",
+      "last_modified": 1739068939
+     },
+     "release": {
+      "steam_release_date": 1156316400
+     },
+     "platforms": {
+      "windows": true,
+      "mac": true,
+      "steamos_linux": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 2,
+      "steam_os_compat_category": 2,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 2
+     }
+    },
+    {
+     "item_type": 0,
+     "id": 1520,
+     "success": 1,
+     "visible": true,
+     "name": "DEFCON",
+     "store_url_path": "app/1520/DEFCON",
+     "store_url_slug": "DEFCON",
+     "appid": 1520,
+     "type": 0,
+     "related_items": {
+      "parent_appid": 1520,
+      "demo_appid": [
+       1522
+      ],
+      "demos": [
+       {
+        "appid": 1522,
+        "show_above_purchase": true
+       }
+      ]
+     },
+     "categories": {
+      "supported_player_categoryids": [
+       2,
+       1,
+       49,
+       36,
+       47,
+       9,
+       38,
+       48,
+       27
+      ],
+      "feature_categoryids": [
+       22,
+       62
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 3509,
+       "percent_positive": 87,
+       "review_score": 8,
+       "review_score_label": "Muy positivas"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/1520/${FILENAME}?t=1739091415",
+      "main_capsule": "capsule_616x353.jpg",
+      "small_capsule": "capsule_231x87.jpg",
+      "header": "header.jpg",
+      "hero_capsule": "hero_capsule.jpg",
+      "library_capsule": "library_600x900.jpg",
+      "library_capsule_2x": "library_600x900_2x.jpg",
+      "library_hero": "library_hero.jpg",
+      "library_hero_2x": "library_hero_2x.jpg",
+      "community_icon": "0d87acaf8788848d3c13df0fcd006b3b793bfb45",
+      "page_background_path": "app/1520?t=1739091415",
+      "last_modified": 1739091415
+     },
+     "release": {
+      "steam_release_date": 1159552800,
+      "original_release_date": 1159513200
+     },
+     "platforms": {
+      "windows": true,
+      "mac": true,
+      "steamos_linux": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 2,
+      "steam_os_compat_category": 2,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 2
+     }
+    },
+    {
+     "item_type": 0,
+     "id": 1530,
+     "success": 1,
+     "visible": true,
+     "name": "Multiwinia",
+     "store_url_path": "app/1530/Multiwinia",
+     "store_url_slug": "Multiwinia",
+     "appid": 1530,
+     "type": 0,
+     "related_items": {
+      "demo_appid": [
+       1540
+      ],
+      "demos": [
+       {
+        "appid": 1540,
+        "show_above_purchase": false
+       }
+      ]
+     },
+     "categories": {
+      "supported_player_categoryids": [
+       2,
+       1,
+       49,
+       36,
+       47,
+       9,
+       38,
+       48
+      ],
+      "feature_categoryids": [
+       22,
+       62
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 409,
+       "percent_positive": 82,
+       "review_score": 8,
+       "review_score_label": "Muy positivas"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/1530/${FILENAME}?t=1739429210",
+      "main_capsule": "capsule_616x353.jpg",
+      "small_capsule": "capsule_231x87.jpg",
+      "header": "header.jpg",
+      "hero_capsule": "hero_capsule.jpg",
+      "library_capsule": "library_600x900.jpg",
+      "library_capsule_2x": "library_600x900_2x.jpg",
+      "library_hero": "library_hero.jpg",
+      "library_hero_2x": "library_hero_2x.jpg",
+      "community_icon": "d73261f7f57b0ccf175acc81cdab00dc55b421fa",
+      "page_background_path": "app/1530?t=1739429210",
+      "last_modified": 1739429210
+     },
+     "release": {
+      "steam_release_date": 1221843600,
+      "original_release_date": 1221807600,
+      "linux_release_date": 1360715340
+     },
+     "platforms": {
+      "windows": true,
+      "mac": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 0,
+      "steam_os_compat_category": 0,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 0
+     }
+    },
+    {
+     "item_type": 0,
+     "id": 1600,
+     "success": 1,
+     "visible": true,
+     "name": "Dangerous Waters",
+     "store_url_path": "app/1600/Dangerous_Waters",
+     "store_url_slug": "Dangerous_Waters",
+     "appid": 1600,
+     "type": 0,
+     "categories": {
+      "supported_player_categoryids": [
+       2,
+       1
+      ],
+      "feature_categoryids": [
+       62
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 353,
+       "percent_positive": 79,
+       "review_score": 6,
+       "review_score_label": "Mayormente positivas"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/1600/${FILENAME}?t=1759951459",
+      "small_capsule": "capsule_231x87.jpg",
+      "header": "header.jpg",
+      "library_capsule": "library_600x900.jpg",
+      "library_capsule_2x": "library_600x900_2x.jpg",
+      "library_hero": "library_hero.jpg",
+      "community_icon": "9a97c067bbf22c5e3ac79c06264a38bfa151d619",
+      "page_background_path": "app/1600?t=1759951459",
+      "last_modified": 1759951459
+     },
+     "release": {
+      "steam_release_date": 1139299200
+     },
+     "platforms": {
+      "windows": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 0,
+      "steam_os_compat_category": 0,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 0
+     }
+    },
+    {
+     "item_type": 0,
+     "id": 1610,
+     "success": 1,
+     "visible": true,
+     "name": "Space Empires IV Deluxe",
+     "store_url_path": "app/1610/Space_Empires_IV_Deluxe",
+     "store_url_slug": "Space_Empires_IV_Deluxe",
+     "appid": 1610,
+     "type": 0,
+     "categories": {
+      "supported_player_categoryids": [
+       2,
+       1
+      ],
+      "feature_categoryids": [
+       62
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 259,
+       "percent_positive": 87,
+       "review_score": 8,
+       "review_score_label": "Muy positivas"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/1610/${FILENAME}?t=1759953528",
+      "main_capsule": "capsule_616x353.jpg",
+      "small_capsule": "capsule_231x87.jpg",
+      "header": "header.jpg",
+      "library_capsule": "library_600x900.jpg",
+      "library_capsule_2x": "library_600x900_2x.jpg",
+      "library_hero": "library_hero.jpg",
+      "community_icon": "b2a9e093bde5a7528731853d0953bd59e9c49ba4",
+      "page_background_path": "app/1610?t=1759953528",
+      "last_modified": 1759953528
+     },
+     "release": {
+      "steam_release_date": 1139299200
+     },
+     "platforms": {
+      "windows": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 2,
+      "steam_os_compat_category": 2,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 3
+     }
+    },
+    {
+     "item_type": 0,
+     "id": 1620,
+     "success": 1,
+     "visible": true,
+     "name": "Jagged Alliance 2 Gold",
+     "store_url_path": "app/1620/Jagged_Alliance_2_Gold",
+     "store_url_slug": "Jagged_Alliance_2_Gold",
+     "appid": 1620,
+     "type": 0,
+     "content_descriptorids": [
+      5
+     ],
+     "categories": {
+      "supported_player_categoryids": [
+       2
+      ],
+      "feature_categoryids": [
+       62
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 0,
+       "percent_positive": 0,
+       "review_score": 0,
+       "review_score_label": "No existen reseñas de usuarios"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/1620/${FILENAME}?t=1764098252",
+      "small_capsule": "capsule_231x87.jpg",
+      "header": "header.jpg",
+      "library_capsule": "library_600x900.jpg",
+      "library_capsule_2x": "library_600x900_2x.jpg",
+      "library_hero": "library_hero.jpg",
+      "community_icon": "1efe0167bdb1740d7fc281ba21ad06ed8f097e0e",
+      "page_background_path": "app/1620?t=1764098252",
+      "last_modified": 1764098252
+     },
+     "release": {
+      "steam_release_date": 1152169200
+     },
+     "platforms": {
+      "windows": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 0,
+      "steam_os_compat_category": 0,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 0
+     }
+    },
+    {
+     "item_type": 0,
+     "id": 1630,
+     "success": 1,
+     "visible": true,
+     "name": "Disciples II: Rise of the Elves ",
+     "store_url_path": "app/1630/Disciples_II_Rise_of_the_Elves",
+     "store_url_slug": "Disciples_II_Rise_of_the_Elves",
+     "appid": 1630,
+     "type": 0,
+     "categories": {
+      "supported_player_categoryids": [
+       2,
+       1,
+       9
+      ],
+      "feature_categoryids": [
+       62
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 1292,
+       "percent_positive": 87,
+       "review_score": 8,
+       "review_score_label": "Muy positivas"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/1630/${FILENAME}?t=1764279401",
+      "main_capsule": "7d98b1a085f29067c0fbe66b83c2fb3db6e04861/capsule_616x353.jpg",
+      "main_capsule_2x": "7d98b1a085f29067c0fbe66b83c2fb3db6e04861/capsule_616x353_2x.jpg",
+      "small_capsule": "capsule_231x87.jpg",
+      "header": "18139052d97557c6f452b045a169b31c17890675/header.jpg",
+      "header_2x": "18139052d97557c6f452b045a169b31c17890675/header_2x.jpg",
+      "hero_capsule": "3753b801d93f57077bb1ea154c0d42aeec6f6864/hero_capsule.jpg",
+      "hero_capsule_2x": "3753b801d93f57077bb1ea154c0d42aeec6f6864/hero_capsule_2x.jpg",
+      "library_capsule": "library_600x900.jpg",
+      "library_capsule_2x": "library_600x900_2x.jpg",
+      "library_hero": "library_hero.jpg",
+      "community_icon": "ad210204ded2924e202d10ddcdf21881127a8f6a",
+      "page_background_path": "app/1630?t=1764279401",
+      "last_modified": 1764279401
+     },
+     "release": {
+      "steam_release_date": 1152169200
+     },
+     "platforms": {
+      "windows": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 1,
+      "steam_os_compat_category": 1,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 1
+     }
+    }
+   ]
+  }
+ }
+}
