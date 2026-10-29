@@ -8,6 +8,7 @@
     ".": "./src/index.ts",
     "./normalize": "./src/normalize/index.ts",
     "./search": "./src/search/index.ts",
+    "./search-quality": "./src/search/quality.ts",
     "./catalog-format": "./src/catalog-format/index.ts",
     "./entries": "./src/entries/index.ts",
     "./sync": "./src/sync/index.ts",

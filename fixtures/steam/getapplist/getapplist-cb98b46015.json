@@ -1,0 +1,174 @@
+{
+ "url": "https://api.steampowered.com/IStoreService/GetAppList/v1/?include_games=true&include_dlc=false&include_software=false&include_videos=false&include_hardware=false&max_results=40",
+ "status": 200,
+ "date": "2026-10-29T14:30:49.676Z",
+ "synthetic": "GetAppList exige clave: lista generada con los nombres de GetItems en inglés",
+ "json": {
+  "response": {
+   "apps": [
+    {
+     "appid": 10,
+     "name": "Counter-Strike"
+    },
+    {
+     "appid": 20,
+     "name": "Team Fortress Classic"
+    },
+    {
+     "appid": 30,
+     "name": "Day of Defeat"
+    },
+    {
+     "appid": 40,
+     "name": "Deathmatch Classic"
+    },
+    {
+     "appid": 50,
+     "name": "Half-Life: Opposing Force"
+    },
+    {
+     "appid": 60,
+     "name": "Ricochet"
+    },
+    {
+     "appid": 70,
+     "name": "Half-Life"
+    },
+    {
+     "appid": 80,
+     "name": "Counter-Strike: Condition Zero"
+    },
+    {
+     "appid": 130,
+     "name": "Half-Life: Blue Shift"
+    },
+    {
+     "appid": 220,
+     "name": "Half-Life 2"
+    },
+    {
+     "appid": 240,
+     "name": "Counter-Strike: Source"
+    },
+    {
+     "appid": 300,
+     "name": "Day of Defeat: Source"
+    },
+    {
+     "appid": 320,
+     "name": "Half-Life 2: Deathmatch"
+    },
+    {
+     "appid": 360,
+     "name": "Half-Life Deathmatch: Source"
+    },
+    {
+     "appid": 400,
+     "name": "Portal"
+    },
+    {
+     "appid": 440,
+     "name": "Team Fortress 2"
+    },
+    {
+     "appid": 500,
+     "name": "Left 4 Dead"
+    },
+    {
+     "appid": 550,
+     "name": "Left 4 Dead 2"
+    },
+    {
+     "appid": 570,
+     "name": "Dota 2"
+    },
+    {
+     "appid": 620,
+     "name": "Portal 2"
+    },
+    {
+     "appid": 630,
+     "name": "Alien Swarm"
+    },
+    {
+     "appid": 730,
+     "name": "Counter-Strike 2"
+    },
+    {
+     "appid": 1002,
+     "name": "Rag Doll Kung Fu"
+    },
+    {
+     "appid": 1200,
+     "name": "Red Orchestra: Ostfront 41-45"
+    },
+    {
+     "appid": 1250,
+     "name": "Killing Floor"
+    },
+    {
+     "appid": 1300,
+     "name": "SiN Episodes: Emergence"
+    },
+    {
+     "appid": 1313,
+     "name": "SiN Gold (1998)"
+    },
+    {
+     "appid": 1500,
+     "name": "Darwinia"
+    },
+    {
+     "appid": 1510,
+     "name": "Uplink"
+    },
+    {
+     "appid": 1520,
+     "name": "DEFCON"
+    },
+    {
+     "appid": 1530,
+     "name": "Multiwinia"
+    },
+    {
+     "appid": 1600,
+     "name": "Dangerous Waters"
+    },
+    {
+     "appid": 1610,
+     "name": "Space Empires IV Deluxe"
+    },
+    {
+     "appid": 1620,
+     "name": "Jagged Alliance 2 Gold"
+    },
+    {
+     "appid": 1630,
+     "name": "Disciples II: Rise of the Elves"
+    },
+    {
+     "appid": 21130,
+     "name": "LEGO® Harry Potter: Years 1-4"
+    },
+    {
+     "appid": 22380,
+     "name": "Fallout: New Vegas"
+    },
+    {
+     "appid": 22490,
+     "name": "Fallout: New Vegas"
+    },
+    {
+     "appid": 24810,
+     "name": "Command & Conquer™ 3: Kane’s Wrath"
+    },
+    {
+     "appid": 35030,
+     "name": "Championship Manager 2010"
+    }
+   ],
+   "have_more_results": true,
+   "last_appid": 35030
+  }
+ }
+}

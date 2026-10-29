@@ -1,0 +1,26 @@
+{
+ "url": "https://api.steampowered.com/IStoreBrowseService/GetItems/v1/?input_json=%7B%22ids%22%3A%5B%7B%22appid%22%3A4000000001%7D%5D%2C%22context%22%3A%7B%22language%22%3A%22spanish%22%2C%22country_code%22%3A%22US%22%7D%2C%22data_request%22%3A%7B%22include_release%22%3Atrue%2C%22include_assets%22%3Atrue%2C%22include_reviews%22%3Atrue%2C%22include_platforms%22%3Atrue%2C%22include_best_purchase_option%22%3Afalse%7D%7D",
+ "status": 200,
+ "date": "2026-10-29T00:00:00.000Z",
+ "synthetic": "el bloqueado en ES, visible en US",
+ "json": {
+  "response": {
+   "store_items": [
+    {
+     "item_type": 0,
+     "id": 4000000001,
+     "success": 1,
+     "visible": true,
+     "name": "Juego Bloqueado",
+     "appid": 4000000001,
+     "type": 0,
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 120
+      }
+     }
+    }
+   ]
+  }
+ }
+}

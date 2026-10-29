@@ -1,0 +1,10 @@
+{
+ "url": "https://api.steampowered.com/IStoreQueryService/Query/v1/?input_json=%7B%22query%22%3A%7B%22start%22%3A990000%2C%22count%22%3A1000%2C%22sort%22%3A2%2C%22filters%22%3A%7B%22type_filters%22%3A%7B%22include_games%22%3Atrue%7D%7D%7D%2C%22context%22%3A%7B%22language%22%3A%22spanish%22%2C%22country_code%22%3A%22ES%22%7D%2C%22data_request%22%3A%7B%22include_release%22%3Atrue%2C%22include_assets%22%3Atrue%2C%22include_reviews%22%3Atrue%2C%22include_platforms%22%3Atrue%2C%22include_best_purchase_option%22%3Afalse%7D%7D",
+ "status": 429,
+ "date": "2026-10-29T00:00:00.000Z",
+ "headers": {
+  "retry-after": "120"
+ },
+ "text": "",
+ "synthetic": "429 con Retry-After"
+}

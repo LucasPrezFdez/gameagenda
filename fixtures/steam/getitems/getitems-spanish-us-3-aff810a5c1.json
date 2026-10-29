@@ -1,0 +1,99 @@
+{
+ "url": "https://api.steampowered.com/IStoreBrowseService/GetItems/v1/?input_json=%7B%22ids%22%3A%5B%7B%22appid%22%3A21130%7D%2C%7B%22appid%22%3A22490%7D%2C%7B%22appid%22%3A35030%7D%5D%2C%22context%22%3A%7B%22language%22%3A%22spanish%22%2C%22country_code%22%3A%22US%22%7D%2C%22data_request%22%3A%7B%22include_release%22%3Atrue%2C%22include_assets%22%3Atrue%2C%22include_reviews%22%3Atrue%2C%22include_platforms%22%3Atrue%2C%22include_best_purchase_option%22%3Afalse%7D%7D",
+ "status": 200,
+ "date": "2026-10-29T14:31:05.010Z",
+ "json": {
+  "response": {
+   "store_items": [
+    {
+     "item_type": 0,
+     "id": 21130,
+     "success": 1,
+     "visible": true,
+     "name": "LEGO® Harry Potter: Years 1-4",
+     "store_url_path": "app/21130/LEGO_Harry_Potter_Years_14",
+     "store_url_slug": "LEGO_Harry_Potter_Years_14",
+     "appid": 21130,
+     "type": 0,
+     "categories": {
+      "supported_player_categoryids": [
+       2,
+       1,
+       24
+      ],
+      "feature_categoryids": [
+       41,
+       42,
+       43,
+       44,
+       62
+      ],
+      "controller_categoryids": [
+       28
+      ]
+     },
+     "reviews": {
+      "summary_filtered": {
+       "review_count": 6476,
+       "percent_positive": 85,
+       "review_score": 8,
+       "review_score_label": "Muy positivas"
+      },
+      "summary_language_specific": {
+       "review_count": 314,
+       "percent_positive": 88,
+       "review_score": 8,
+       "review_score_label": "Muy positivas"
+      }
+     },
+     "assets": {
+      "asset_url_format": "steam/apps/21130/${FILENAME}?t=1728579610",
+      "main_capsule": "capsule_616x353.jpg",
+      "small_capsule": "capsule_231x87.jpg",
+      "header": "header.jpg",
+      "hero_capsule": "hero_capsule.jpg",
+      "library_capsule": "library_600x900.jpg",
+      "library_capsule_2x": "library_600x900_2x.jpg",
+      "library_hero": "library_hero.jpg",
+      "community_icon": "49af7348b4b6c51181c6210cb91b858d497610a2",
+      "page_background_path": "app/21130?t=1728579610",
+      "last_modified": 1728579610
+     },
+     "release": {
+      "steam_release_date": 1277492880
+     },
+     "platforms": {
+      "windows": true,
+      "vr_support": {},
+      "steam_deck_compat_category": 3,
+      "steam_os_compat_category": 2,
+      "steam_frame_compat_category": 0,
+      "steam_machine_compat_category": 3
+     }
+    },
+    {
+     "item_type": 0,
+     "id": 22490,
+     "success": 15,
+     "visible": false,
+     "unvailable_for_country_restriction": true,
+     "name": "Fallout: New Vegas",
+     "store_url_path": "app/22490/Fallout_New_Vegas",
+     "store_url_slug": "Fallout_New_Vegas",
+     "appid": 22490
+    },
+    {
+     "item_type": 0,
+     "id": 35030,
+     "success": 15,
+     "visible": false,
+     "unvailable_for_country_restriction": true,
+     "name": "Championship Manager 2010",
+     "store_url_path": "app/35030/Championship_Manager_2010",
+     "store_url_slug": "Championship_Manager_2010",
+     "appid": 35030
+    }
+   ]
+  }
+ }
+}
