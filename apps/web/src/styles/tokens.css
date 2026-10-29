@@ -1,0 +1,118 @@
+/* Tokens de la §9.8: claro por defecto; oscuro con el sistema o con el selector de Ajustes. */
+:root {
+  color-scheme: light;
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --surface-2: #eef1f5;
+  --control-border: #7a8594;
+  --text: #161b22;
+  --text-muted: #556170;
+  --accent: #c2185b;
+  --on-accent: #ffffff;
+  --backdrop: rgb(22 27 34 / 0.45);
+  --shadow: 0 8px 28px rgb(22 27 34 / 0.18);
+
+  /* Estados y marcas: texto · chip (opaco, ver §9.8). */
+  --want_to_play: #0b63c5;
+  --want_to_play-chip: #e2ecf8;
+  --playing: #0d6e43;
+  --playing-chip: #e2eee8;
+  --on_hold: #a44f00;
+  --on_hold-chip: #f4eae0;
+  --completed: #6a3fc8;
+  --completed-chip: #ede8f8;
+  --dropped: #5e6977;
+  --dropped-chip: #ecedef;
+  --platinum: #7a5a00;
+  --platinum-chip: #efebe0;
+  --owned: #556170;
+  --owned-chip: #ebecee;
+  --next: #006875;
+  --next-chip: #e0edee;
+
+  --font: "Segoe UI Variable Text", system-ui, sans-serif;
+  --radius: 8px;
+  --radius-sm: 6px;
+  --gap: 12px;
+  --gutter: 16px;
+  --header-h: 56px;
+  --tabbar-h: 56px;
+  --capturebar-h: 60px;
+  --row-h: 64px;
+  --option-h: 48px;
+  --target: 24px;
+  --target-touch: 44px;
+  --motion: 160ms;
+  --z-sticky: 10;
+  --z-overlay: 30;
+  --z-palette: 40;
+  --z-toast: 50;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0e1116;
+    --surface: #161b22;
+    --surface-2: #1e252e;
+    --control-border: #6b7787;
+    --text: #e7ebf0;
+    --text-muted: #a3adba;
+    --accent: #ff6aa8;
+    --on-accent: #0e1116;
+    --backdrop: rgb(0 0 0 / 0.55);
+    --shadow: 0 8px 28px rgb(0 0 0 / 0.5);
+    --want_to_play: #5ab0ff;
+    --want_to_play-chip: #213345;
+    --playing: #3fcf8e;
+    --playing-chip: #1d3833;
+    --on_hold: #ff9f43;
+    --on_hold-chip: #3b3027;
+    --completed: #b395ff;
+    --completed-chip: #2f2f45;
+    --dropped: #9aa5b4;
+    --dropped-chip: #2b3139;
+    --platinum: #e8c35a;
+    --platinum-chip: #38362b;
+    --owned: #a3adba;
+    --owned-chip: #2d323a;
+    --next: #4dd0e1;
+    --next-chip: #1f3841;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0e1116;
+  --surface: #161b22;
+  --surface-2: #1e252e;
+  --control-border: #6b7787;
+  --text: #e7ebf0;
+  --text-muted: #a3adba;
+  --accent: #ff6aa8;
+  --on-accent: #0e1116;
+  --backdrop: rgb(0 0 0 / 0.55);
+  --shadow: 0 8px 28px rgb(0 0 0 / 0.5);
+  --want_to_play: #5ab0ff;
+  --want_to_play-chip: #213345;
+  --playing: #3fcf8e;
+  --playing-chip: #1d3833;
+  --on_hold: #ff9f43;
+  --on_hold-chip: #3b3027;
+  --completed: #b395ff;
+  --completed-chip: #2f2f45;
+  --dropped: #9aa5b4;
+  --dropped-chip: #2b3139;
+  --platinum: #e8c35a;
+  --platinum-chip: #38362b;
+  --owned: #a3adba;
+  --owned-chip: #2d323a;
+  --next: #4dd0e1;
+  --next-chip: #1f3841;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion: 0ms;
+  }
+}
