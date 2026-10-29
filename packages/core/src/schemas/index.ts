@@ -1,2 +1,36 @@
-// Pendiente (M1): ver §14.1 de prototipe.md.
-export {};
+export {
+  daySchema,
+  entryIdSchema,
+  entrySchema,
+  fieldSchema,
+  fieldValueSchema,
+  flagNameSchema,
+  hlcSchema,
+  instantSchema,
+  manualEntryIdSchema,
+  noteSchema,
+  opIdSchema,
+  opSchema,
+  partialDateSchema,
+  platformSchema,
+  rankSchema,
+  statusSchema,
+  steamEntryIdSchema,
+} from './entry.ts';
+export {
+  createExport,
+  EXPORT_FORMAT,
+  EXPORT_VERSION,
+  type ExportFile,
+  type ExportInput,
+  exportEntryIds,
+  exportFileSchema,
+  type ImportContext,
+  type ImportCounts,
+  type ImportResult,
+  importExport,
+  type ParseExportResult,
+  parseExport,
+  stringifyExport,
+  validateExport,
+} from './export.ts';
