@@ -1,2 +1,23 @@
-// Pendiente (M1): ver §14.1 de prototipe.md.
-export {};
+export {
+  createHlcClock,
+  formatHlc,
+  HLC_LENGTH,
+  HLC_PATTERN,
+  type HlcClock,
+  type HlcClockOptions,
+  type HlcClockSnapshot,
+  type HlcParts,
+  hlcTime,
+  hlcToIso,
+  isHlc,
+  isTooFarAhead,
+  MAX_COUNTER,
+  MAX_DRIFT_MS,
+  MAX_HLC_MS,
+  maxHlc,
+  NODE_PATTERN,
+  parseHlc,
+  randomNode,
+  receiveHlc,
+  tickHlc,
+} from './hlc.ts';
