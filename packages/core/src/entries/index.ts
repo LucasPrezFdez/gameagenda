@@ -1,3 +1,27 @@
+export {
+  type ActionContext,
+  type ActionResult,
+  type AddContext,
+  type AddInput,
+  addEntry,
+  addEntryExact,
+  type CatalogCopy,
+  type EntryPatch,
+  editEntry,
+  linkCandidate,
+  linkManual,
+  moveEntry,
+  type NewEntryFields,
+  provisionalInput,
+  refreshCatalogCopy,
+  removeEntry,
+  setFlag,
+  setStatus,
+  toggleFlag,
+  type UndoChange,
+  type UndoStep,
+  undo,
+} from './actions.ts';
 export { isFullDate, isValidDay, MAX_YEAR, MIN_YEAR } from './day.ts';
 export {
   isAppid,
