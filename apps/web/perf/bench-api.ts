@@ -17,6 +17,8 @@ export interface BenchApi {
   prime(): Promise<{ version: string; count: number }>;
   restart(hold: 'scan' | null): Promise<{ scanMs: number; fullMs: number | null }>;
   release(): Promise<{ fullMs: number }>;
+  /** Cache Storage + sha256, lectura del TSV y claves hasta `scan`, sin ceder el turno. */
+  breakdown(): Promise<{ cacheMs: number; readMs: number; keysMs: number }>;
   type(options: { fuzzy: boolean }): Promise<TypingReport>;
 }
 

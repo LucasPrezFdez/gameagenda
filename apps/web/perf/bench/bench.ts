@@ -8,8 +8,13 @@
 // La prueba (`perf/search.perf.ts`) llama a `globalThis.gaPerfBench` paso a paso, para fijar el
 // estrangulamiento entre pasos.
 import { latencyStats, realisticFinals, typedSequences } from '@gameagenda/core/bench';
-import { parseCore } from '@gameagenda/core/catalog-format';
-import { canSuggest, loadFuzzy } from '@gameagenda/core/search';
+import {
+  type CoreCatalog,
+  createCoreReader,
+  parseAliases,
+  parseCore,
+} from '@gameagenda/core/catalog-format';
+import { canSuggest, createIndexBuilder, loadFuzzy } from '@gameagenda/core/search';
 import golden from '../../../../packages/core/test/golden.es.tsv?raw';
 import type {
   ResultsMessage,
@@ -162,6 +167,31 @@ const api: BenchApi = {
     const fullMs = bench.fullAt === null ? null : round(bench.fullAt - bench.startedAt);
     log(`reinicio con caché: scan ${scanMs} ms, full ${fullMs ?? '—'} ms`);
     return { scanMs, fullMs };
+  },
+
+  /**
+   * El mismo camino hasta `scan`, por fases y sin ceder el turno: dónde se va el tiempo del
+   * reinicio con caché (solo informa).
+   */
+  async breakdown() {
+    current?.dispose();
+    current = null;
+    await yieldTask();
+    const now = () => performance.now();
+    const t0 = now();
+    const texts = await store.readCached();
+    if (!texts) throw new Error('El catálogo no está en Cache Storage');
+    const t1 = now();
+    const reader = createCoreReader(texts.core, { kind: 'core', now });
+    while (!reader.step(Number.POSITIVE_INFINITY)) {
+      // de una vez
+    }
+    const aliases = parseAliases(texts.aliases).pairs;
+    const t2 = now();
+    const builder = createIndexBuilder(reader.result as CoreCatalog, aliases, { now });
+    while (builder.state !== 'scan') builder.step(now());
+    const t3 = now();
+    return { cacheMs: round(t1 - t0), readMs: round(t2 - t1), keysMs: round(t3 - t2) };
   },
 
   /** Suelta el escaneo y espera al índice completo. */

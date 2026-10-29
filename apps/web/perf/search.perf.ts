@@ -48,6 +48,7 @@ test('parte 1: búsqueda de core en el hilo principal con CPU ×4', async ({ pag
     expect(full.state).toBe('full');
     expect(scan.state).toBe('scan');
     await bench(page, 'release');
+    const phases = await bench(page, 'breakdown');
 
     rows.add({
       metric: 'Reinicio con caché → escaneo listo (scan)',
@@ -55,6 +56,11 @@ test('parte 1: búsqueda de core en el hilo principal con CPU ×4', async ({ pag
       value: Math.max(restart.scanMs, held.scanMs),
       limit: 2000,
       note: `${restart.scanMs} y ${held.scanMs} ms: leer Cache Storage, comprobar el sha256, leer el TSV y normalizar las claves (CA1.11)`,
+    });
+    rows.add({
+      metric: 'Desglose hasta scan, sin ceder el turno',
+      value: Math.round(phases.cacheMs + phases.readMs + phases.keysMs),
+      note: `Cache Storage + sha256 ${Math.round(phases.cacheMs)} ms, lectura del TSV ${Math.round(phases.readMs)} ms, claves, exactos y pajar ${Math.round(phases.keysMs)} ms`,
     });
     rows.add({ metric: 'Reinicio con caché → índice completo (full)', value: restart.fullMs });
     rows.addStats({

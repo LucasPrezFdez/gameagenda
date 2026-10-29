@@ -26,6 +26,14 @@ interface PerfBuffers {
   lcp: number[];
   longtasks: { start: number; duration: number }[];
   events: { id: number; name: string; start: number; duration: number }[];
+  /** Fotogramas largos (Long Animation Frames), para saber qué hubo en cada tarea larga. */
+  frames: { start: number; end: number; scripts: string[] }[];
+}
+
+interface LoafScript {
+  readonly invoker: string;
+  readonly sourceFunctionName: string;
+  readonly duration: number;
 }
 
 declare global {
@@ -34,7 +42,7 @@ declare global {
 
 /** LCP, tareas largas y Event Timing (agrupado por `interactionId`), desde el primer momento. */
 function installObservers(): void {
-  const perf: PerfBuffers = { lcp: [], longtasks: [], events: [] };
+  const perf: PerfBuffers = { lcp: [], longtasks: [], events: [], frames: [] };
   globalThis.__gaPerf = perf;
   // Ganchos de la búsqueda del *build* `e2e`, sin ajustes: solo el tiempo dentro del Worker.
   globalThis.__GA_SEARCH_TEST__ = {};
@@ -49,6 +57,15 @@ function installObservers(): void {
   };
   observe('largest-contentful-paint', {}, (e) => perf.lcp.push(e.startTime));
   observe('longtask', {}, (e) => perf.longtasks.push({ start: e.startTime, duration: e.duration }));
+  observe('long-animation-frame', {}, (e) => {
+    const scripts = ((e as PerformanceEntry & { scripts?: LoafScript[] }).scripts ?? [])
+      .filter((s) => s.duration >= 5)
+      .map(
+        (s) =>
+          `${s.invoker}${s.sourceFunctionName ? ` (${s.sourceFunctionName})` : ''} ${Math.round(s.duration)} ms`,
+      );
+    perf.frames.push({ start: e.startTime, end: e.startTime + e.duration, scripts });
+  });
   observe('event', { durationThreshold: 16 }, (e) => {
     const id = (e as PerformanceEventTiming).interactionId;
     if (id) perf.events.push({ id, name: e.name, start: e.startTime, duration: e.duration });
@@ -176,7 +193,9 @@ async function importAgenda(page: Page, json: string): Promise<void> {
     .toBe(ENTRIES);
 }
 
-const palette = (page: Page) => page.getByRole('combobox', { name: 'Apunta un juego' });
+// Selectores CSS y no por rol: con 500 filas, calcular nombres accesibles de todo el documento
+// le cuesta a Playwright 80–100 ms con ×4 dentro de la ventana medida.
+const palette = (page: Page) => page.locator('input.palette__input[role="combobox"]');
 
 /**
  * Teclea cada nombre en la paleta (`Ctrl+K`) carácter a carácter; los de `capture`, con Intro
@@ -198,7 +217,7 @@ async function session(
     await expect(palette(page)).toBeFocused();
     await palette(page).pressSequentially(name, { delay });
     if (capture.has(i)) {
-      const first = page.getByRole('option').first();
+      const first = page.locator('.palette__listbox [role="option"]').first();
       await expect(first).toBeVisible();
       expect(
         await first.textContent(),
@@ -241,9 +260,16 @@ async function inp(page: Page, window: { start: number; end: number; interaction
   return { value, slow: slow.length, total, max: slow[0] ?? 0 };
 }
 
+/** Tareas largas de la ventana, con lo que el fotograma largo que las contiene atribuye. */
 async function longTasks(page: Page, window: { start: number; end: number }) {
-  const tasks = await page.evaluate(() => globalThis.__gaPerf.longtasks);
-  return tasks.filter((t) => t.start >= window.start && t.start <= window.end);
+  const { longtasks, frames } = await page.evaluate(() => globalThis.__gaPerf);
+  const tasks = longtasks.filter((t) => t.start >= window.start && t.start <= window.end);
+  const describe = (t: { start: number; duration: number }) => {
+    const frame = frames.find((f) => f.start <= t.start + 1 && f.end >= t.start + t.duration - 1);
+    const what = frame?.scripts.length ? frame.scripts.join(', ') : 'sin script atribuido';
+    return `${Math.round(t.duration)} ms a los ${((t.start - window.start) / 1000).toFixed(1)} s (${what})`;
+  };
+  return { count: tasks.length, detail: tasks.map(describe).join('; ') };
 }
 
 /** Frecuencia de fotogramas de la página (60 rAF). */
@@ -362,12 +388,10 @@ test('parte 2: app real con el catálogo completo y 500 entradas en Mi lista', a
     throttled.add({
       metric: 'Tareas largas (>50 ms) al teclear o apuntar',
       stat: 'número',
-      value: slowLong.length,
+      value: slowLong.count,
       unit: '',
       limit: 0,
-      ...(slowLong.length > 0 && {
-        note: `la mayor, ${Math.round(Math.max(...slowLong.map((t) => t.duration)))} ms`,
-      }),
+      ...(slowLong.count > 0 && { note: slowLong.detail }),
     });
     throttled.addStats({
       metric: 'Pulsación → resultados (search:keystroke-to-results)',
@@ -387,9 +411,10 @@ test('parte 2: app real con el catálogo completo y 500 entradas en Mi lista', a
     desktop.add({
       metric: 'Tareas largas (>50 ms) al teclear',
       stat: 'número',
-      value: deskLong.length,
+      value: deskLong.count,
       unit: '',
       limit: 0,
+      ...(deskLong.count > 0 && { note: deskLong.detail }),
     });
     expect(errors, 'errores de la página').toEqual([]);
   } finally {
