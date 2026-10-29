@@ -1,28 +1,16 @@
-// Normalización mínima para el filtro de Mi lista, la búsqueda en Mi lista (estado `none`)
-// y el cliente falso. Provisional: se sustituye por `normalize()` de `@gameagenda/core`
-// (ver §8.1), que ya define el orden completo de los pasos y sus vectores de prueba.
+// Texto del filtro de Mi lista y de la búsqueda en Mi lista (estado `none`), con la misma
+// normalización que el índice y la consulta: `normalize()` de `@gameagenda/core` (ver §8.1).
+import { normalize } from '@gameagenda/core/normalize';
 
-const MARKS = /[™℠®©]/g;
-const APOSTROPHES = /['’‘‛ʼʻ`´′＇]/g;
-const DIACRITICS = /[̀-ͯ]/g;
-const NON_WORD = /[^\p{L}\p{N}]+/gu;
-
-export function normalizeLite(value: string): string {
-  return value
-    .replace(MARKS, '')
-    .replace(APOSTROPHES, '')
-    .normalize('NFKD')
-    .replace(DIACRITICS, '')
-    .normalize('NFC')
-    .toLowerCase()
-    .replace(/&/g, ' and ')
-    .replace(NON_WORD, ' ')
-    .trim();
-}
+/**
+ * @deprecated Alias de `normalize()` para el cliente falso de búsqueda mientras exista; el código
+ * nuevo usa `normalize()` de `@gameagenda/core/normalize`.
+ */
+export const normalizeLite: (value: string) => string = normalize;
 
 /** Tokens de la clave normalizada. */
 export function tokensOf(value: string): string[] {
-  const key = normalizeLite(value);
+  const key = normalize(value);
   return key === '' ? [] : key.split(' ');
 }
 
