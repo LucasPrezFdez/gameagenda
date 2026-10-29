@@ -290,7 +290,8 @@
   flex: 1;
 }
 
-.toast__undo {
+.toast__undo,
+.toast__action {
   color: var(--accent);
   font-weight: 700;
 }

@@ -59,6 +59,20 @@ export function Toaster() {
               {es.toast.undo}
             </button>
           )}
+          {notice.actions.map((action) => (
+            <button
+              key={action.label}
+              type="button"
+              className="btn btn--ghost toast__action"
+              onClick={() => {
+                notices.dismiss(notice.id);
+                document.getElementById('main')?.focus({ preventScroll: true });
+                action.run();
+              }}
+            >
+              {action.label}
+            </button>
+          ))}
         </div>
       )}
     </div>

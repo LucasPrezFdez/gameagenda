@@ -1,21 +1,30 @@
 // Aviso con Deshacer (RF-10; ver §9.5, regla 2): un aviso a la vista, que dura 8 s y se pausa
 // con foco o puntero; detrás, la pila de Deshacer para `Ctrl+Z` y «Deshacer último cambio».
+// Otros avisos llevan sus propias acciones (p. ej., «Guardado fallido · Exportar · Reintentar»).
 import { es } from '../i18n/es.ts';
 import type { FeedbackTiming } from '../perf/measures.ts';
 import { createUndoStack, type UndoStack } from '../undo/undo-stack.ts';
 
 export const NOTICE_MS = 8000;
 
+/** Botón de un aviso que no es Deshacer; al pulsarlo, el aviso se cierra. */
+export interface NoticeAction {
+  readonly label: string;
+  run(): void;
+}
+
 export interface Notice {
   readonly id: number;
   readonly message: string;
   /** Entrada de la pila que deshace el botón del aviso. */
   readonly undoId: number | null;
+  readonly actions: readonly NoticeAction[];
   readonly timing: FeedbackTiming | null;
 }
 
 export interface NotifyOptions {
   readonly undo?: (() => void) | null;
+  readonly actions?: readonly NoticeAction[];
   readonly timing?: FeedbackTiming;
 }
 
@@ -36,8 +45,13 @@ export function createNoticeCenter(undoStack: UndoStack = createUndoStack()): No
   let nextId = 1;
   const listeners = new Set<() => void>();
 
-  function show(message: string, undoId: number | null, timing: FeedbackTiming | null): void {
-    current = { id: nextId, message, undoId, timing };
+  function show(
+    message: string,
+    undoId: number | null,
+    timing: FeedbackTiming | null,
+    actions: readonly NoticeAction[] = [],
+  ): void {
+    current = { id: nextId, message, undoId, actions, timing };
     nextId += 1;
     for (const listener of listeners) listener();
   }
@@ -50,7 +64,7 @@ export function createNoticeCenter(undoStack: UndoStack = createUndoStack()): No
     undoStack,
     notify(message, options = {}) {
       const entry = options.undo ? undoStack.push(message, options.undo) : null;
-      show(message, entry?.id ?? null, options.timing ?? null);
+      show(message, entry?.id ?? null, options.timing ?? null, options.actions);
     },
     undoLast(timing) {
       const entry = undoStack.pop();

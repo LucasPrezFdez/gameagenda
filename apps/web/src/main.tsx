@@ -13,7 +13,7 @@ import { type LocalState, loadLocalState } from './db/local-state.ts';
 import { createDexieSettingsStorage } from './db/settings-storage.ts';
 import { connectErrorLog, installGlobalErrorHandlers, logError } from './errors/error-log.ts';
 import { es } from './i18n/es.ts';
-import { createNoticeCenter } from './notices/notice-center.ts';
+import { createNoticeCenter, type NoticeAction } from './notices/notice-center.ts';
 import { registerServiceWorker } from './pwa/register-sw.ts';
 import { startRouter } from './router/router.tsx';
 import { createAppSearchClient } from './search-client/index.ts';
@@ -43,13 +43,20 @@ function secureRandom(): number {
   return (crypto.getRandomValues(new Uint32Array(1))[0] ?? 0) / 2 ** 32;
 }
 
+/** Botones de «Guardado fallido» (§9.6): se conectan cuando existe la agenda. */
+let storageActions: readonly NoticeAction[] = [];
+
 let lastStorageNotice = Number.NEGATIVE_INFINITY;
-function onStorageError(error: unknown): void {
-  logError('storage', error);
+function showStorageNotice(): void {
   const now = performance.now();
   if (now - lastStorageNotice < STORAGE_NOTICE_MS) return;
   lastStorageNotice = now;
-  notices.notify(es.notices.storageFailed);
+  notices.notify(es.notices.storageFailed, { actions: storageActions });
+}
+
+function onStorageError(error: unknown): void {
+  logError('storage', error);
+  showStorageNotice();
 }
 
 async function openLocalData() {
@@ -65,7 +72,8 @@ async function openLocalData() {
     const state: LocalState = await Promise.race([loadLocalState(db), timeout]);
     return { db, state };
   } catch (error) {
-    onStorageError(error);
+    // El aviso sale cuando ya hay agenda que exportar (ver `start`).
+    logError('storage', error);
     return null;
   } finally {
     clearTimeout(timer);
@@ -96,6 +104,20 @@ async function start(): Promise<void> {
     onStorageError,
   });
   if (local) connectErrorLog(createDexieErrorLogStorage(local.db));
+
+  const exportList: NoticeAction = {
+    label: es.notices.export,
+    run() {
+      import('./data/data-actions.ts')
+        .then((data) => data.exportJson({ agenda, settings, appVersion: __APP_VERSION__ }))
+        .catch((error: unknown) => logError('storage', error));
+    },
+  };
+  // Sin IndexedDB no hay nada que reintentar: la agenda vive solo en memoria.
+  storageActions = local
+    ? [exportList, { label: es.notices.retry, run: () => void agenda.retryStorage() }]
+    : [exportList];
+  if (!local) showStorageNotice();
 
   const services: AppServices = { agenda, search, settings, notices };
   search.init({ catalogVersion: null, showAdult });

@@ -170,15 +170,19 @@ export function createAgenda(options: AgendaOptions): AgendaStore {
     if (changed) emit();
   }
 
+  /** Lo que falló antes, en su orden; si vuelve a fallar, se queda en `failed`. */
+  async function writeFailed(): Promise<void> {
+    while (failed.length > 0) {
+      const retry = failed[0] as QueuedWrite;
+      await write(retry);
+      failed.shift();
+    }
+  }
+
   function enqueue(item: QueuedWrite): Promise<void> {
     const run = async () => {
       await afterPaint();
-      // Lo que falló antes va primero, en su orden.
-      while (failed.length > 0) {
-        const retry = failed[0] as QueuedWrite;
-        await write(retry);
-        failed.shift();
-      }
+      await writeFailed();
       await write(item);
     };
     const done = writes.then(run).catch((error: unknown) => {
@@ -467,6 +471,15 @@ export function createAgenda(options: AgendaOptions): AgendaStore {
     await done;
   }
 
+  function retryStorage(): Promise<void> {
+    if (!storage || failed.length === 0) return writes;
+    const done = writes.then(writeFailed).catch((error: unknown) => {
+      options.onStorageError?.(error);
+    });
+    writes = done;
+    return done;
+  }
+
   async function whenIdle(): Promise<void> {
     // Un guardado provoca una relectura, y una relectura puede encontrar más cambios.
     for (let i = 0; i < 10; i++) {
@@ -495,6 +508,7 @@ export function createAgenda(options: AgendaOptions): AgendaStore {
     deleteAll,
     refreshFromCatalog,
     whenIdle,
+    retryStorage,
     dispose: unsubscribe,
 
     allEntries: () => [...all.values()],

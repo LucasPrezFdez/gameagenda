@@ -2,9 +2,10 @@ import { manualEntryId } from '@gameagenda/core/entries';
 import { createHlcClock } from '@gameagenda/core/sync';
 import { v7 as uuidv7 } from 'uuid';
 import { afterEach, describe, expect, it } from 'vitest';
+import { createDexieAgendaStorage } from '../db/agenda-storage.ts';
 import { META_KEYS } from '../db/database.ts';
 import { createAgenda } from './agenda.ts';
-import { byId, newBrowser, openTab, type TestTab, values } from './test-support.ts';
+import { byId, newBrowser, openTab, type TestTab, TODAY, values } from './test-support.ts';
 import { compareRank } from './types.ts';
 
 const open: TestTab[] = [];
@@ -267,5 +268,39 @@ describe('agenda sin almacén', () => {
     agenda.capture({ id: 'steam:1', title: 'Hades' });
     expect(agenda.setStatus('steam:1', 'playing').effect).toMatchObject({ kind: 'status' });
     expect(agenda.getSnapshot()[0]?.status).toBe('playing');
+  });
+});
+
+describe('guardado fallido', () => {
+  it('«Reintentar» guarda lo que falló, en su orden, sin esperar a otro cambio', async () => {
+    const t = await tab();
+    const storage = createDexieAgendaStorage(t.db, uuidv7);
+    let broken = true;
+    const errors: unknown[] = [];
+    const agenda = createAgenda({
+      clock: createHlcClock({ now: Date.now, node: 'abcd1234' }),
+      newId: uuidv7,
+      storage: {
+        ...storage,
+        write: (batch) =>
+          broken ? Promise.reject(new Error('disco lleno')) : storage.write(batch),
+      },
+      now: () => TODAY,
+      onStorageError: (error) => errors.push(error),
+      afterPaint: () => Promise.resolve(),
+    });
+    agenda.capture({ id: 'steam:1', title: 'Hades' });
+    agenda.setStatus('steam:1', 'playing');
+    await agenda.whenIdle();
+    // Cada guardado que falla avisa (main.tsx muestra como mucho un aviso cada 30 s).
+    expect(errors).toHaveLength(2);
+    expect(await t.db.entries.count()).toBe(0);
+
+    broken = false;
+    await agenda.retryStorage();
+    expect(errors).toHaveLength(2);
+    expect(await t.db.entries.get('steam:1')).toEqual(agenda.get('steam:1'));
+    expect((await t.db.entries.get('steam:1'))?.status).toBe('playing');
+    agenda.dispose();
   });
 });

@@ -183,6 +183,8 @@ export interface AgendaStore extends AgendaActions, AgendaData {
   refreshFromCatalog(copies: readonly CatalogCopy[]): void;
   /** Se resuelve cuando todo lo pendiente está guardado y releído. */
   whenIdle(): Promise<void>;
+  /** Vuelve a guardar lo que falló («Guardado fallido · Reintentar», §9.6). */
+  retryStorage(): Promise<void>;
   /** Deja de escuchar los cambios de otras pestañas. */
   dispose(): void;
 }
