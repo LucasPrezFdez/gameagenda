@@ -1,0 +1,24 @@
+{
+  "name": "@gameagenda/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "La app: SPA de React + Vite, PWA local-first.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "e2e": "playwright test"
+  },
+  "dependencies": {
+    "@gameagenda/core": "0.0.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "vite": "8.3.5"
+  }
+}

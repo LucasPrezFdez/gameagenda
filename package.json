@@ -1,0 +1,40 @@
+{
+  "name": "gameagenda",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Agenda personal de videojuegos: apunta en segundos los juegos que quieres jugar.",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": "^24.21.0"
+  },
+  "workspaces": [
+    "apps/web",
+    "packages/core",
+    "pipeline"
+  ],
+  "scripts": {
+    "setup": "node scripts/setup.ts",
+    "dev": "npm run dev -w @gameagenda/web",
+    "build": "npm run build -w @gameagenda/web",
+    "preview": "npm run preview -w @gameagenda/web",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "typecheck": "tsc -p packages/core && tsc -p apps/web && tsc -p apps/web/tsconfig.node.json && tsc -p scripts",
+    "test": "vitest run",
+    "check": "npm run lint && npm run typecheck && npm test && npm run build",
+    "e2e": "npm run e2e -w @gameagenda/web"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.4",
+    "@playwright/test": "1.64.1",
+    "@types/node": "24.19.2",
+    "typescript": "7.0.2",
+    "vitest": "5.0.5",
+    "wrangler": "4.155.0"
+  },
+  "allowScripts": {
+    "esbuild": false,
+    "workerd": false
+  }
+}

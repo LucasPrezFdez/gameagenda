@@ -1,0 +1,10 @@
+{
+  "name": "@gameagenda/pipeline",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Construye y publica el catálogo de Steam (ver §4 de prototipe.md).",
+  "dependencies": {
+    "@gameagenda/core": "0.0.0"
+  }
+}

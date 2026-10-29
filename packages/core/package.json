@@ -1,0 +1,10 @@
+{
+  "name": "@gameagenda/core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Lógica pura compartida: normalización, búsqueda, formato del catálogo y reglas de la agenda.",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

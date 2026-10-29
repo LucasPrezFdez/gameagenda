@@ -1,0 +1,14 @@
+node_modules/
+.env.local
+dist*/
+pipeline/out/
+pipeline/state/
+.wrangler/
+apps/desktop/src-tauri/target/
+*.tsbuildinfo
+
+# Playwright
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
