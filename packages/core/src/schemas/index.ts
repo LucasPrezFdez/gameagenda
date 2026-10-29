@@ -1,4 +1,16 @@
 export {
+  CSV_COLUMNS,
+  type CsvColumn,
+  type CsvImportContext,
+  type CsvImportResult,
+  type CsvRowError,
+  type CsvRowErrorReason,
+  entriesToCsv,
+  importCsv,
+  parseCsv,
+  type StatusLabels,
+} from './csv.ts';
+export {
   daySchema,
   entryIdSchema,
   entrySchema,
