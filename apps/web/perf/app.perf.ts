@@ -4,6 +4,7 @@
 // nombres y apunta 10 (INP, `ui:feedback`, `capture:palette-to-confirm` y tareas largas). Sin
 // estrangular, los mismos 20 nombres: `search:keystroke-to-results` para el presupuesto de
 // escritorio. El Worker de búsqueda no se estrangula (ver `worker-throttling.perf.ts`).
+import { writeFileSync } from 'node:fs';
 import { latencyStats, mulberry32, realisticFinals } from '@gameagenda/core/bench';
 import { type CoreCatalog, parseCore } from '@gameagenda/core/catalog-format';
 import { addEntry, type Entry, type Status } from '@gameagenda/core/entries';
@@ -27,13 +28,19 @@ interface PerfBuffers {
   longtasks: { start: number; duration: number }[];
   events: { id: number; name: string; start: number; duration: number }[];
   /** Fotogramas largos (Long Animation Frames), para saber qué hubo en cada tarea larga. */
-  frames: { start: number; end: number; scripts: string[] }[];
+  frames: { start: number; end: number; scripts: string[]; render: string }[];
 }
 
 interface LoafScript {
   readonly invoker: string;
   readonly sourceFunctionName: string;
   readonly duration: number;
+}
+
+interface LoafEntry extends PerformanceEntry {
+  readonly scripts?: LoafScript[];
+  readonly renderStart?: number;
+  readonly styleAndLayoutStart?: number;
 }
 
 declare global {
@@ -57,14 +64,20 @@ function installObservers(): void {
   };
   observe('largest-contentful-paint', {}, (e) => perf.lcp.push(e.startTime));
   observe('longtask', {}, (e) => perf.longtasks.push({ start: e.startTime, duration: e.duration }));
-  observe('long-animation-frame', {}, (e) => {
-    const scripts = ((e as PerformanceEntry & { scripts?: LoafScript[] }).scripts ?? [])
+  observe('long-animation-frame', {}, (entry) => {
+    const e = entry as LoafEntry;
+    const end = e.startTime + e.duration;
+    const scripts = (e.scripts ?? [])
       .filter((s) => s.duration >= 5)
       .map(
         (s) =>
           `${s.invoker}${s.sourceFunctionName ? ` (${s.sourceFunctionName})` : ''} ${Math.round(s.duration)} ms`,
       );
-    perf.frames.push({ start: e.startTime, end: e.startTime + e.duration, scripts });
+    // Reparto del fotograma: tareas antes de pintar, estilo y maquetación, y el resto del pintado.
+    const renderStart = e.renderStart || end;
+    const layoutStart = e.styleAndLayoutStart || end;
+    const render = `tareas ${Math.round(renderStart - e.startTime)} ms, rAF ${Math.round(layoutStart - renderStart)} ms, estilo y maquetación ${Math.round(end - layoutStart)} ms`;
+    perf.frames.push({ start: e.startTime, end, scripts, render });
   });
   observe('event', { durationThreshold: 16 }, (e) => {
     const id = (e as PerformanceEventTiming).interactionId;
@@ -213,6 +226,8 @@ async function session(
   }));
   let captured = (await measures(page, 'capture:palette-to-confirm')).length;
   for (const [i, name] of names.entries()) {
+    // Para situar las tareas largas: qué nombre se tecleaba y si se apuntaba.
+    await page.evaluate((label) => performance.mark(label), `perf:${i + 1}:${name}`);
     await page.keyboard.press('Control+k');
     await expect(palette(page)).toBeFocused();
     await palette(page).pressSequentially(name, { delay });
@@ -262,12 +277,22 @@ async function inp(page: Page, window: { start: number; end: number; interaction
 
 /** Tareas largas de la ventana, con lo que el fotograma largo que las contiene atribuye. */
 async function longTasks(page: Page, window: { start: number; end: number }) {
-  const { longtasks, frames } = await page.evaluate(() => globalThis.__gaPerf);
+  const { longtasks, frames, marks } = await page.evaluate(() => ({
+    ...globalThis.__gaPerf,
+    marks: performance
+      .getEntriesByType('mark')
+      .filter((m) => m.name.startsWith('perf:'))
+      .map((m) => ({ name: m.name.slice(5), start: m.startTime })),
+  }));
   const tasks = longtasks.filter((t) => t.start >= window.start && t.start <= window.end);
   const describe = (t: { start: number; duration: number }) => {
     const frame = frames.find((f) => f.start <= t.start + 1 && f.end >= t.start + t.duration - 1);
-    const what = frame?.scripts.length ? frame.scripts.join(', ') : 'sin script atribuido';
-    return `${Math.round(t.duration)} ms a los ${((t.start - window.start) / 1000).toFixed(1)} s (${what})`;
+    const what = frame
+      ? `${frame.render}${frame.scripts.length ? `; ${frame.scripts.join(', ')}` : ''}`
+      : 'sin fotograma largo';
+    const typing = marks.filter((m) => m.start <= t.start).at(-1);
+    const at = typing ? `${typing.name}, +${Math.round(t.start - typing.start)} ms` : '—';
+    return `${Math.round(t.duration)} ms con el nombre ${at} (${what})`;
   };
   return { count: tasks.length, detail: tasks.map(describe).join('; ') };
 }
@@ -290,6 +315,7 @@ function refreshRate(page: Page): Promise<number> {
 
 test('parte 2: app real con el catálogo completo y 500 entradas en Mi lista', async ({
   page,
+  browser,
 }, testInfo) => {
   const throttled = new PerfRows(`Parte 2 · app real con CPU ×${RATE} y ${ENTRIES} entradas`);
   const desktop = new PerfRows(`Parte 2 · app real sin estrangular (escritorio)`);
@@ -326,7 +352,24 @@ test('parte 2: app real con el catálogo completo y 500 entradas en Mi lista', a
 
     // 4. Teclear 20 nombres y apuntar 10 con ×4.
     const captureSet = new Set(typed.map((_, i) => i).filter((i) => i % 2 === 0));
+    // `PERF_TRACE=1`: traza de Chrome de esta sesión (ábrela en DevTools › Rendimiento).
+    const tracing = Boolean(process.env.PERF_TRACE);
+    if (tracing) {
+      await browser.startTracing(page, {
+        categories: [
+          'devtools.timeline',
+          'disabled-by-default-devtools.timeline',
+          'disabled-by-default-devtools.timeline.invalidationTracking',
+          'v8.execute',
+        ],
+      });
+    }
     const slowWindow = await session(page, typed, TYPE_DELAY, captureSet);
+    if (tracing) {
+      const trace = testInfo.outputPath('traza-cpu-x4.json');
+      writeFileSync(trace, await browser.stopTracing());
+      console.log(`Traza de la sesión con ×${RATE}: ${trace}`);
+    }
     const slowInp = await inp(page, slowWindow);
     const slowLong = await longTasks(page, slowWindow);
     const feedback = await measures(page, 'ui:feedback');
