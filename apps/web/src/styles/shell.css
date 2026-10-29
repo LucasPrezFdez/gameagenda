@@ -194,7 +194,7 @@
 .menu__popup {
   position: absolute;
   top: calc(100% + 4px);
-  z-index: var(--z-overlay);
+  z-index: var(--z-menu);
   min-width: 13rem;
   padding: 4px;
   border: 1px solid var(--control-border);

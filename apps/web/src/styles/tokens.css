@@ -47,6 +47,8 @@
   --z-overlay: 30;
   --z-palette: 40;
   --z-toast: 50;
+  /* Un menú abierto es lo que se está tocando: por encima del aviso, que puede taparlo en móvil. */
+  --z-menu: 60;
 }
 
 @media (prefers-color-scheme: dark) {
