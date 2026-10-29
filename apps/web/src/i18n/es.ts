@@ -1,5 +1,6 @@
 // Todas las cadenas de la interfaz (español de España; ver §9.9): tuteo, frases cortas,
 // pretérito perfecto, sin exclamaciones y teclas con su nombre español.
+import { formatCount } from '@gameagenda/core';
 import type { DateField, Flag, Platform, Status } from '../agenda/types.ts';
 import type { SettingsSection } from '../router/routes.ts';
 import type {
@@ -93,6 +94,10 @@ export const es = {
     manualHint: 'Si luego llega al catálogo, podrás vincularlo con Steam.',
     manualEmpty: 'Escribe el título del juego.',
     back: 'Volver a los resultados',
+
+    // Pegar un enlace de Steam (RF-04; ver §9.2, «Enlaces»).
+    linkCapture: (title: string) => `Apuntar «${title}»`,
+    steamGame: (appid: number) => `Juego de Steam ${appid}`,
   },
 
   catalogState: {
@@ -120,6 +125,11 @@ export const es = {
     updated: (field: 'note' | 'platform' | DateField, title: string) =>
       `Has cambiado ${fieldPhrases[field]} de ${title}`,
     deletedAll: 'Hemos borrado todos tus datos de este dispositivo.',
+
+    // Agenda en Dexie: provisionales (§9.9) y Ajustes › Datos.
+    provisional: (title: string) =>
+      `Apuntado: «${title}» (provisional). Lo completaremos cuando llegue al catálogo.`,
+    exported: (file: string) => `Hemos exportado ${file}.`,
   },
 
   list: {
@@ -265,7 +275,18 @@ export const es = {
     deleteConfirmWord: 'BORRAR',
     deleteConfirm: 'Borrar todo',
     cancel: 'Cancelar',
-    notYet: 'Todavía no está disponible: llegará con el guardado en este dispositivo.',
+
+    // Exportar e importar (§7.5): resumen de la importación junto al botón, nunca en un modal.
+    importHint: 'JSON de GameAgenda o CSV, hasta 10 MB. Importar une la copia con tu lista.',
+    importing: 'Importando…',
+    importTooBig: 'Este archivo pasa de 10 MB. No hemos cambiado nada.',
+    importSummary: (added: number, changed: number, removed: number, rejected: number) =>
+      `Hemos importado la copia: ${plural(added, 'alta', 'altas')}, ${plural(changed, 'cambio', 'cambios')}, ${plural(removed, 'baja', 'bajas')} y ${plural(rejected, 'rechazo', 'rechazos')}.`,
+    importSkipped: (count: number) =>
+      count === 1
+        ? '1 juego ya estaba en tu lista.'
+        : `${formatCount(count)} juegos ya estaban en tu lista.`,
+    deleting: 'Borrando…',
   },
 
   about: {
@@ -300,6 +321,11 @@ export const es = {
     body: 'Puede que el enlace esté mal escrito o que la página ya no exista.',
   },
 } as const;
+
+/** «1 alta», «3 altas», «12 000 altas» (millares con espacio fino desde cinco cifras). */
+function plural(count: number, one: string, many: string): string {
+  return `${formatCount(count)} ${count === 1 ? one : many}`;
+}
 
 const fieldPhrases: Readonly<Record<'note' | 'platform' | DateField, string>> = {
   note: 'la nota',

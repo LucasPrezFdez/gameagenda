@@ -106,6 +106,14 @@
   outline-offset: 2px;
 }
 
+/* Resumen de la importación junto al botón (§9.6: nunca en un modal). */
+.settings__import-result {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
 .settings__danger {
   padding-top: 16px;
   border-top: 1px solid var(--surface-2);

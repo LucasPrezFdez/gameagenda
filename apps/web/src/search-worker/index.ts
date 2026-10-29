@@ -2,7 +2,6 @@
 // Worker de búsqueda (ver §5.2 y §8): ciclo de vida del catálogo, índice y *ranking*. Lo crea
 // `createAppSearchClient()` con `new Worker(new URL(…), { type: 'module' })`; uFuzzy va en su
 // propio *chunk* diferido (§6.2). No toca datos del usuario ni importa Dexie.
-import './zod-jitless.ts';
 import { loadFuzzy } from '@gameagenda/core/search';
 import type { TestControlMessage, UiToWorkerMessage } from '../search-client/protocol.ts';
 import { createCatalogStore } from './catalog-store.ts';

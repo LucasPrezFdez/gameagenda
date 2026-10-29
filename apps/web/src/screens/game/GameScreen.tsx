@@ -1,6 +1,7 @@
 // Ficha básica de M1 (RF-20, RF-21; CA1.12): datos del núcleo y todos los campos de la entrada,
 // editables y con Deshacer. Junto a la lista desde 1 280 px, superpuesta entre 768 y 1 279 px y a
 // pantalla completa en móvil (ver §9.3).
+import { isValidDay, linkCandidate } from '@gameagenda/core/entries';
 import { useEffect, useId, useState } from 'react';
 import { useCommands } from '../../agenda/commands.ts';
 import {
@@ -13,6 +14,7 @@ import {
   PLATFORMS,
   type Platform,
   STATUSES,
+  steamId,
 } from '../../agenda/types.ts';
 import {
   useAgendaEntries,
@@ -27,11 +29,11 @@ import { Icon } from '../../components/icons.tsx';
 import { MenuButton } from '../../components/MenuButton.tsx';
 import { ScreenHeading } from '../../components/ScreenHeading.tsx';
 import { es } from '../../i18n/es.ts';
-import { isValidDay } from '../../lib/day.ts';
 import { isEditableTarget } from '../../lib/hooks.ts';
 import { CaptureButton } from '../../palette/palette-context.tsx';
 import { displayName } from '../../palette/palette-model.ts';
-import { goBack } from '../../router/router.tsx';
+import { goBack, navigate } from '../../router/router.tsx';
+import { gamePath } from '../../router/routes.ts';
 import { type CoreGame, GAME_FLAGS } from '../../search-client/index.ts';
 import { priorityOf } from '../my-list/list-model.ts';
 
@@ -287,10 +289,9 @@ function LinkProposal({ entry }: { entry: AgendaEntry }) {
     search
       .matchExact(entry.title)
       .then(async (appids) => {
-        // Solo se propone ante una única coincidencia exacta (ver §7.3).
-        const [only] = appids;
-        if (appids.length !== 1 || only === undefined) return null;
-        return search.game(only);
+        // Solo se propone ante una única coincidencia exacta tras normalizar (ver §7.3).
+        const only = linkCandidate(appids);
+        return only === null ? null : search.game(only);
       })
       .then((game) => {
         if (current) setMatch(game);
@@ -308,13 +309,12 @@ function LinkProposal({ entry }: { entry: AgendaEntry }) {
       <button
         type="button"
         className="btn"
-        onClick={(event) =>
-          commands.link(
-            entry.id,
-            { id: `steam:${match.appid}`, title },
-            { feedbackStart: event.timeStamp },
-          )
-        }
+        onClick={(event) => {
+          const id = steamId(match.appid);
+          const effect = commands.link(entry.id, { id, title }, { feedbackStart: event.timeStamp });
+          // El manual queda como lápida: la ficha pasa a ser la del juego de Steam.
+          if (effect.kind === 'linked') navigate(gamePath(id), { replace: true });
+        }}
       >
         {es.game.link}
       </button>
