@@ -1,0 +1,607 @@
+{
+  "$comment": "Vectores de normalización (§8.1, §8.2 y §8.5 de prototipe.md), compartidos por Vitest y el pipeline. Se generan con packages/core/src/normalize y se revisan a mano.",
+  "normalize": [
+    {
+      "input": "HELLDIVERS™ 2",
+      "note": "™ antes de NFKD (si no, «helldiverstm»)",
+      "normalized": "helldivers 2",
+      "tokens": ["helldivers", "2"],
+      "queryTokens": ["helldivers", "2"],
+      "extras": ["ii"],
+      "withoutArticle": "helldivers 2",
+      "compact": "helldivers2"
+    },
+    {
+      "input": "Baldur's Gate 3",
+      "note": "apóstrofo ASCII eliminado",
+      "normalized": "baldurs gate 3",
+      "tokens": ["baldurs", "gate", "3"],
+      "queryTokens": ["baldurs", "gate", "3"],
+      "extras": ["iii"],
+      "withoutArticle": "baldurs gate 3",
+      "compact": "baldursgate3"
+    },
+    {
+      "input": "Assassin’s Creed® Unity",
+      "note": "apóstrofo tipográfico y ®",
+      "normalized": "assassins creed unity",
+      "tokens": ["assassins", "creed", "unity"],
+      "queryTokens": ["assassins", "creed", "unity"],
+      "extras": [],
+      "withoutArticle": "assassins creed unity",
+      "compact": "assassinscreedunity"
+    },
+    {
+      "input": "Marvel ʼs Spider-Man",
+      "note": "ʼ (U+02BC) y guion",
+      "normalized": "marvel s spider man",
+      "tokens": ["marvel", "s", "spider", "man"],
+      "queryTokens": ["marvel", "s", "spider", "man"],
+      "extras": [],
+      "withoutArticle": "marvel s spider man",
+      "compact": "marvelsspiderman"
+    },
+    {
+      "input": "Baldur‛s Gate",
+      "note": "‛ (U+201B)",
+      "normalized": "baldurs gate",
+      "tokens": ["baldurs", "gate"],
+      "queryTokens": ["baldurs", "gate"],
+      "extras": [],
+      "withoutArticle": "baldurs gate",
+      "compact": "baldursgate"
+    },
+    {
+      "input": "Hawaiʻi Quest",
+      "note": "ʻ (U+02BB)",
+      "normalized": "hawaii quest",
+      "tokens": ["hawaii", "quest"],
+      "queryTokens": ["hawaii", "quest"],
+      "extras": [],
+      "withoutArticle": "hawaii quest",
+      "compact": "hawaiiquest"
+    },
+    {
+      "input": "Baldur´s Gate",
+      "note": "´ (U+00B4)",
+      "normalized": "baldurs gate",
+      "tokens": ["baldurs", "gate"],
+      "queryTokens": ["baldurs", "gate"],
+      "extras": [],
+      "withoutArticle": "baldurs gate",
+      "compact": "baldursgate"
+    },
+    {
+      "input": "Baldur′s Gate",
+      "note": "′ (U+2032)",
+      "normalized": "baldurs gate",
+      "tokens": ["baldurs", "gate"],
+      "queryTokens": ["baldurs", "gate"],
+      "extras": [],
+      "withoutArticle": "baldurs gate",
+      "compact": "baldursgate"
+    },
+    {
+      "input": "Baldur＇s Gate",
+      "note": "＇ (U+FF07)",
+      "normalized": "baldurs gate",
+      "tokens": ["baldurs", "gate"],
+      "queryTokens": ["baldurs", "gate"],
+      "extras": [],
+      "withoutArticle": "baldurs gate",
+      "compact": "baldursgate"
+    },
+    {
+      "input": "Baldur`s Gate",
+      "note": "acento grave U+0060",
+      "normalized": "baldurs gate",
+      "tokens": ["baldurs", "gate"],
+      "queryTokens": ["baldurs", "gate"],
+      "extras": [],
+      "withoutArticle": "baldurs gate",
+      "compact": "baldursgate"
+    },
+    {
+      "input": "Don‘t Starve",
+      "note": "‘ (U+2018)",
+      "normalized": "dont starve",
+      "tokens": ["dont", "starve"],
+      "queryTokens": ["dont", "starve"],
+      "extras": [],
+      "withoutArticle": "dont starve",
+      "compact": "dontstarve"
+    },
+    {
+      "input": "Counter-Strike 2",
+      "note": "signos → espacio",
+      "normalized": "counter strike 2",
+      "tokens": ["counter", "strike", "2"],
+      "queryTokens": ["counter", "strike", "2"],
+      "extras": ["ii"],
+      "withoutArticle": "counter strike 2",
+      "compact": "counterstrike2"
+    },
+    {
+      "input": "NieR:Automata™",
+      "note": "dos puntos y ™",
+      "normalized": "nier automata",
+      "tokens": ["nier", "automata"],
+      "queryTokens": ["nier", "automata"],
+      "extras": [],
+      "withoutArticle": "nier automata",
+      "compact": "nierautomata"
+    },
+    {
+      "input": "Déjà Vu",
+      "note": "diacríticos",
+      "normalized": "deja vu",
+      "tokens": ["deja", "vu"],
+      "queryTokens": ["deja", "vu"],
+      "extras": [],
+      "withoutArticle": "deja vu",
+      "compact": "dejavu"
+    },
+    {
+      "input": "ŌKAMI HD",
+      "note": "macrón",
+      "normalized": "okami hd",
+      "tokens": ["okami", "hd"],
+      "queryTokens": ["okami", "hd"],
+      "extras": [],
+      "withoutArticle": "okami hd",
+      "compact": "okamihd"
+    },
+    {
+      "input": "Brütal Legend",
+      "note": "diéresis",
+      "normalized": "brutal legend",
+      "tokens": ["brutal", "legend"],
+      "queryTokens": ["brutal", "legend"],
+      "extras": [],
+      "withoutArticle": "brutal legend",
+      "compact": "brutallegend"
+    },
+    {
+      "input": "Señorita",
+      "note": "ñ",
+      "normalized": "senorita",
+      "tokens": ["senorita"],
+      "queryTokens": ["senorita"],
+      "extras": [],
+      "withoutArticle": "senorita",
+      "compact": "senorita"
+    },
+    {
+      "input": "Straße",
+      "note": "ß → ss",
+      "normalized": "strasse",
+      "tokens": ["strasse"],
+      "queryTokens": ["strasse"],
+      "extras": [],
+      "withoutArticle": "strasse",
+      "compact": "strasse"
+    },
+    {
+      "input": "Æon Flux",
+      "note": "æ → ae",
+      "normalized": "aeon flux",
+      "tokens": ["aeon", "flux"],
+      "queryTokens": ["aeon", "flux"],
+      "extras": [],
+      "withoutArticle": "aeon flux",
+      "compact": "aeonflux"
+    },
+    {
+      "input": "Œuvre",
+      "note": "œ → oe",
+      "normalized": "oeuvre",
+      "tokens": ["oeuvre"],
+      "queryTokens": ["oeuvre"],
+      "extras": [],
+      "withoutArticle": "oeuvre",
+      "compact": "oeuvre"
+    },
+    {
+      "input": "Ørn",
+      "note": "ø → o",
+      "normalized": "orn",
+      "tokens": ["orn"],
+      "queryTokens": ["orn"],
+      "extras": [],
+      "withoutArticle": "orn",
+      "compact": "orn"
+    },
+    {
+      "input": "Łódź",
+      "note": "ł → l",
+      "normalized": "lodz",
+      "tokens": ["lodz"],
+      "queryTokens": ["lodz"],
+      "extras": [],
+      "withoutArticle": "lodz",
+      "compact": "lodz"
+    },
+    {
+      "input": "Đorđe",
+      "note": "đ → d",
+      "normalized": "dorde",
+      "tokens": ["dorde"],
+      "queryTokens": ["dorde"],
+      "extras": [],
+      "withoutArticle": "dorde",
+      "compact": "dorde"
+    },
+    {
+      "input": "Ðorð Saga",
+      "note": "ð → d",
+      "normalized": "dord saga",
+      "tokens": ["dord", "saga"],
+      "queryTokens": ["dord", "saga"],
+      "extras": [],
+      "withoutArticle": "dord saga",
+      "compact": "dordsaga"
+    },
+    {
+      "input": "Þór",
+      "note": "þ → th",
+      "normalized": "thor",
+      "tokens": ["thor"],
+      "queryTokens": ["thor"],
+      "extras": [],
+      "withoutArticle": "thor",
+      "compact": "thor"
+    },
+    {
+      "input": "Kırmızı",
+      "note": "ı → i",
+      "normalized": "kirmizi",
+      "tokens": ["kirmizi"],
+      "queryTokens": ["kirmizi"],
+      "extras": [],
+      "withoutArticle": "kirmizi",
+      "compact": "kirmizi"
+    },
+    {
+      "input": "İstanbul",
+      "note": "İ: NFKD + marca",
+      "normalized": "istanbul",
+      "tokens": ["istanbul"],
+      "queryTokens": ["istanbul"],
+      "extras": [],
+      "withoutArticle": "istanbul",
+      "compact": "istanbul"
+    },
+    {
+      "input": "Ratchet & Clank: Rift Apart",
+      "note": "& → and",
+      "normalized": "ratchet and clank rift apart",
+      "tokens": ["ratchet", "and", "clank", "rift", "apart"],
+      "queryTokens": ["ratchet", "and", "clank", "rift", "apart"],
+      "extras": [],
+      "withoutArticle": "ratchet and clank rift apart",
+      "compact": "ratchetandclankriftapart"
+    },
+    {
+      "input": "&Co",
+      "note": "& al principio",
+      "normalized": "and co",
+      "tokens": ["and", "co"],
+      "queryTokens": ["and", "co"],
+      "extras": [],
+      "withoutArticle": "and co",
+      "compact": "andco"
+    },
+    {
+      "input": "Rock&&Roll",
+      "note": "& repetido",
+      "normalized": "rock and and roll",
+      "tokens": ["rock", "and", "and", "roll"],
+      "queryTokens": ["rock", "and", "and", "roll"],
+      "extras": [],
+      "withoutArticle": "rock and and roll",
+      "compact": "rockandandroll"
+    },
+    {
+      "input": "ＦＵＬＬＷＩＤＴＨ",
+      "note": "ancho completo (NFKD)",
+      "normalized": "fullwidth",
+      "tokens": ["fullwidth"],
+      "queryTokens": ["fullwidth"],
+      "extras": [],
+      "withoutArticle": "fullwidth",
+      "compact": "fullwidth"
+    },
+    {
+      "input": "ﬁnal ﬁght",
+      "note": "ligadura tipográfica (NFKD)",
+      "normalized": "final fight",
+      "tokens": ["final", "fight"],
+      "queryTokens": ["final", "fight"],
+      "extras": [],
+      "withoutArticle": "final fight",
+      "compact": "finalfight"
+    },
+    {
+      "input": "Ⅻ Legends",
+      "note": "numeral romano (NFKD)",
+      "normalized": "xii legends",
+      "tokens": ["xii", "legends"],
+      "queryTokens": ["xii", "legends"],
+      "extras": [],
+      "withoutArticle": "xii legends",
+      "compact": "xiilegends"
+    },
+    {
+      "input": "Foo℠ Bar",
+      "note": "℠",
+      "normalized": "foo bar",
+      "tokens": ["foo", "bar"],
+      "queryTokens": ["foo", "bar"],
+      "extras": [],
+      "withoutArticle": "foo bar",
+      "compact": "foobar"
+    },
+    {
+      "input": "©2020 Retro",
+      "note": "©",
+      "normalized": "2020 retro",
+      "tokens": ["2020", "retro"],
+      "queryTokens": ["2020", "retro"],
+      "extras": [],
+      "withoutArticle": "2020 retro",
+      "compact": "2020retro"
+    },
+    {
+      "input": "S.T.A.L.K.E.R. 2",
+      "note": "puntos (la sigla sale de §8.5)",
+      "normalized": "s t a l k e r 2",
+      "tokens": ["s", "t", "a", "l", "k", "e", "r", "2"],
+      "queryTokens": ["s", "t", "a", "l", "k", "e", "r", "2"],
+      "extras": ["ii"],
+      "withoutArticle": "s t a l k e r 2",
+      "compact": "stalker2"
+    },
+    {
+      "input": "三国志14",
+      "note": "han intacto",
+      "normalized": "三国志14",
+      "tokens": ["三国", "国志", "志", "14"],
+      "queryTokens": ["三国", "国志", "14"],
+      "extras": [],
+      "withoutArticle": "三国志14",
+      "compact": "三国志14"
+    },
+    {
+      "input": "ドラゴンクエスト",
+      "note": "katakana intacto",
+      "normalized": "ドラゴンクエスト",
+      "tokens": ["ドラ", "ラゴ", "ゴン", "ンク", "クエ", "エス", "スト", "ト"],
+      "queryTokens": ["ドラ", "ラゴ", "ゴン", "ンク", "クエ", "エス", "スト"],
+      "extras": [],
+      "withoutArticle": "ドラゴンクエスト",
+      "compact": "ドラゴンクエスト"
+    },
+    {
+      "input": "ガンダム",
+      "note": "kana descompuesto → NFC",
+      "normalized": "ガンダム",
+      "tokens": ["ガン", "ンダ", "ダム", "ム"],
+      "queryTokens": ["ガン", "ンダ", "ダム"],
+      "extras": [],
+      "withoutArticle": "ガンダム",
+      "compact": "ガンダム"
+    },
+    {
+      "input": "가디언 테일즈",
+      "note": "hangul intacto",
+      "normalized": "가디언 테일즈",
+      "tokens": ["가디", "디언", "언", "테일", "일즈", "즈"],
+      "queryTokens": ["가디", "디언", "테일", "일즈"],
+      "extras": [],
+      "withoutArticle": "가디언 테일즈",
+      "compact": "가디언테일즈"
+    },
+    {
+      "input": "가 game",
+      "note": "jamo → sílaba (NFC)",
+      "normalized": "가 game",
+      "tokens": ["가", "game"],
+      "queryTokens": ["가", "game"],
+      "extras": [],
+      "withoutArticle": "가 game",
+      "compact": "가game"
+    },
+    {
+      "input": "ŉ",
+      "note": "NFKD que produce apóstrofo (ŉ → ʼn)",
+      "normalized": "n",
+      "tokens": ["n"],
+      "queryTokens": ["n"],
+      "extras": [],
+      "withoutArticle": "n",
+      "compact": "n"
+    },
+    {
+      "input": "The Witcher 3: Wild Hunt — Remastered",
+      "note": "artículo, raya y número",
+      "normalized": "the witcher 3 wild hunt remastered",
+      "tokens": ["the", "witcher", "3", "wild", "hunt", "remastered"],
+      "queryTokens": ["the", "witcher", "3", "wild", "hunt", "remastered"],
+      "extras": ["iii"],
+      "withoutArticle": "witcher 3 wild hunt remastered",
+      "compact": "thewitcher3wildhuntremastered"
+    },
+    {
+      "input": "Grand Theft Auto V",
+      "note": "romano aislado → extra",
+      "normalized": "grand theft auto v",
+      "tokens": ["grand", "theft", "auto", "v"],
+      "queryTokens": ["grand", "theft", "auto", "v"],
+      "extras": ["5"],
+      "withoutArticle": "grand theft auto v",
+      "compact": "grandtheftautov"
+    },
+    {
+      "input": "I Am Bread",
+      "note": "romano en primera palabra: sin extra",
+      "normalized": "i am bread",
+      "tokens": ["i", "am", "bread"],
+      "queryTokens": ["i", "am", "bread"],
+      "extras": [],
+      "withoutArticle": "i am bread",
+      "compact": "iambread"
+    },
+    {
+      "input": "Mega Man X",
+      "note": "X → 10",
+      "normalized": "mega man x",
+      "tokens": ["mega", "man", "x"],
+      "queryTokens": ["mega", "man", "x"],
+      "extras": ["10"],
+      "withoutArticle": "mega man x",
+      "compact": "megamanx"
+    },
+    {
+      "input": "Persona 5 Royal",
+      "note": "5 → v",
+      "normalized": "persona 5 royal",
+      "tokens": ["persona", "5", "royal"],
+      "queryTokens": ["persona", "5", "royal"],
+      "extras": ["v"],
+      "withoutArticle": "persona 5 royal",
+      "compact": "persona5royal"
+    },
+    {
+      "input": "Final Fantasy XXI",
+      "note": "romano >20: sin extra",
+      "normalized": "final fantasy xxi",
+      "tokens": ["final", "fantasy", "xxi"],
+      "queryTokens": ["final", "fantasy", "xxi"],
+      "extras": [],
+      "withoutArticle": "final fantasy xxi",
+      "compact": "finalfantasyxxi"
+    },
+    {
+      "input": "Los Sims 4",
+      "note": "artículo español",
+      "normalized": "los sims 4",
+      "tokens": ["los", "sims", "4"],
+      "queryTokens": ["los", "sims", "4"],
+      "extras": ["iv"],
+      "withoutArticle": "sims 4",
+      "compact": "lossims4"
+    },
+    {
+      "input": "A",
+      "note": "artículo solo: no se quita",
+      "normalized": "a",
+      "tokens": ["a"],
+      "queryTokens": ["a"],
+      "extras": [],
+      "withoutArticle": "a",
+      "compact": "a"
+    },
+    {
+      "input": "Pokémon",
+      "note": "é",
+      "normalized": "pokemon",
+      "tokens": ["pokemon"],
+      "queryTokens": ["pokemon"],
+      "extras": [],
+      "withoutArticle": "pokemon",
+      "compact": "pokemon"
+    },
+    {
+      "input": "   Spaced    Out   ",
+      "note": "espacios sobrantes",
+      "normalized": "spaced out",
+      "tokens": ["spaced", "out"],
+      "queryTokens": ["spaced", "out"],
+      "extras": [],
+      "withoutArticle": "spaced out",
+      "compact": "spacedout"
+    },
+    {
+      "input": "™®©",
+      "note": "solo marcas: vacío",
+      "normalized": "",
+      "tokens": [],
+      "queryTokens": [],
+      "extras": [],
+      "withoutArticle": "",
+      "compact": ""
+    },
+    {
+      "input": "",
+      "note": "vacío",
+      "normalized": "",
+      "tokens": [],
+      "queryTokens": [],
+      "extras": [],
+      "withoutArticle": "",
+      "compact": ""
+    }
+  ],
+  "acronyms": [
+    {
+      "name": "Red Dead Redemption 2",
+      "acronyms": ["rdr2"]
+    },
+    {
+      "name": "Grand Theft Auto V Enhanced",
+      "acronyms": ["gtave", "gta5e", "gtav", "gta5"]
+    },
+    {
+      "name": "Counter-Strike: Global Offensive",
+      "acronyms": ["csgo"]
+    },
+    {
+      "name": "The Elder Scrolls V: Skyrim Special Edition",
+      "acronyms": ["tesvsse", "tes5sse", "tesv", "tes5", "esvsse", "es5sse", "esv", "es5"]
+    },
+    {
+      "name": "Final Fantasy VII Remake",
+      "acronyms": ["ffviir", "ff7r", "ffvii", "ff7"]
+    },
+    {
+      "name": "Persona 5 Royal",
+      "acronyms": ["p5r"]
+    },
+    {
+      "name": "Tom Hates Everyone",
+      "acronyms": ["the"]
+    },
+    {
+      "name": "Baldur's Gate 3",
+      "acronyms": ["bg3"]
+    },
+    {
+      "name": "Kingdom Come: Deliverance II",
+      "acronyms": ["kcdii", "kcd2"]
+    },
+    {
+      "name": "Euro Truck Simulator 2",
+      "acronyms": ["ets2"]
+    },
+    {
+      "name": "Left 4 Dead 2",
+      "acronyms": ["l4d2"]
+    },
+    {
+      "name": "Team Fortress 2",
+      "acronyms": ["tf2"]
+    },
+    {
+      "name": "Dead by Daylight",
+      "acronyms": ["dbd"]
+    },
+    {
+      "name": "No Man's Sky",
+      "acronyms": ["nms"]
+    },
+    {
+      "name": "三国志14",
+      "acronyms": []
+    }
+  ]
+}
