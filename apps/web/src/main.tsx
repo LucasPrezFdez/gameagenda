@@ -5,6 +5,7 @@ import { createMemoryAgenda } from './agenda/memory-agenda.ts';
 import { type AppServices, ServicesProvider } from './app/services.tsx';
 import { installGlobalErrorHandlers } from './errors/error-log.ts';
 import { createNoticeCenter } from './notices/notice-center.ts';
+import { registerServiceWorker } from './pwa/register-sw.ts';
 import { startRouter } from './router/router.tsx';
 import { createAppSearchClient } from './search-client/index.ts';
 import { createSettingsStore } from './settings/settings-store.ts';
@@ -37,3 +38,5 @@ createRoot(root).render(
     </ServicesProvider>
   </StrictMode>,
 );
+
+registerServiceWorker();

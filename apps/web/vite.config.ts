@@ -1,6 +1,7 @@
 import { execSync } from 'node:child_process';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
+import { VitePWA } from 'vite-plugin-pwa';
 import pkg from './package.json' with { type: 'json' };
 
 function gitSha(): string {
@@ -26,7 +27,54 @@ const PREVIEW_CSP = [
 ].join('; ');
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    VitePWA({
+      // Service Worker propio con la precaché del *build*, registrado desde la app (ver §6.1).
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
+      injectRegister: false,
+      injectManifest: {
+        globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'],
+        // Sin `import` en el Service Worker: así vale también donde no hay módulos en SW.
+        rollupFormat: 'iife',
+      },
+      manifest: {
+        id: '/',
+        name: 'GameAgenda',
+        short_name: 'GameAgenda',
+        description:
+          'Tu agenda de videojuegos: apunta en segundos los juegos que quieres jugar y lleva su estado.',
+        lang: 'es-ES',
+        dir: 'ltr',
+        start_url: '/',
+        scope: '/',
+        display: 'standalone',
+        background_color: '#f6f7f9',
+        theme_color: '#c2185b',
+        icons: [
+          { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+          {
+            src: '/icons/icon-maskable-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
+          { src: '/icons/icon.svg', sizes: 'any', type: 'image/svg+xml' },
+        ],
+        shortcuts: [
+          {
+            name: 'Apuntar juego',
+            short_name: 'Apuntar',
+            url: '/apuntar',
+            icons: [{ src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' }],
+          },
+        ],
+      },
+    }),
+  ],
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
     __APP_SHA__: JSON.stringify(gitSha()),

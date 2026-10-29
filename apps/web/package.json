@@ -6,9 +6,9 @@
   "description": "La app: SPA de React + Vite, PWA local-first.",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "tsc -p tsconfig.sw.json && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc -p . && tsc -p tsconfig.node.json",
+    "typecheck": "tsc -p . && tsc -p tsconfig.sw.json && tsc -p tsconfig.node.json",
     "e2e": "playwright test"
   },
   "dependencies": {
