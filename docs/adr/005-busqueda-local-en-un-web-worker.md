@@ -120,8 +120,14 @@ Opción elegida: **1**, porque de las medidas es la única que cumple a la vez l
 - Mal, porque hasta M3 el índice se construye en cada arranque en frío: ≈40 MiB en memoria y 4,56 s con CPU ×4 en el benchmark, aunque el escaneo responde antes.
 - Mal, porque la primera visita espera a la descarga del núcleo (ver ADR-001).
 - Mal, porque es un índice propio, con más código que mantener que una librería.
-- Pendiente: la pulsación hasta el fotograma (`search:keystroke-to-results`) da un p95 de unos 31 ms, por encima de los 16 ms del presupuesto de escritorio (CA1.5). Se está corrigiendo con el arnés `npm run perf`. <!-- TODO perf: cifra final -->
-- Pendiente: medir con CPU ×4 en la página de prueba (CA1.5 y CA1.11) y medir el Worker real en el Android de referencia.
+- Pendiente: la pulsación hasta el fotograma (`search:keystroke-to-results`) da un p95 de 19,7–21,0 ms sin estrangular, frente a ≤16 ms de presupuesto en escritorio (CA1.5). Antes de corregir la paleta y Mi lista daba ≈31 ms; la tabla está en `docs/medidas/perf-m1-20261029.md`.
+  - La búsqueda no es el cuello de botella: el Worker responde en 0,2 ms.
+  - Chromium retiene el mensaje del Worker hasta el primer fotograma tras la tecla (`DeferRendererTasksAfterInput`).
+  - Aun sin esa retención, a 60 Hz el suelo es p95 ≈17 ms, porque el primer fotograma cae en una fase de vsync al azar. A 120 Hz pasa (p95 14,8 ms).
+  - **El usuario debe decidir el presupuesto:** ≤16 ms a ≥120 Hz, dos fotogramas, o precalcular en el Worker.
+- Pendiente: con CPU ×4 en la página de prueba, el escaneo tarda ≈2,2 s tras un reinicio con caché, frente a ≤2 s de CA1.11. La mayor parte, ≈1,7 s, son claves, exactos y pajar en el *builder* de `core`.
+- Pendiente: medir el Worker real en el Android de referencia.
+- Medido: CDP no estrangula el Worker dedicado. `Emulation.setCPUThrottlingRate` responde «Operation is only supported for pages, not workers», aun adjuntado con `Target.setAutoAttach`. Por eso la parte 1 de `perf` busca en el hilo principal de una página de prueba.
 - Pendiente (M2): guardar `meta.catalog` y comprobar el *manifest* solo si han pasado ≥12 h (en M1 se comprueba en cada arranque).
 - Pendiente (M2): `recent`, la regla de los 7 días para el núcleo y la firma del *manifest*.
 - Pendiente (M3): índice persistido y núcleo de arranque (ADR-009).

@@ -1,6 +1,6 @@
 # Estado del proyecto — punto de partida de la próxima sesión
 
-**Actualizado:** 29-10-2026, en la sesión 3.
+**Actualizado:** 29-10-2026, al final de la sesión 3.
 **Cómo retomar:** escribe *«Retoma GameAgenda desde docs/planificacion/ESTADO-SESION.md»*.
 
 ## 1. Dónde estamos
@@ -9,25 +9,46 @@
 - **Cambio del 29-10-2026:** la app de escritorio para Windows (envoltorio Tauri de la misma web, con el atajo global `Ctrl+Mayús+Espacio`) pasa de Fase 2 a **M3**. M3 sube a 4–6 días y el total, a 23–32 días ideales. Detalle en la §17.3 y la §15.6 de `prototipe.md`; el porqué, en `DECISIONES.md` §10.16.
 - **Repositorio:** <https://github.com/LucasPrezFdez/gameagenda> (`main`). El usuario pidió el 29-10-2026 ir haciendo *commits* y subirlos sin preguntar, dejar los despliegues para más adelante y centrarse en la app.
 - **M0 · Esqueleto:** pasos 1–3 hechos (repositorio, *workspaces*, herramientas). Los pasos 4–8 (CI, despliegues, comprobaciones «a verificar en M0», ADR-001 a 003, `v0.0.1`) quedan **aplazados** hasta que haya cuentas de GitHub Actions y Cloudflare.
-- **M1 · Apuntar, en curso** (29-10-2026), con agentes en paralelo:
-  - Fase 1, ya en `main`: búsqueda en `core` (`normalize`, `catalog-format`, `search`; pasa todas las puertas de la §8.10 sobre el catálogo congelado: dorado 94,9 % / 99,0 %, exactos 99,9 %, prefijos 93,1 %; `scan` = `full`), agenda en `core` (`entries`, `sync`, `steam-link`, `schemas`; 12 propiedades × 1 000 casos) e interfaz de M1 en `apps/web` (paleta, Deshacer, rutas, PWA; JS inicial 80,5 KB brotli) con cliente de búsqueda falso y agenda en memoria.
-  - Fase 2, ya en `main`:
-    - Worker de búsqueda real con el catálogo: Cache Storage `gacat-<versión>`, `/catalog-dev/`, mini-catálogo de 298 juegos en `fixtures/catalog/` (`npm run catalog:frozen`) y Catálogo virtual.
-    - Agenda en Dexie: guarda después del fotograma, coordina las pestañas con `storagemutated`, exporta e importa JSON y CSV, «Borrar todos mis datos», pegar enlace con juego provisional y Vincular.
-    - Aviso «Guardado fallido · Exportar · Reintentar».
-    - Cifras: JS inicial de 113 KiB brotli; 467 pruebas unitarias y 96 E2E en verde (6 saltadas a propósito).
-  - Fase 3, en marcha con agentes en paralelo:
-    - Pipeline de la §4.8 sin clave (CA1.1), con una pasada real contra Steam y el borrador del ADR-006.
-    - Arnés `npm run perf` y puerta de tamaño (CA1.5), y corrección de la pulsación: el p95 hasta el fotograma es de ≈31 ms, frente a ≤16 ms de presupuesto en escritorio. Dentro del Worker solo tarda 2,2 ms.
-    - ADR-001, 002, 004 y 005 (ADR-003 espera a los despliegues).
-  - Después: medición en el Android de referencia y pasada con NVDA (las hace el usuario), CHANGELOG y `v0.1.0`.
-  - **Nota para los E2E:** WebKit en Windows tarda ≈260 ms en guardar un alta en IndexedDB. Las pruebas que recargan después de una acción esperan con `expectStored` (`apps/web/e2e/storage.ts`). Lanza los E2E con `E2E_PORT` distinto si hay otro servidor de vista previa abierto, porque `reuseExistingServer` lo reutilizaría.
-- **Notas para los ADR-004 y 005:** `merge()` reenvía el estado actual de un manual cuando cambia `mergedInto` (con el pseudocódigo literal el resultado dependía del orden de llegada); apuntar escribe 15 campos; el *manifest* de M1 usa `format: 'gacat'`, `v: 1` (a confirmar en M2); `browse` filtra con los niveles 0–2.
+- **M1 · Apuntar: casi terminado** (29-10-2026). Todo está en `main` y subido, sin agentes ni *worktrees* abiertos:
+  - **Búsqueda.** En `core`: `normalize`, `catalog-format`, `search` y `search-quality`. Sobre la copia congelada: conjunto dorado 94,9 % / 99,0 %, exactos 99,9 %, prefijos 93,1 %, y `scan` da lo mismo que `full`.
+  - **Worker y catálogo.** Worker real con Cache Storage `gacat-<versión>`, `/catalog-dev/` y Catálogo virtual. Mini-catálogo de 298 juegos en `fixtures/catalog/`, generado con `npm run catalog:frozen`.
+  - **Agenda.** En `core`: `entries`, `sync`, `steam-link` y `schemas`. En la app, Dexie:
+    - guarda después del fotograma y coordina las pestañas con `storagemutated`;
+    - exporta e importa JSON y CSV, y «Borrar todos mis datos»;
+    - pegar enlace (con juego provisional) y Vincular;
+    - aviso «Guardado fallido · Exportar · Reintentar».
+  - **Pipeline sin clave (CA1.1 ✓).** `npm run catalog:build -- --keyless`.
+    - Núcleo real `20261029.1`: 197 031 juegos, que pasan todas las puertas.
+    - Del volcado `jsnli`, los 225 que faltan tienen su motivo (204 bloqueados en ES, que entran en M2 por H1).
+    - Las páginas crudas están en `pipeline/state/raw-2026-10-29/` (con `--from-raw` se rederiva sin red) y los informes, en `pipeline/state/reports/20261029.1/`. No se versionan.
+    - `pipeline/out/` contiene ya ese catálogo real.
+  - **Rendimiento.** `npm run perf` (con `PERF_PORT`) y `npm run size`, que va dentro de `check`: JS inicial de 113,8 KB y Worker de 32,5 KB, en brotli. La tabla está en `docs/medidas/perf-m1-20261029.md`.
+  - **ADR:** 001, 002, 004, 005 y 006 (propuesta), con índice en `docs/adr/README.md`. ADR-003 espera a los despliegues.
+  - **Pruebas:** 529 unitarias y 98 E2E en verde (6 saltadas a propósito). `npm run perf` aún sale en rojo: ver «Pendiente de M1».
+  - **Nota para los E2E:** WebKit en Windows tarda ≈260 ms en guardar un alta en IndexedDB. Las pruebas que recargan después de una acción esperan con `expectStored` (`apps/web/e2e/storage.ts`). Si hay otra vista previa abierta, lanza los E2E con otro `E2E_PORT`, porque `reuseExistingServer` la reutilizaría.
+- **Pendiente de M1** (por orden; después vienen CHANGELOG y `v0.1.0`):
+  1. **Decisión del usuario: presupuesto de la pulsación en escritorio.**
+     - Hoy: p95 19,7–21,0 ms sin estrangular (antes, ≈31 ms), frente a ≤16 ms.
+     - Por qué no baja: Chromium retiene el mensaje del Worker hasta el primer fotograma tras la tecla (`DeferRendererTasksAfterInput`). Aun sin eso, a 60 Hz el suelo es p95 ≈17 ms. A 120 Hz pasa (14,8 ms).
+     - Opciones: ≤16 ms a ≥120 Hz; «dos fotogramas» (≈33 ms a 60 Hz); o precalcular en el Worker la siguiente tecla (cambia la §8.7 y gasta CPU en móvil).
+     - Recomendación: ≤16 ms a ≥120 Hz, y ≤2 fotogramas a 60 Hz. Luego, actualizar RNF-02, §8.9, §12.4 y CA1.5.
+  2. **CA1.11:** con ×4, el escaneo está listo en ≈2,2 s tras un reinicio con caché, frente a ≤2 s. El desglose: claves, exactos y pajar en el *builder* de `core`, ≈1,7 s; lectura del TSV, 385 ms; caché y sha256, 90 ms. Hay que optimizar el *builder*.
+  3. **Dos tareas largas con ×4 (66–76 ms):** el primer pintado de texto CJK y de un emoji (fuentes de reserva de Windows). Se pueden calentar en un momento ocioso. Además, Intro al apuntar ronda 45–55 ms con ×4.
+  4. **RNF-08:** falta el aviso para exportar tras 30 días sin copia, que es de M1.
+  5. **Arreglos del plan detectados al escribir los ADR:**
+     - la §7.4 no recoge el reenvío de `merge()` al cambiar `mergedInto`;
+     - la §13.2 dice `git config --global`, pero se configura en el repositorio;
+     - la §8.9/§12.4 debe anotar que CDP no estrangula el Worker (medido);
+     - `dexie-react-hooks` no se usa (la agenda va con `useSyncExternalStore`): quitarlo o justificarlo, y ajustar la §6 y D-02;
+     - D-02 y la §6.1 hablan de CSS Modules, pero son hojas CSS normales;
+     - `biome.json` no tiene las reglas de dependencias de la §14.3 (`noRestrictedImports` y `noUndeclaredDependencies`);
+     - en `DECISIONES.md`, la §2 y D-01 siguen con Tauri en Fase 2 (manda la §10.16).
+  6. **Lo que mide el usuario:** el Android de referencia (CA1.4, CA1.11 y RNF-02) y la pasada con NVDA (CA1.10). Si no hay Android, se cierra con `perf` y su medición pasa a M3 con un *issue*.
 - **Hallazgos de M0 para el ADR-002** (paso 7):
   - Biome 2.6.4 y `wrangler` 4.155.0 en lugar de 2.6.3 y 4.154.0 (publicados el 28-10-2026; la §6 ya está al día). `wrangler` 4.153–4.155 depende de `miniflare` 5.x *beta*: es su dependencia interna, no una elección nuestra.
   - npm 11.19 no ejecuta los *scripts* de instalación sin autorización: `esbuild` y `workerd` funcionan sin ellos y quedan denegados en `allowScripts` de `package.json`.
   - Biome 2.6 formatea Markdown y cambiaría `*cursiva*` por `_cursiva_`: los `.md` quedan fuera de Biome. `biome migrate` convirtió `"recommended": true` en `"preset": "none"` (apagaba todas las reglas); se fijó a mano `"preset": "recommended"` y se comprobó que las reglas saltan.
-  - `tsc` rechaza en `core` imports sin `.ts`, `enum`, `document` y `process` (comprobado). `pipeline/` aún no tiene código, así que todavía no está en `npm run typecheck`.
+  - `tsc` rechaza en `core` imports sin `.ts`, `enum`, `document` y `process` (comprobado).
   - `git config core.longpaths true` y `core.autocrlf false` se han puesto en el repositorio, no en la configuración global, para no cambiar otros proyectos.
 
 ## 2. Antes de la próxima sesión (lo haces tú)
@@ -47,6 +68,9 @@
 |---|---|
 | ¿`docs/planificacion/` se queda en el repo? | **Sí.** `prototipe.md` remite a `docs/planificacion/prototipo-busqueda/`. No se borra nada sin confirmarlo |
 | Preguntas abiertas PA-01…PA-10 (§18 de `prototipe.md`) | Los supuestos escritos en la propia §18 (por ejemplo: orden M3 → M4; Android de gama media como referencia) |
+| Presupuesto de la pulsación en escritorio (ver «Pendiente de M1», punto 1) | Ninguno: `npm run perf` sale en rojo hasta que decidas. Propuesta: ≤16 ms a ≥120 Hz y ≤2 fotogramas a 60 Hz |
+| ¿Importar un JSON también aplica los ajustes que trae? | **Sí** (el formato de exportación los incluye; antes se guarda copia en `meta.backup`) |
+| Nombre base del catálogo sin clave: `GetItems` en inglés para los nombres que parecen españoles (+18 peticiones; recupera el 75,7 %) o una segunda pasada de Query en inglés (+208) | **`GetItems` en inglés**, como está. En M2 lo resuelve `GetAppList` con clave |
 
 ## 4. Guion de M0 (el detalle manda en §15.3, §12, §13 y §14 de `prototipe.md`)
 
@@ -75,6 +99,9 @@
 |---|---|
 | `prototipe.md` | El plan del prototipo |
 | `CLAUDE.md` | Instrucciones del proyecto para Claude Code |
+| `docs/adr/` | ADR del proyecto (índice en `README.md`) |
+| `docs/medidas/` | Mediciones guardadas (p. ej., la tabla de `perf` de M1) |
+| `pipeline/state/` | Estado, páginas crudas e informes del pipeline (no se versiona: solo en este PC) |
 | `fixtures/catalog-frozen/` | Núcleo real del catálogo (196 665 juegos) y sus alias, del 28-10-2026 |
 | `docs/planificacion/DECISIONES.md` | Decisiones cerradas y su porqué |
 | `docs/planificacion/secciones/` | Fuente de cada sección de `prototipe.md` |
@@ -93,4 +120,4 @@
 |---|---|---|
 | 1 | 27/28-10-2026 (noche) | Investigación verificada (catálogo y API de Steam, cuenta de Steam y legal, otras fuentes, producto y UX, stack de 2026), cuatro líneas paralelas (UX, modelo de datos, benchmark de búsqueda, ingeniería) y evaluación de tres arquitecturas |
 | 2 | 28-10-2026 | Decisiones cerradas; redacción en paralelo (9 agentes); benchmark de búsqueda con el catálogo real; revisión (4 críticos y 9 correctores); retoques (11 agentes); `prototipe.md` terminado |
-| 3 | 29-10-2026 | App de escritorio (Tauri) adelantada de Fase 2 a M3 y plan 0.2; M0, pasos 1–3 (repositorio, *workspaces* y herramientas) |
+| 3 | 29-10-2026 | App de escritorio (Tauri) adelantada de Fase 2 a M3 y plan 0.2. M0, pasos 1–3 (repositorio, *workspaces* y herramientas). M1 casi completo con agentes en paralelo: búsqueda, Worker y Catálogo virtual; agenda en Dexie con exportar/importar y enlaces; pipeline sin clave con el catálogo real (CA1.1); `npm run perf` y la puerta de tamaño; ADR-001, 002, 004, 005 y 006 |
