@@ -11,8 +11,17 @@
 - **M0 · Esqueleto:** pasos 1–3 hechos (repositorio, *workspaces*, herramientas). Los pasos 4–8 (CI, despliegues, comprobaciones «a verificar en M0», ADR-001 a 003, `v0.0.1`) quedan **aplazados** hasta que haya cuentas de GitHub Actions y Cloudflare.
 - **M1 · Apuntar, en curso** (29-10-2026), con agentes en paralelo:
   - Fase 1, ya en `main`: búsqueda en `core` (`normalize`, `catalog-format`, `search`; pasa todas las puertas de la §8.10 sobre el catálogo congelado: dorado 94,9 % / 99,0 %, exactos 99,9 %, prefijos 93,1 %; `scan` = `full`), agenda en `core` (`entries`, `sync`, `steam-link`, `schemas`; 12 propiedades × 1 000 casos) e interfaz de M1 en `apps/web` (paleta, Deshacer, rutas, PWA; JS inicial 80,5 KB brotli) con cliente de búsqueda falso y agenda en memoria.
-  - Fase 2, en marcha: Worker de búsqueda real con el catálogo (Cache Storage, `/catalog-dev/`, mini-catálogo en `fixtures/catalog/`, Catálogo virtual) y agenda en Dexie (persistencia, exportar/importar, pegar enlace, Vincular).
-  - Después: pipeline de la §4.8 sin clave (CA1.1), arnés `npm run perf` (CA1.5), medición en el Android de referencia, ADR-004 a 006 y `v0.1.0`.
+  - Fase 2, ya en `main`:
+    - Worker de búsqueda real con el catálogo: Cache Storage `gacat-<versión>`, `/catalog-dev/`, mini-catálogo de 298 juegos en `fixtures/catalog/` (`npm run catalog:frozen`) y Catálogo virtual.
+    - Agenda en Dexie: guarda después del fotograma, coordina las pestañas con `storagemutated`, exporta e importa JSON y CSV, «Borrar todos mis datos», pegar enlace con juego provisional y Vincular.
+    - Aviso «Guardado fallido · Exportar · Reintentar».
+    - Cifras: JS inicial de 113 KiB brotli; 467 pruebas unitarias y 96 E2E en verde (6 saltadas a propósito).
+  - Fase 3, en marcha con agentes en paralelo:
+    - Pipeline de la §4.8 sin clave (CA1.1), con una pasada real contra Steam y el borrador del ADR-006.
+    - Arnés `npm run perf` y puerta de tamaño (CA1.5), y corrección de la pulsación: el p95 hasta el fotograma es de ≈31 ms, frente a ≤16 ms de presupuesto en escritorio. Dentro del Worker solo tarda 2,2 ms.
+    - ADR-001, 002, 004 y 005 (ADR-003 espera a los despliegues).
+  - Después: medición en el Android de referencia y pasada con NVDA (las hace el usuario), CHANGELOG y `v0.1.0`.
+  - **Nota para los E2E:** WebKit en Windows tarda ≈260 ms en guardar un alta en IndexedDB. Las pruebas que recargan después de una acción esperan con `expectStored` (`apps/web/e2e/storage.ts`). Lanza los E2E con `E2E_PORT` distinto si hay otro servidor de vista previa abierto, porque `reuseExistingServer` lo reutilizaría.
 - **Notas para los ADR-004 y 005:** `merge()` reenvía el estado actual de un manual cuando cambia `mergedInto` (con el pseudocódigo literal el resultado dependía del orden de llegada); apuntar escribe 15 campos; el *manifest* de M1 usa `format: 'gacat'`, `v: 1` (a confirmar en M2); `browse` filtra con los niveles 0–2.
 - **Hallazgos de M0 para el ADR-002** (paso 7):
   - Biome 2.6.4 y `wrangler` 4.155.0 en lugar de 2.6.3 y 4.154.0 (publicados el 28-10-2026; la §6 ya está al día). `wrangler` 4.153–4.155 depende de `miniflare` 5.x *beta*: es su dependencia interna, no una elección nuestra.
