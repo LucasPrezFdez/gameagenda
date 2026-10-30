@@ -111,14 +111,20 @@ function merge(prev: Entry | undefined, ops: Op[]) {   // packages/core
   if (e.flags.platinum && p > (e.hlc.status ?? '') &&
       e.status !== 'completed')
     derived.push(newOp(e.id, 'status', 'completed', p)); // HLC de la marca
-  if (e.mergedInto)                    // manual vinculado: reenviar
-    for (const o of ops) if (USER_FIELDS.has(o.field))
-      derived.push(retarget(o, e.mergedInto));
-  for (const d of derived) if (d.entryId === e.id) apply(e, d);
+  for (const d of derived) apply(e, d);
+  const t = e.mergedInto;              // manual vinculado: reenviar
+  if (t) {
+    const fwd = t !== prev?.mergedInto // recién vinculado: todo su estado
+      ? userFieldOps(e)
+      : [...ops.filter((o) => USER_FIELDS.has(o.field)), ...derived];
+    for (const o of fwd) derived.push(retarget(o, t));
+  }
   e.view = viewOf(e); e.lastHlc = maxHlc(e.hlc);
   return { entry: e, derived };        // derived también va a la outbox
 }
 ```
+
+- **Reenvío de un manual vinculado:** cuando `mergedInto` cambia en esa fusión, se reenvía al destino el estado actual de todos los campos de usuario del manual, no solo las operaciones del lote. También se reenvía la derivada de Platinado. Con el reenvío de solo el lote, el resultado en el destino dependía de si las operaciones del manual llegaban antes o después de la vinculación. `applyOps()` sigue las derivadas entre entradas hasta 8 saltos (ADR-004).
 
 - «Marcar Platinado» escribe siempre `status` con la HLC de la marca, aunque ya fuera Completado: con datos completos la reparación no cambia nada y, con datos incompletos (lote partido, copia antigua), todas las réplicas derivan la misma operación. Un cambio de estado posterior gana y no quita Platinado. Las fechas no se reparan: sería inventarlas. Pruebas de propiedades: ver §12.
 - **Lápidas**: borrar es `deletedAt = <instante>` y conserva el resto. Un cambio concurrente no resucita la entrada; solo lo hace `deletedAt = null`. Deshacer un «Quitar» escribe solo eso y la recupera tal como estaba; apuntarla de nuevo es una acción que escribe además los valores por defecto de todos los campos de usuario (`want_to_play`, cada marca a `false`, fechas vacías salvo `addedAt` = hoy, `note` y `platform` vacíos y `rank` al final): empieza de cero. No se purgan antes de M4.

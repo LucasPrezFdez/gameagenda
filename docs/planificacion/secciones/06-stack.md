@@ -10,9 +10,9 @@ Versiones exactas comprobadas en el registro de npm el 28-10-2026 (Biome y `wran
 | Paquetes | npm *workspaces* | 11.19 | Viene con Node (ver §14) | pnpm |
 | Lenguaje | TypeScript | 7.0.2 | Compilador nativo; el stack no necesita su API (ver §6.3) | 6.0.3, solo de reserva |
 | Interfaz | React + React DOM | 19.3.1 | Ecosistema maduro; admite TS 7 | SvelteKit, Next.js |
-| *Build* | Vite + `@vitejs/plugin-react` | 8.3.5 / 6.1.2 | Rolldown; Workers de módulo y CSS Modules sin configurar | — |
+| *Build* | Vite + `@vitejs/plugin-react` | 8.3.5 / 6.1.2 | Rolldown; Workers de módulo sin configurar. Estilos: CSS nativo con *tokens*, una hoja por pantalla, sin CSS Modules | — |
 | PWA | `vite-plugin-pwa` (`injectManifest`) + `workbox-window` + `workbox-build` | 2.0.0 / 7.4.1 / 7.4.1 | Service Worker propio con la precaché del *build*; `injectRegister: false`: el Service Worker se registra desde la app con `workbox-window`; `workbox-build`, solo en desarrollo (ver §6.3) | — |
-| Datos en el cliente | Dexie + `dexie-react-hooks` | 4.4.7 / 4.4.0 | Esquema versionado, índices y `useLiveQuery` | SQLite WASM |
+| Datos en el cliente | Dexie | 4.4.7 | Esquema versionado e índices. La interfaz lee una agenda en memoria con `useSyncExternalStore`, al día con el evento `storagemutated` (ADR-004) | SQLite WASM |
 | Lista virtual | `@tanstack/react-virtual` | 3.14.24 | Catálogo de ≈196 600 filas | — |
 | Búsqueda | Índice propio + `@leeoniya/ufuzzy` | — / 1.0.19 | p95 de 2,1 ms por pulsación en Edge con el núcleo real (8,7 ms con CPU ×4; ver §8.11); uFuzzy solo para «¿Quizás buscabas…?» (ver §8) | Fuse.js, FlexSearch, Orama, MiniSearch |
 | Contratos | Zod | 4.6.7 | Steam, micro-API e importación | — |
@@ -35,6 +35,8 @@ Medido el 28-10-2026 con Vite 8.3.5 (*build* de producción):
 | React 19.3.1 + React DOM | 219,6 KB | 67,7 KB | 58,5 KB |
 | + Dexie 4.4.7, `dexie-react-hooks` y `@tanstack/react-virtual` | 353,4 KB | 108,6 KB | 94,5 KB |
 
+`dexie-react-hooks` se retiró el 30-10-2026 sin llegar a usarse (DECISIONES §10.18). En M1, el JS inicial real pesa 114,8 KB brotli (`npm run size`).
+
 | *Chunk* | Presupuesto (brotli) | Contenido |
 |---|---|---|
 | Inicial | ≤150 KB | Lo necesario para pintar Mi lista y abrir la paleta |
@@ -53,7 +55,7 @@ Rangos de `peerDependencies` y `engines` en npm (28-10-2026):
 - `vite-plugin-pwa` 2.0.0 admite Vite 8 y exige `workbox-build` y `workbox-window` ^7.4.1: los dos se fijan en 7.4.1.
 - `@vitejs/plugin-react` 6.1.2 exige Vite ^8.0.0; Vitest 5.0.5 admite Vite ^6.4, ^7 y ^8.
 - Vite 8.3.5 pide Node ^20.19 o ≥22.12, y `wrangler` 4.155.0, Node ≥22 y `@cloudflare/workers-types` ≥5.20261023.1.
-- `@tanstack/react-virtual` 3.14.23 admite React 19; `dexie-react-hooks` 4.4.0, Dexie ≥4.2 y <5.
+- `@tanstack/react-virtual` 3.14.23 admite React 19.
 - `@axe-core/playwright` 4.14.0 pide `playwright-core` ≥1.0.0 y trae `axe-core` ~4.14.0; `@types/react-dom` 19.3.0 pide `@types/react` ^19.3.0; `fake-indexeddb` 6.2.6, Node ≥18.
 - TypeScript 7.0 no tiene API de compilador hasta la 7.1. Biome, Vite y Vitest no la usan; si otra herramienta la pidiera, solo ella usaría 6.0.3 (a verificar en M0).
 
@@ -73,7 +75,7 @@ Rangos de `peerDependencies` y `engines` en npm (28-10-2026):
 | `@cloudflare/vitest-pool-workers` | La 0.23.0 exige Vitest ^4.1 y partiría el repositorio en dos versiones mayores |
 | ESLint con reglas de tipos | `typescript-eslint` con tipos necesita la API que TS 7.0 no tiene |
 | pnpm | No está instalado y npm basta; Node deja de incluir corepack desde la 25 |
-| Librería de enrutado, Redux, Tailwind | Sobran: *router* propio sobre la History API, `useLiveQuery` y CSS con *tokens* |
+| Librería de enrutado, Redux, Tailwind | Sobran: *router* propio sobre la History API, la agenda en memoria con `useSyncExternalStore` y CSS con *tokens* |
 | Vercel Hobby, Netlify Free | Hobby es solo para uso no comercial; Netlify gasta 15 créditos por despliegue y el catálogo se despliega a diario |
 
 Fuentes (consultadas el 28-10-2026): registro de npm; [uFuzzy](https://github.com/leeoniya/uFuzzy); [SQLite WASM](https://sqlite.org/wasm/doc/trunk/persistence.md); [InstantDB](https://www.instantdb.com/essays/instant_team_joins_openai); [TypeScript 7.0](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/).

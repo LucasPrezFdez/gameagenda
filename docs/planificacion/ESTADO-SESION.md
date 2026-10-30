@@ -34,14 +34,15 @@
      - **El Intro que apunta:** analizado. En reposo no pasa de 50 ms. Con el equipo cargado, el primer Intro de la sesión (código en frío) llegaba a 58–60 ms. Si vuelve a pasar en el Android de referencia, la §9.5 prevé virtualizar Mi lista por secciones.
      - **`npm run perf` sale entero en verde por primera vez.** La pulsación de escritorio va justa: 31,2 ms frente a 33,3. Tabla y análisis en `docs/medidas/perf-m1-20261030.md`.
   4. ~~**RNF-08.**~~ **Hecho el 30-10-2026:** aviso arriba de Mi lista tras 30 días sin exportar (JSON o CSV), contando desde la primera entrada si nunca se ha exportado. «Ahora no» lo aplaza 7 días; no sale con el de iOS. Se guarda en `meta.copyReminder` (§7.2) y se describe en la §9.6. Tiene pruebas unitarias, de Dexie entre pestañas y E2E con `page.clock`.
-  5. **Arreglos del plan detectados al escribir los ADR:**
-     - la §7.4 no recoge el reenvío de `merge()` al cambiar `mergedInto`;
-     - la §13.2 dice `git config --global`, pero se configura en el repositorio;
-     - la §8.9/§12.4 debe anotar que CDP no estrangula el Worker (medido);
-     - `dexie-react-hooks` no se usa (la agenda va con `useSyncExternalStore`): quitarlo o justificarlo, y ajustar la §6 y D-02;
-     - D-02 y la §6.1 hablan de CSS Modules, pero son hojas CSS normales;
-     - `biome.json` no tiene las reglas de dependencias de la §14.3 (`noRestrictedImports` y `noUndeclaredDependencies`);
-     - en `DECISIONES.md`, la §2 y D-01 siguen con Tauri en Fase 2 (manda la §10.16).
+  5. ~~**Arreglos del plan detectados al escribir los ADR.**~~ **Hecho el 30-10-2026:**
+     - la §7.4 recoge el reenvío de `merge()` al cambiar `mergedInto`;
+     - la §13.2 configura `core.longpaths` y `core.autocrlf` en el repositorio;
+     - la §8.9 y la §12.4 anotan que CDP no estrangula el Worker, ni con `Target.setAutoAttach`;
+     - `dexie-react-hooks` se ha retirado, y la §6, la §9.5, la §14, D-02, D-03 y la §10.18 lo recogen;
+     - CSS Modules ya no aparece: son hojas CSS normales;
+     - `biome.json` vigila la §14.3 con `noRestrictedImports` por carpeta y `noUndeclaredDependencies`, y se ha comprobado que cada regla salta;
+     - en `DECISIONES.md`, la §2, D-01, la tabla de hitos y la de versiones llevan Tauri en M3, y la §5, el presupuesto de la §10.17.
+     - De paso: `npm audit` da 4 avisos leves de `deepmerge` (vía `workbox-build`, solo en el *build*). npm propone bajar `workbox-build` a la 5.1.4, que rompe cosas; no se ha tocado.
   6. **Lo que mide el usuario:** el Android de referencia (CA1.4, CA1.11 y RNF-02) y la pasada con NVDA (CA1.10). Si no hay Android, se cierra con `perf` y su medición pasa a M3 con un *issue*.
 - **Hallazgos de M0 para el ADR-002** (paso 7):
   - Biome 2.6.4 y `wrangler` 4.155.0 en lugar de 2.6.3 y 4.154.0 (publicados el 28-10-2026; la §6 ya está al día). `wrangler` 4.153–4.155 depende de `miniflare` 5.x *beta*: es su dependencia interna, no una elección nuestra.
@@ -77,7 +78,7 @@
 3. Herramientas con las versiones exactas de la §6: TypeScript 7.0.2, Biome 2.6.4, Vitest 5.0.5, Playwright 1.64.1 (`npx playwright install chromium webkit`), Vite 8.3.5 + React 19.3.1, `wrangler` 4.155.0. Antes de instalar, comprueba con `npm view <paquete> version` si hay parches nuevos; cambiar de versión mayor obliga a actualizar la §6.
 4. `ci.yml` (≤10 min): Biome, `tsc`, Vitest, Playwright, puerta de tamaño (JS inicial ≤150 KB brotli) y búsqueda de la clave en el *build*.
 5. Despliegues: `ga-web` (página mínima + `_headers` con la CSP) y `ga-catalog` (mini-catálogo de `fixtures/` + `_headers` con CORS y los TSV como `text/plain; charset=utf-8`).
-6. Comprobaciones «a verificar en M0»: compresión del TSV (`br`, `gzip` o `zstd`); `_headers` y CORS también en los 404; campos de Query sin `include_basic_info` (`is_free`…); estrangulamiento del Worker por CDP (`Target.setAutoAttach`); importación de la clave pública Ed25519 en WebCrypto; formato de la clave de Steam. Cada resultado va al ADR que corresponda o a un *issue*.
+6. Comprobaciones «a verificar en M0»: compresión del TSV (`br`, `gzip` o `zstd`); `_headers` y CORS también en los 404; campos de Query sin `include_basic_info` (`is_free`…); estrangulamiento del Worker por CDP (`Target.setAutoAttach`; **ya medido**: no se estrangula, ver §8.9); importación de la clave pública Ed25519 en WebCrypto; formato de la clave de Steam. Cada resultado va al ADR que corresponda o a un *issue*.
 7. ADR-001 (arquitectura), ADR-002 (stack y repositorio) y ADR-003 (*hosting*, despliegue y CI) en `docs/adr/`.
 8. Cerrar M0 con los criterios CA0.1…CA0.5 y la etiqueta `v0.0.1`.
 

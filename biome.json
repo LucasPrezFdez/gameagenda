@@ -1,6 +1,10 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
-  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
   "files": {
     "includes": ["**", "!**/*.md", "!docs/planificacion", "!fixtures"]
   },
@@ -10,12 +14,164 @@
     "lineWidth": 100
   },
   "javascript": {
-    "formatter": { "quoteStyle": "single" }
+    "formatter": {
+      "quoteStyle": "single"
+    }
   },
   "linter": {
-    "rules": { "preset": "recommended" }
+    "rules": {
+      "preset": "recommended",
+      "correctness": {
+        "noUndeclaredDependencies": "error"
+      }
+    }
   },
   "assist": {
-    "actions": { "source": { "organizeImports": "on" } }
-  }
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  },
+  "overrides": [
+    {
+      "includes": ["packages/core/src/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["node:*", "react", "react/**", "react-dom", "react-dom/**", "dexie"],
+                    "message": "core no hace E/S ni usa React ni Dexie (§14.3, regla 1)."
+                  },
+                  {
+                    "group": ["@gameagenda/*", "@gameagenda/**"],
+                    "message": "core no depende de otros paquetes del repositorio (§14.3, regla 1)."
+                  },
+                  {
+                    "group": ["**/fixtures/**"],
+                    "message": "El código de producción no importa fixtures/ (§14.3, regla 5)."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/web/src/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@gameagenda/pipeline", "@gameagenda/pipeline/**", "**/pipeline/**"],
+                    "message": "apps/web y pipeline/ no se importan entre sí (§14.3, regla 2)."
+                  },
+                  {
+                    "group": ["**/packages/core/**"],
+                    "message": "core se importa por su nombre, @gameagenda/core/… (§14.3, regla 7)."
+                  },
+                  {
+                    "group": ["**/fixtures/**"],
+                    "message": "El código de producción no importa fixtures/ (§14.3, regla 5)."
+                  },
+                  {
+                    "group": ["@tauri-apps/*", "@tauri-apps/**"],
+                    "message": "La web no importa Tauri: solo se conocen por la URL (§14.3, regla 8)."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/web/src/search-worker/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["react", "react/**", "react-dom", "react-dom/**"],
+                    "message": "El Worker de búsqueda no importa React (§14.3, regla 4)."
+                  },
+                  {
+                    "group": ["@gameagenda/pipeline", "@gameagenda/pipeline/**", "**/pipeline/**"],
+                    "message": "apps/web y pipeline/ no se importan entre sí (§14.3, regla 2)."
+                  },
+                  {
+                    "group": ["**/packages/core/**"],
+                    "message": "core se importa por su nombre, @gameagenda/core/… (§14.3, regla 7)."
+                  },
+                  {
+                    "group": ["**/fixtures/**"],
+                    "message": "El código de producción no importa fixtures/ (§14.3, regla 5)."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["pipeline/**", "!pipeline/**/*.test.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@gameagenda/web", "@gameagenda/web/**", "**/apps/web/**"],
+                    "message": "apps/web y pipeline/ no se importan entre sí (§14.3, regla 2)."
+                  },
+                  {
+                    "group": ["**/packages/core/**"],
+                    "message": "core se importa por su nombre, @gameagenda/core/… (§14.3, regla 7)."
+                  },
+                  {
+                    "group": ["**/fixtures/**"],
+                    "message": "El código de producción no importa fixtures/ (§14.3, regla 5)."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "**/*.test.ts",
+        "**/test-support.ts",
+        "**/test-helpers.ts",
+        "packages/core/test/**",
+        "apps/web/e2e/**",
+        "apps/web/perf/**",
+        "**/*.config.ts",
+        "scripts/**"
+      ],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "noUndeclaredDependencies": "off"
+          }
+        }
+      }
+    }
+  ]
 }

@@ -723,9 +723,9 @@ Versiones exactas comprobadas en el registro de npm el 28-10-2026 (Biome y `wran
 | Paquetes | npm *workspaces* | 11.19 | Viene con Node (ver §14) | pnpm |
 | Lenguaje | TypeScript | 7.0.2 | Compilador nativo; el stack no necesita su API (ver §6.3) | 6.0.3, solo de reserva |
 | Interfaz | React + React DOM | 19.3.1 | Ecosistema maduro; admite TS 7 | SvelteKit, Next.js |
-| *Build* | Vite + `@vitejs/plugin-react` | 8.3.5 / 6.1.2 | Rolldown; Workers de módulo y CSS Modules sin configurar | — |
+| *Build* | Vite + `@vitejs/plugin-react` | 8.3.5 / 6.1.2 | Rolldown; Workers de módulo sin configurar. Estilos: CSS nativo con *tokens*, una hoja por pantalla, sin CSS Modules | — |
 | PWA | `vite-plugin-pwa` (`injectManifest`) + `workbox-window` + `workbox-build` | 2.0.0 / 7.4.1 / 7.4.1 | Service Worker propio con la precaché del *build*; `injectRegister: false`: el Service Worker se registra desde la app con `workbox-window`; `workbox-build`, solo en desarrollo (ver §6.3) | — |
-| Datos en el cliente | Dexie + `dexie-react-hooks` | 4.4.7 / 4.4.0 | Esquema versionado, índices y `useLiveQuery` | SQLite WASM |
+| Datos en el cliente | Dexie | 4.4.7 | Esquema versionado e índices. La interfaz lee una agenda en memoria con `useSyncExternalStore`, al día con el evento `storagemutated` (ADR-004) | SQLite WASM |
 | Lista virtual | `@tanstack/react-virtual` | 3.14.24 | Catálogo de ≈196 600 filas | — |
 | Búsqueda | Índice propio + `@leeoniya/ufuzzy` | — / 1.0.19 | p95 de 2,1 ms por pulsación en Edge con el núcleo real (8,7 ms con CPU ×4; ver §8.11); uFuzzy solo para «¿Quizás buscabas…?» (ver §8) | Fuse.js, FlexSearch, Orama, MiniSearch |
 | Contratos | Zod | 4.6.7 | Steam, micro-API e importación | — |
@@ -748,6 +748,8 @@ Medido el 28-10-2026 con Vite 8.3.5 (*build* de producción):
 | React 19.3.1 + React DOM | 219,6 KB | 67,7 KB | 58,5 KB |
 | + Dexie 4.4.7, `dexie-react-hooks` y `@tanstack/react-virtual` | 353,4 KB | 108,6 KB | 94,5 KB |
 
+`dexie-react-hooks` se retiró el 30-10-2026 sin llegar a usarse (DECISIONES §10.18). En M1, el JS inicial real pesa 114,8 KB brotli (`npm run size`).
+
 | *Chunk* | Presupuesto (brotli) | Contenido |
 |---|---|---|
 | Inicial | ≤150 KB | Lo necesario para pintar Mi lista y abrir la paleta |
@@ -766,7 +768,7 @@ Rangos de `peerDependencies` y `engines` en npm (28-10-2026):
 - `vite-plugin-pwa` 2.0.0 admite Vite 8 y exige `workbox-build` y `workbox-window` ^7.4.1: los dos se fijan en 7.4.1.
 - `@vitejs/plugin-react` 6.1.2 exige Vite ^8.0.0; Vitest 5.0.5 admite Vite ^6.4, ^7 y ^8.
 - Vite 8.3.5 pide Node ^20.19 o ≥22.12, y `wrangler` 4.155.0, Node ≥22 y `@cloudflare/workers-types` ≥5.20261023.1.
-- `@tanstack/react-virtual` 3.14.23 admite React 19; `dexie-react-hooks` 4.4.0, Dexie ≥4.2 y <5.
+- `@tanstack/react-virtual` 3.14.23 admite React 19.
 - `@axe-core/playwright` 4.14.0 pide `playwright-core` ≥1.0.0 y trae `axe-core` ~4.14.0; `@types/react-dom` 19.3.0 pide `@types/react` ^19.3.0; `fake-indexeddb` 6.2.6, Node ≥18.
 - TypeScript 7.0 no tiene API de compilador hasta la 7.1. Biome, Vite y Vitest no la usan; si otra herramienta la pidiera, solo ella usaría 6.0.3 (a verificar en M0).
 
@@ -786,7 +788,7 @@ Rangos de `peerDependencies` y `engines` en npm (28-10-2026):
 | `@cloudflare/vitest-pool-workers` | La 0.23.0 exige Vitest ^4.1 y partiría el repositorio en dos versiones mayores |
 | ESLint con reglas de tipos | `typescript-eslint` con tipos necesita la API que TS 7.0 no tiene |
 | pnpm | No está instalado y npm basta; Node deja de incluir corepack desde la 25 |
-| Librería de enrutado, Redux, Tailwind | Sobran: *router* propio sobre la History API, `useLiveQuery` y CSS con *tokens* |
+| Librería de enrutado, Redux, Tailwind | Sobran: *router* propio sobre la History API, la agenda en memoria con `useSyncExternalStore` y CSS con *tokens* |
 | Vercel Hobby, Netlify Free | Hobby es solo para uso no comercial; Netlify gasta 15 créditos por despliegue y el catálogo se despliega a diario |
 
 Fuentes (consultadas el 28-10-2026): registro de npm; [uFuzzy](https://github.com/leeoniya/uFuzzy); [SQLite WASM](https://sqlite.org/wasm/doc/trunk/persistence.md); [InstantDB](https://www.instantdb.com/essays/instant_team_joins_openai); [TypeScript 7.0](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/).
@@ -912,14 +914,20 @@ function merge(prev: Entry | undefined, ops: Op[]) {   // packages/core
   if (e.flags.platinum && p > (e.hlc.status ?? '') &&
       e.status !== 'completed')
     derived.push(newOp(e.id, 'status', 'completed', p)); // HLC de la marca
-  if (e.mergedInto)                    // manual vinculado: reenviar
-    for (const o of ops) if (USER_FIELDS.has(o.field))
-      derived.push(retarget(o, e.mergedInto));
-  for (const d of derived) if (d.entryId === e.id) apply(e, d);
+  for (const d of derived) apply(e, d);
+  const t = e.mergedInto;              // manual vinculado: reenviar
+  if (t) {
+    const fwd = t !== prev?.mergedInto // recién vinculado: todo su estado
+      ? userFieldOps(e)
+      : [...ops.filter((o) => USER_FIELDS.has(o.field)), ...derived];
+    for (const o of fwd) derived.push(retarget(o, t));
+  }
   e.view = viewOf(e); e.lastHlc = maxHlc(e.hlc);
   return { entry: e, derived };        // derived también va a la outbox
 }
 ```
+
+- **Reenvío de un manual vinculado:** cuando `mergedInto` cambia en esa fusión, se reenvía al destino el estado actual de todos los campos de usuario del manual, no solo las operaciones del lote. También se reenvía la derivada de Platinado. Con el reenvío de solo el lote, el resultado en el destino dependía de si las operaciones del manual llegaban antes o después de la vinculación. `applyOps()` sigue las derivadas entre entradas hasta 8 saltos (ADR-004).
 
 - «Marcar Platinado» escribe siempre `status` con la HLC de la marca, aunque ya fuera Completado: con datos completos la reparación no cambia nada y, con datos incompletos (lote partido, copia antigua), todas las réplicas derivan la misma operación. Un cambio de estado posterior gana y no quita Platinado. Las fechas no se reparan: sería inventarlas. Pruebas de propiedades: ver §12.
 - **Lápidas**: borrar es `deletedAt = <instante>` y conserva el resto. Un cambio concurrente no resucita la entrada; solo lo hace `deletedAt = null`. Deshacer un «Quitar» escribe solo eso y la recupera tal como estaba; apuntarla de nuevo es una acción que escribe además los valores por defecto de todos los campos de usuario (`want_to_play`, cada marca a `false`, fechas vacías salvo `addedAt` = hoy, `note` y `platform` vacíos y `rank` al final): empieza de cero. No se purgan antes de M4.
@@ -1185,7 +1193,7 @@ El índice se construye sobre el núcleo con `recent` ya aplicado. En M1 se cons
 | Restaurar índice persistido (M3) | ≤0,4 s con CPU ×4 (hoy 0,55 s; guardar los *bitsets* y decodificar los nombres bajo demanda debería bastar: **a verificar en M3**) | marca `search:index-restored` |
 | *Chunk* del Worker | ≤40 KB brotli | puerta de tamaño (ver §6) |
 
-El estrangulamiento de CPU por CDP **no afecta a los Workers dedicados** (medido en Edge 156: p95 interno de 2,4 ms a ×1 y a ×4; en el Chromium de Playwright, y si `Target.setAutoAttach` permite estrangular el Worker, **a verificar en M0**). Por eso la prueba de búsqueda con ×4 ejecuta el núcleo de búsqueda en el hilo principal de una página de prueba y el Worker real se valida en el Android de referencia; INP, toque → respuesta y tareas largas se miden en la app real con ×4 (ver §12.4).
+El estrangulamiento de CPU por CDP **no afecta a los Workers dedicados** (medido en Edge 156: p95 interno de 2,4 ms a ×1 y a ×4. En el Chromium de Playwright lo comprueba cada pasada de `npm run perf`: con ×4, el hilo principal va 4,2–5,2 veces más lento y el Worker dedicado, 0,9–1,1. Con `Target.setAutoAttach` el Worker se adjunta, pero `Emulation.setCPUThrottlingRate` responde «Operation is only supported for pages, not workers»; medido el 29 y el 30-10-2026). Por eso la prueba de búsqueda con ×4 ejecuta el núcleo de búsqueda en el hilo principal de una página de prueba y el Worker real se valida en el Android de referencia; INP, toque → respuesta y tareas largas se miden en la app real con ×4 (ver §12.4).
 
 El presupuesto de escritorio se cuenta en fotogramas porque la medida termina en uno (§12.4) y el Worker no es el cuello de botella: responde en 0,2 ms. Chromium retiene el mensaje del Worker hasta el primer fotograma tras la tecla (`DeferRendererTasksAfterInput`) y, aun sin esa retención, el primer fotograma cae en una fase de vsync al azar. A 60 Hz el suelo es p95 ≈17 ms; a 120 Hz, la app da 14,8 ms (medido el 29-10-2026; ver ADR-005). Precalcular en el Worker la siguiente tecla bajaría la cifra, pero gastaría CPU en el móvil por una diferencia que no se nota.
 
@@ -1441,7 +1449,7 @@ Leyenda: `[img]` portada, `[HK ]` generada, `(+)` apuntar, `(i)` ficha, `::` asa
 
 ### 9.5 Reglas de respuesta inmediata (M1; portadas desde M2)
 
-1. **Optimista:** se pinta en el mismo fotograma desde una capa en memoria (`Map` id → entrada pendiente con la HLC de la acción), superpuesta a `useLiveQuery` hasta que este la refleja (`lastHlc` ≥ esa HLC, o ya no está si se quitó); después se guarda en Dexie y `outbox` (ver §7.4). Hace falta porque Dexie no aplica sus actualizaciones optimistas a las transacciones `rw` explícitas ([notas de 4.0.1-beta.9](https://github.com/dexie/Dexie.js/releases/tag/v4.0.1-beta.9); **a verificar en M1** con 4.4.7). Filas con `React.memo` que comparan `id` y `lastHlc`, no la referencia (cada emisión trae copias nuevas); el aviso sale del estado local. Si con 500 entradas y CPU ×4 hay tareas de más de 50 ms al apuntar (ver §12), Mi lista se virtualiza por secciones.
+1. **Optimista:** cada acción se aplica en una agenda en memoria y se pinta en el mismo fotograma (`useSyncExternalStore`). Después del fotograma se guarda en Dexie, en una transacción con `outbox` (ver §7.4 y ADR-004). Las demás pestañas se enteran por el evento `storagemutated` de Dexie y releen solo las entradas cambiadas. No se usa `useLiveQuery`, porque pintaría lo guardado y no lo pulsado. Filas con `React.memo` que comparan `id` y `lastHlc`, no la referencia (cada emisión trae copias nuevas); el aviso sale del estado local. Si con 500 entradas y CPU ×4 hay tareas de más de 50 ms al apuntar (ver §12), Mi lista se virtualiza por secciones.
 2. **Deshacer:** aviso de 8 s, pausable con foco o puntero; después, `Ctrl+Z` (pila de 20) o «Deshacer último cambio» en `[...]`. Los efectos automáticos (fechas, Platinado ⇒ Completado) se deshacen a la vez; solo «Borrar todos mis datos» se confirma, escribiendo BORRAR.
 3. **Nada se mueve bajo el cursor:** lo que llega tarde (portadas, detalles, catálogo nuevo, sincronización) ocupa huecos reservados; si una acción del usuario saca una fila de su sección, se pliega en 150 ms, el foco pasa a la siguiente y el aviso dice adónde ha ido.
 4. **Esqueletos:** huecos con su tamaño final desde el primer fotograma, rellenos con `--surface-2` solo tras 300 ms; nunca pantallas de carga.
@@ -1725,7 +1733,7 @@ Las medidas son las mismas en los tests y en el panel: `performance.measure` y, 
 | INP | Inicio de la interacción (`PerformanceObserver` de tipo `event`, agrupado por `interactionId`) | Siguiente pintado |
 
 - **`perf`:** Playwright en Chromium con CPU ×4 (`Emulation.setCPUThrottlingRate` por CDP) y, como umbrales, los presupuestos (ver §3) y los propios de la búsqueda (ver §8.9). Como CDP **no estrangula los Workers dedicados** (medido; ver §8.9), la prueba tiene dos partes:
-  1. **Búsqueda:** una página de prueba ejecuta la búsqueda de `packages/core` (índice y *ranking*) en el hilo principal, sobre la copia congelada del núcleo real (§12.1) o sobre `pipeline/out/`. Mide el tiempo hasta poder buscar (`scan`; en M3, `boot`) y hasta el índice completo (`full`) y, desde M3, la restauración del índice; teclea carácter a carácter el conjunto realista (ver §8.11) y calcula p50/p95 de pulsación → resultados y del nivel 4. El Worker real se valida en el Android de referencia (§13.4). **A verificar en M0**, en el Chromium de Playwright, que el Worker tampoco se estrangula allí y si `Target.setAutoAttach` permite estrangularlo.
+  1. **Búsqueda:** una página de prueba ejecuta la búsqueda de `packages/core` (índice y *ranking*) en el hilo principal, sobre la copia congelada del núcleo real (§12.1) o sobre `pipeline/out/`. Mide el tiempo hasta poder buscar (`scan`; en M3, `boot`) y hasta el índice completo (`full`) y, desde M3, la restauración del índice; teclea carácter a carácter el conjunto realista (ver §8.11) y calcula p50/p95 de pulsación → resultados y del nivel 4. El Worker real se valida en el Android de referencia (§13.4). En el Chromium de Playwright tampoco se estrangula, ni adjuntándolo con `Target.setAutoAttach`: lo comprueba `perf/worker-throttling.perf.ts` en cada pasada (ver §8.9).
   2. **App real**, con el mismo catálogo y 500 entradas en Mi lista: teclea 20 nombres, apunta 10 y mide INP, `ui:feedback`, `capture:palette-to-confirm`, el reinicio con caché (`app:list-visible`) y el LCP; sin estrangular, `search:keystroke-to-results` para el presupuesto de escritorio, que depende de la frecuencia de la pantalla, medida con 60 `requestAnimationFrame` (ver §8.9). Falla si un `PerformanceObserver` de `longtask` ve una tarea del hilo principal de más de 50 ms al teclear o apuntar, o si, ya calentadas las fuentes de reserva, la primera maquetación de han, kana, hangul o emoji pasa de 50 ms. Sin calentar, en Windows y con ×4, cuesta 30–130 ms por escritura y peso (medido el 30-10-2026). La app las calienta en ratos ociosos en cuanto se puede buscar.
 - **Tamaño:** `scripts/size-gate.ts` comprime con brotli (calidad 11) el JS inicial, según el `build.manifest` de Vite, y el *chunk* del Worker de búsqueda, y los compara con su presupuesto (ver §6).
 
@@ -1788,7 +1796,7 @@ La clave de la Web API de Steam se pide el primer día de M0 (requisitos: ver §
 
 ### 13.2 Ajustes de git y npm en Windows
 
-- `git config --global core.longpaths true` (rutas largas de `node_modules`) y `git config --global core.autocrlf false` (Git para Windows trae `true` en la configuración del sistema).
+- En el repositorio, no en la configuración global, para no cambiar otros proyectos: `git config core.longpaths true` (rutas largas de `node_modules`) y `git config core.autocrlf false` (Git para Windows trae `true` en la configuración del sistema). La configuración local no viaja con el repositorio: en un clon nuevo, `git clone -c core.longpaths=true -c core.autocrlf=false <url>`.
 - `.gitattributes` con `* text=auto eol=lf`.
 - `.npmrc` con `save-exact=true`; `package.json` con `"engines": { "node": "^24.21.0" }` y `.node-version` con `24.21.0`, que también lee el CI.
 - npm ejecuta los scripts con `cmd.exe`: no sirven `VAR=valor comando` ni `rm -rf`, así que la lógica va en scripts `.ts`.
@@ -1894,7 +1902,7 @@ Ya existen dos carpetas: `fixtures/catalog-frozen/`, con `core.20261028.1.tsv.gz
 
 | Paquete | Contenido | Depende de |
 |---|---|---|
-| `apps/web` | Pantallas, *router*, Dexie, Worker de búsqueda, Service Worker; en M4, micro-API y migraciones de D1 | `core`, React, Dexie y `dexie-react-hooks`, `@tanstack/react-virtual`, `workbox-window`, `uuid`; Hono en M4 |
+| `apps/web` | Pantallas, *router*, Dexie, Worker de búsqueda, Service Worker; en M4, micro-API y migraciones de D1 | `core`, React, Dexie, `@tanstack/react-virtual`, `workbox-window`, `uuid`; Hono en M4 |
 | `apps/desktop` | Desde M3: ventana Tauri que carga `ga-web`, atajo global, icono en la bandeja, una sola instancia y arranque con Windows opcional; ningún código de la web (ver §17.3) | `@tauri-apps/cli` y los *crates* de la §6; ningún paquete del repositorio |
 | `packages/core` | Normalización y sus vectores; claves, índice y *ranking*; parser de enlaces; códecs TSV y *shards*; JSON canónico del *manifest*; reglas de estados y marcas; HLC y `merge()`; esquemas Zod (Steam, exportación, micro-API) | Zod; uFuzzy, solo en el nivel difuso (carga diferida) |
 | `pipeline/` | Cliente HTTP de Steam, etapas, puertas, firma ed25519 (`node:crypto`), grabador de *fixtures* | `core`, Zod; `wrangler` para publicar |
@@ -1920,7 +1928,7 @@ flowchart LR
 7. Entre paquetes se importa por nombre (`@gameagenda/core/search`) y solo lo que declara `exports`, nunca con `../`. Los imports relativos llevan la extensión `.ts`, que Node exige. [Node no quita tipos dentro de `node_modules`](https://nodejs.org/api/typescript.html), pero resuelve el enlace simbólico de `core` a su ruta real (a verificar en M0).
 8. `apps/desktop` no importa nada del repositorio y la web no importa Tauri: solo se conocen por la URL de `ga-web` (ver §17.3).
 
-Se vigilan con Biome (`noRestrictedImports` por carpeta y `noUndeclaredDependencies`) y con el `tsconfig` de `core`.
+Se vigilan con Biome (`noRestrictedImports` por carpeta y `noUndeclaredDependencies`) y con el `tsconfig` de `core`. Las pruebas, los E2E, `perf`, las configuraciones y `scripts/` quedan fuera de `noUndeclaredDependencies`: usan las dependencias de desarrollo de la raíz, que npm sube allí. La regla 6 la vigila la búsqueda de la clave del CI (§12.5).
 
 ## 15. Roadmap e hitos
 

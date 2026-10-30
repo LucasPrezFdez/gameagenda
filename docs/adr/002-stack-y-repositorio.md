@@ -95,11 +95,11 @@ Opción elegida: **React 19.3.1 + Vite 8.3.5 como SPA**. Se elige porque:
 - Bien, porque una sola herramienta formatea y revisa el código, y no necesita la API de TypeScript.
 - Mal, porque los `.md` (plan, ADR y CHANGELOG) no tienen formateador. El *lint* de `prototipe.md` lo hace `montar-prototipe.mjs`.
 - Mal, porque sin ESLint con tipos no hay reglas que necesiten información de tipos, al menos hasta TypeScript 7.1.
-- Pendiente: `pipeline/` aún no tiene código, así que no entra en `npm run typecheck`.
-- Pendiente: Biome todavía no vigila las reglas de dependencia de la §14.3. `biome.json` no configura `noRestrictedImports` por carpeta ni `noUndeclaredDependencies`, y hoy las sostienen `tsc` y los `exports` de `core`.
+- Resuelto: `pipeline/` ya tiene código y entra en `npm run typecheck`.
+- Resuelto el 30-10-2026: Biome vigila las reglas de dependencia de la §14.3. `biome.json` configura `noUndeclaredDependencies` y un `noRestrictedImports` por carpeta (`packages/core/src`, `apps/web/src`, el Worker de búsqueda y `pipeline/`). Ojo: si dos *overrides* configuran la misma regla para un fichero, manda el último y sustituye las opciones del anterior. Por eso el del Worker repite los patrones de la web. Las pruebas, los E2E, `perf`, las configuraciones y `scripts/` quedan fuera de `noUndeclaredDependencies`, porque usan las dependencias de desarrollo de la raíz, que npm sube allí.
 - Pendiente: faltan paquetes de la §6 que aún no hacen falta. `@cloudflare/workers-types` llega con los despliegues (ADR-003), Hono en M4 y `steam-signin` en Fase 2.
-- Pendiente: `dexie-react-hooks` está declarado en `apps/web` pero no se importa (ver ADR-004).
-- Pendiente: la puerta de tamaño (`scripts/size-gate.ts`) y el CI llegan con los pasos aplazados de M0.
+- Resuelto el 30-10-2026: `dexie-react-hooks`, declarado en `apps/web` sin importarse, se ha retirado (ADR-004 y `DECISIONES.md` §10.18).
+- La puerta de tamaño (`scripts/size-gate.ts`) ya va en `npm run check`. El CI llega con los pasos aplazados de M0.
 
 ### Confirmación
 

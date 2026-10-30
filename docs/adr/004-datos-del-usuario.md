@@ -71,11 +71,11 @@ Opción elegida: **1**. Es la única que cumple el presupuesto de JS y la respue
   - una operación de una entrada desconocida crea un esqueleto invisible;
   - Platinado ⇒ Completado se deriva por relojes, con la HLC de la marca.
 
-### Diferencia con el pseudocódigo de la §7.4
+### Reenvío de un manual vinculado
 
 Cuando cambia `mergedInto`, `merge()` reenvía al destino el estado actual de todos los campos de usuario del manual, no solo las operaciones del lote. También reenvía la derivada de Platinado.
 
-Con el pseudocódigo literal, el resultado en el destino dependía del orden de llegada de la vinculación y de las operaciones del manual. `applyOps()` sigue las derivadas entre entradas hasta 8 saltos.
+Con el pseudocódigo original de la §7.4, que solo reenviaba el lote, el resultado en el destino dependía del orden de llegada de la vinculación y de las operaciones del manual. `applyOps()` sigue las derivadas entre entradas hasta 8 saltos. La §7.4 lo recoge desde el 30-10-2026.
 
 ### Escritura en dos tiempos (`apps/web/src/agenda/agenda.ts`)
 
@@ -123,9 +123,9 @@ La exportación, la importación y Zod van en un *chunk* diferido de 25,9 KiB, f
 - Mal, porque la `outbox` crece con cada acción y no se compacta hasta M4. `compactOutbox()` y `takeBatch()` ya están en `core`, pero la web no los usa.
 - Mal, porque un cambio solo vive en memoria hasta que su lote se guarda (un fotograma más la transacción). Si la pestaña se cierra entretanto, se pierde.
 - Mal, porque en WebKit para Windows IndexedDB es lento. No retrasa la respuesta, pero sí el momento en que el cambio queda guardado.
-- Pendiente: falta el aviso para exportar tras 30 días sin copia (RNF-08). No está en el código de M1.
+- Resuelto el 30-10-2026: aviso para exportar tras 30 días sin copia (RNF-08), con su estado en `meta.copyReminder` (`apps/web/src/data/copy-reminder.ts`; §9.6).
 - Pendiente: probar la primera migración de Dexie cuando exista la versión 2 del esquema.
-- Pendiente: decidir si `dexie-react-hooks` se queda. El plan contaba con `useLiveQuery` (§6.1 y D-02).
+- Resuelto el 30-10-2026: `dexie-react-hooks` se retira, porque no se usa `useLiveQuery`. La §6.1, la §9.5 y `DECISIONES.md` (§10.18) ya lo recogen.
 
 ### Confirmación
 

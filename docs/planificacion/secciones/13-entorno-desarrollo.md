@@ -19,7 +19,7 @@ La clave de la Web API de Steam se pide el primer día de M0 (requisitos: ver §
 
 ### 13.2 Ajustes de git y npm en Windows
 
-- `git config --global core.longpaths true` (rutas largas de `node_modules`) y `git config --global core.autocrlf false` (Git para Windows trae `true` en la configuración del sistema).
+- En el repositorio, no en la configuración global, para no cambiar otros proyectos: `git config core.longpaths true` (rutas largas de `node_modules`) y `git config core.autocrlf false` (Git para Windows trae `true` en la configuración del sistema). La configuración local no viaja con el repositorio: en un clon nuevo, `git clone -c core.longpaths=true -c core.autocrlf=false <url>`.
 - `.gitattributes` con `* text=auto eol=lf`.
 - `.npmrc` con `save-exact=true`; `package.json` con `"engines": { "node": "^24.21.0" }` y `.node-version` con `24.21.0`, que también lee el CI.
 - npm ejecuta los scripts con `cmd.exe`: no sirven `VAR=valor comando` ni `rm -rf`, así que la lógica va en scripts `.ts`.
