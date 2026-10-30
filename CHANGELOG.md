@@ -2,6 +2,36 @@
 
 Cambios de GameAgenda por versión. Cada hito cierra una versión SemVer 0.x (§12.6 de `prototipe.md`). Las fechas van en formato dd-mm-aaaa.
 
+## [Sin publicar]
+
+### M0 · Esqueleto, cerrado después de M1 (30-10-2026)
+
+Sin etiqueta propia: `v0.0.1` quedaría después de `v0.1.0`, así que M0 va dentro de la próxima versión (decisión del usuario). El detalle está en el [ADR-003](docs/adr/003-hosting-despliegue-y-ci.md).
+
+#### Añadido
+
+- **CI** (`.github/workflows/ci.yml`), con tres trabajos en paralelo:
+  - `check`: Biome, `tsc`, Vitest, *build*, puerta de tamaño y búsqueda de la clave;
+  - `e2e`: Chromium;
+  - `perf`: solo informa.
+
+  Las *actions* están fijadas por SHA, con permisos de solo lectura. La primera ejecución pasó en verde en 2 min 52 s.
+- **Búsqueda de la clave de Steam en el *build*** (`scripts/scan-secrets.ts`): `x-webapi-key`, `STEAM_WEB_API_KEY` o la clave por su SHA-256 (`STEAM_KEY_SHA256`). Tiene pruebas con una clave falsa.
+- **Despliegue en Cloudflare Workers Static Assets**, en el subdominio `gameagenda.workers.dev`:
+  - `ga-web` (https://ga-web.gameagenda.workers.dev) lleva la CSP y las cabeceras de la §11.3 en `_headers`;
+  - `ga-catalog` (https://ga-catalog.gameagenda.workers.dev) sirve el mini-catálogo, montado por `scripts/assemble-catalog.ts`. El *manifest* va en `no-cache`, los TSV como `text/plain` comprimidos con zstd, br o gzip, y el CORS solo admite a `ga-web`;
+  - `deploy-web.yml` despliega `ga-web` tras cada `ci` en verde de `main`, y `deploy-catalog.yml` despliega `ga-catalog` a mano. Los dos acaban con una prueba de humo.
+- **Comprobaciones de M0** (`docs/medidas/verificaciones-m0-20261030.md`): Ed25519 en WebCrypto, formato de la clave de Steam y campos de `Query` sin `include_basic_info`.
+
+#### Corregido
+
+- **Catálogo:** el Worker de búsqueda vuelve a pedir sin la caché HTTP (`cache: 'reload'`) un fichero con *hash* que falla. `ga-catalog` sirve también los 404 como `immutable`, y sin este reintento uno transitorio dejaría fuera esa versión del catálogo.
+
+#### Pendiente
+
+- **Despliegue automático:** necesita los secretos `CLOUDFLARE_API_TOKEN` y `CLOUDFLARE_ACCOUNT_ID` en GitHub (CA0.1). Los primeros despliegues se hicieron a mano con `wrangler`.
+- **`STEAM_KEY_SHA256`:** la variable llegará cuando haya clave. Hasta entonces, el CI solo busca los nombres.
+
 ## [0.1.0] · M1 Apuntar · 30-10-2026
 
 Primera versión: buscar en el catálogo completo de Steam y apuntar un juego en segundos, sin red tras la primera visita y con los datos en el dispositivo. De M0 solo están hechos los pasos 1–3: no hay `v0.0.1` ni despliegues.

@@ -14,7 +14,7 @@
   - **Comprobaciones «a verificar en M0»:** cerradas (`docs/medidas/verificaciones-m0-20261030.md` y ADR-003).
   - **Falta:**
     - que el usuario cree en GitHub los secretos `CLOUDFLARE_API_TOKEN` («Workers Scripts: Edit») y `CLOUDFLARE_ACCOUNT_ID`, para que `deploy-web.yml` despliegue solo tras cada *push* (la otra mitad de CA0.1). El clasificador de permisos no deja al asistente escribir secretos;
-    - decidir la etiqueta de M0: `v0.0.1` quedaría después de `v0.1.0`.
+    - M0 no lleva etiqueta: `v0.0.1` quedaría después de `v0.1.0` (decisión del usuario, 30-10-2026). Su cierre va en el CHANGELOG, en «Sin publicar».
   - **Repositorio público:** el plan lo daba por privado. Los minutos de Actions no cuentan, pero el *cron* se desactiva a los 60 días sin *commits* (R-04).
 - **M1 · Apuntar: cerrado con `v0.1.0`** (30-10-2026; etiqueta anotada en GitHub, con `CHANGELOG.md`). Las mediciones en el dispositivo pasan a M3 (ver «Pendiente de M1», punto 6). Todo está en `main` y subido, sin agentes ni *worktrees* abiertos:
   - **Búsqueda.** En `core`: `normalize`, `catalog-format`, `search` y `search-quality`. Sobre la copia congelada: conjunto dorado 94,9 % / 99,0 %, exactos 99,9 %, prefijos 93,1 %, y `scan` da lo mismo que `full`.
