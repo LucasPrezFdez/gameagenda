@@ -170,7 +170,7 @@ Prioridad (MoSCoW): **Imprescindible** (sin ello el prototipo no cumple su fin),
 | Id | Requisito | Objetivo medible | Hito |
 |---|---|---|---|
 | RNF-01 | Captura | Apuntar un juego p50 ≤3 s, desde abrir la paleta hasta ver la confirmación | M1 · M3 |
-| RNF-02 | Búsqueda | Tecla → resultados ≤50 ms p95 en el Android de referencia (CPU ×4 en CI) y ≤16 ms en escritorio, siempre fuera del hilo principal | M1 · M3 |
+| RNF-02 | Búsqueda | Tecla → resultados ≤50 ms p95 en el Android de referencia (CPU ×4 en CI) y, en escritorio, ≤16 ms con pantallas de ≥120 Hz y ≤2 fotogramas por debajo (≈33 ms a 60 Hz; ver §8.9), siempre fuera del hilo principal | M1 · M3 |
 | RNF-03 | Respuesta | Toque → respuesta visible ≤100 ms; INP p75 ≤200 ms; ninguna tarea del hilo principal >50 ms al teclear o apuntar, con 500 entradas en Mi lista | M1 · M3 |
 | RNF-04 | Arranque | Primera visita: LCP ≤2,5 s, con el catálogo descargándose después. Reinicio con caché ≤2 s hasta poder buscar, con Mi lista visible ≤1 s | M1 · M3 |
 | RNF-05 | Primera búsqueda | Búsqueda lista ≤1,5 s tras la primera carga, gracias al núcleo de arranque | M3 |
@@ -1177,7 +1177,7 @@ El índice se construye sobre el núcleo con `recent` ya aplicado. En M1 se cons
 
 | Métrica | Presupuesto (RNF de la §3.2 y propios) | Medición |
 |---|---|---|
-| Pulsación → resultados, p95 | ≤16 ms escritorio; ≤50 ms con CPU ×4 (RNF-02), también en `scan` | conjunto realista de la §8.11, tecleado carácter a carácter: con ×1, dentro del Worker y de ida y vuelta; con ×4, el núcleo de búsqueda en el hilo principal de una página de prueba; `npm run perf` con Playwright y CDP (ver §12.4) |
+| Pulsación → resultados, p95 | escritorio: ≤16 ms a ≥120 Hz y ≤2 fotogramas por debajo (≈33 ms a 60 Hz); ≤50 ms con CPU ×4 (RNF-02), también en `scan` | conjunto realista de la §8.11, tecleado carácter a carácter: con ×1, dentro del Worker y de ida y vuelta; con ×4, el núcleo de búsqueda en el hilo principal de una página de prueba; `npm run perf` con Playwright y CDP (ver §12.4) |
 | Nivel 4 (diferido) | ≤70 ms con CPU ×4 | mismo banco de pruebas, en las consultas que lo activan |
 | Reinicio con caché hasta poder buscar | ≤2 s (RNF-04): en M1, con `scan`; en M3, con el índice restaurado | marca `search:ready` (primer `status` distinto de `none`) |
 | Búsqueda lista tras la primera carga (M3) | ≤1,5 s (RNF-05), con `boot` | marca `search:ready` |
@@ -1185,6 +1185,8 @@ El índice se construye sobre el núcleo con `recent` ya aplicado. En M1 se cons
 | *Chunk* del Worker | ≤40 KB brotli | puerta de tamaño (ver §6) |
 
 El estrangulamiento de CPU por CDP **no afecta a los Workers dedicados** (medido en Edge 156: p95 interno de 2,4 ms a ×1 y a ×4; en el Chromium de Playwright, y si `Target.setAutoAttach` permite estrangular el Worker, **a verificar en M0**). Por eso la prueba de búsqueda con ×4 ejecuta el núcleo de búsqueda en el hilo principal de una página de prueba y el Worker real se valida en el Android de referencia; INP, toque → respuesta y tareas largas se miden en la app real con ×4 (ver §12.4).
+
+El presupuesto de escritorio se cuenta en fotogramas porque la medida termina en uno (§12.4) y el Worker no es el cuello de botella: responde en 0,2 ms. Chromium retiene el mensaje del Worker hasta el primer fotograma tras la tecla (`DeferRendererTasksAfterInput`) y, aun sin esa retención, el primer fotograma cae en una fase de vsync al azar. A 60 Hz el suelo es p95 ≈17 ms; a 120 Hz, la app da 14,8 ms (medido el 29-10-2026; ver ADR-005). Precalcular en el Worker la siguiente tecla bajaría la cifra, pero gastaría CPU en el móvil por una diferencia que no se nota.
 
 ### 8.10 Conjuntos dorados y puertas
 
@@ -1720,7 +1722,7 @@ Las medidas son las mismas en los tests y en el panel: `performance.measure` y, 
 
 - **`perf`:** Playwright en Chromium con CPU ×4 (`Emulation.setCPUThrottlingRate` por CDP) y, como umbrales, los presupuestos (ver §3) y los propios de la búsqueda (ver §8.9). Como CDP **no estrangula los Workers dedicados** (medido; ver §8.9), la prueba tiene dos partes:
   1. **Búsqueda:** una página de prueba ejecuta la búsqueda de `packages/core` (índice y *ranking*) en el hilo principal, sobre la copia congelada del núcleo real (§12.1) o sobre `pipeline/out/`. Mide el tiempo hasta poder buscar (`scan`; en M3, `boot`) y hasta el índice completo (`full`) y, desde M3, la restauración del índice; teclea carácter a carácter el conjunto realista (ver §8.11) y calcula p50/p95 de pulsación → resultados y del nivel 4. El Worker real se valida en el Android de referencia (§13.4). **A verificar en M0**, en el Chromium de Playwright, que el Worker tampoco se estrangula allí y si `Target.setAutoAttach` permite estrangularlo.
-  2. **App real**, con el mismo catálogo y 500 entradas en Mi lista: teclea 20 nombres, apunta 10 y mide INP, `ui:feedback`, `capture:palette-to-confirm`, el reinicio con caché (`app:list-visible`) y el LCP; sin estrangular, `search:keystroke-to-results` para el presupuesto de escritorio. Falla si un `PerformanceObserver` de `longtask` ve una tarea del hilo principal de más de 50 ms al teclear o apuntar.
+  2. **App real**, con el mismo catálogo y 500 entradas en Mi lista: teclea 20 nombres, apunta 10 y mide INP, `ui:feedback`, `capture:palette-to-confirm`, el reinicio con caché (`app:list-visible`) y el LCP; sin estrangular, `search:keystroke-to-results` para el presupuesto de escritorio, que depende de la frecuencia de la pantalla, medida con 60 `requestAnimationFrame` (ver §8.9). Falla si un `PerformanceObserver` de `longtask` ve una tarea del hilo principal de más de 50 ms al teclear o apuntar.
 - **Tamaño:** `scripts/size-gate.ts` comprime con brotli (calidad 11) el JS inicial, según el `build.manifest` de Vite, y el *chunk* del Worker de búsqueda, y los compara con su presupuesto (ver §6).
 
 | Comprobación | CI | Local | Móvil real |
@@ -1981,7 +1983,7 @@ Sin colchón: para planificar se suma un 20 % (ver §16, R-13). Aparte van las e
 - CA1.2 **Listable:** con +18 visible, el contador del Catálogo coincide con el *manifest* (con +18 oculto, descuenta los de adultos) y se llega a la última fila con Fin y con la barra, en Chromium y en el Android de referencia.
 - CA1.3 **Buscable:** pasan las consultas de humo; ≥99 % de 2 000 nombres exactos al azar quedan en el top 5 y ≥90 % de los prefijos de 4 letras de los 1 000 juegos más populares, en el top 10; el conjunto dorado cumple sus umbrales (ver §8). En CI se comprueba sobre la copia congelada del núcleo.
 - CA1.4 **Apuntar en <3 s:** el E2E «apuntar un juego» (ver §12) da una mediana de 5 ejecuciones <3 s en escritorio y en móvil emulado, y p50 ≤3 s en 10 altas en el Android de referencia (`chrome://inspect`).
-- CA1.5 **Rendimiento** (`npm run perf`, CPU ×4; ver §12.4): tecla → resultados ≤50 ms p95 (≤16 ms sin estrangular), con el núcleo de búsqueda en el hilo principal de una página de prueba, porque CDP no estrangula los Workers; en la app real, toque → respuesta ≤100 ms, INP p75 ≤200 ms y 0 tareas largas de más de 50 ms al teclear o apuntar; LCP ≤2,5 s, medido con `PerformanceObserver` en el proyecto `perf`; JS inicial ≤150 KB y Worker ≤40 KB brotli.
+- CA1.5 **Rendimiento** (`npm run perf`, CPU ×4; ver §12.4): tecla → resultados ≤50 ms p95 (sin estrangular, ≤16 ms a ≥120 Hz y ≤2 fotogramas por debajo, ≈33 ms a 60 Hz), con el núcleo de búsqueda en el hilo principal de una página de prueba, porque CDP no estrangula los Workers; en la app real, toque → respuesta ≤100 ms, INP p75 ≤200 ms y 0 tareas largas de más de 50 ms al teclear o apuntar; LCP ≤2,5 s, medido con `PerformanceObserver` en el proyecto `perf`; JS inicial ≤150 KB y Worker ≤40 KB brotli.
 - CA1.6 **Estados y marcas:** cada uno a ≤2 toques desde Mi lista o desde un resultado (ver §9), con respuesta ≤100 ms; Platinado pasa a Completado y fija `completedAt` si estaba vacío; Deshacer devuelve el estado exacto (reglas de la §3).
 - CA1.7 Tecleando sin pausa (`delay: 0`), Intro apunta siempre el resultado de la consulta completa; `Ctrl+Intro` apunta y deja la paleta abierta para el siguiente.
 - CA1.8 **Sin red:** tras la primera visita y en modo avión, la app abre, busca en todo el catálogo, apunta, cambia estados y lo conserva al recargar.

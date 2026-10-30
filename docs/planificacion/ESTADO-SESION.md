@@ -27,11 +27,7 @@
   - **Pruebas:** 529 unitarias y 98 E2E en verde (6 saltadas a propósito). `npm run perf` aún sale en rojo: ver «Pendiente de M1».
   - **Nota para los E2E:** WebKit en Windows tarda ≈260 ms en guardar un alta en IndexedDB. Las pruebas que recargan después de una acción esperan con `expectStored` (`apps/web/e2e/storage.ts`). Si hay otra vista previa abierta, lanza los E2E con otro `E2E_PORT`, porque `reuseExistingServer` la reutilizaría.
 - **Pendiente de M1** (por orden; después vienen CHANGELOG y `v0.1.0`):
-  1. **Decisión del usuario: presupuesto de la pulsación en escritorio.**
-     - Hoy: p95 19,7–21,0 ms sin estrangular (antes, ≈31 ms), frente a ≤16 ms.
-     - Por qué no baja: Chromium retiene el mensaje del Worker hasta el primer fotograma tras la tecla (`DeferRendererTasksAfterInput`). Aun sin eso, a 60 Hz el suelo es p95 ≈17 ms. A 120 Hz pasa (14,8 ms).
-     - Opciones: ≤16 ms a ≥120 Hz; «dos fotogramas» (≈33 ms a 60 Hz); o precalcular en el Worker la siguiente tecla (cambia la §8.7 y gasta CPU en móvil).
-     - Recomendación: ≤16 ms a ≥120 Hz, y ≤2 fotogramas a 60 Hz. Luego, actualizar RNF-02, §8.9, §12.4 y CA1.5.
+  1. ~~**Presupuesto de la pulsación en escritorio.**~~ **Hecho el 30-10-2026** (sesión 4): ≤16 ms a ≥120 Hz y ≤2 fotogramas por debajo (≈33 ms a 60 Hz), decisión del usuario. Cambiados RNF-02, §8.9, §12.4, CA1.5, ADR-005 y `DECISIONES.md` §10.17. `npm run perf` mide la frecuencia y aplica el límite: 23,1 ms de p95 frente a ≤33,3 ms a 60 Hz.
   2. **CA1.11:** con ×4, el escaneo está listo en ≈2,2 s tras un reinicio con caché, frente a ≤2 s. El desglose: claves, exactos y pajar en el *builder* de `core`, ≈1,7 s; lectura del TSV, 385 ms; caché y sha256, 90 ms. Hay que optimizar el *builder*.
   3. **Dos tareas largas con ×4 (66–76 ms):** el primer pintado de texto CJK y de un emoji (fuentes de reserva de Windows). Se pueden calentar en un momento ocioso. Además, Intro al apuntar ronda 45–55 ms con ×4.
   4. **RNF-08:** falta el aviso para exportar tras 30 días sin copia, que es de M1.
@@ -68,7 +64,6 @@
 |---|---|
 | ¿`docs/planificacion/` se queda en el repo? | **Sí.** `prototipe.md` remite a `docs/planificacion/prototipo-busqueda/`. No se borra nada sin confirmarlo |
 | Preguntas abiertas PA-01…PA-10 (§18 de `prototipe.md`) | Los supuestos escritos en la propia §18 (por ejemplo: orden M3 → M4; Android de gama media como referencia) |
-| Presupuesto de la pulsación en escritorio (ver «Pendiente de M1», punto 1) | Ninguno: `npm run perf` sale en rojo hasta que decidas. Propuesta: ≤16 ms a ≥120 Hz y ≤2 fotogramas a 60 Hz |
 | ¿Importar un JSON también aplica los ajustes que trae? | **Sí** (el formato de exportación los incluye; antes se guarda copia en `meta.backup`) |
 | Nombre base del catálogo sin clave: `GetItems` en inglés para los nombres que parecen españoles (+18 peticiones; recupera el 75,7 %) o una segunda pasada de Query en inglés (+208) | **`GetItems` en inglés**, como está. En M2 lo resuelve `GetAppList` con clave |
 

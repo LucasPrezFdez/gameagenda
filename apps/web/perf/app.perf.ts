@@ -313,6 +313,14 @@ function refreshRate(page: Page): Promise<number> {
   );
 }
 
+/**
+ * Presupuesto de escritorio de la pulsación (RNF-02, §8.9): ≤16 ms con pantallas de ≥120 Hz y,
+ * por debajo, dos fotogramas (≈33 ms a 60 Hz). 115 deja margen a la medida de una de 120 Hz.
+ */
+function desktopKeystrokeBudget(hz: number): number {
+  return hz >= 115 ? 16 : 2 * (1000 / hz);
+}
+
 test('parte 2: app real con el catálogo completo y 500 entradas en Mi lista', async ({
   page,
   browser,
@@ -444,8 +452,8 @@ test('parte 2: app real con el catálogo completo y 500 entradas en Mi lista', a
     desktop.addStats({
       metric: `Pulsación → resultados (search:keystroke-to-results), ${TYPE_DELAY} ms por carácter`,
       stats: keys,
-      limit: 16,
-      note: `fotogramas a ${hz.toFixed(0)} Hz (${frame.toFixed(1)} ms); dentro del Worker: p50 ${inWorker.p50.toFixed(1)} ms, p95 ${inWorker.p95.toFixed(1)} ms`,
+      limit: Math.round(desktopKeystrokeBudget(hz) * 10) / 10,
+      note: `fotogramas a ${hz.toFixed(0)} Hz (${frame.toFixed(1)} ms; presupuesto: ≤16 ms a ≥120 Hz y, por debajo, 2 fotogramas); dentro del Worker: p50 ${inWorker.p50.toFixed(1)} ms, p95 ${inWorker.p95.toFixed(1)} ms`,
     });
     desktop.addStats({
       metric: `Pulsación → resultados, tecleo rápido (${FAST_DELAY} ms por carácter)`,

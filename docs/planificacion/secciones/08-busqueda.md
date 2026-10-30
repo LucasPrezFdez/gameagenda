@@ -141,7 +141,7 @@ El índice se construye sobre el núcleo con `recent` ya aplicado. En M1 se cons
 
 | Métrica | Presupuesto (RNF de la §3.2 y propios) | Medición |
 |---|---|---|
-| Pulsación → resultados, p95 | ≤16 ms escritorio; ≤50 ms con CPU ×4 (RNF-02), también en `scan` | conjunto realista de la §8.11, tecleado carácter a carácter: con ×1, dentro del Worker y de ida y vuelta; con ×4, el núcleo de búsqueda en el hilo principal de una página de prueba; `npm run perf` con Playwright y CDP (ver §12.4) |
+| Pulsación → resultados, p95 | escritorio: ≤16 ms a ≥120 Hz y ≤2 fotogramas por debajo (≈33 ms a 60 Hz); ≤50 ms con CPU ×4 (RNF-02), también en `scan` | conjunto realista de la §8.11, tecleado carácter a carácter: con ×1, dentro del Worker y de ida y vuelta; con ×4, el núcleo de búsqueda en el hilo principal de una página de prueba; `npm run perf` con Playwright y CDP (ver §12.4) |
 | Nivel 4 (diferido) | ≤70 ms con CPU ×4 | mismo banco de pruebas, en las consultas que lo activan |
 | Reinicio con caché hasta poder buscar | ≤2 s (RNF-04): en M1, con `scan`; en M3, con el índice restaurado | marca `search:ready` (primer `status` distinto de `none`) |
 | Búsqueda lista tras la primera carga (M3) | ≤1,5 s (RNF-05), con `boot` | marca `search:ready` |
@@ -149,6 +149,8 @@ El índice se construye sobre el núcleo con `recent` ya aplicado. En M1 se cons
 | *Chunk* del Worker | ≤40 KB brotli | puerta de tamaño (ver §6) |
 
 El estrangulamiento de CPU por CDP **no afecta a los Workers dedicados** (medido en Edge 156: p95 interno de 2,4 ms a ×1 y a ×4; en el Chromium de Playwright, y si `Target.setAutoAttach` permite estrangular el Worker, **a verificar en M0**). Por eso la prueba de búsqueda con ×4 ejecuta el núcleo de búsqueda en el hilo principal de una página de prueba y el Worker real se valida en el Android de referencia; INP, toque → respuesta y tareas largas se miden en la app real con ×4 (ver §12.4).
+
+El presupuesto de escritorio se cuenta en fotogramas porque la medida termina en uno (§12.4) y el Worker no es el cuello de botella: responde en 0,2 ms. Chromium retiene el mensaje del Worker hasta el primer fotograma tras la tecla (`DeferRendererTasksAfterInput`) y, aun sin esa retención, el primer fotograma cae en una fase de vsync al azar. A 60 Hz el suelo es p95 ≈17 ms; a 120 Hz, la app da 14,8 ms (medido el 29-10-2026; ver ADR-005). Precalcular en el Worker la siguiente tecla bajaría la cifra, pero gastaría CPU en el móvil por una diferencia que no se nota.
 
 ### 8.10 Conjuntos dorados y puertas
 

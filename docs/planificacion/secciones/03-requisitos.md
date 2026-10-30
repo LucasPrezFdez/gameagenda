@@ -49,7 +49,7 @@ Prioridad (MoSCoW): **Imprescindible** (sin ello el prototipo no cumple su fin),
 | Id | Requisito | Objetivo medible | Hito |
 |---|---|---|---|
 | RNF-01 | Captura | Apuntar un juego p50 ≤3 s, desde abrir la paleta hasta ver la confirmación | M1 · M3 |
-| RNF-02 | Búsqueda | Tecla → resultados ≤50 ms p95 en el Android de referencia (CPU ×4 en CI) y ≤16 ms en escritorio, siempre fuera del hilo principal | M1 · M3 |
+| RNF-02 | Búsqueda | Tecla → resultados ≤50 ms p95 en el Android de referencia (CPU ×4 en CI) y, en escritorio, ≤16 ms con pantallas de ≥120 Hz y ≤2 fotogramas por debajo (≈33 ms a 60 Hz; ver §8.9), siempre fuera del hilo principal | M1 · M3 |
 | RNF-03 | Respuesta | Toque → respuesta visible ≤100 ms; INP p75 ≤200 ms; ninguna tarea del hilo principal >50 ms al teclear o apuntar, con 500 entradas en Mi lista | M1 · M3 |
 | RNF-04 | Arranque | Primera visita: LCP ≤2,5 s, con el catálogo descargándose después. Reinicio con caché ≤2 s hasta poder buscar, con Mi lista visible ≤1 s | M1 · M3 |
 | RNF-05 | Primera búsqueda | Búsqueda lista ≤1,5 s tras la primera carga, gracias al núcleo de arranque | M3 |

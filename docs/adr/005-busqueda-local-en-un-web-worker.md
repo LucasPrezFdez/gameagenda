@@ -8,11 +8,11 @@
 
 La paleta busca en todo el catálogo de Steam en cada pulsación, también sin red. En la copia congelada del 28-10-2026 son 196 665 juegos. El navegador no puede llamar a Steam (ADR-001), y el hilo principal tiene que quedar libre: ninguna tarea de más de 50 ms al teclear (RNF-03).
 
-¿Dónde y con qué motor se busca para que la pulsación tarde ≤16 ms p95 en escritorio y ≤50 ms con CPU ×4 (RNF-02), con una calidad medible?
+¿Dónde y con qué motor se busca para que la pulsación sea rápida en escritorio y tarde ≤50 ms con CPU ×4 (RNF-02), con una calidad medible?
 
 ## Factores de la decisión
 
-- Pulsación → resultados p95 ≤16 ms en escritorio y ≤50 ms con CPU ×4, también mientras se construye el índice.
+- Pulsación → resultados p95 ≤50 ms con CPU ×4 y, en escritorio, ≤16 ms a ≥120 Hz y ≤2 fotogramas por debajo (≈33 ms a 60 Hz), también mientras se construye el índice. Al escribir este ADR, el presupuesto de escritorio era ≤16 ms a cualquier frecuencia; ver las consecuencias.
 - Calidad (§8.10):
   - conjunto dorado: top-1 ≥90 % y top-5 ≥95 %;
   - exactos: ≥99 % en el top-5;
@@ -120,11 +120,11 @@ Opción elegida: **1**, porque de las medidas es la única que cumple a la vez l
 - Mal, porque hasta M3 el índice se construye en cada arranque en frío: ≈40 MiB en memoria y 4,56 s con CPU ×4 en el benchmark, aunque el escaneo responde antes.
 - Mal, porque la primera visita espera a la descarga del núcleo (ver ADR-001).
 - Mal, porque es un índice propio, con más código que mantener que una librería.
-- Pendiente: la pulsación hasta el fotograma (`search:keystroke-to-results`) da un p95 de 19,7–21,0 ms sin estrangular, frente a ≤16 ms de presupuesto en escritorio (CA1.5). Antes de corregir la paleta y Mi lista daba ≈31 ms; la tabla está en `docs/medidas/perf-m1-20261029.md`.
+- Resuelto el 30-10-2026: la pulsación hasta el fotograma (`search:keystroke-to-results`) daba un p95 de 19,7–21,0 ms sin estrangular a 60 Hz, frente a los ≤16 ms que pedía entonces el presupuesto de escritorio (CA1.5). Antes de corregir la paleta y Mi lista daba ≈31 ms; la tabla está en `docs/medidas/perf-m1-20261029.md`.
   - La búsqueda no es el cuello de botella: el Worker responde en 0,2 ms.
   - Chromium retiene el mensaje del Worker hasta el primer fotograma tras la tecla (`DeferRendererTasksAfterInput`).
   - Aun sin esa retención, a 60 Hz el suelo es p95 ≈17 ms, porque el primer fotograma cae en una fase de vsync al azar. A 120 Hz pasa (p95 14,8 ms).
-  - **El usuario debe decidir el presupuesto:** ≤16 ms a ≥120 Hz, dos fotogramas, o precalcular en el Worker.
+  - **Decisión del usuario:** ≤16 ms a ≥120 Hz y ≤2 fotogramas por debajo (≈33 ms a 60 Hz). Se descarta precalcular en el Worker la siguiente tecla, porque gastaría CPU en el móvil. `npm run perf` aplica el límite según la frecuencia que mide (`DECISIONES.md` §10.17).
 - Pendiente: con CPU ×4 en la página de prueba, el escaneo tarda ≈2,2 s tras un reinicio con caché, frente a ≤2 s de CA1.11. La mayor parte, ≈1,7 s, son claves, exactos y pajar en el *builder* de `core`.
 - Pendiente: medir el Worker real en el Android de referencia.
 - Medido: CDP no estrangula el Worker dedicado. `Emulation.setCPUThrottlingRate` responde «Operation is only supported for pages, not workers», aun adjuntado con `Target.setAutoAttach`. Por eso la parte 1 de `perf` busca en el hilo principal de una página de prueba.
