@@ -240,6 +240,10 @@ function* buildWork(
   const exact = new ExactTable(n + (n >>> 3));
   const haystack: HaystackChunk[] = [];
   const hb = new HaystackChunkBuilder();
+  // Filas con nombre español, ascendentes: se recorren con un puntero en vez de consultar el
+  // `Map` en cada fila (≈1 % de las filas lo tienen).
+  const esRows = Uint32Array.from(cat.nameEs.keys()).sort();
+  let esAt = 0;
   for (let g = 0; g < n; g++) {
     const nb = normalize(cat.name[g] as string);
     const al = articleLength(nb);
@@ -247,18 +251,17 @@ function* buildWork(
     artLen[g] = al;
     exact.add(nb, 0, g);
     if (al > 0) exact.add(nb, al, g);
-    const c = compact(nb);
-    hb.add(c, g);
-    const es = cat.nameEs.get(g);
-    if (es !== undefined) {
+    hb.add(nb, g);
+    if (esRows[esAt] === g) {
+      esAt++;
+      const es = cat.nameEs.get(g) as string;
       const ne = normalize(es);
       if (ne && ne !== nb) {
         kEs.set(g, ne);
         exact.add(ne, 0, g);
         const ae = articleLength(ne);
         if (ae > 0) exact.add(ne, ae, g);
-        const ce = compact(ne);
-        if (ce !== c) hb.add(ce, g);
+        if (compact(ne) !== compact(nb)) hb.add(ne, g);
       }
     }
     if ((g + 1) % HAYSTACK_CHUNK_ROWS === 0 || g === n - 1) haystack.push(hb.finish());

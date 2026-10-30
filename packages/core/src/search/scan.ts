@@ -21,50 +21,54 @@ function hashFrom(s: string, from: number): number {
  * candidatos; quien la consulta los verifica con la clave.
  */
 export class ExactTable {
-  private rows: Int32Array;
-  private hashes: Int32Array;
+  /**
+   * Huecos de dos enteros: fila + 1 (0 = libre) y *hash*. Intercalados, cada inserción toca una
+   * sola línea de caché en vez de una en cada array.
+   */
+  private slots: Int32Array;
+  /** Huecos − 1 (el número de huecos es potencia de 2). */
   private mask: number;
   private used = 0;
 
   constructor(expected: number) {
     let size = 1024;
     while (size < expected * 2) size *= 2;
-    this.rows = new Int32Array(size);
-    this.hashes = new Int32Array(size);
+    this.slots = new Int32Array(2 * size);
     this.mask = size - 1;
   }
 
   /** Añade la clave `key.slice(from)` de la fila `g`. */
   add(key: string, from: number, g: number): void {
     if (from >= key.length) return;
-    if ((this.used + 1) * 4 > this.rows.length * 3) this.grow();
+    if ((this.used + 1) * 4 > (this.mask + 1) * 3) this.grow();
     this.insert(hashFrom(key, from), g + 1);
     this.used++;
   }
 
   private insert(h: number, v: number): void {
+    const slots = this.slots;
     let p = h & this.mask;
-    while (this.rows[p] !== 0) p = (p + 1) & this.mask;
-    this.rows[p] = v;
-    this.hashes[p] = h;
+    while (slots[2 * p] !== 0) p = (p + 1) & this.mask;
+    slots[2 * p] = v;
+    slots[2 * p + 1] = h;
   }
 
   private grow(): void {
-    const { rows, hashes } = this;
-    this.rows = new Int32Array(rows.length * 2);
-    this.hashes = new Int32Array(rows.length * 2);
-    this.mask = this.rows.length - 1;
-    for (let p = 0; p < rows.length; p++) {
-      const v = rows[p] as number;
-      if (v !== 0) this.insert(hashes[p] as number, v);
+    const old = this.slots;
+    this.slots = new Int32Array(2 * old.length);
+    this.mask = old.length - 1;
+    for (let p = 0; p < old.length; p += 2) {
+      const v = old[p] as number;
+      if (v !== 0) this.insert(old[p + 1] as number, v);
     }
   }
 
   /** Añade a `out` las filas cuya clave puede ser `key` (mismo *hash*). */
   candidates(key: string, out: number[]): void {
+    const slots = this.slots;
     const h = hashFrom(key, 0);
-    for (let p = h & this.mask; this.rows[p] !== 0; p = (p + 1) & this.mask) {
-      if (this.hashes[p] === h) out.push((this.rows[p] as number) - 1);
+    for (let p = h & this.mask; slots[2 * p] !== 0; p = (p + 1) & this.mask) {
+      if (slots[2 * p + 1] === h) out.push((slots[2 * p] as number) - 1);
     }
   }
 }

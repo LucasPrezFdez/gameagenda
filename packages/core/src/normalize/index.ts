@@ -42,6 +42,11 @@ export function normalizeUnicode(s: string): string {
   );
 }
 
+/** Unidades de la vía rápida ASCII, reutilizadas entre llamadas. */
+const asciiCodes: number[] = [];
+/** Unidades por llamada a `String.fromCharCode` (lejos del límite de argumentos). */
+const FROM_CODES_BLOCK = 4096;
+
 /**
  * Clave normalizada de un nombre o de una consulta: sin marcas, apóstrofos ni diacríticos, en
  * minúsculas, `&` → `and` y cualquier otro signo → un espacio (§8.1).
@@ -49,25 +54,34 @@ export function normalizeUnicode(s: string): string {
 export function normalize(s: string): string {
   const n = s.length;
   for (let i = 0; i < n; i++) if (s.charCodeAt(i) > 127) return normalizeUnicode(s);
-  // Vía rápida ASCII (92 % de los nombres): mismo resultado que normalizeUnicode().
-  let out = '';
+  // Vía rápida ASCII (92 % de los nombres): mismo resultado que normalizeUnicode(). Junta las
+  // unidades en un array y crea la cadena de una vez. En Chromium, con el catálogo real, es ≈1,5×
+  // más rápido que concatenar carácter a carácter y, con CPU ×4, igual. Un Uint16Array con
+  // `subarray` era más lento con ×4.
+  const codes = asciiCodes;
+  codes.length = 0;
   let pending = false;
   for (let i = 0; i < n; i++) {
     let c = s.charCodeAt(i);
     if (c >= 65 && c <= 90) c += 32;
     if ((c >= 97 && c <= 122) || (c >= 48 && c <= 57)) {
-      if (pending && out.length > 0) out += ' ';
+      if (pending && codes.length > 0) codes.push(32);
       pending = false;
-      out += String.fromCharCode(c);
+      codes.push(c);
     } else if (c === 39 || c === 96) {
       // apóstrofo: se elimina
     } else if (c === 38) {
-      if (out.length > 0) out += ' ';
-      out += 'and';
+      if (codes.length > 0) codes.push(32);
+      codes.push(97, 110, 100);
       pending = true;
     } else {
       pending = true;
     }
+  }
+  if (codes.length <= FROM_CODES_BLOCK) return String.fromCharCode.apply(null, codes);
+  let out = '';
+  for (let i = 0; i < codes.length; i += FROM_CODES_BLOCK) {
+    out += String.fromCharCode.apply(null, codes.slice(i, i + FROM_CODES_BLOCK));
   }
   return out;
 }
@@ -79,9 +93,11 @@ export function compact(normalized: string): string {
 
 /** Artículos iniciales que se prueban con y sin ellos (§8.2). */
 export const ARTICLES: ReadonlySet<string> = new Set(['the', 'a', 'an', 'el', 'la', 'los', 'las']);
+const ARTICLE_FIRST: ReadonlySet<number> = new Set([...ARTICLES].map((a) => a.charCodeAt(0)));
 
 /** Longitud del artículo inicial con su espacio (0 si no hay o si es la única palabra). */
 export function articleLength(normalized: string): number {
+  if (!ARTICLE_FIRST.has(normalized.charCodeAt(0))) return 0;
   const i = normalized.indexOf(' ');
   return i > 0 && i <= 3 && ARTICLES.has(normalized.slice(0, i)) ? i + 1 : 0;
 }

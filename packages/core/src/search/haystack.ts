@@ -23,14 +23,16 @@ function isWide(s: string): boolean {
 }
 
 function makePart(keys: string[], rows: number[]): HaystackPart {
+  // Los espacios se quitan de una vez en el texto del bloque: es mucho más barato que crear una
+  // clave compacta por fila. Cada registro acaba en `\n`, que ninguna clave normalizada contiene.
+  const text = keys.length ? `${keys.join('\n')}\n`.replaceAll(' ', '') : '';
   const offs = new Uint32Array(keys.length + 1);
   let pos = 0;
-  for (let i = 0; i < keys.length; i++) {
-    offs[i] = pos;
-    pos += (keys[i] as string).length + 1;
+  for (let r = 1; r <= keys.length; r++) {
+    pos = text.indexOf('\n', pos) + 1;
+    offs[r] = pos;
   }
-  offs[keys.length] = pos;
-  return { text: keys.length ? `${keys.join('\n')}\n` : '', offs, rows: Uint32Array.from(rows) };
+  return { text, offs, rows: Uint32Array.from(rows) };
 }
 
 /** Acumula los registros de un bloque, en orden de filas. */
@@ -40,12 +42,13 @@ export class HaystackChunkBuilder {
   private wideKeys: string[] = [];
   private wideRows: number[] = [];
 
-  add(compactKey: string, row: number): void {
-    if (isWide(compactKey)) {
-      this.wideKeys.push(compactKey);
+  /** Añade la clave normalizada `key` (con espacios; el bloque guarda su forma compacta). */
+  add(key: string, row: number): void {
+    if (isWide(key)) {
+      this.wideKeys.push(key);
       this.wideRows.push(row);
     } else {
-      this.narrowKeys.push(compactKey);
+      this.narrowKeys.push(key);
       this.narrowRows.push(row);
     }
   }

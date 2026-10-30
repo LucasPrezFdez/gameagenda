@@ -140,18 +140,32 @@ function* coreWork(
   const year = new Uint16Array(n);
   const pop = new Uint8Array(n);
   p = headEnd + 1;
+  const length = text.length;
   for (let g = 0; g < n; g++) {
     const line = g + 2;
-    let e = text.indexOf('\n', p);
-    if (e < 0) e = text.length;
-    const t1 = text.indexOf('\t', p);
-    const t2 = t1 < 0 ? -1 : text.indexOf('\t', t1 + 1);
-    const t3 = t2 < 0 ? -1 : text.indexOf('\t', t2 + 1);
-    const t4 = t3 < 0 ? -1 : text.indexOf('\t', t3 + 1);
-    const t5 = t4 < 0 ? -1 : text.indexOf('\t', t4 + 1);
-    if (t5 < 0 || t5 > e) throw new CatalogFormatError('faltan columnas', line);
-    const t6 = text.indexOf('\t', t5 + 1);
-    if (t6 >= 0 && t6 < e) throw new CatalogFormatError('sobran columnas', line);
+    // Una sola pasada por la línea para sus tabuladores y su final: es ≈2× más rápido que un
+    // `indexOf` por columna.
+    let t1 = -1;
+    let t2 = -1;
+    let t3 = -1;
+    let t4 = -1;
+    let t5 = -1;
+    let tabs = 0;
+    let e = p;
+    for (; e < length; e++) {
+      const c = text.charCodeAt(e);
+      if (c === 10) break;
+      if (c === 9) {
+        tabs++;
+        if (tabs === 1) t1 = e;
+        else if (tabs === 2) t2 = e;
+        else if (tabs === 3) t3 = e;
+        else if (tabs === 4) t4 = e;
+        else if (tabs === 5) t5 = e;
+      }
+    }
+    if (tabs < 5) throw new CatalogFormatError('faltan columnas', line);
+    if (tabs > 5) throw new CatalogFormatError('sobran columnas', line);
     appid[g] = parseUint(text, p, t1, 1, MAX_APPID, 'appid', line, false);
     if (t2 === t1 + 1) throw new CatalogFormatError('nombre vacío', line);
     name[g] = text.slice(t1 + 1, t2);
