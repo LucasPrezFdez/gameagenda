@@ -27,6 +27,17 @@ npm run dev     # http://127.0.0.1:5173
 | `npm run catalog:frozen` | Catálogo completo y mini-catálogo de `fixtures/catalog/` desde la copia congelada |
 | `npm run format` | Formatea y ordena los imports con Biome |
 
+## Despliegue
+
+En Cloudflare Workers Static Assets (ver [ADR-003](docs/adr/003-hosting-despliegue-y-ci.md)):
+
+| Worker | URL | Cómo se despliega |
+|---|---|---|
+| `ga-web` | https://ga-web.gameagenda.workers.dev | Tras cada `ci` en verde de un *push* a `main` (`.github/workflows/deploy-web.yml`) |
+| `ga-catalog` | https://ga-catalog.gameagenda.workers.dev | A mano (`deploy-catalog.yml`); en M2, cada día con `catalog.yml` |
+
+Los despliegues necesitan los secretos `CLOUDFLARE_API_TOKEN` («Workers Scripts: Edit») y `CLOUDFLARE_ACCOUNT_ID` en GitHub. Para volver atrás: `npx wrangler rollback -c apps/web/wrangler.jsonc`.
+
 ## Estructura
 
 | Carpeta | Contenido |

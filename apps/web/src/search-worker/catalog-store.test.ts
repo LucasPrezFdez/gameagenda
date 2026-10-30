@@ -72,6 +72,30 @@ describe('createCatalogStore', () => {
     expect(cached?.core).toBe(v1.texts.core);
   });
 
+  it('reintenta sin la caché HTTP un fichero que da error (un 404 cacheado como inmutable)', async () => {
+    const server = catalogServer(BASE);
+    const v1 = await publish('20261028.1');
+    server.serve(v1);
+    const core = v1.manifest.files.core.path;
+    const coreCalls: (RequestCache | undefined)[] = [];
+    const store = createCatalogStore({
+      fetch: (async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (String(input).endsWith(core)) {
+          coreCalls.push(init?.cache);
+          if (coreCalls.length === 1) return new Response('', { status: 404 });
+        }
+        return server.fetch(input, init);
+      }) as typeof fetch,
+      caches: new MemoryCacheStorage().asCacheStorage(),
+      subtle: crypto.subtle,
+      baseUrl: BASE,
+      appVersion: '0.1.0',
+    });
+    const texts = await store.download(await store.fetchManifest());
+    expect(texts.core).toBe(v1.texts.core);
+    expect(coreCalls).toEqual([undefined, 'reload']);
+  });
+
   it('rechaza un fichero que no coincide con su sha256 y no lo guarda', async () => {
     const { server, caches, store } = setup();
     server.serve(await publish('20261028.1'));

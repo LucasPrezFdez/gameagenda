@@ -141,8 +141,11 @@ export function createCatalogStore(deps: CatalogStoreDeps): CatalogStore {
   ): Promise<Uint8Array<ArrayBuffer>> {
     let response: Response;
     try {
-      // Ficheros inmutables (el *hash* va en el nombre): la caché HTTP vale tal cual.
+      // Ficheros inmutables (el *hash* va en el nombre): la caché HTTP vale tal cual. Pero
+      // `ga-catalog` sirve también los 404 con `immutable` (ver ADR-003): si falla, se reintenta
+      // una vez sin la caché HTTP, por si lo que guarda es un 404 de cuando el fichero no estaba.
       response = await deps.fetch(fileUrl(spec.path));
+      if (!response.ok) response = await deps.fetch(fileUrl(spec.path), { cache: 'reload' });
     } catch {
       throw new CatalogLoadError('network', `Sin red al descargar ${spec.path}`);
     }

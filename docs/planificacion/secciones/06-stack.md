@@ -44,9 +44,9 @@ Medido el 28-10-2026 con Vite 8.3.5 (*build* de producción):
 | Diferidos | — | Catálogo (con `@tanstack/react-virtual`), Ajustes, exportar/importar y uFuzzy (lo importa el Worker) |
 
 - Quedan ≥55 KB brotli para el código propio y `workbox-window` (algo más, porque la lista virtual va en el *chunk* del Catálogo).
-- El Worker se crea con `new Worker(new URL('./search-worker/index.ts', import.meta.url), { type: 'module' })` y `vite.config` fija `worker: { format: 'es' }`: el formato por defecto de Vite, `iife`, no admite *chunks* diferidos ([`worker.format`](https://vite.dev/config/worker-options)). Así uFuzzy se carga con `import()` dentro del Worker, en un *chunk* propio que queda fuera de sus 40 KB y entra en la precaché; la puerta mide el *chunk* de entrada del Worker (a verificar en M0 con Vite 8.3.5).
+- El Worker se crea con `new Worker(new URL('./search-worker/index.ts', import.meta.url), { type: 'module' })` y `vite.config` fija `worker: { format: 'es' }`: el formato por defecto de Vite, `iife`, no admite *chunks* diferidos ([`worker.format`](https://vite.dev/config/worker-options)). Así uFuzzy se carga con `import()` dentro del Worker, en un *chunk* propio que queda fuera de sus 40 KB y entra en la precaché; la puerta mide el *chunk* de entrada del Worker (comprobado con Vite 8.3.5: 32,7 KB brotli, con uFuzzy en su propio *chunk* de la precaché).
 - Un objetivo de ≤100 KB gzip es inalcanzable con React + Dexie: la base ya pesa 108,6 KB gzip.
-- El CI falla si se supera un presupuesto (ver §12). Si Zod no cabe en el del Worker, se usa `zod/mini`, que exporta el mismo paquete (a verificar en M1).
+- El CI falla si se supera un presupuesto (ver §12). Si Zod no cabe en el del Worker, se usa `zod/mini`, que exporta el mismo paquete. En M1 no ha hecho falta: el Worker, con Zod dentro, pesa 32,7 KB de 40.
 
 ### 6.3 Compatibilidades comprobadas
 
@@ -57,7 +57,7 @@ Rangos de `peerDependencies` y `engines` en npm (28-10-2026):
 - Vite 8.3.5 pide Node ^20.19 o ≥22.12, y `wrangler` 4.155.0, Node ≥22 y `@cloudflare/workers-types` ≥5.20261023.1.
 - `@tanstack/react-virtual` 3.14.23 admite React 19.
 - `@axe-core/playwright` 4.14.0 pide `playwright-core` ≥1.0.0 y trae `axe-core` ~4.14.0; `@types/react-dom` 19.3.0 pide `@types/react` ^19.3.0; `fake-indexeddb` 6.2.6, Node ≥18.
-- TypeScript 7.0 no tiene API de compilador hasta la 7.1. Biome, Vite y Vitest no la usan; si otra herramienta la pidiera, solo ella usaría 6.0.3 (a verificar en M0).
+- TypeScript 7.0 no tiene API de compilador hasta la 7.1. Biome, Vite y Vitest no la usan; si otra herramienta la pidiera, solo ella usaría 6.0.3. Hasta M1, ninguna la ha pedido.
 
 ### 6.4 Qué no se usa y por qué
 

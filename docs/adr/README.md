@@ -19,7 +19,7 @@ Este registro recoge las decisiones de arquitectura de GameAgenda, en español y
 |---|---|---|---|---|
 | 001 | Arquitectura: PWA *local-first* con catálogo estático | M0 | aceptada (28-10-2026) | [001-arquitectura-del-prototipo.md](001-arquitectura-del-prototipo.md) |
 | 002 | Stack y repositorio: React + Vite como SPA, *router* propio, CSS nativo y versiones exactas | M0 | aceptada (29-10-2026) | [002-stack-y-repositorio.md](002-stack-y-repositorio.md) |
-| 003 | *Hosting*, despliegue y CI (`ga-web`, `ga-catalog`), con la alternativa si el CDN no comprime el TSV | M0 | pendiente: los despliegues están aplazados | — |
+| 003 | *Hosting*, despliegue y CI: Workers Static Assets para `ga-web` y `ga-catalog`, y GitHub Actions | M0 | aceptada (30-10-2026) | [003-hosting-despliegue-y-ci.md](003-hosting-despliegue-y-ci.md) |
 | 004 | Datos del usuario: Dexie, ids naturales, estados y marcas, HLC y `outbox` | M1 | aceptada (29-10-2026) | [004-datos-del-usuario.md](004-datos-del-usuario.md) |
 | 005 | Búsqueda local en un Web Worker | M1 | aceptada (29-10-2026) | [005-busqueda-local-en-un-web-worker.md](005-busqueda-local-en-un-web-worker.md) |
 | 006 | Alcance y formato del catálogo | M1 | propuesta | [006-alcance-y-formato-del-catalogo.md](006-alcance-y-formato-del-catalogo.md) |

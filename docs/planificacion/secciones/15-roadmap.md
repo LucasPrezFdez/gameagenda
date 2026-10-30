@@ -41,7 +41,7 @@ Sin colchón: para planificar se suma un 20 % (ver §16, R-13). Aparte van las e
 
 ### 15.3 M0 · Esqueleto (`v0.0.1`) · 2–3 días ideales
 
-**Objetivo:** construir, probar y desplegar desde el primer día. **Entra:** repositorio privado con npm workspaces (ver §14); Biome, `tsc`, Vitest y Playwright; `ci.yml`; despliegue de `ga-web` (página mínima con `_headers`) en cada *push* a `main` y de `ga-catalog` con el mini-catálogo de `fixtures/` y su `_headers` (CORS y TSV como `text/plain; charset=utf-8`; ver §7.6); solicitud de la clave; elección del Android de referencia (ver §18, PA-02); las comprobaciones marcadas «a verificar en M0» en el plan; ADR-001 (arquitectura), ADR-002 (stack y repositorio) y ADR-003 (*hosting*, despliegue y CI). **No entra:** datos reales de Steam, Service Worker ni Dexie.
+**Objetivo:** construir, probar y desplegar desde el primer día. **Entra:** repositorio con npm workspaces (público desde M0; ver ADR-003) (ver §14); Biome, `tsc`, Vitest y Playwright; `ci.yml`; despliegue de `ga-web` (página mínima con `_headers`) en cada *push* a `main` y de `ga-catalog` con el mini-catálogo de `fixtures/` y su `_headers` (CORS y TSV como `text/plain; charset=utf-8`; ver §7.6); solicitud de la clave; elección del Android de referencia (ver §18, PA-02); las comprobaciones marcadas «a verificar en M0» en el plan; ADR-001 (arquitectura), ADR-002 (stack y repositorio) y ADR-003 (*hosting*, despliegue y CI). **No entra:** datos reales de Steam, Service Worker ni Dexie.
 
 **Criterios de aceptación:**
 - CA0.1 Un *push* a `main` pasa el CI en ≤10 min y despliega `ga-web`, que responde por HTTPS con las cabeceras de `_headers` (CSP sin `unsafe-inline`).

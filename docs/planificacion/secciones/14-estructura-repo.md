@@ -75,7 +75,7 @@ flowchart LR
 4. El Worker de búsqueda no importa React y su *chunk* tiene presupuesto propio (ver §6).
 5. El código de producción nunca importa `fixtures/`: solo lo leen las pruebas, los scripts y el servidor de desarrollo.
 6. Solo `pipeline/` lee `STEAM_WEB_API_KEY`; la SPA solo ve variables `VITE_*`.
-7. Entre paquetes se importa por nombre (`@gameagenda/core/search`) y solo lo que declara `exports`, nunca con `../`. Los imports relativos llevan la extensión `.ts`, que Node exige. [Node no quita tipos dentro de `node_modules`](https://nodejs.org/api/typescript.html), pero resuelve el enlace simbólico de `core` a su ruta real (a verificar en M0).
+7. Entre paquetes se importa por nombre (`@gameagenda/core/search`) y solo lo que declara `exports`, nunca con `../`. Los imports relativos llevan la extensión `.ts`, que Node exige. [Node no quita tipos dentro de `node_modules`](https://nodejs.org/api/typescript.html), pero resuelve el enlace simbólico de `core` a su ruta real: lo demuestran `scripts/` y `pipeline/`, que importan `@gameagenda/core` y se ejecutan con Node sin compilar.
 8. `apps/desktop` no importa nada del repositorio y la web no importa Tauri: solo se conocen por la URL de `ga-web` (ver §17.3).
 
 Se vigilan con Biome (`noRestrictedImports` por carpeta y `noUndeclaredDependencies`) y con el `tsconfig` de `core`. Las pruebas, los E2E, `perf`, las configuraciones y `scripts/` quedan fuera de `noUndeclaredDependencies`: usan las dependencias de desarrollo de la raíz, que npm sube allí. La regla 6 la vigila la búsqueda de la clave del CI (§12.5).

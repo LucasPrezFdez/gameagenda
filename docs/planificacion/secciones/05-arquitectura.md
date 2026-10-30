@@ -263,7 +263,7 @@ Registro inicial, numerado por orden de escritura: cada ADR se escribe al empeza
 |---|---|---|---|
 | ADR-001 | Arquitectura: PWA *local-first* con catálogo estático | M0 | §5 |
 | ADR-002 | Stack y repositorio: React + Vite como SPA, *router* propio, CSS nativo y versiones exactas | M0 | §6, §14 |
-| ADR-003 | *Hosting*, despliegue y CI (`ga-web`, `ga-catalog`), con la alternativa si el CDN no comprime el TSV | M0 | §5, §12 |
+| ADR-003 | *Hosting*, despliegue y CI: Workers Static Assets para `ga-web` y `ga-catalog`, y GitHub Actions (el CDN comprime el TSV: la alternativa no hace falta) | M0 | §5, §12 |
 | ADR-004 | Datos del usuario: Dexie, ids naturales, estados y marcas, HLC y `outbox` | M1 | §3, §7 |
 | ADR-005 | Búsqueda local en un Web Worker | M1 | §8 |
 | ADR-006 | Alcance y formato del catálogo | M1 | §4, §7 |
