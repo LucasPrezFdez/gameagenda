@@ -45,6 +45,7 @@ const full = {
   count: 3,
   progress: 1,
   error: null,
+  catalog: null,
 } as const;
 
 describe('createSearchClient', () => {

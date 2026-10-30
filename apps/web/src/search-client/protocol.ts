@@ -97,6 +97,28 @@ export type UiToWorkerMessage = InitMessage | QueryMessage | SuggestMessage | Re
 
 // --- Worker → UI -----------------------------------------------------------
 
+/** Fichero publicado del catálogo, como en el *manifest* (§7.6). */
+export interface CatalogFileRef {
+  readonly path: string;
+  readonly sha256: string;
+  readonly bytes: number;
+}
+
+/**
+ * Lo que la interfaz necesita del catálogo en uso (M2): su edad, los *kill switches* y dónde está
+ * el índice de *shards*. Las rutas se resuelven con `catalogBaseUrl()` (`catalog-url.ts`).
+ */
+export interface CatalogInfo {
+  readonly version: string;
+  readonly generatedAt: string;
+  /** Días desde el último enriquecimiento correcto (crece si solo falla el enriquecimiento). */
+  readonly enrichmentAgeDays: number;
+  /** `true` apaga esa función sin publicar otro cliente (CA2.3); sin `killSwitches`, todo encendido. */
+  readonly killSwitches: { readonly covers: boolean; readonly details: boolean };
+  /** Índice de *shards* de detalles, o `null` si el catálogo no los trae (el de M1). */
+  readonly detailsIndex: CatalogFileRef | null;
+}
+
 export interface StatusMessage {
   readonly type: 'status';
   readonly state: CatalogState;
@@ -106,6 +128,8 @@ export interface StatusMessage {
   /** Progreso de la descarga o del índice, de 0 a 1. */
   readonly progress: number;
   readonly error: CatalogError | null;
+  /** Catálogo con el que se busca ahora, o `null` si aún no hay ninguno. */
+  readonly catalog: CatalogInfo | null;
 }
 
 export interface ResultsMessage {

@@ -80,6 +80,7 @@ const INITIAL_STATUS: StatusMessage = {
   count: 0,
   progress: 0,
   error: null,
+  catalog: null,
 };
 
 /** En `none` el Worker no puede buscar: la paleta busca en Mi lista (ver §8.8). */

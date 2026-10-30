@@ -10,6 +10,7 @@ const status = (state: StatusMessage['state']): StatusMessage => ({
   count: 0,
   progress: 0.4,
   error: null,
+  catalog: null,
 });
 
 const game = (appid: number, name: string): SearchItem => ({

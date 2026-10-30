@@ -3,19 +3,13 @@
 // `createAppSearchClient()` con `new Worker(new URL(…), { type: 'module' })`; uFuzzy va en su
 // propio *chunk* diferido (§6.2). No toca datos del usuario ni importa Dexie.
 import { loadFuzzy } from '@gameagenda/core/search';
+import { catalogBaseUrl } from '../search-client/catalog-url.ts';
 import type { TestControlMessage, UiToWorkerMessage } from '../search-client/protocol.ts';
 import { createCatalogStore } from './catalog-store.ts';
 import { createWorkerTestHooks } from './e2e-hooks.ts';
 import { createSearchHost } from './host.ts';
 
 declare const self: DedicatedWorkerGlobalScope;
-
-/** Carpeta del catálogo: `VITE_CATALOG_URL` o, por defecto, el de desarrollo (§13.3). */
-function catalogBaseUrl(): string {
-  const configured = import.meta.env.VITE_CATALOG_URL || '/catalog-dev/';
-  const base = configured.endsWith('/') ? configured : `${configured}/`;
-  return new URL(base, `${self.location.origin}/`).href;
-}
 
 // Cesión del turno entre bloques: un `MessageChannel` no sufre el mínimo de 4 ms de `setTimeout`.
 const tasks: Array<() => void> = [];
@@ -35,7 +29,7 @@ const host = createSearchHost({
     fetch: (input, init) => fetch(input, init),
     caches: 'caches' in self ? self.caches : null,
     subtle: crypto.subtle,
-    baseUrl: catalogBaseUrl(),
+    baseUrl: catalogBaseUrl(self.location.origin),
     appVersion: __APP_VERSION__,
   }),
   loadFuzzy,

@@ -13,6 +13,7 @@ function fakeSearch(catalog: readonly CoreGame[]) {
     count: 0,
     progress: 0,
     error: null,
+    catalog: null,
   };
   const listeners = new Set<() => void>();
   const lookup = vi.fn(async (appids: readonly number[]) => {

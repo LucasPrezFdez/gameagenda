@@ -24,6 +24,7 @@ import {
 import type {
   BrowseFilters,
   CatalogError,
+  CatalogInfo,
   CatalogState,
   ReplyMessage,
   RequestMessage,
@@ -37,6 +38,17 @@ import {
   type CatalogTexts,
   compareCatalogVersions,
 } from './catalog-store.ts';
+
+/** Lo que la interfaz ve del catálogo en uso (M2): edad, *kill switches* e índice de *shards*. */
+function catalogInfo(manifest: CatalogManifest): CatalogInfo {
+  return {
+    version: manifest.version,
+    generatedAt: manifest.generatedAt,
+    enrichmentAgeDays: manifest.enrichmentAgeDays,
+    killSwitches: manifest.killSwitches ?? { covers: false, details: false },
+    detailsIndex: manifest.files.details ?? null,
+  };
+}
 
 /** Ganchos de los E2E (solo en el *build* del modo `e2e`; ver `e2e-hooks.ts`). */
 export interface HostTestHooks {
@@ -188,6 +200,7 @@ export function createSearchHost(deps: HostDeps): SearchHost {
       count: visible,
       progress: Math.round(progress() * 100) / 100,
       error,
+      catalog: searcher && searcherManifest ? catalogInfo(searcherManifest) : null,
     };
     const key = JSON.stringify(message);
     if (key === lastStatus) return;
