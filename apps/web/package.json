@@ -1,6 +1,6 @@
 {
   "name": "@gameagenda/web",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "description": "La app: SPA de React + Vite, PWA local-first.",
