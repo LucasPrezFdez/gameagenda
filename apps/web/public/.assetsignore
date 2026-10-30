@@ -1,0 +1,3 @@
+# Lo que `wrangler deploy` no sube a `ga-web` (sintaxis de .gitignore). `.vite/manifest.json` solo
+# lo lee la puerta de tamaño (`npm run size`); en producción no hace falta.
+.vite/

@@ -1,0 +1,102 @@
+# Despliegue manual de `ga-catalog` con el mini-catálogo de `fixtures/catalog/` (M0, §15.3 de
+# prototipe.md; CA0.2 y CA0.3). Monta `pipeline/dist/` con `scripts/assemble-catalog.ts`, busca la
+# clave de Steam, despliega con `wrangler` y comprueba las cabeceras publicadas: `manifest.json` en
+# `no-cache`, los TSV como `text/plain; charset=utf-8`, su `Content-Encoding`, CORS y qué lleva un
+# 404 (comprobaciones «a verificar en M0»): la tabla del resumen del trabajo, para el ADR-003.
+# En M2 lo sustituye `catalog.yml`, que publica `pipeline/out/` firmado.
+name: deploy-catalog
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-catalog
+  cancel-in-progress: false
+
+env:
+  WRANGLER_SEND_METRICS: "false"
+
+jobs:
+  deploy:
+    name: Despliega ga-catalog (mini-catálogo)
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - name: Monta pipeline/dist (catálogo y _headers)
+        run: node scripts/assemble-catalog.ts fixtures/catalog
+      - name: Búsqueda de la clave de Steam en el catálogo
+        run: node scripts/scan-secrets.ts pipeline/dist
+        env:
+          STEAM_KEY_SHA256: ${{ vars.STEAM_KEY_SHA256 }}
+      - name: Despliega con wrangler
+        id: deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          WRANGLER_OUTPUT_FILE_PATH: ${{ runner.temp }}/wrangler-output.json
+        run: |
+          npx wrangler deploy -c pipeline/wrangler.jsonc --message "fixtures/catalog @ $GITHUB_SHA"
+          url=$(jq -r 'select(.type == "deploy") | .targets[]? | select(endswith(".workers.dev"))' "$WRANGLER_OUTPUT_FILE_PATH" | head -n 1)
+          if [ -z "$url" ]; then
+            echo "::error::wrangler no ha devuelto la URL de workers.dev"
+            exit 1
+          fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+      - name: Prueba de humo (CA0.2, CA0.3 y 404)
+        env:
+          URL: ${{ steps.deploy.outputs.url }}
+        run: |
+          header() { grep -i "^$1:" "$2" | tail -n 1 | cut -d' ' -f2- || true; }
+          fail() { echo "::error::$1"; exit 1; }
+          allowed=$(sed -n 's/^  Access-Control-Allow-Origin: //p' pipeline/dist/_headers)
+          # Lo que anuncia Chrome. Sin `--compressed`: curl no descomprime y se ve la codificación.
+          get() {
+            curl -sS -D raw.txt -o /dev/null -w '%{http_code}' -H "Origin: $allowed" \
+              -H 'Accept-Encoding: gzip, deflate, br, zstd' "$URL$1"
+            tr -d '\r' < raw.txt > headers.txt
+          }
+          report() { echo "$1" | tee -a "$GITHUB_STEP_SUMMARY"; }
+          # Un Worker recién creado puede tardar unos segundos en responder.
+          curl -sS --fail --retry 10 --retry-all-errors --retry-delay 3 -o /dev/null "$URL/manifest.json"
+
+          report "| Ruta | HTTP | Content-Type | Cache-Control | Content-Encoding | CORS |"
+          report "|---|---|---|---|---|---|"
+          row() {
+            report "| \`$1\` | $2 | $(header content-type headers.txt) | $(header cache-control headers.txt) | $(header content-encoding headers.txt) | $(header access-control-allow-origin headers.txt) |"
+          }
+
+          code=$(get /manifest.json); row /manifest.json "$code"
+          [ "$code" = 200 ] || fail "manifest.json responde $code"
+          [ "$(header cache-control headers.txt)" = no-cache ] || fail "manifest.json sin Cache-Control: no-cache"
+          [ "$(header access-control-allow-origin headers.txt)" = "$allowed" ] || fail "manifest.json sin CORS para $allowed"
+
+          # En una asignación, `-e` sí para si `jq` falla (en la lista del `for`, no).
+          paths=$(jq -r '.files[].path' pipeline/dist/manifest.json)
+          [ -n "$paths" ] || fail "el manifest no cita ningún fichero"
+          for path in $paths; do
+            code=$(get "/$path"); row "/$path" "$code"
+            [ "$code" = 200 ] || fail "/$path responde $code"
+            [ "$(header access-control-allow-origin headers.txt)" = "$allowed" ] || fail "/$path sin CORS para $allowed"
+            if [[ "$path" == *.tsv ]]; then
+              [ "$(header content-type headers.txt)" = "text/plain; charset=utf-8" ] || fail "/$path no es text/plain; charset=utf-8"
+              # CA0.3: si no llega comprimido, la alternativa la decide el ADR-003 (R-16); no se bloquea.
+              [ -n "$(header content-encoding headers.txt)" ] || echo "::warning::/$path llega sin Content-Encoding (CA0.3, R-16)"
+            fi
+          done
+
+          # «A verificar en M0»: ¿lleva un 404 las cabeceras de _headers? La fila de la tabla lo
+          # dice; solo falla si un fichero que no existe no da 404.
+          code=$(get /core.0000000000000000.tsv); row /core.0000000000000000.tsv "$code"
+          [ "$code" = 404 ] || fail "un fichero que no existe responde $code"

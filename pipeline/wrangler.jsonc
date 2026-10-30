@@ -1,0 +1,17 @@
+// Worker `ga-catalog` (§5.2, §7.6 y §14 de prototipe.md): solo *assets* estáticos, sin *fallback*
+// (lo que no existe da 404). Sirve `pipeline/dist/`, que monta `scripts/assemble-catalog.ts` con
+// el catálogo (en M0, el mini-catálogo de `fixtures/catalog/`; desde M2, `pipeline/out/`) y las
+// cabeceras de `pipeline/catalog.headers`. Lo despliega `.github/workflows/deploy-catalog.yml`
+// (en M2, `catalog.yml`); en local: `npx wrangler dev -c pipeline/wrangler.jsonc`.
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "ga-catalog",
+  // La más reciente que admite el `workerd` de `wrangler` 4.155.0 (1.20261023.1).
+  "compatibility_date": "2026-10-23",
+  "workers_dev": true,
+  "assets": {
+    "directory": "./dist",
+    "html_handling": "none",
+    "not_found_handling": "none"
+  }
+}

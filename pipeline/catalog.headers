@@ -1,0 +1,35 @@
+# Cabeceras de `ga-catalog` (§7.6 y §11.3 de prototipe.md; CA0.2 y CA0.3). Es la fuente:
+# `scripts/assemble-catalog.ts` la copia como `_headers` en `pipeline/dist/`, junto al catálogo.
+# Sintaxis de `_headers` de Workers Static Assets: si dos reglas fijan la misma cabecera, los
+# valores se juntan con comas, así que cada cabecera sale de una sola regla.
+
+# CORS: solo el origen de `ga-web`. Con un dominio propio, cambia este origen, el `connect-src` de
+# `apps/web/public/_headers` y `VITE_CATALOG_URL` en `deploy-web.yml`.
+/*
+  Access-Control-Allow-Origin: https://ga-web.gameagenda.workers.dev
+  X-Content-Type-Options: nosniff
+
+# El *manifest* conserva su ruta: se revalida siempre.
+/manifest.json
+  Cache-Control: no-cache
+
+# Ficheros con el *hash* en el nombre: inmutables. Los TSV, como `text/plain; charset=utf-8`, que
+# Cloudflare sí comprime (Wrangler les pone `text/tab-separated-values`, que no comprime).
+/core.*
+  Content-Type: text/plain; charset=utf-8
+  Cache-Control: public, max-age=31536000, immutable
+
+/recent.*
+  Content-Type: text/plain; charset=utf-8
+  Cache-Control: public, max-age=31536000, immutable
+
+/aliases.*
+  Content-Type: text/plain; charset=utf-8
+  Cache-Control: public, max-age=31536000, immutable
+
+/boot.*
+  Content-Type: text/plain; charset=utf-8
+  Cache-Control: public, max-age=31536000, immutable
+
+/details/*
+  Cache-Control: public, max-age=31536000, immutable

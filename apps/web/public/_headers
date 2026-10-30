@@ -1,0 +1,21 @@
+# Cabeceras de `ga-web` (§11.3 de prototipe.md; CA0.1). Vite copia este fichero a `dist/` y Workers
+# Static Assets lo aplica a lo que sirve, también al `index.html` del *fallback* de la SPA; no se
+# aplica a lo que genere el *script* de M4 (la micro-API pone las suyas con Hono).
+#
+# CSP: la de `PREVIEW_CSP` en `apps/web/vite.config.ts` (la que prueban los E2E) con dos añadidos de
+# producción: el origen de `ga-catalog` en `connect-src` (el mismo que `VITE_CATALOG_URL` en
+# `deploy-web.yml`, que lo comprueba) y `upgrade-insecure-requests`. El subdominio de la cuenta es
+# `gameagenda.workers.dev`. Máximo, 2 000 caracteres por cabecera.
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https://shared.akamai.steamstatic.com; connect-src 'self' https://ga-catalog.gameagenda.workers.dev; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Cross-Origin-Opener-Policy: same-origin
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  Permissions-Policy: accelerometer=(), autoplay=(), browsing-topics=(), camera=(), display-capture=(), encrypted-media=(), geolocation=(), gyroscope=(), hid=(), idle-detection=(), magnetometer=(), microphone=(), midi=(), payment=(), publickey-credentials-get=(), screen-wake-lock=(), serial=(), usb=(), xr-spatial-tracking=()
+
+# Los ficheros de Vite llevan su *hash* en el nombre: se cachean un año sin revalidar. El resto
+# (`index.html`, `sw.js`, `manifest.webmanifest`, iconos) conserva el valor por defecto de Workers
+# Static Assets, `public, max-age=0, must-revalidate`, con ETag.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable

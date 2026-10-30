@@ -12,8 +12,12 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 /** Nombres que nunca deben llegar al cliente (se buscan sin distinguir mayúsculas). */
 const FORBIDDEN = ['x-webapi-key', 'STEAM_WEB_API_KEY'] as const;
-/** Candidatas a clave: palabras de 32 caracteres alfanuméricos. */
-const RE_WORD = /\b[0-9A-Za-z]{32}\b/g;
+/**
+ * Candidatas a clave: 32 caracteres alfanuméricos sin otro alfanumérico al lado. No vale `\b`,
+ * que trata `_` como letra y no vería `KEY_<clave>`. La clave son 32 dígitos hexadecimales que
+ * Steam muestra en mayúsculas (ver `docs/medidas/verificaciones-m0-20261030.md`).
+ */
+const RE_WORD = /(?<![0-9A-Za-z])[0-9A-Za-z]{32}(?![0-9A-Za-z])/g;
 const RE_SHA256 = /^[0-9a-f]{64}$/;
 
 export interface Finding {
@@ -30,7 +34,8 @@ export function scanText(text: string, keySha256: string | null): string[] {
   for (const name of FORBIDDEN) if (lower.includes(name.toLowerCase())) found.push(name);
   if (keySha256 !== null) {
     for (const match of text.matchAll(RE_WORD)) {
-      if (sha256(match[0]) === keySha256) {
+      // También en minúsculas: el *hash* es el de la clave tal como la da Steam, en mayúsculas.
+      if (sha256(match[0]) === keySha256 || sha256(match[0].toUpperCase()) === keySha256) {
         found.push('la clave de Steam (coincide con STEAM_KEY_SHA256)');
         break;
       }

@@ -34,6 +34,11 @@ describe('búsqueda de la clave de Steam en el build (CA0.4)', () => {
   it('encuentra la clave por su SHA-256, y no otras palabras de 32 caracteres', () => {
     expect(scanText(`const k = "${FAKE_KEY}";`, FAKE_HASH)).toHaveLength(1);
     expect(scanText('const h = "ABCDEF0123456789ABCDEF0123456789";', FAKE_HASH)).toEqual([]);
+    // Pegada a `_` (con `\b` no se vería) y en minúsculas.
+    expect(scanText(`STEAM_KEY_${FAKE_KEY}_X`, FAKE_HASH)).toHaveLength(1);
+    expect(scanText(`k="${FAKE_KEY.toLowerCase()}"`, FAKE_HASH)).toHaveLength(1);
+    // Dentro de una tira alfanumérica más larga no es la clave.
+    expect(scanText(`${FAKE_KEY}0`, FAKE_HASH)).toEqual([]);
     // Sin el *hash* no se puede saber cuál es la clave: solo se buscan los nombres.
     expect(scanText(`const k = "${FAKE_KEY}";`, null)).toEqual([]);
   });
