@@ -65,7 +65,7 @@
 
 | Qué | Para qué | Cómo |
 |---|---|---|
-| Pedir la clave de la Steam Web API | Columna vertebral documentada del catálogo desde M2 (M1 funciona sin clave) | https://steamcommunity.com/dev/apikey — exige una cuenta no limitada (≥5 US$ gastados) y Steam Guard móvil; en «dominio» vale `localhost`. **No la pegues en el chat:** se guardará solo en `.env.local` y en un secreto de GitHub |
+| ~~Pedir la clave de la Steam Web API~~ | **Hecho (31-10-2026):** en `.env.local` (`STEAM_WEB_API_KEY`) y en el secreto de GitHub `STEAM_API_TOKEN`, con su *hash* en la variable `STEAM_KEY_SHA256` del CI. Funciona: `GetAppList` responde 200 | `catalog.yml` (M2) mapea `STEAM_API_TOKEN` a `STEAM_WEB_API_KEY` |
 | ~~Cuenta de GitHub~~ | **Hecho el 30-10-2026:** `gh` 2.103.3 instalado (`C:\Program Files\GitHub CLI\gh.exe`; una terminal abierta antes de instalarlo no lo encuentra en el `PATH`) y con sesión como `LucasPrezFdez` (ámbitos `repo`, `read:org` y `gist`). No toca las credenciales de git | — |
 | ~~Cuenta gratuita de Cloudflare~~ | **Hecho el 30-10-2026:** `wrangler login` con la cuenta del usuario y subdominio `gameagenda.workers.dev` | Falta el *token* de la API para GitHub (ver §1) |
 | Cuenta de healthchecks.io (gratis) | Aviso si el pipeline diario deja de ejecutarse | No es urgente: se usa en M2 |

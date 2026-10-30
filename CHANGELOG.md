@@ -29,7 +29,7 @@ Sin etiqueta propia: `v0.0.1` quedaría después de `v0.1.0`, así que M0 va den
 
 #### Pendiente
 
-- **`STEAM_KEY_SHA256`:** la variable llegará cuando haya clave. Hasta entonces, el CI solo busca los nombres.
+- Nada de M0. La variable `STEAM_KEY_SHA256` está puesta desde el 31-10-2026, así que el CI también busca la clave por su *hash*.
 
 ## [0.1.0] · M1 Apuntar · 30-10-2026
 

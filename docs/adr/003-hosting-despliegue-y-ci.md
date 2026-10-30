@@ -136,7 +136,7 @@ Detalle en [`docs/medidas/verificaciones-m0-20261030.md`](../medidas/verificacio
 - Mal, porque en un repositorio público el cron de GitHub se desactiva tras 60 días sin actividad (R-04), y su mitigación «repo privado» ya no vale. Quedan `workflow_dispatch`, el *dead-man switch* y, si se repite, un Cron Trigger de Cloudflare (M2, ADR-007).
 - Mal, porque «Workers Scripts: Edit» abarca toda la cuenta: un pipeline comprometido podría desplegar `ga-web` (§11.3).
 - Hecho el 30-10-2026: el usuario creó los secretos `CLOUDFLARE_API_TOKEN` (*token* propio con solo «Account › Workers Scripts › Edit») y `CLOUDFLARE_ACCOUNT_ID`. El primer *push* después dio `ci` en verde en 3 min 2 s (ejecución 41140409104), y `deploy-web` desplegó `ga-web` solo, en 33 s (ejecución 41140742020). La versión `f5044388-039e-4e13-ae52-c77456dbfd4e` lleva como mensaje el SHA `d981870`. Con ese permiso bastó.
-- Pendiente: la variable `STEAM_KEY_SHA256`, cuando haya clave. Sin ella, el CI solo busca los nombres.
+- Hecho el 31-10-2026: el usuario consiguió la clave y la guardó en `.env.local` y en el secreto `STEAM_API_TOKEN`; la variable `STEAM_KEY_SHA256` lleva su *hash*. Desde entonces, el CI también busca la clave.
 - Pendiente: confirmar si el *token* se puede limitar a un *script*. Si no se puede, `ga-catalog` pasa a otra cuenta gratuita con su propio *token* (§11.3).
 - Pendiente (M2): medir lo transferido con el núcleo completo, `aliases` y `recent`. `catalog.yml` sustituye a `deploy-catalog.yml`.
 - Pendiente (M4): `@cloudflare/workers-types` llega con el *script* de la micro-API (ver ADR-002).
