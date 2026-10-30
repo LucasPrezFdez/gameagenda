@@ -20,7 +20,7 @@ Sin etiqueta propia: `v0.0.1` quedaría después de `v0.1.0`, así que M0 va den
 - **Despliegue en Cloudflare Workers Static Assets**, en el subdominio `gameagenda.workers.dev`:
   - `ga-web` (https://ga-web.gameagenda.workers.dev) lleva la CSP y las cabeceras de la §11.3 en `_headers`;
   - `ga-catalog` (https://ga-catalog.gameagenda.workers.dev) sirve el mini-catálogo, montado por `scripts/assemble-catalog.ts`. El *manifest* va en `no-cache`, los TSV como `text/plain` comprimidos con zstd, br o gzip, y el CORS solo admite a `ga-web`;
-  - `deploy-web.yml` despliega `ga-web` tras cada `ci` en verde de `main`, y `deploy-catalog.yml` despliega `ga-catalog` a mano. Los dos acaban con una prueba de humo.
+  - `deploy-web.yml` despliega `ga-web` tras cada `ci` en verde de `main`, y `deploy-catalog.yml` despliega `ga-catalog` a mano. Los dos acaban con una prueba de humo. El primer despliegue automático, del 30-10-2026, tardó 33 s.
 - **Comprobaciones de M0** (`docs/medidas/verificaciones-m0-20261030.md`): Ed25519 en WebCrypto, formato de la clave de Steam y campos de `Query` sin `include_basic_info`.
 
 #### Corregido
@@ -29,7 +29,6 @@ Sin etiqueta propia: `v0.0.1` quedaría después de `v0.1.0`, así que M0 va den
 
 #### Pendiente
 
-- **Despliegue automático:** necesita los secretos `CLOUDFLARE_API_TOKEN` y `CLOUDFLARE_ACCOUNT_ID` en GitHub (CA0.1). Los primeros despliegues se hicieron a mano con `wrangler`.
 - **`STEAM_KEY_SHA256`:** la variable llegará cuando haya clave. Hasta entonces, el CI solo busca los nombres.
 
 ## [0.1.0] · M1 Apuntar · 30-10-2026

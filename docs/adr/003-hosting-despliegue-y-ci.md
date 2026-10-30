@@ -135,7 +135,7 @@ Detalle en [`docs/medidas/verificaciones-m0-20261030.md`](../medidas/verificacio
 - Mal, porque Cloudflare comprime con su propio nivel: en el mini-núcleo, gzip (5 402 bytes) gana a brotli (5 737) y a zstd (5 745).
 - Mal, porque en un repositorio público el cron de GitHub se desactiva tras 60 días sin actividad (R-04), y su mitigación «repo privado» ya no vale. Quedan `workflow_dispatch`, el *dead-man switch* y, si se repite, un Cron Trigger de Cloudflare (M2, ADR-007).
 - Mal, porque «Workers Scripts: Edit» abarca toda la cuenta: un pipeline comprometido podría desplegar `ga-web` (§11.3).
-- Pendiente: el usuario tiene que crear los secretos `CLOUDFLARE_API_TOKEN` y `CLOUDFLARE_ACCOUNT_ID`. Hasta entonces, el despliegue automático tras el CI no se ha ejecutado.
+- Hecho el 30-10-2026: el usuario creó los secretos `CLOUDFLARE_API_TOKEN` (*token* propio con solo «Account › Workers Scripts › Edit») y `CLOUDFLARE_ACCOUNT_ID`. El primer *push* después dio `ci` en verde en 3 min 2 s (ejecución 41140409104), y `deploy-web` desplegó `ga-web` solo, en 33 s (ejecución 41140742020). La versión `f5044388-039e-4e13-ae52-c77456dbfd4e` lleva como mensaje el SHA `d981870`. Con ese permiso bastó.
 - Pendiente: la variable `STEAM_KEY_SHA256`, cuando haya clave. Sin ella, el CI solo busca los nombres.
 - Pendiente: confirmar si el *token* se puede limitar a un *script*. Si no se puede, `ga-catalog` pasa a otra cuenta gratuita con su propio *token* (§11.3).
 - Pendiente (M2): medir lo transferido con el núcleo completo, `aliases` y `recent`. `catalog.yml` sustituye a `deploy-catalog.yml`.
@@ -143,7 +143,7 @@ Detalle en [`docs/medidas/verificaciones-m0-20261030.md`](../medidas/verificacio
 
 ### Confirmación
 
-- **CA0.1:** el CI tarda ≤10 min (✓, 2 min 52 s) y `ga-web` responde por HTTPS con las cabeceras de `_headers`, sin `unsafe-inline` (✓, con el despliegue a mano). *Push* → despliegue: **pendiente** de los secretos.
+- **CA0.1:** el CI tarda ≤10 min (✓, 2 min 52 s) y `ga-web` responde por HTTPS con las cabeceras de `_headers`, sin `unsafe-inline` (✓, con el despliegue a mano). *Push* → despliegue: ✓ (ejecuciones 41140409104 y 41140742020: CI en 3 min 2 s y despliegue con prueba de humo en 33 s).
 - **CA0.2:** ✓. *Manifest* con `no-cache` y CORS solo para `ga-web`.
 - **CA0.3:** ✓. El núcleo llega con `zstd`, `br` o `gzip`, según lo que anuncie el navegador. `aliases` comparte la regla de `_headers`; `recent` llega en M2.
 - **CA0.4:** Vitest prueba la búsqueda con una clave falsa, y una copia del *build* con una clave falsa añadida salió con código 1. La puerta de tamaño va en `check` y bloquea.

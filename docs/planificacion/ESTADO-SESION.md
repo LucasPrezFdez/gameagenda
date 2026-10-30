@@ -8,12 +8,12 @@
 - **Planificación terminada.** `prototipe.md` (raíz del repo) es el plan completo del prototipo: 19 secciones, ≈226 KB (versión 0.2). Para leerlo rápido: §1 (resumen) y §15 (hitos con criterios de aceptación).
 - **Cambio del 29-10-2026:** la app de escritorio para Windows (envoltorio Tauri de la misma web, con el atajo global `Ctrl+Mayús+Espacio`) pasa de Fase 2 a **M3**. M3 sube a 4–6 días y el total, a 23–32 días ideales. Detalle en la §17.3 y la §15.6 de `prototipe.md`; el porqué, en `DECISIONES.md` §10.16.
 - **Repositorio:** <https://github.com/LucasPrezFdez/gameagenda> (`main`). El usuario pidió el 29-10-2026 ir haciendo *commits* y subirlos sin preguntar, dejar los despliegues para más adelante y centrarse en la app.
-- **M0 · Esqueleto: casi cerrado** (30-10-2026; detalle en ADR-003):
+- **M0 · Esqueleto: cerrado** (30-10-2026, sin etiqueta; detalle en ADR-003 y en el CHANGELOG, «Sin publicar»):
   - **CI:** `ci.yml` en verde en 2 min 52 s.
   - **Despliegue:** `ga-web` (https://ga-web.gameagenda.workers.dev) y `ga-catalog` (https://ga-catalog.gameagenda.workers.dev), desplegados a mano con `wrangler`, en el subdominio `gameagenda` que eligió el usuario.
   - **Comprobaciones «a verificar en M0»:** cerradas (`docs/medidas/verificaciones-m0-20261030.md` y ADR-003).
   - **Falta:**
-    - que el usuario cree en GitHub los secretos `CLOUDFLARE_API_TOKEN` («Workers Scripts: Edit») y `CLOUDFLARE_ACCOUNT_ID`, para que `deploy-web.yml` despliegue solo tras cada *push* (la otra mitad de CA0.1). El clasificador de permisos no deja al asistente escribir secretos;
+    - ~~los secretos de Cloudflare en GitHub~~ **hecho**: el usuario los creó y el despliegue automático funciona (`ci` 41140409104 y `deploy-web` 41140742020). CA0.1–CA0.5 cumplidos;
     - M0 no lleva etiqueta: `v0.0.1` quedaría después de `v0.1.0` (decisión del usuario, 30-10-2026). Su cierre va en el CHANGELOG, en «Sin publicar».
   - **Repositorio público:** el plan lo daba por privado. Los minutos de Actions no cuentan, pero el *cron* se desactiva a los 60 días sin *commits* (R-04).
 - **M1 · Apuntar: cerrado con `v0.1.0`** (30-10-2026; etiqueta anotada en GitHub, con `CHANGELOG.md`). Las mediciones en el dispositivo pasan a M3 (ver «Pendiente de M1», punto 6). Todo está en `main` y subido, sin agentes ni *worktrees* abiertos:

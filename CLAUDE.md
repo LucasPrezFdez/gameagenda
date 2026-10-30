@@ -4,7 +4,7 @@ Agenda personal de videojuegos: apuntar en segundos los juegos que quieres jugar
 
 ## Estado
 
-- Planificación terminada el 28-10-2026. M0: pasos 1–3 hechos; CI y despliegues aplazados. **M1 cerrado con `v0.1.0`** (30-10-2026): las medidas en el dispositivo pasan a M3 (ver «Pendiente de M1» en `ESTADO-SESION.md`). Lo siguiente es M2 (o los pasos aplazados de M0). Repositorio: https://github.com/LucasPrezFdez/gameagenda.
+- Planificación terminada el 28-10-2026. **M1 cerrado con `v0.1.0`** (30-10-2026): las medidas en el dispositivo pasan a M3 ([issue #1](https://github.com/LucasPrezFdez/gameagenda/issues/1)). **M0 cerrado** el mismo día, sin etiqueta: CI en GitHub Actions y despliegue en Cloudflare (https://ga-web.gameagenda.workers.dev, https://ga-catalog.gameagenda.workers.dev; ADR-003). Lo siguiente es M2. Repositorio: https://github.com/LucasPrezFdez/gameagenda.
 - Para retomar el trabajo, lee primero `docs/planificacion/ESTADO-SESION.md`.
 
 ## Documentos
