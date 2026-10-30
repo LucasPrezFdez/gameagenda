@@ -14,6 +14,7 @@ import { createDexieSettingsStorage } from './db/settings-storage.ts';
 import { connectErrorLog, installGlobalErrorHandlers, logError } from './errors/error-log.ts';
 import { es } from './i18n/es.ts';
 import { createNoticeCenter, type NoticeAction } from './notices/notice-center.ts';
+import { warmFallbackFonts } from './perf/fallback-fonts.ts';
 import { registerServiceWorker } from './pwa/register-sw.ts';
 import { startRouter } from './router/router.tsx';
 import { createAppSearchClient } from './search-client/index.ts';
@@ -132,6 +133,13 @@ async function start(): Promise<void> {
       </ServicesProvider>
     </StrictMode>,
   );
+  // Cuando ya se puede buscar (antes, la paleta no enseña nombres del catálogo) y en ratos
+  // ociosos: así no retrasa el primer pintado de Mi lista.
+  const stopWarmup = search.subscribeStatus(() => {
+    if (search.getStatus().state === 'none') return;
+    stopWarmup();
+    warmFallbackFonts();
+  });
 }
 
 void start();

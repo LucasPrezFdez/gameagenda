@@ -1,6 +1,7 @@
 // `npm run perf`, parte 2 (§12.4; RNF-01 a RNF-04, CA1.5): la app real (*build* del modo `e2e`)
 // con el catálogo completo y 500 entradas en Mi lista. Con CPU ×4: primera visita (LCP),
-// reinicio con caché (`app:list-visible`, `search:ready` y LCP) y una sesión que teclea 20
+// reinicio con caché (`app:list-visible`, `search:ready`, LCP y la primera maquetación de CJK y
+// emoji tras calentar las fuentes de reserva) y una sesión que teclea 20
 // nombres y apunta 10 (INP, `ui:feedback`, `capture:palette-to-confirm` y tareas largas). Sin
 // estrangular, los mismos 20 nombres: `search:keystroke-to-results` para el presupuesto de
 // escritorio. El Worker de búsqueda no se estrangula (ver `worker-throttling.perf.ts`).
@@ -297,6 +298,42 @@ async function longTasks(page: Page, window: { start: number; end: number }) {
   return { count: tasks.length, detail: tasks.map(describe).join('; ') };
 }
 
+/**
+ * Primera maquetación de cada escritura sin glifos en la fuente de la app, ya calentadas las
+ * fuentes de reserva (`app:fonts-warm`, ver `src/perf/fallback-fonts.ts`): sin calentar, con ×4
+ * en Windows, cuesta 30–130 ms. Textos distintos de las muestras del calentamiento.
+ */
+async function firstScriptLayout(page: Page): Promise<{ worst: number; detail: string }> {
+  await expect
+    .poll(() => page.evaluate(() => performance.getEntriesByName('app:fonts-warm').length), SLOW)
+    .toBe(1);
+  const times = await page.evaluate(() => {
+    const out: [string, number][] = [];
+    for (const [label, text, weight] of [
+      ['han 600', '黑神话', 600],
+      ['kana 600', 'モンスター', 600],
+      ['hangul 600', '로스트아크', 600],
+      ['emoji 600', '🔥', 600],
+      ['han 700', '三国志', 700],
+      ['emoji 700', '😀', 700],
+    ] as const) {
+      const probe = document.createElement('span');
+      probe.textContent = text;
+      probe.style.cssText = `position:fixed;top:0;left:0;opacity:0;font-weight:${weight}`;
+      document.body.append(probe);
+      const start = performance.now();
+      probe.getBoundingClientRect();
+      out.push([label, performance.now() - start]);
+      probe.remove();
+    }
+    return out;
+  });
+  return {
+    worst: Math.round(Math.max(...times.map(([, ms]) => ms)) * 10) / 10,
+    detail: times.map(([label, ms]) => `${label} ${ms.toFixed(1)} ms`).join(', '),
+  };
+}
+
 /** Frecuencia de fotogramas de la página (60 rAF). */
 function refreshRate(page: Page): Promise<number> {
   return page.evaluate(
@@ -357,6 +394,7 @@ test('parte 2: app real con el catálogo completo y 500 entradas en Mi lista', a
     await expect(page.getByRole('heading', { name: /^Quiero jugar \(\d+\)$/ })).toBeVisible();
     const restartLcp = await lcp(page);
     await waitMeasure(page, 'search:full');
+    const fonts = await firstScriptLayout(page);
 
     // 4. Teclear 20 nombres y apuntar 10 con ×4.
     const captureSet = new Set(typed.map((_, i) => i).filter((i) => i % 2 === 0));
@@ -414,6 +452,12 @@ test('parte 2: app real con el catálogo completo y 500 entradas en Mi lista', a
       limit: 2000,
     });
     throttled.add({ metric: 'Reinicio con caché: LCP', value: restartLcp, limit: 2500 });
+    throttled.add({
+      metric: 'Primera maquetación de han, kana, hangul y emoji, ya calentadas (peor)',
+      value: fonts.worst,
+      limit: 50,
+      note: fonts.detail,
+    });
     throttled.add({
       metric: `INP (20 nombres, 10 altas)`,
       stat: 'INP',

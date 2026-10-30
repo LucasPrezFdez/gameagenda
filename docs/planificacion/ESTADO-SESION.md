@@ -24,18 +24,15 @@
     - `pipeline/out/` contiene ya ese catálogo real.
   - **Rendimiento.** `npm run perf` (con `PERF_PORT`) y `npm run size`, que va dentro de `check`: JS inicial de 113,8 KB y Worker de 32,5 KB, en brotli. La tabla está en `docs/medidas/perf-m1-20261029.md`.
   - **ADR:** 001, 002, 004, 005 y 006 (propuesta), con índice en `docs/adr/README.md`. ADR-003 espera a los despliegues.
-  - **Pruebas:** 529 unitarias y 98 E2E en verde (6 saltadas a propósito). `npm run perf` aún sale en rojo: ver «Pendiente de M1».
+  - **Pruebas:** 529 unitarias y 98 E2E en verde (6 saltadas a propósito). `npm run perf`, en verde desde el 30-10-2026.
   - **Nota para los E2E:** WebKit en Windows tarda ≈260 ms en guardar un alta en IndexedDB. Las pruebas que recargan después de una acción esperan con `expectStored` (`apps/web/e2e/storage.ts`). Si hay otra vista previa abierta, lanza los E2E con otro `E2E_PORT`, porque `reuseExistingServer` la reutilizaría.
 - **Pendiente de M1** (por orden; después vienen CHANGELOG y `v0.1.0`):
   1. ~~**Presupuesto de la pulsación en escritorio.**~~ **Hecho el 30-10-2026** (sesión 4): ≤16 ms a ≥120 Hz y ≤2 fotogramas por debajo (≈33 ms a 60 Hz), decisión del usuario. Cambiados RNF-02, §8.9, §12.4, CA1.5, ADR-005 y `DECISIONES.md` §10.17. `npm run perf` mide la frecuencia y aplica el límite: 23,1 ms de p95 frente a ≤33,3 ms a 60 Hz.
-  2. **CA1.11: optimizado el 30-10-2026, falta confirmarlo en reposo.**
-     - Antes: con ×4, el escaneo estaba listo en ≈2,2 s tras un reinicio con caché, frente a ≤2 s.
-     - Cambios en `core`: `normalize`, pajar, nombres españoles, tabla de exactos, `articleLength` y lector del TSV.
-     - En A/B dentro de Chromium con ×4, claves −20 a −36 % y TSV −20 %. Detalle en `docs/medidas/builder-m1-20261030.md`.
-     - Ese día había un juego abierto y todo salía ≈1,4× más lento. `perf` dio 2 604 ms, frente a 3 005–3 122 ms con el código anterior; descontando la carga, ≈1,85 s.
-     - **Hay que repetir `npm run perf` con el equipo en reposo.** El nivel 4 dio 70,6 ms frente a ≤70 ms; con el código anterior y la misma carga daba 68,7–69,0 ms. Se confirma en la misma pasada.
-     - Con la carga, axe en WebKit (`a11y.spec.ts`) superó los 60 s en la tanda completa de E2E. Solas pasan, con el código nuevo y con el anterior.
-  3. **Dos tareas largas con ×4 (66–76 ms):** el primer pintado de texto CJK y de un emoji (fuentes de reserva de Windows). Se pueden calentar en un momento ocioso. Además, Intro al apuntar ronda 45–55 ms con ×4.
+  2. ~~**CA1.11.**~~ **Hecho el 30-10-2026:** con ×4, el escaneo está listo en 1 553–1 644 ms tras un reinicio con caché (antes, ≈2,2 s). Se optimizaron `normalize`, el pajar, los nombres españoles, la tabla de exactos, `articleLength` y el lector del TSV. Detalle en `docs/medidas/builder-m1-20261030.md`.
+  3. ~~**Tareas largas con ×4.**~~ **Hecho el 30-10-2026:**
+     - **Fuentes de reserva:** la primera maquetación de han, kana, hangul o emoji costaba 30–130 ms con ×4, por escritura y peso. `src/perf/fallback-fonts.ts` las calienta en ratos ociosos en cuanto se puede buscar; tras eso, ≤4 ms. `perf` lo comprueba con una fila nueva.
+     - **El Intro que apunta:** analizado. En reposo no pasa de 50 ms. Con el equipo cargado, el primer Intro de la sesión (código en frío) llegaba a 58–60 ms. Si vuelve a pasar en el Android de referencia, la §9.5 prevé virtualizar Mi lista por secciones.
+     - **`npm run perf` sale entero en verde por primera vez.** La pulsación de escritorio va justa: 31,2 ms frente a 33,3. Tabla y análisis en `docs/medidas/perf-m1-20261030.md`.
   4. **RNF-08:** falta el aviso para exportar tras 30 días sin copia, que es de M1.
   5. **Arreglos del plan detectados al escribir los ADR:**
      - la §7.4 no recoge el reenvío de `merge()` al cambiar `mergedInto`;
