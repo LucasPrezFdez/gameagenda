@@ -1,0 +1,91 @@
+# CI (§12.5 de prototipe.md; CA0.1 y CA0.4): la columna CI de la §12.4 en tres trabajos en
+# paralelo, para quedar en ≤10 min. `check` y `e2e` bloquean; `perf` solo informa, porque los
+# *runners* compartidos son ruidosos. Sin secretos: la búsqueda de la clave usa la variable
+# `STEAM_KEY_SHA256` (el *hash*, no la clave). `deploy-web.yml` se engancha a este flujo por su
+# nombre, `ci`, con `workflow_run`.
+name: ci
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["**/*.md", "docs/**"]
+  pull_request:
+    paths-ignore: ["**/*.md", "docs/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Biome, tsc, Vitest, build, tamaño y clave
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - name: Puerta de tamaño (JS inicial ≤150 KB y Worker ≤40 KB, brotli)
+        run: npm run size
+      - name: Búsqueda de la clave de Steam en el build
+        run: node scripts/scan-secrets.ts apps/web/dist
+        env:
+          STEAM_KEY_SHA256: ${{ vars.STEAM_KEY_SHA256 }}
+
+  e2e:
+    name: E2E (Chromium)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e
+      - name: Trazas de los E2E que fallan
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-test-results
+          path: apps/web/test-results/
+          retention-days: 7
+
+  perf:
+    name: Rendimiento (informa)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Informa y no bloquea (§12.4): en local, `npm run perf` sí bloquea si se toca la búsqueda,
+    # la paleta o Mi lista.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Catálogo completo en pipeline/out desde la copia congelada
+        run: npm run catalog:frozen
+      - run: npm run perf
+      - name: Informe de perf
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: perf-report
+          path: apps/web/test-results/perf-report.json
+          retention-days: 30
