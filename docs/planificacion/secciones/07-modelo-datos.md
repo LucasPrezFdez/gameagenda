@@ -40,7 +40,7 @@ db.version(1).stores({              // Dexie 4.4.7, base 'gameagenda'
   entries: 'id, [view+rank], lastHlc, deletedAt',
   outbox: 'opId, [entryId+field]',
   settings: 'key',
-  meta: 'key', // hlcClock, catalog, searchIndex, syncCursor, backup, errorLog
+  meta: 'key', // hlcClock, catalog, searchIndex, syncCursor, backup, errorLog, copyReminder
 });
 ```
 
@@ -73,6 +73,7 @@ interface Entry {
 - `rank` es una [clave fraccionaria](https://observablehq.com/@dgreensp/implementing-fractional-indexing) en base 62 que ordena como texto: lo nuevo va tras la última y mover crea una clave entre vecinos, sin renumerar.
 - `navigator.storage.persist()` en la primera escritura; antes de migrar o importar, copia JSON en `meta.backup`.
 - `meta.errorLog`: búfer circular con los 100 últimos errores, sin datos personales (ver §12.7); se exporta en JSON desde Ajustes › Datos a partir de M1 y, desde M3, también desde el panel de rendimiento.
+- `meta.copyReminder` (desde M1): `{lastCopy, since, snoozedUntil}` en ms, para el aviso de copia de la §9.6 (RNF-08). Es de este dispositivo y no va en la copia exportada.
 
 ### 7.3 Identificadores naturales y vinculación
 

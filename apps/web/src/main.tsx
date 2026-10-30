@@ -6,7 +6,9 @@ import { App } from './App.tsx';
 import { createAgenda } from './agenda/agenda.ts';
 import { startCatalogRefresh } from './agenda/catalog-refresh.ts';
 import { type AppServices, ServicesProvider } from './app/services.tsx';
+import { createCopyReminderStore } from './data/copy-reminder.ts';
 import { createDexieAgendaStorage } from './db/agenda-storage.ts';
+import { createDexieCopyReminderStorage } from './db/copy-reminder-storage.ts';
 import { openDatabase } from './db/database.ts';
 import { createDexieErrorLogStorage } from './db/error-log-storage.ts';
 import { type LocalState, loadLocalState } from './db/local-state.ts';
@@ -106,11 +108,25 @@ async function start(): Promise<void> {
   });
   if (local) connectErrorLog(createDexieErrorLogStorage(local.db));
 
+  // Aviso de copia (RNF-08): empieza a contar en cuanto hay algo en Mi lista.
+  const copyStorage = local ? createDexieCopyReminderStorage(local.db, onStorageError) : null;
+  const copyReminder = createCopyReminderStore(local?.state.copyReminder ?? null, (state) =>
+    copyStorage?.save(state),
+  );
+  copyStorage?.watch(copyReminder);
+  const startCounting = (): void => {
+    if (agenda.getSnapshot().length > 0) copyReminder.start(Date.now());
+  };
+  startCounting();
+  agenda.subscribe(startCounting);
+
   const exportList: NoticeAction = {
     label: es.notices.export,
     run() {
       import('./data/data-actions.ts')
-        .then((data) => data.exportJson({ agenda, settings, appVersion: __APP_VERSION__ }))
+        .then((data) =>
+          data.exportJson({ agenda, settings, appVersion: __APP_VERSION__, copyReminder }),
+        )
         .catch((error: unknown) => logError('storage', error));
     },
   };
@@ -120,7 +136,7 @@ async function start(): Promise<void> {
     : [exportList];
   if (!local) showStorageNotice();
 
-  const services: AppServices = { agenda, search, settings, notices };
+  const services: AppServices = { agenda, search, settings, notices, copyReminder };
   search.init({ catalogVersion: null, showAdult });
   startCatalogRefresh(search, agenda);
 

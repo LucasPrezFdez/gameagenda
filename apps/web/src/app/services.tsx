@@ -1,6 +1,8 @@
-// Servicios de la app (agenda, búsqueda, ajustes y avisos), con *hooks* de suscripción.
+// Servicios de la app (agenda, búsqueda, ajustes, avisos y aviso de copia), con *hooks* de
+// suscripción.
 import { createContext, type ReactNode, use, useMemo, useSyncExternalStore } from 'react';
 import type { AgendaEntry, AgendaStore } from '../agenda/types.ts';
+import type { CopyReminderState, CopyReminderStore } from '../data/copy-reminder.ts';
 import type { NoticeCenter } from '../notices/notice-center.ts';
 import type { QueryState, SearchClient, StatusMessage } from '../search-client/index.ts';
 import type { SettingsStore, UiSettings } from '../settings/settings-store.ts';
@@ -10,6 +12,7 @@ export interface AppServices {
   readonly search: SearchClient;
   readonly settings: SettingsStore;
   readonly notices: NoticeCenter;
+  readonly copyReminder: CopyReminderStore;
 }
 
 const ServicesContext = createContext<AppServices | null>(null);
@@ -44,6 +47,11 @@ export function useEntriesById(): ReadonlyMap<string, AgendaEntry> {
 export function useSettings(): UiSettings {
   const { settings } = useServices();
   return useSyncExternalStore(settings.subscribe, settings.getSnapshot);
+}
+
+export function useCopyReminder(): CopyReminderState | null {
+  const { copyReminder } = useServices();
+  return useSyncExternalStore(copyReminder.subscribe, copyReminder.getSnapshot);
 }
 
 export function useCatalogStatus(): StatusMessage {

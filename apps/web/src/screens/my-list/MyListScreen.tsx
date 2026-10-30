@@ -10,10 +10,12 @@ import {
   useState,
 } from 'react';
 import { useCommands } from '../../agenda/commands.ts';
-import { useAgendaEntries, useServices } from '../../app/services.tsx';
+import { useAgendaEntries, useCopyReminder, useServices } from '../../app/services.tsx';
 import { ChoiceMenu } from '../../components/ChoiceMenu.tsx';
 import { Icon } from '../../components/icons.tsx';
 import { ScreenHeading } from '../../components/ScreenHeading.tsx';
+import { copyReminderDue } from '../../data/copy-reminder.ts';
+import { logError } from '../../errors/error-log.ts';
 import { es } from '../../i18n/es.ts';
 import { isIosBrowserTab } from '../../lib/hooks.ts';
 import { measureListVisible } from '../../perf/measures.ts';
@@ -57,7 +59,10 @@ function keepFocusNear(container: HTMLElement | null, id: string): () => void {
 export function MyListScreen({ primary = true }: { primary?: boolean }) {
   const entries = useAgendaEntries();
   const commands = useCommands();
-  const { settings } = useServices();
+  const { agenda, settings, notices, copyReminder } = useServices();
+  const copyState = useCopyReminder();
+  // La hora de cuando se abre Mi lista: el aviso no cambia mientras se mira.
+  const [openedAt] = useState(Date.now);
   const { search } = useLocation();
   const params = useMemo(() => parseListParams(search), [search]);
   const listRef = useRef<HTMLDivElement>(null);
@@ -128,6 +133,25 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
 
   const total = entries.length;
   const filtered = params.view !== 'pending' || params.purchase !== 'any' || params.q !== '';
+  // El aviso de iOS ya ofrece exportar: no salen los dos a la vez.
+  const copyDue = iosNotice ? null : copyReminderDue(copyState, openedAt, total > 0);
+
+  /** Al irse el aviso con el botón enfocado, el foco pasa a la pantalla (ver §9.7, 2.4.11). */
+  function focusMain(): void {
+    requestAnimationFrame(() => document.getElementById('main')?.focus());
+  }
+
+  async function exportCopy(): Promise<void> {
+    try {
+      const data = await import('../../data/data-actions.ts');
+      const name = data.exportJson({ agenda, settings, appVersion: __APP_VERSION__, copyReminder });
+      notices.notify(es.toast.exported(name));
+      focusMain();
+    } catch (error) {
+      logError('storage', error);
+      notices.notify(es.notices.storageFailed);
+    }
+  }
 
   return (
     <div className="screen my-list">
@@ -170,6 +194,25 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
             <Icon name="close" />
           </button>
           {iosHelp && <p className="notice__detail">{es.notices.iosSteps}</p>}
+        </div>
+      )}
+
+      {copyDue && (
+        <div className="notice notice--copy">
+          <p>{copyDue.copied ? es.notices.copyOld(copyDue.days) : es.notices.copyNever}</p>
+          <button type="button" className="btn btn--primary" onClick={() => void exportCopy()}>
+            {es.notices.export}
+          </button>
+          <button
+            type="button"
+            className="btn btn--ghost"
+            onClick={() => {
+              copyReminder.snooze(Date.now());
+              focusMain();
+            }}
+          >
+            {es.notices.later}
+          </button>
         </div>
       )}
 

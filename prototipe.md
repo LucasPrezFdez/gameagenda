@@ -841,7 +841,7 @@ db.version(1).stores({              // Dexie 4.4.7, base 'gameagenda'
   entries: 'id, [view+rank], lastHlc, deletedAt',
   outbox: 'opId, [entryId+field]',
   settings: 'key',
-  meta: 'key', // hlcClock, catalog, searchIndex, syncCursor, backup, errorLog
+  meta: 'key', // hlcClock, catalog, searchIndex, syncCursor, backup, errorLog, copyReminder
 });
 ```
 
@@ -874,6 +874,7 @@ interface Entry {
 - `rank` es una [clave fraccionaria](https://observablehq.com/@dgreensp/implementing-fractional-indexing) en base 62 que ordena como texto: lo nuevo va tras la última y mover crea una clave entre vecinos, sin renumerar.
 - `navigator.storage.persist()` en la primera escritura; antes de migrar o importar, copia JSON en `meta.backup`.
 - `meta.errorLog`: búfer circular con los 100 últimos errores, sin datos personales (ver §12.7); se exporta en JSON desde Ajustes › Datos a partir de M1 y, desde M3, también desde el panel de rendimiento.
+- `meta.copyReminder` (desde M1): `{lastCopy, since, snoozedUntil}` en ms, para el aviso de copia de la §9.6 (RNF-08). Es de este dispositivo y no va en la copia exportada.
 
 ### 7.3 Identificadores naturales y vinculación
 
@@ -1457,10 +1458,13 @@ Leyenda: `[img]` portada, `[HK ]` generada, `(+)` apuntar, `(i)` ficha, `::` asa
 | Sin conexión | Sin conexión. Puedes seguir apuntando: tus cambios se guardan en este dispositivo. | — | M1 |
 | iOS sin instalar | Safari puede borrar tus datos si lo usas 7 días sin abrir GameAgenda. Añádela a la pantalla de inicio o exporta una copia. | Cómo añadirla · Exportar | M1 |
 | Guardado fallido | No hemos podido guardar en este dispositivo. Exporta tu lista para no perderla. | Exportar · Reintentar | M1 |
+| Sin copia en 30 días | Aún no has guardado ninguna copia de tu lista. Exporta una por si este navegador borra los datos de GameAgenda. (Con una copia anterior: Tu última copia de la lista es de hace 34 días. Exporta otra…) | Exportar · Ahora no | M1 |
 | Importación no válida | Este archivo no es una copia válida de GameAgenda. No hemos cambiado nada. | Elegir otro | M1 |
 | Sincronización fallida | No hemos podido sincronizar 3 cambios. Lo seguiremos intentando. | Reintentar ahora | M4 |
 
 El aviso del catálogo solo sale en `none`: en cuanto el Worker pasa a `scan` (M1) o a `boot` (M3), la paleta busca en el catálogo (en `boot`, en los 20 000 juegos más populares), aunque el índice aún se esté construyendo (ver §8.8). Mensajes junto al elemento, nunca en un modal (`role="alert"` solo para los críticos). [Safari](https://webkit.org/blog/10218/full-third-party-cookie-blocking-and-more/) no aplica el límite de 7 días a las apps de la pantalla de inicio (verificado el 28-10-2026).
+
+El aviso de copia (RNF-08) cuenta 30 días desde la última exportación, en JSON o CSV, o, si nunca se ha exportado, desde que hubo algo en Mi lista. «Ahora no» lo aplaza 7 días. No sale a la vez que el de iOS sin instalar, que ya ofrece exportar. Desde M4, también lo reinicia la sincronización. Va arriba de Mi lista y se lee de `meta.copyReminder` antes de pintar, así que nunca aparece después empujando la lista (regla 3 de la §9.5).
 
 ### 9.7 Accesibilidad (WCAG 2.2 AA)
 

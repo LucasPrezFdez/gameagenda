@@ -2,6 +2,7 @@
 // tocar la red, en una sola transacción de lectura.
 import type { Entry } from '@gameagenda/core/entries';
 import { type HlcClockSnapshot, MAX_COUNTER, MAX_HLC_MS } from '@gameagenda/core/sync';
+import { type CopyReminderState, parseCopyReminder } from '../data/copy-reminder.ts';
 import { type GameAgendaDb, META_KEYS } from './database.ts';
 
 export interface LocalState {
@@ -10,6 +11,8 @@ export interface LocalState {
   /** Filas de `settings` como clave → valor (sin validar). */
   readonly settings: Readonly<Record<string, unknown>>;
   readonly clock: HlcClockSnapshot | null;
+  /** Antes de pintar: el aviso de la copia no aparece después, empujando Mi lista (§9.5, regla 3). */
+  readonly copyReminder: CopyReminderState | null;
 }
 
 function isCount(value: unknown): value is number {
@@ -27,15 +30,17 @@ export function clockSnapshotOf(value: unknown): HlcClockSnapshot | null {
 
 export function loadLocalState(db: GameAgendaDb): Promise<LocalState> {
   return db.transaction('r', db.entries, db.settings, db.meta, async () => {
-    const [entries, settings, clock] = await Promise.all([
+    const [entries, settings, clock, copyReminder] = await Promise.all([
       db.entries.toArray(),
       db.settings.toArray(),
       db.meta.get(META_KEYS.hlcClock),
+      db.meta.get(META_KEYS.copyReminder),
     ]);
     return {
       entries,
       settings: Object.fromEntries(settings.map((row) => [row.key, row.value])),
       clock: clockSnapshotOf(clock?.value),
+      copyReminder: parseCopyReminder(copyReminder?.value),
     };
   });
 }

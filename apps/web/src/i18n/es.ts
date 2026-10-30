@@ -304,6 +304,11 @@ export const es = {
     iosSteps: 'En Safari, toca Compartir y después «Añadir a pantalla de inicio».',
     export: 'Exportar',
     dismiss: 'Ocultar este aviso',
+    copyNever:
+      'Aún no has guardado ninguna copia de tu lista. Exporta una por si este navegador borra los datos de GameAgenda.',
+    copyOld: (days: number) =>
+      `Tu última copia de la lista es de hace ${days} días. Exporta otra por si este navegador borra los datos de GameAgenda.`,
+    later: 'Ahora no',
     storageFailed:
       'No hemos podido guardar en este dispositivo. Exporta tu lista para no perderla.',
     importInvalid: 'Este archivo no es una copia válida de GameAgenda. No hemos cambiado nada.',

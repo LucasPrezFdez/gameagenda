@@ -12,7 +12,7 @@ export const SCHEMA_V1 = {
   entries: 'id, [view+rank], lastHlc, deletedAt',
   outbox: 'opId, [entryId+field]',
   settings: 'key',
-  meta: 'key', // hlcClock, catalog, searchIndex, syncCursor, backup, errorLog
+  meta: 'key', // hlcClock, catalog, searchIndex, syncCursor, backup, errorLog, copyReminder
 } as const;
 
 export interface SettingRow {
@@ -30,6 +30,7 @@ export const META_KEYS = {
   hlcClock: 'hlcClock',
   backup: 'backup',
   errorLog: 'errorLog',
+  copyReminder: 'copyReminder',
 } as const;
 
 export type GameAgendaDb = Dexie & {

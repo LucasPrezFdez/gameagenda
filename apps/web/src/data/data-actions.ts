@@ -22,6 +22,7 @@ import {
   settingsPatch,
   settingsRecord,
 } from '../settings/settings-store.ts';
+import type { CopyReminderStore } from './copy-reminder.ts';
 
 /** Importar admite ficheros de hasta 10 MB (§7.5). */
 export const MAX_IMPORT_BYTES = 10 * 1024 * 1024;
@@ -31,6 +32,8 @@ export interface DataServices {
   readonly settings: SettingsStore;
   /** Versión de la app (`__APP_VERSION__`), para el fichero exportado. */
   readonly appVersion: string;
+  /** Exportar (JSON o CSV) vuelve a contar los 30 días del aviso de copia (RNF-08). */
+  readonly copyReminder?: Pick<CopyReminderStore, 'copied'>;
 }
 
 export type ImportOutcome =
@@ -160,14 +163,18 @@ export function download(file: ExportedFile): void {
 }
 
 export function exportJson(services: DataServices): string {
-  const file = buildJsonExport(services);
+  const now = new Date();
+  const file = buildJsonExport(services, now);
   download(file);
+  services.copyReminder?.copied(now.getTime());
   return file.name;
 }
 
 export function exportCsv(services: DataServices): string {
-  const file = buildCsvExport(services);
+  const now = new Date();
+  const file = buildCsvExport(services, now);
   download(file);
+  services.copyReminder?.copied(now.getTime());
   return file.name;
 }
 

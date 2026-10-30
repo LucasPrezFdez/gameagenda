@@ -39,3 +39,9 @@ export async function expectStoredSetting(page: Page, key: string, value: unknow
     .poll(() => storedRow(page, 'settings', key), { timeout: 10_000 })
     .toEqual({ key, value });
 }
+
+/** El valor de `meta.key` guardado, o `null` si aún no está. */
+export async function storedMeta(page: Page, key: string): Promise<unknown> {
+  const row = (await storedRow(page, 'meta', key)) as { value: unknown } | null;
+  return row?.value ?? null;
+}

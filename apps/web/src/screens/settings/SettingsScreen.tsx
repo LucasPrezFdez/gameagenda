@@ -93,14 +93,14 @@ type ImportState =
 const loadDataActions = () => import('../../data/data-actions.ts');
 
 function Data() {
-  const { agenda, settings, notices, search } = useServices();
+  const { agenda, settings, notices, search, copyReminder } = useServices();
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [word, setWord] = useState('');
   const [importState, setImportState] = useState<ImportState>({ kind: 'idle' });
   const fileRef = useRef<HTMLInputElement>(null);
   const id = useId();
-  const services = { agenda, settings, appVersion: __APP_VERSION__ };
+  const services = { agenda, settings, appVersion: __APP_VERSION__, copyReminder };
 
   function failed(error: unknown): void {
     logError('storage', error);
