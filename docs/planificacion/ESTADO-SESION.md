@@ -9,7 +9,7 @@
 - **Cambio del 29-10-2026:** la app de escritorio para Windows (envoltorio Tauri de la misma web, con el atajo global `Ctrl+Mayús+Espacio`) pasa de Fase 2 a **M3**. M3 sube a 4–6 días y el total, a 23–32 días ideales. Detalle en la §17.3 y la §15.6 de `prototipe.md`; el porqué, en `DECISIONES.md` §10.16.
 - **Repositorio:** <https://github.com/LucasPrezFdez/gameagenda> (`main`). El usuario pidió el 29-10-2026 ir haciendo *commits* y subirlos sin preguntar, dejar los despliegues para más adelante y centrarse en la app.
 - **M0 · Esqueleto:** pasos 1–3 hechos (repositorio, *workspaces*, herramientas). Los pasos 4–8 (CI, despliegues, comprobaciones «a verificar en M0», ADR-001 a 003, `v0.0.1`) quedan **aplazados** hasta que haya cuentas de GitHub Actions y Cloudflare.
-- **M1 · Apuntar: listo para cerrar** (30-10-2026). Están hechos el `CHANGELOG.md` y la versión 0.1.0 en `package.json` y en `apps/web`. Falta crear la etiqueta `v0.1.0`, que se crea cuando el usuario lo confirme. Todo está en `main` y subido, sin agentes ni *worktrees* abiertos:
+- **M1 · Apuntar: cerrado con `v0.1.0`** (30-10-2026; etiqueta anotada en GitHub, con `CHANGELOG.md`). Las mediciones en el dispositivo pasan a M3 (ver «Pendiente de M1», punto 6). Todo está en `main` y subido, sin agentes ni *worktrees* abiertos:
   - **Búsqueda.** En `core`: `normalize`, `catalog-format`, `search` y `search-quality`. Sobre la copia congelada: conjunto dorado 94,9 % / 99,0 %, exactos 99,9 %, prefijos 93,1 %, y `scan` da lo mismo que `full`.
   - **Worker y catálogo.** Worker real con Cache Storage `gacat-<versión>`, `/catalog-dev/` y Catálogo virtual. Mini-catálogo de 298 juegos en `fixtures/catalog/`, generado con `npm run catalog:frozen`.
   - **Agenda.** En `core`: `entries`, `sync`, `steam-link` y `schemas`. En la app, Dexie:
@@ -26,7 +26,7 @@
   - **ADR:** 001, 002, 004, 005 y 006 (propuesta), con índice en `docs/adr/README.md`. ADR-003 espera a los despliegues.
   - **Pruebas:** 536 unitarias y 102 E2E en verde (6 saltadas a propósito). `npm run perf`, en verde desde el 30-10-2026.
   - **Nota para los E2E:** WebKit en Windows tarda ≈260 ms en guardar un alta en IndexedDB. Las pruebas que recargan después de una acción esperan con `expectStored` (`apps/web/e2e/storage.ts`). Si hay otra vista previa abierta, lanza los E2E con otro `E2E_PORT`, porque `reuseExistingServer` la reutilizaría.
-- **Pendiente de M1** (por orden; el CHANGELOG ya está y la etiqueta `v0.1.0` espera a que el usuario la confirme):
+- **Pendiente de M1** (M1 se cerró con `v0.1.0`; solo queda el punto 6, que pasa a M3):
   1. ~~**Presupuesto de la pulsación en escritorio.**~~ **Hecho el 30-10-2026** (sesión 4): ≤16 ms a ≥120 Hz y ≤2 fotogramas por debajo (≈33 ms a 60 Hz), decisión del usuario. Cambiados RNF-02, §8.9, §12.4, CA1.5, ADR-005 y `DECISIONES.md` §10.17. `npm run perf` mide la frecuencia y aplica el límite: 23,1 ms de p95 frente a ≤33,3 ms a 60 Hz.
   2. ~~**CA1.11.**~~ **Hecho el 30-10-2026:** con ×4, el escaneo está listo en 1 553–1 644 ms tras un reinicio con caché (antes, ≈2,2 s). Se optimizaron `normalize`, el pajar, los nombres españoles, la tabla de exactos, `articleLength` y el lector del TSV. Detalle en `docs/medidas/builder-m1-20261030.md`.
   3. ~~**Tareas largas con ×4.**~~ **Hecho el 30-10-2026:**
@@ -45,7 +45,7 @@
      - De paso: `npm audit` da 4 avisos leves de `deepmerge` (vía `workbox-build`, solo en el *build*). npm propone bajar `workbox-build` a la 5.1.4, que rompe cosas; no se ha tocado.
   6. **Lo que mide el usuario:** el Android de referencia (CA1.4, CA1.11 y RNF-02) y la pasada con NVDA (CA1.10). Si no hay Android, se cierra con `perf` y su medición pasa a M3 con un *issue*.
      - Guía paso a paso en `docs/medidas/guia-dispositivo-m1.md` (30-10-2026), con un fragmento de DevTools para p50 y p95 y una tabla de resultados. El usuario pega la tabla en el chat y se guarda en `docs/medidas/dispositivo-m1-AAAAMMDD.md`.
-     - Si se pasa a M3: el texto del *issue* está preparado, pero `gh` no está instalado (`winget install --id GitHub.cli -e` y `gh auth login`).
+     - Pasan a M3 por decisión del usuario (30-10-2026). El *issue* lo crea el asistente cuando el usuario instale `gh` (`winget install --id GitHub.cli -e` y `gh auth login`).
      - Dudas abiertas de la guía: en Android, «con la barra» (la de Chrome no se arrastra) y «Fin» (necesita un teclado); y CA1.11 en el móvil con ≈10 entradas, frente a las 500 de `perf` (se puede generar una copia de 500 para importar).
 - **Hallazgos de M0 para el ADR-002** (paso 7):
   - Biome 2.6.4 y `wrangler` 4.155.0 en lugar de 2.6.3 y 4.154.0 (publicados el 28-10-2026; la §6 ya está al día). `wrangler` 4.153–4.155 depende de `miniflare` 5.x *beta*: es su dependencia interna, no una elección nuestra.
