@@ -45,7 +45,7 @@
      - De paso: `npm audit` da 4 avisos leves de `deepmerge` (vía `workbox-build`, solo en el *build*). npm propone bajar `workbox-build` a la 5.1.4, que rompe cosas; no se ha tocado.
   6. **Lo que mide el usuario:** el Android de referencia (CA1.4, CA1.11 y RNF-02) y la pasada con NVDA (CA1.10). Si no hay Android, se cierra con `perf` y su medición pasa a M3 con un *issue*.
      - Guía paso a paso en `docs/medidas/guia-dispositivo-m1.md` (30-10-2026), con un fragmento de DevTools para p50 y p95 y una tabla de resultados. El usuario pega la tabla en el chat y se guarda en `docs/medidas/dispositivo-m1-AAAAMMDD.md`.
-     - Pasan a M3 por decisión del usuario (30-10-2026). El *issue* lo crea el asistente cuando el usuario instale `gh` (`winget install --id GitHub.cli -e` y `gh auth login`).
+     - Pasan a M3 por decisión del usuario (30-10-2026), en el *issue* [#1](https://github.com/LucasPrezFdez/gameagenda/issues/1).
      - Dudas abiertas de la guía: en Android, «con la barra» (la de Chrome no se arrastra) y «Fin» (necesita un teclado); y CA1.11 en el móvil con ≈10 entradas, frente a las 500 de `perf` (se puede generar una copia de 500 para importar).
 - **Hallazgos de M0 para el ADR-002** (paso 7):
   - Biome 2.6.4 y `wrangler` 4.155.0 en lugar de 2.6.3 y 4.154.0 (publicados el 28-10-2026; la §6 ya está al día). `wrangler` 4.153–4.155 depende de `miniflare` 5.x *beta*: es su dependencia interna, no una elección nuestra.
@@ -59,7 +59,7 @@
 | Qué | Para qué | Cómo |
 |---|---|---|
 | Pedir la clave de la Steam Web API | Columna vertebral documentada del catálogo desde M2 (M1 funciona sin clave) | https://steamcommunity.com/dev/apikey — exige una cuenta no limitada (≥5 US$ gastados) y Steam Guard móvil; en «dominio» vale `localhost`. **No la pegues en el chat:** se guardará solo en `.env.local` y en un secreto de GitHub |
-| Cuenta de GitHub | Repositorio privado, CI y pipeline | En M0 se instala `gh` (`winget install --id GitHub.cli -e`) y se hace `gh auth login` |
+| ~~Cuenta de GitHub~~ | **Hecho el 30-10-2026:** `gh` 2.103.3 instalado (`C:Program FilesGitHub CLIgh.exe`) y con sesión como `LucasPrezFdez` (ámbitos `repo`, `read:org` y `gist`). No toca las credenciales de git | — |
 | Cuenta gratuita de Cloudflare | *Hosting* de `ga-web` y `ga-catalog` | https://dash.cloudflare.com/sign-up; en M0, `npx wrangler login` |
 | Cuenta de healthchecks.io (gratis) | Aviso si el pipeline diario deja de ejecutarse | No es urgente: se usa en M2 |
 | Móviles reales | Medir los presupuestos de rendimiento | Un Android de gama media de referencia (M1) y un iPhone, aunque sea prestado (M3 y M4) |
