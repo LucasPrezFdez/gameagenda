@@ -308,7 +308,8 @@ describe('npm run catalog:build -- --source=fixtures', () => {
       CATALOG_SIGNING_KID: 'prod-1',
     });
     expect(p.status).toBe(2);
-    expect(p.stderr).toContain('kid «prod-1» desconocido');
+    // Desde que `prod-1` está en `CATALOG_SIGNING_KEYS`, la de desarrollo ya no casa con su kid.
+    expect(p.stderr).toContain('«prod-1»');
     expect(catalogBuild([`--out=${out}`, '--dev-sign', '--require-signature']).status).toBe(2);
     expect(readdirSync(out)).toEqual([]);
   });

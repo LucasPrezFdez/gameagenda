@@ -197,7 +197,8 @@ jobs:
           STAGE_RAW: ${{ steps.stage.outputs.raw }}
           STAGE_NOW: ${{ steps.stage.outputs.now }}
         run: |
-          args=(--version="$VERSION")
+          # Sin una clave de firma `prod` cargada, `build.ts` sale con 2 y no escribe nada.
+          args=(--version="$VERSION" --require-signature)
           if [ "$KEYLESS" = true ]; then args+=(--keyless); fi
           if [ "$SKIP_DELTA" = true ]; then args+=(--skip-delta-gates); fi
           if [ "$SOURCE" = staging ]; then args+=(--from-raw="$STAGE_RAW" --now="$STAGE_NOW"); fi
