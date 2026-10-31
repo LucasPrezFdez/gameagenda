@@ -13,8 +13,8 @@
 // La caché es de confianza: solo se escribe tras verificar la firma y los `sha256`, así que al
 // arrancar no se vuelve a verificar la firma (tampoco hace falta Ed25519 para usarla: RNF-12).
 //
-// Aún no se escribe `meta.catalog` en IndexedDB: la versión vigente es la del *manifest*
-// guardado en la caché y el *manifest* se comprueba en cada arranque (no cada 12 h).
+// La versión vigente es la del *manifest* guardado en la caché. Cuándo se vuelve a pedir el
+// *manifest* (como mucho cada 12 h) lo decide `host.ts` con `meta.catalog` (`catalog-meta.ts`).
 import {
   type CatalogManifest,
   type CatalogSigningKey,

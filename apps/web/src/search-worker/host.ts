@@ -4,8 +4,10 @@
 // como mucho un bloque; en `scan` ya se busca en todo el catálogo. El índice se construye sobre el
 // núcleo con `recent` ya aplicado (§7.6).
 //
-// Actualización (§5.3 y §5.4): tras arrancar con la caché se comprueba el *manifest*; una versión
-// nueva se descarga (regla de los 7 días en `catalog-store.ts`) y se indexa en segundo plano. Si
+// Actualización (§5.3 y §5.4): tras arrancar con la caché se comprueba el *manifest* si han pasado
+// 12 h desde la última vez (`meta.catalog`, ver `catalog-meta.ts`); si no, cuando toque. Al volver
+// la red y con «Actualizar catálogo», siempre. Una versión nueva se descarga (regla de los 7 días
+// en `catalog-store.ts`) y se indexa en segundo plano. Si
 // falla, sigue el catálogo vigente: un *manifest* rechazado (firma, navegador o app) se anuncia en
 // `status.error`; un fichero que da 404 hace releer el *manifest* una vez y, si sigue igual (o
 // falla la red), se reintenta más tarde con una espera que se dobla.
@@ -41,6 +43,7 @@ import type {
   UiToWorkerMessage,
   WorkerToUiMessage,
 } from '../search-client/protocol.ts';
+import type { CatalogMetaStore } from './catalog-meta.ts';
 import {
   type CatalogErrorCode,
   CatalogLoadError,
@@ -67,6 +70,8 @@ export interface HostTestHooks {
   hold(): 'none' | 'scan' | null;
   /** Antes de cada carga del catálogo; puede lanzar un error de red simulado. */
   beforeLoad(): void;
+  /** ¿Se comprueba el *manifest* en cada arranque, sin esperar las 12 h? */
+  checkEveryStart?(): boolean;
 }
 
 export interface HostDeps {
@@ -75,9 +80,21 @@ export interface HostDeps {
   now(): number;
   /** Ejecuta `task` en otra tarea, cediendo el turno (en el Worker, con un `MessageChannel`). */
   schedule(task: () => void): void;
-  /** Ejecuta `task` dentro de `ms` (`setTimeout`): los reintentos de una actualización fallida. */
+  /**
+   * Ejecuta `task` dentro de `ms` (`setTimeout`): los reintentos de una actualización fallida y
+   * la comprobación periódica del *manifest*.
+   */
   setTimer?(task: () => void, ms: number): void;
   readonly store: CatalogStore;
+  /**
+   * `meta.catalog` (§7.6). Con él, el *manifest* se comprueba como mucho cada `checkIntervalMs`
+   * (siempre al volver la red y con «Actualizar catálogo»); sin él, en cada arranque.
+   */
+  readonly catalogMeta?: CatalogMetaStore;
+  /** Reloj de pared en ms (`Date.now`): `meta.catalog` tiene que valer entre arranques. */
+  wallClock?(): number;
+  /** Cada cuánto se comprueba el *manifest*; por defecto, `CHECK_INTERVAL_MS`. */
+  readonly checkIntervalMs?: number;
   loadFuzzy(): Promise<FuzzyMatcher>;
   /** Plazo de cada bloque de trabajo: ≈6 ms da bloques de ≤8 ms (§8.8). */
   readonly sliceMs?: number;
@@ -103,6 +120,8 @@ const BUILDER_SCAN_AT = 0.5;
 /** Reintentos de una actualización fallida: 1 min, 2, 4… hasta 1 h. */
 export const RETRY_MIN_MS = 60_000;
 export const RETRY_MAX_MS = 3_600_000;
+/** Comprobación del *manifest* con un catálogo en uso: como mucho cada 12 h (§5.3). */
+export const CHECK_INTERVAL_MS = 12 * 3_600_000;
 
 /**
  * Fallos de la actualización que se anuncian en `status.error` aunque se siga buscando con el
@@ -218,6 +237,9 @@ export function createSearchHost(deps: HostDeps): SearchHost {
   let checking: Promise<void> | null = null;
   let retryPending = false;
   let retryAttempts = 0;
+  /** La comprobación periódica pendiente: solo vale la última programada. */
+  let checkTicket = 0;
+  const wallClock = (): number => (deps.wallClock ? deps.wallClock() : Date.now());
 
   let latestSeq = 0;
   let lastQuery: { seq: number; q: string; strong: number; appids: number[] } | null = null;
@@ -431,8 +453,8 @@ export function createSearchHost(deps: HostDeps): SearchHost {
     if (cached) {
       downloadProgress = 1;
       startJob(cached, true);
-      // El *manifest* se comprueba después, sin retrasar la búsqueda (§5.3).
-      void checkForUpdate().catch(() => undefined);
+      // El *manifest* se comprueba después, sin retrasar la búsqueda, y solo si toca (§5.3).
+      void checkWhenDue(cached.manifest.version).catch(() => undefined);
       return;
     }
     const manifest = await deps.store.fetchManifest();
@@ -444,6 +466,7 @@ export function createSearchHost(deps: HostDeps): SearchHost {
     if (!texts) throw new CatalogLoadError('manifest', 'El manifest releído no sirve');
     downloadProgress = 1;
     startJob(texts, true);
+    checked(texts.manifest.version);
   }
 
   function startLoad(): void {
@@ -492,11 +515,49 @@ export function createSearchHost(deps: HostDeps): SearchHost {
     const manifest = await deps.store.fetchManifest();
     // Firma válida: lo que se anunciaba de una comprobación anterior ya no vale.
     setUpdateError(null);
+    let version = manifest.version;
     if (isUpdate(manifest, activeSource(), force)) {
       const texts = await downloadNewest(manifest, force);
+      if (texts) version = texts.manifest.version;
       if (texts && isUpdate(texts.manifest, activeSource(), force)) adopt(texts);
     }
     retryAttempts = 0;
+    checked(version);
+  }
+
+  function checkInterval(): number {
+    return hooks?.checkEveryStart?.() ? 0 : (deps.checkIntervalMs ?? CHECK_INTERVAL_MS);
+  }
+
+  /** Una comprobación correcta: se apunta en `meta.catalog` y se programa la siguiente. */
+  function checked(version: string): void {
+    const meta = deps.catalogMeta;
+    if (!meta) return;
+    void meta.write({ version, checkedAt: wallClock() }).catch(() => undefined);
+    scheduleCheck(checkInterval());
+  }
+
+  /** Comprobación periódica, por si la app sigue abierta: una sola pendiente. */
+  function scheduleCheck(ms: number): void {
+    if (!deps.setTimer || ms <= 0) return;
+    checkTicket++;
+    const ticket = checkTicket;
+    deps.setTimer(() => {
+      if (ticket === checkTicket) void checkForUpdate().catch(() => undefined);
+    }, ms);
+  }
+
+  /**
+   * Arranque con la caché: comprueba el *manifest* si han pasado 12 h desde la última vez o si
+   * `meta.catalog` es de otra versión (o no hay); si no, lo programa para cuando toque. Un reloj
+   * que ha ido hacia atrás cuenta como «toca».
+   */
+  async function checkWhenDue(version: string): Promise<void> {
+    const last = deps.catalogMeta ? await deps.catalogMeta.read().catch(() => null) : null;
+    const interval = checkInterval();
+    const elapsed = last?.version === version ? wallClock() - last.checkedAt : Number.NaN;
+    if (elapsed >= 0 && elapsed < interval) scheduleCheck(interval - elapsed);
+    else await checkForUpdate();
   }
 
   /** Pasa al catálogo descargado: indexándolo en segundo plano o, si da el mismo índice, ya. */

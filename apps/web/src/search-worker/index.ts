@@ -5,6 +5,7 @@
 import { loadFuzzy } from '@gameagenda/core/search';
 import { catalogBaseUrl } from '../search-client/catalog-url.ts';
 import type { TestControlMessage, UiToWorkerMessage } from '../search-client/protocol.ts';
+import { createIndexedDbCatalogMeta } from './catalog-meta.ts';
 import { createCatalogStore, signingKeysForMode } from './catalog-store.ts';
 import { createWorkerTestHooks } from './e2e-hooks.ts';
 import { createSearchHost } from './host.ts';
@@ -40,6 +41,9 @@ const host = createSearchHost({
     // Solo existe en el *build* del modo `e2e` (ver `e2e-hooks.ts`).
     acceptUnverifiedDevSignature: testHooks?.unverifiedDevSignature,
   }),
+  // Sin IndexedDB, el *manifest* se comprueba en cada arranque.
+  catalogMeta: 'indexedDB' in self ? createIndexedDbCatalogMeta(self.indexedDB) : undefined,
+  wallClock: () => Date.now(),
   loadFuzzy,
   testHooks,
 });

@@ -9,8 +9,9 @@ import type {
   UiToWorkerMessage,
   WorkerToUiMessage,
 } from '../search-client/protocol.ts';
+import type { CatalogMeta, CatalogMetaStore } from './catalog-meta.ts';
 import { createCatalogStore, signingKeysForMode } from './catalog-store.ts';
-import { createSearchHost, type HostTestHooks, RETRY_MIN_MS } from './host.ts';
+import { CHECK_INTERVAL_MS, createSearchHost, type HostTestHooks, RETRY_MIN_MS } from './host.ts';
 import {
   catalogServer,
   MemoryCacheStorage,
@@ -35,6 +36,10 @@ interface SetupOptions {
   readonly subtle?: SubtleCrypto;
   /** `fetch` sobre el del servidor en memoria (para fallos puntuales). */
   readonly wrapFetch?: (inner: typeof fetch) => typeof fetch;
+  /** `meta.catalog`: sin él, el *manifest* se comprueba en cada arranque. */
+  readonly catalogMeta?: CatalogMetaStore;
+  /** Reloj de pared (ms desde 1970). */
+  readonly wallClock?: () => number;
 }
 
 function setup(options: SetupOptions = {}) {
@@ -59,6 +64,8 @@ function setup(options: SetupOptions = {}) {
     loadFuzzy,
     progressIntervalMs: 0,
     testHooks: options.hooks ?? null,
+    catalogMeta: options.catalogMeta,
+    wallClock: options.wallClock,
   });
   let reqId = 0;
   const send = (message: UiToWorkerMessage) => host.handle(structuredClone(message));
@@ -585,5 +592,140 @@ describe('createSearchHost · catálogo vivo (M2)', () => {
     await new Promise((resolve) => setTimeout(resolve, 10));
     expect(t.timers.pending).toEqual([]);
     expect(t.lastStatus()?.error).toBeNull();
+  });
+});
+
+/** `meta.catalog` en memoria, con lo escrito en orden. */
+function memoryMeta(initial: CatalogMeta | null = null) {
+  let value = initial;
+  const writes: CatalogMeta[] = [];
+  const store: CatalogMetaStore = {
+    read: async () => value,
+    async write(meta) {
+      value = meta;
+      writes.push(meta);
+    },
+  };
+  return {
+    store,
+    writes,
+    get value() {
+      return value;
+    },
+  };
+}
+
+const HOUR = 3_600_000;
+const NOW = Date.UTC(2026, 9, 31, 12);
+
+/** Peticiones de `manifest.json` desde el último `server.reset()`. */
+const manifestRequests = (t: ReturnType<typeof setup>) =>
+  t.server.state.requests.filter((url) => url.endsWith('manifest.json')).length;
+
+/** Vuelve a abrir la app con `20261028.1` en la caché y `meta` como se diga. */
+async function restart(
+  meta: ReturnType<typeof memoryMeta>,
+  options: Omit<SetupOptions, 'caches' | 'catalogMeta' | 'wallClock'> = {},
+) {
+  const caches = new MemoryCacheStorage();
+  await ready(setup({ caches }));
+  return setup({ ...options, caches, catalogMeta: meta.store, wallClock: () => NOW });
+}
+
+describe('createSearchHost · comprobación del manifest cada 12 h (meta.catalog)', () => {
+  it('la primera visita apunta la comprobación y programa la siguiente a las 12 h', async () => {
+    const meta = memoryMeta();
+    const t = setup({ catalogMeta: meta.store, wallClock: () => NOW });
+    t.server.serve(await publish('20261028.1'));
+    t.send(init);
+    await t.reach('full', '20261028.1');
+    expect(meta.writes).toEqual([{ version: '20261028.1', checkedAt: NOW }]);
+    expect(t.timers.pending).toEqual([CHECK_INTERVAL_MS]);
+  });
+
+  it('antes de 12 h, el arranque no pide el manifest: lo comprueba cuando toca', async () => {
+    const meta = memoryMeta({ version: '20261028.1', checkedAt: NOW - HOUR });
+    const t = await restart(meta);
+    t.server.serve(await publish('20261029.1', NEWER_ROWS));
+    t.server.reset();
+    t.send(init);
+    await t.reach('full', '20261028.1');
+    await t.scheduler.runUntil(() => t.timers.pending.length === 1);
+    expect(t.timers.pending).toEqual([CHECK_INTERVAL_MS - HOUR]);
+    expect(manifestRequests(t)).toBe(0);
+
+    // Llega la hora con la app abierta: la versión nueva se adopta y se apunta.
+    t.timers.fire();
+    await t.reach('full', '20261029.1');
+    expect(manifestRequests(t)).toBe(1);
+    expect(meta.value).toEqual({ version: '20261029.1', checkedAt: NOW });
+    expect(t.timers.pending).toEqual([CHECK_INTERVAL_MS]);
+  });
+
+  it.each([
+    ['de hace 12 h o más', { version: '20261028.1', checkedAt: NOW - 13 * HOUR }],
+    ['de otra versión', { version: '20261027.1', checkedAt: NOW - HOUR }],
+    ['del futuro (el reloj ha ido hacia atrás)', { version: '20261028.1', checkedAt: NOW + HOUR }],
+  ])('con una comprobación %s, el arranque pide el manifest y la apunta', async (_, last) => {
+    const meta = memoryMeta(last);
+    const t = await restart(meta);
+    t.server.serve(await publish('20261028.1'));
+    t.server.reset();
+    t.send(init);
+    await t.reach('full', '20261028.1');
+    await t.scheduler.runUntil(() => meta.writes.length === 1);
+    expect(manifestRequests(t)).toBe(1);
+    expect(meta.value).toEqual({ version: '20261028.1', checkedAt: NOW });
+    expect(t.timers.pending).toEqual([CHECK_INTERVAL_MS]);
+  });
+
+  it('la vuelta de la red y «Actualizar catálogo» comprueban aunque no hayan pasado 12 h', async () => {
+    const meta = memoryMeta({ version: '20261028.1', checkedAt: NOW - HOUR });
+    const t = await restart(meta);
+    t.server.serve(await publish('20261028.1'));
+    t.server.reset();
+    t.send(init);
+    await t.reach('full', '20261028.1');
+    await t.scheduler.runUntil(() => t.timers.pending.length === 1);
+    expect(manifestRequests(t)).toBe(0);
+
+    t.host.online();
+    await t.scheduler.runUntil(() => meta.writes.length === 1);
+    expect(manifestRequests(t)).toBe(1);
+    const refresh = t.request('refresh', {});
+    await t.scheduler.runUntil(() => refresh() !== undefined);
+    expect(refresh()).toMatchObject({ type: 'refresh' });
+    expect(manifestRequests(t)).toBe(2);
+    expect(meta.writes).toHaveLength(2);
+  });
+
+  it('una comprobación fallida no se apunta: se reintenta y el próximo arranque vuelve a comprobar', async () => {
+    const meta = memoryMeta({ version: '20261028.1', checkedAt: NOW - 13 * HOUR });
+    const t = await restart(meta);
+    const v2 = await publish('20261029.1', NEWER_ROWS);
+    t.server.serve({ ...v2, manifest: { ...v2.manifest, enrichmentAgeDays: 9 } });
+    t.server.reset();
+    t.send(init);
+    await t.scheduler.runUntil(() => t.lastStatus()?.error != null);
+    expect(t.lastStatus()?.error).toMatchObject({ code: 'signature' });
+    expect(meta.writes).toEqual([]);
+    expect(t.timers.pending).toEqual([RETRY_MIN_MS]);
+  });
+
+  it('el gancho `checkEveryStart` de los E2E comprueba en cada arranque y no programa nada', async () => {
+    const meta = memoryMeta({ version: '20261028.1', checkedAt: NOW - HOUR });
+    const hooks: HostTestHooks = {
+      hold: () => null,
+      beforeLoad() {},
+      checkEveryStart: () => true,
+    };
+    const t = await restart(meta, { hooks });
+    t.server.serve(await publish('20261028.1'));
+    t.server.reset();
+    t.send(init);
+    await t.reach('full', '20261028.1');
+    await t.scheduler.runUntil(() => meta.writes.length === 1);
+    expect(manifestRequests(t)).toBe(1);
+    expect(t.timers.pending).toEqual([]);
   });
 });

@@ -178,6 +178,7 @@ export interface TestControlMessage {
   readonly hold?: 'none' | 'scan' | null;
   readonly failFirstLoad?: boolean;
   readonly unverifiedDevSignature?: boolean;
+  readonly checkEveryStart?: boolean;
 }
 
 /** Lo mínimo de un `Worker` que necesita el cliente: un `Worker` real ya lo cumple. */

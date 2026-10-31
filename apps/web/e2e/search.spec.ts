@@ -53,7 +53,9 @@ test('sin red tras la primera visita: busca en todo el catálogo y apunta 5 jueg
   browserName,
 }, testInfo) => {
   test.skip(browserName !== 'chromium', 'Service Worker y modo sin red: en Chromium');
-  const checks = await setup(page);
+  // El Worker pide el *manifest* en cada arranque (sin esperar las 12 h): así se prueba que un
+  // fallo de red al comprobarlo no estorba.
+  const checks = await setup(page, { checkEveryStart: true });
   await page.goto('/');
   await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
   await waitForSearch(page, 'full');

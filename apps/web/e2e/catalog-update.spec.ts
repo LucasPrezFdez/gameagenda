@@ -118,7 +118,8 @@ test('regla de los 7 días: al día siguiente solo baja el manifest y los recien
 }) => {
   // Comprobado el 31-10-2026: en WebKit, `context.route` no ve las peticiones del Worker.
   test.skip(browserName !== 'chromium', 'Publicar con `context.route`: en Chromium');
-  const checks = await setup(page);
+  // Recarga enseguida: sin esto, el Worker esperaría 12 h para volver a pedir el *manifest*.
+  const checks = await setup(page, { checkEveryStart: true });
   await page.goto('/');
   await waitForSearch(page, 'full');
   expect((await catalogStatus(page))?.version).toBe(CURRENT);
@@ -151,7 +152,7 @@ test('un manifest manipulado no sustituye al catálogo vigente (CA2.3)', async (
   browserName,
 }) => {
   test.skip(browserName !== 'chromium', 'Verificar la firma necesita Ed25519: en Chromium');
-  const checks = await setup(page);
+  const checks = await setup(page, { checkEveryStart: true });
   await page.goto('/');
   await waitForSearch(page, 'full');
 
@@ -170,6 +171,33 @@ test('un manifest manipulado no sustituye al catálogo vigente (CA2.3)', async (
   expect(log.requests).toEqual(['manifest.json']);
   await search(page, 'hollow', 'Hollow Knight');
   await page.keyboard.press('Escape');
+  await checks.expectClean();
+});
+
+test('antes de 12 h, recargar no vuelve a pedir el manifest; «Actualizar catálogo», sí (§5.3)', async ({
+  page,
+  context,
+  browserName,
+}) => {
+  test.skip(browserName !== 'chromium', 'Publicar con `context.route`: en Chromium');
+  const checks = await setup(page);
+  await page.goto('/');
+  await waitForSearch(page, 'full');
+
+  const next = nextVersion();
+  const log = await publishNext(context, next.manifest, next.files);
+  await page.reload();
+  await waitForSearch(page, 'full');
+  // El Worker decide al arrancar con la caché, antes de llegar a `full`: un margen para que una
+  // petición del *manifest*, si la hubiera, pase por la ruta.
+  await page.waitForTimeout(500);
+  expect(log.requests).toEqual([]);
+  expect((await catalogStatus(page))?.version).toBe(CURRENT);
+
+  await page.goto('/ajustes/datos');
+  await page.getByRole('button', { name: 'Actualizar catálogo' }).click();
+  await waitForVersion(page, NEXT);
+  expect(log.requests).toContain('manifest.json');
   await checks.expectClean();
 });
 
@@ -199,6 +227,7 @@ test('sin Ed25519 (WebKit de Playwright en Windows): sigue el catálogo de la ca
     globalThis.__GA_SEARCH_TEST__ = {
       ...globalThis.__GA_SEARCH_TEST__,
       unverifiedDevSignature: false,
+      checkEveryStart: true,
     };
   });
   await page.reload();

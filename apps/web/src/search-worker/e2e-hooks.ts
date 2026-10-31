@@ -17,8 +17,10 @@ export function createWorkerTestHooks(): WorkerTestHooks {
   let hold: 'none' | 'scan' | null = null;
   let failNext = false;
   let unverifiedDev = false;
+  let everyStart = false;
   return {
     hold: () => hold,
+    checkEveryStart: () => everyStart,
     beforeLoad() {
       if (!failNext) return;
       failNext = false;
@@ -31,6 +33,7 @@ export function createWorkerTestHooks(): WorkerTestHooks {
       if (message.unverifiedDevSignature !== undefined) {
         unverifiedDev = message.unverifiedDevSignature;
       }
+      if (message.checkEveryStart !== undefined) everyStart = message.checkEveryStart;
     },
   };
 }

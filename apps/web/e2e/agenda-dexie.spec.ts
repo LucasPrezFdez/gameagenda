@@ -1,7 +1,7 @@
 // La agenda guardada en Dexie: recargar la conserva (CA1.8), estado y marca a ≤2 toques con
 // respuesta ≤100 ms (CA1.6), ficha editable con Deshacer (CA1.12) y dos pestañas coherentes.
 import { expect, type Page, test } from '@playwright/test';
-import { capture, measures, openPalette, setup, toast } from './helpers.ts';
+import { capture, measures, openPalette, setup, toast, waitForSearch } from './helpers.ts';
 import { expectStored } from './storage.ts';
 
 const row = (page: Page, title: string) =>
@@ -73,6 +73,9 @@ test('sin red: apunta, cambia estados y lo conserva al recargar (CA1.8)', async 
   const checks = await setup(page);
   await page.goto('/');
   await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
+  // La primera visita tiene que haber guardado el catálogo: con el equipo cargado, la descarga
+  // podía no haber acabado al cortar la red, y sin red no habría catálogo.
+  await waitForSearch(page, 'full');
   await context.setOffline(true);
   await page.reload();
   await capture(page, 'outer wilds', 'Outer Wilds');

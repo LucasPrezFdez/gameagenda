@@ -16,6 +16,11 @@ export interface SearchTestOptions {
    * ADR-005). En Chromium no cambia nada: la firma se verifica siempre.
    */
   readonly unverifiedDevSignature?: boolean;
+  /**
+   * El Worker pide el *manifest* en cada arranque en vez de cada 12 h (`meta.catalog`, §5.3):
+   * para las pruebas que «publican» otra versión y recargan enseguida.
+   */
+  readonly checkEveryStart?: boolean;
 }
 
 /** El `status` del Worker que guardan los ganchos (`StatusMessage` de `protocol.ts`). */

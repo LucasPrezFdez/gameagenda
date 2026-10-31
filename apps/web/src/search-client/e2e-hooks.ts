@@ -23,6 +23,11 @@ export interface SearchTestOptions {
    * igual. Ver ADR-005.
    */
   readonly unverifiedDevSignature?: boolean;
+  /**
+   * El Worker comprueba el *manifest* en cada arranque, como hasta M2, en vez de cada 12 h: para
+   * las pruebas que «publican» otra versión y recargan.
+   */
+  readonly checkEveryStart?: boolean;
 }
 
 export interface SearchTestHandle {
@@ -48,6 +53,7 @@ export function withTestHooks(worker: Worker, transport: SearchTransport): Searc
     hold: options.hold ?? null,
     failFirstLoad: options.failFirstLoad,
     unverifiedDevSignature: options.unverifiedDevSignature ?? true,
+    checkEveryStart: options.checkEveryStart,
   });
   let status: StatusMessage | null = null;
   const handle: SearchTestHandle = {
