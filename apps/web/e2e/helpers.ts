@@ -32,6 +32,19 @@ export async function setup(page: Page, search: SearchTestOptions = {}) {
       if (message.type() === 'error') errors.push(`Worker: ${message.text()}`);
     });
   });
+  // Ninguna prueba llega al CDN de portadas de Valve (M2): sin una ruta más concreta (la de
+  // `serveCovers`, en `details.ts`), una imagen de 1 × 1 px.
+  await page.context().route(/^https?:\/\/([^/]+\.)?steamstatic\.com\//, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'image/png',
+      headers: { 'Access-Control-Allow-Origin': '*' },
+      body: Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+        'base64',
+      ),
+    }),
+  );
   await page.addInitScript((options) => {
     globalThis.__GA_SEARCH_TEST__ = options;
     globalThis.__cspViolations = [];

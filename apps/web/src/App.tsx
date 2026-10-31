@@ -3,9 +3,11 @@
 import { lazy, type RefObject, Suspense, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useCommands } from './agenda/commands.ts';
 import { useCanUndo, useServices, useSettings } from './app/services.tsx';
+import { CoverNotice } from './components/CoverNotice.tsx';
 import { Icon, type IconName } from './components/icons.tsx';
 import { MenuButton } from './components/MenuButton.tsx';
 import { ScreenHeading } from './components/ScreenHeading.tsx';
+import { DetailsProvider } from './details/details-context.tsx';
 import { ErrorBoundary } from './errors/ErrorBoundary.tsx';
 import { es } from './i18n/es.ts';
 import { isEditableTarget, useMediaQuery, useOnline } from './lib/hooks.ts';
@@ -153,7 +155,16 @@ function Screens({ route, wide }: { route: Route; wide: boolean }) {
   );
 }
 
+/** La app: los detalles del catálogo (portadas, ficha y Próximos) envuelven la carcasa. */
 export function App() {
+  return (
+    <DetailsProvider>
+      <AppShell />
+    </DetailsProvider>
+  );
+}
+
+function AppShell() {
   const { route } = useLocation();
   const { notices } = useServices();
   const settings = useSettings();
@@ -274,6 +285,7 @@ export function App() {
         </main>
 
         <Toaster />
+        <CoverNotice hidden={route.name === 'settings' && route.section === 'privacy'} />
       </div>
     </PaletteProvider>
   );

@@ -273,6 +273,35 @@
   pointer-events: none;
 }
 
+/* Aviso de primera capa de las portadas (§11.2): fijo abajo, donde el de Deshacer, que sube por
+   encima de él (`--cover-notice-h` lo mide el componente). No empuja la lista (§9.5, regla 3) y,
+   con la paleta abierta, no la tapa. */
+.cover-notice {
+  position: fixed;
+  bottom: 24px;
+  left: calc(50% + 100px);
+  z-index: var(--z-toast);
+  width: min(36rem, calc(100vw - 2 * var(--gutter) - 200px));
+  translate: -50% 0;
+  box-shadow: var(--shadow);
+  animation: toast-in var(--motion) ease-out;
+}
+
+.cover-notice__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.app:has(.cover-notice) .toaster {
+  bottom: calc(24px + var(--cover-notice-h, 0px) + 8px);
+}
+
+.app:has(.palette.is-open) .cover-notice {
+  display: none;
+}
+
 .toast {
   display: flex;
   align-items: center;
@@ -304,7 +333,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .toast {
+  .toast,
+  .cover-notice {
     animation: none;
   }
 }
@@ -369,15 +399,26 @@
     display: inline-grid;
   }
 
-  .toaster {
+  .toaster,
+  .cover-notice {
+    --notices-bottom: calc(
+      var(--tabbar-h) +
+      var(--capturebar-h) +
+      12px +
+      env(safe-area-inset-bottom)
+    );
     left: 50%;
-    bottom: calc(var(--tabbar-h) + var(--capturebar-h) + 12px + env(safe-area-inset-bottom));
+    bottom: var(--notices-bottom);
     width: calc(100vw - 2 * var(--gutter));
   }
 
-  .app[data-route="catalog"] .toaster,
-  .app[data-route="game"] .toaster,
-  .app[data-route="settings"] .toaster {
-    bottom: calc(var(--tabbar-h) + 12px + env(safe-area-inset-bottom));
+  .app[data-route="catalog"] :is(.toaster, .cover-notice),
+  .app[data-route="game"] :is(.toaster, .cover-notice),
+  .app[data-route="settings"] :is(.toaster, .cover-notice) {
+    --notices-bottom: calc(var(--tabbar-h) + 12px + env(safe-area-inset-bottom));
+  }
+
+  .app:has(.cover-notice) .toaster {
+    bottom: calc(var(--notices-bottom) + var(--cover-notice-h, 0px) + 8px);
   }
 }

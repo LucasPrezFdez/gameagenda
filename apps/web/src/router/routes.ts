@@ -1,6 +1,13 @@
 // Rutas de la §9.1, sin dependencias del DOM (se prueban con Vitest).
 
-export const SETTINGS_SECTIONS = ['appearance', 'content', 'keyboard', 'data', 'about'] as const;
+export const SETTINGS_SECTIONS = [
+  'appearance',
+  'content',
+  'keyboard',
+  'data',
+  'privacy',
+  'about',
+] as const;
 export type SettingsSection = (typeof SETTINGS_SECTIONS)[number];
 
 /** Segmentos de URL en español para cada sección de Ajustes. */
@@ -9,6 +16,7 @@ export const SETTINGS_SLUGS: Readonly<Record<SettingsSection, string>> = {
   content: 'contenido',
   keyboard: 'teclado',
   data: 'datos',
+  privacy: 'privacidad',
   about: 'acerca-de',
 };
 

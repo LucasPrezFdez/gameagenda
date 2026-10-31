@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import type { AgendaEntry, Flags, Status } from '../../agenda/types.ts';
+import { dayNumber, type ReleaseInfo } from '../../details/release.ts';
 import {
   buildSections,
+  countUpcoming,
   countViews,
   DEFAULT_LIST_PARAMS,
   listSearchParams,
   parseListParams,
   priorityOf,
+  type ReleaseLookup,
 } from './list-model.ts';
 
 function entry(id: string, status: Status, rank: number, flags: Flags = {}): AgendaEntry {
@@ -84,5 +87,63 @@ describe('Mi lista', () => {
     const hades = entries[0];
     if (!hades) throw new Error('falta Hades II');
     expect(priorityOf(entries, hades)).toEqual({ position: 2, total: 2 });
+  });
+});
+
+describe('Próximos y orden por lanzamiento (M2, §9.2)', () => {
+  const day = (y: number, m: number, d: number) => ({ kind: 'day', y, m, d }) as const;
+  // Lunes, 2 de noviembre de 2026.
+  const releases: Record<string, ReleaseInfo> = {
+    Recién: { release: day(2026, 10, 28), comingSoon: false },
+    Viejo: { release: day(2020, 3, 12), comingSoon: false },
+    Jueves: { release: day(2026, 11, 5), comingSoon: true },
+    Martes: { release: day(2026, 11, 3), comingSoon: true },
+    Diciembre: { release: { kind: 'month', y: 2026, m: 12 }, comingSoon: true },
+    Lejano: { release: { kind: 'year', y: 2028 }, comingSoon: true },
+    Incierto: { release: { kind: 'tbd' }, comingSoon: true },
+  };
+  const games = [
+    ...Object.keys(releases).map((id, i) => entry(id, 'want_to_play', i + 1)),
+    entry('Manual', 'want_to_play', 20),
+    entry('Completo', 'completed', 21, { owned: true }),
+  ];
+  const lookup: ReleaseLookup = {
+    today: dayNumber(2026, 11, 2),
+    get: (e) => releases[e.id] ?? null,
+  };
+  const upcoming = { ...DEFAULT_LIST_PARAMS, view: 'upcoming' } as const;
+
+  it('agrupa: Ya disponibles, Esta semana, meses, Más adelante y Por confirmar', () => {
+    const sections = buildSections(games, upcoming, lookup);
+    expect(sections.map((s) => [s.key, s.entries.map((e) => e.id)])).toEqual([
+      ['recent', ['Recién']],
+      ['week', ['Martes', 'Jueves']],
+      ['month-2026-12', ['Diciembre']],
+      ['later', ['Lejano']],
+      ['tbd', ['Incierto']],
+    ]);
+    expect(countUpcoming(games, 'any', lookup)).toBe(6);
+    expect(countUpcoming(games, 'owned', lookup)).toBe(0);
+    expect(countUpcoming(games, 'any', null)).toBeNull();
+    // Sin las fechas, aún no hay secciones.
+    expect(buildSections(games, upcoming)).toEqual([]);
+    expect(parseListParams('?vista=proximos')).toEqual(upcoming);
+  });
+
+  it('ordena por lanzamiento: lo más antiguo primero y lo que no tiene fecha, al final', () => {
+    const params = { ...DEFAULT_LIST_PARAMS, view: 'all', order: 'release' } as const;
+    const [section] = buildSections(games, params, lookup);
+    expect(section?.entries.map((e) => e.id)).toEqual([
+      'Viejo',
+      'Recién',
+      'Martes',
+      'Jueves',
+      'Diciembre',
+      'Lejano',
+      'Incierto',
+      'Completo',
+      'Manual',
+    ]);
+    expect(listSearchParams(params).toString()).toBe('vista=todos&orden=lanzamiento');
   });
 });

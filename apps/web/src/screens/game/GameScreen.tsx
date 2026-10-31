@@ -1,6 +1,7 @@
 // Ficha básica de M1 (RF-20, RF-21; CA1.12): datos del núcleo y todos los campos de la entrada,
 // editables y con Deshacer. Junto a la lista desde 1 280 px, superpuesta entre 768 y 1 279 px y a
 // pantalla completa en móvil (ver §9.3).
+import type { GameDetailsView } from '@gameagenda/core/catalog-format';
 import { isValidDay, linkCandidate } from '@gameagenda/core/entries';
 import { useEffect, useId, useState } from 'react';
 import { useCommands } from '../../agenda/commands.ts';
@@ -28,6 +29,10 @@ import { ChoiceMenu } from '../../components/ChoiceMenu.tsx';
 import { Icon } from '../../components/icons.tsx';
 import { MenuButton } from '../../components/MenuButton.tsx';
 import { ScreenHeading } from '../../components/ScreenHeading.tsx';
+import { useGameDetails } from '../../details/details-context.tsx';
+import type { DetailsState } from '../../details/details-store.ts';
+import { localToday, releaseFromDetails } from '../../details/release.ts';
+import { releaseText } from '../../details/release-text.ts';
 import { es } from '../../i18n/es.ts';
 import { isEditableTarget } from '../../lib/hooks.ts';
 import { CaptureButton } from '../../palette/palette-context.tsx';
@@ -68,7 +73,63 @@ function steamUrl(appid: number): string {
   return `https://store.steampowered.com/app/${appid}/`;
 }
 
-function CoreFacts({ game }: { game: CoreGame }) {
+const PLATFORM_BITS = [
+  [1, es.game.platformName.windows],
+  [2, es.game.platformName.mac],
+  [4, es.game.platformName.linux],
+] as const satisfies ReadonlyArray<readonly [number, string]>;
+
+function reviewsText(details: GameDetailsView): string {
+  const summary = es.game.reviewScore[details.reviewScore];
+  // `review_score` 0: Steam no da valoración (sin reseñas o muy pocas).
+  if (!summary) return es.game.fewReviews(details.reviewCount);
+  return es.game.reviewsDetail(summary, details.reviewPercent, details.reviewCount);
+}
+
+/** Lanzamiento de la ficha: del *shard* y, si no está, el año del núcleo. */
+function releaseOf(game: CoreGame | null, details: GameDetailsView | null): string | null {
+  if (details) {
+    const info = {
+      release: releaseFromDetails(details.releaseTime, details.releasePrecision),
+      comingSoon: game ? (game.flags & GAME_FLAGS.comingSoon) !== 0 : null,
+    };
+    return releaseText(info, localToday(new Date()));
+  }
+  if (game && (game.flags & GAME_FLAGS.dateTba) !== 0) return es.release.tbd;
+  return game?.year != null ? String(game.year) : null;
+}
+
+/**
+ * Datos de los *shards* (CA2.8): Steam Deck, plataformas y reseñas. Mientras llegan, su hueco
+ * (§9.5, regla 4); sin detalles (sin índice, con el *kill switch* o sin red), la ficha básica.
+ */
+function SteamFacts({ state }: { state: DetailsState }) {
+  if (state.kind === 'unavailable') return null;
+  if (state.kind === 'loading') {
+    return (
+      <div className="sheet__details" aria-busy="true">
+        <span className="visually-hidden">{es.game.detailsLoading}</span>
+        <span className="skeleton skeleton--line" />
+        <span className="skeleton skeleton--line" />
+        <span className="skeleton skeleton--line" />
+      </div>
+    );
+  }
+  const { details } = state;
+  if (!details) return null;
+  const platforms = PLATFORM_BITS.filter(([bit]) => (details.platforms & bit) !== 0).map(
+    ([, name]) => name,
+  );
+  return (
+    <ul className="sheet__details" aria-label={es.game.details}>
+      <li>{es.game.deck(es.game.deckOption[details.deck] ?? es.game.deckOption[0] ?? '')}</li>
+      {platforms.length > 0 && <li>{platforms.join(' · ')}</li>}
+      <li>{es.game.reviews(reviewsText(details))}</li>
+    </ul>
+  );
+}
+
+function CoreFacts({ game, release }: { game: CoreGame; release: string | null }) {
   const badges = (
     [
       [GAME_FLAGS.free, es.game.free],
@@ -82,7 +143,7 @@ function CoreFacts({ game }: { game: CoreGame }) {
     .map(([, label]) => label);
   return (
     <p className="sheet__facts">
-      {game.year !== null && <span>{game.year}</span>}
+      {release !== null && <span className="sheet__release">{release}</span>}
       {game.nameEs !== null && <span>{game.name}</span>}
       {badges.map((badge) => (
         <span key={badge} className="badge">
@@ -328,6 +389,8 @@ export function GameScreen({ id }: { id: string }) {
   const appid = appidOf(id);
   const core = useCoreGame(appid);
   const game = core.kind === 'ready' ? core.game : null;
+  const details = useGameDetails(appid);
+  const view = details.kind === 'ready' ? details.details : null;
   const loading = appid !== null && core.kind === 'loading';
   const title = entry?.title ?? (game ? displayName(game) : '');
   const missing = !loading && !entry && !game;
@@ -392,12 +455,12 @@ export function GameScreen({ id }: { id: string }) {
         </div>
       ) : (
         <div className="sheet__top">
-          <Cover title={title} size="sheet" />
+          <Cover title={title} appid={game ? appid : null} size="sheet" />
           <div className="sheet__heading">
             <ScreenHeading id={`sheet-${id}`} documentTitle={title}>
               {title}
             </ScreenHeading>
-            {game && <CoreFacts game={game} />}
+            {game && <CoreFacts game={game} release={releaseOf(game, view)} />}
             {!game && entry && (
               <p className="sheet__facts">
                 <span className="badge">
@@ -405,6 +468,7 @@ export function GameScreen({ id }: { id: string }) {
                 </span>
               </p>
             )}
+            {game && <SteamFacts state={details} />}
           </div>
         </div>
       )}

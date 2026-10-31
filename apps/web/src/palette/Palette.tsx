@@ -19,8 +19,9 @@ import {
 } from 'react';
 import { v7 as uuidv7 } from 'uuid';
 import type { AgendaEntry, CaptureOptions, CaptureTarget } from '../agenda/types.ts';
-import { steamId } from '../agenda/types.ts';
+import { appidOf, steamId } from '../agenda/types.ts';
 import { useCatalogStatus, useEntriesById, useQueryState, useServices } from '../app/services.tsx';
+import { Cover } from '../components/bits.tsx';
 import { Icon } from '../components/icons.tsx';
 import { es } from '../i18n/es.ts';
 import { isEditableTarget } from '../lib/hooks.ts';
@@ -41,6 +42,8 @@ type LinkOption = Extract<PaletteOption, { kind: 'link' }>;
 
 /** Intro espera como mucho esto a los resultados del texto escrito (ver §8.7). */
 export const ENTER_WAIT_MS = 500;
+/** Las portadas de los resultados se piden tras este rato sin teclear (§9.5, regla 5). */
+export const COVER_DELAY_MS = 150;
 
 export interface PaletteActions {
   /** Apunta un juego; devuelve `false` si ya estaba en la lista. */
@@ -386,6 +389,17 @@ export function Palette({ actions, showBar, onClose, ref }: PaletteProps) {
     }, 0);
   }
 
+  // Portadas de los resultados: solo tras 150 ms sin teclear; mientras se teclea, ninguna petición
+  // (lo que ya se sabía de un juego se sigue viendo).
+  const [coverSeq, setCoverSeq] = useState(-1);
+  useEffect(() => {
+    if (!open) return;
+    const seq = query.seq;
+    const timer = setTimeout(() => setCoverSeq(seq), COVER_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [open, query.seq]);
+  const loadCovers = open && coverSeq === query.seq;
+
   // `search:keystroke-to-results`: del `input` al fotograma con los resultados de su `seq`.
   useLayoutEffect(() => {
     if (!open || query.text.trim() === '') return;
@@ -467,8 +481,15 @@ export function Palette({ actions, showBar, onClose, ref }: PaletteProps) {
           : displayName(option.game);
     const year =
       option.kind === 'entry' ? null : option.kind === 'link' ? option.year : option.game.year;
+    const appid =
+      option.kind === 'entry'
+        ? appidOf(option.entry.id)
+        : option.kind === 'link'
+          ? option.appid
+          : option.game.appid;
     return (
       <div key={option.key} {...common} data-kind={option.kind}>
+        <Cover title={name} appid={appid} size="palette" load={loadCovers} notice={false} />
         <span className="palette__name">{name}</span>
         <span className="palette__meta">
           {option.kind === 'link' && option.provisional && !option.resolving && (
