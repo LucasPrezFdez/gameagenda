@@ -187,6 +187,8 @@ describe('ajustes y registro de errores en Dexie', () => {
       showAdult: false,
       slashOpensPalette: false,
       listSearch: '',
+      loadCovers: true,
+      coverNotice: 'unseen',
     });
   });
 
