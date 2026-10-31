@@ -73,6 +73,8 @@ export interface CatalogSigningKey {
  * de producción solo vive en el secreto `CATALOG_SIGNING_KEY` de GitHub.
  */
 export const CATALOG_SIGNING_KEYS: readonly CatalogSigningKey[] = [
+  // Privada solo en el secreto `CATALOG_SIGNING_KEY` de GitHub (generada el 31-10-2026).
+  { kid: 'prod-1', ed25519: 'Myv8dlFljRr63lGOeNj_YspOLSTgv4p-lK-9HewunvQ', use: 'prod' },
   // Privada en `fixtures/signing/dev-catalog-key.pem` (generada el 31-10-2026).
   { kid: 'dev-1', ed25519: '92ri9B5j6K1FWTuSNRK-B1gRPwJZgOC4BsDI7zjC-80', use: 'dev' },
 ];

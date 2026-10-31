@@ -144,6 +144,7 @@ export const es = {
     views: 'Vistas',
     view: {
       pending: 'Pendientes',
+      upcoming: 'Próximos',
       want_to_play: 'Quiero jugar',
       playing: 'Jugando',
       on_hold: 'En pausa',
@@ -162,6 +163,7 @@ export const es = {
       priority: 'Prioridad',
       added: 'Fecha de apuntado',
       name: 'Nombre',
+      release: 'Lanzamiento',
     } satisfies Record<ListOrder, string>,
     filter: 'Filtrar lista',
     filterPlaceholder: 'Filtrar lista…',
@@ -192,6 +194,28 @@ export const es = {
     openSheet: 'Ver ficha',
     remove: 'Quitar de mi lista',
     loading: 'Cargando tu lista…',
+
+    // Próximos (M2; ver §9.2) y orden por lanzamiento.
+    upcoming: {
+      recent: 'Ya disponibles',
+      week: 'Esta semana',
+      later: 'Más adelante',
+      tbd: 'Por confirmar',
+      loading: 'Buscando las fechas de lanzamiento…',
+      empty: 'Ningún juego de tu lista sale pronto ni ha salido en los últimos 14 días.',
+    },
+    releaseLoading: 'Ordenando por lanzamiento…',
+  },
+
+  // Lanzamientos de los *shards* (§7.6 y §9.9).
+  release: {
+    tbd: 'Por confirmar',
+    today: 'Sale hoy',
+    outToday: 'Ha salido hoy',
+    upcoming: (date: string, when: string) => `Sale el ${date} · ${when}`,
+    recent: (date: string, when: string) => `Salió el ${date} · ${when}`,
+    quarter: (quarter: number, year: number) =>
+      `${['Primer', 'Segundo', 'Tercer', 'Cuarto'][quarter - 1] ?? ''} trimestre de ${year}`,
   },
 
   catalog: {
@@ -253,6 +277,32 @@ export const es = {
     captureAs: 'Apuntar como…',
     linkQuestion: (title: string) => `¿Es «${title}» de Steam?`,
     link: 'Vincular',
+
+    // Ficha completa (M2; CA2.8): datos de los *shards*.
+    details: 'Datos de Steam',
+    detailsLoading: 'Cargando los datos de Steam…',
+    deck: (label: string) => `Steam Deck: ${label}`,
+    /** `deck` del *shard*: 0 desconocido, 1 no compatible, 2 jugable, 3 verificado. */
+    deckOption: ['Desconocido', 'No compatible', 'Jugable', 'Verificado'] as readonly string[],
+    platformName: { windows: 'Windows', mac: 'macOS', linux: 'Linux' },
+    reviews: (summary: string) => `Reseñas: ${summary}`,
+    /** `review_score` de Steam (1–9), con los nombres de su tienda en español. */
+    reviewScore: [
+      '',
+      'Extremadamente negativas',
+      'Muy negativas',
+      'Negativas',
+      'Mayormente negativas',
+      'Variadas',
+      'Mayormente positivas',
+      'Positivas',
+      'Muy positivas',
+      'Extremadamente positivas',
+    ] as readonly string[],
+    reviewsDetail: (summary: string, pct: number, count: number) =>
+      `${summary} (${percent.format(pct / 100)} de ${plural(count, 'reseña', 'reseñas')})`,
+    fewReviews: (count: number) =>
+      count === 0 ? 'Sin reseñas' : plural(count, 'reseña', 'reseñas'),
   },
 
   settings: {
@@ -263,6 +313,7 @@ export const es = {
       content: 'Contenido',
       keyboard: 'Teclado y gestos',
       data: 'Datos',
+      privacy: 'Privacidad',
       about: 'Acerca de',
     } satisfies Record<SettingsSection, string>,
     theme: 'Tema',
@@ -294,6 +345,51 @@ export const es = {
         ? '1 juego ya estaba en tu lista.'
         : `${formatCount(count)} juegos ya estaban en tu lista.`,
     deleting: 'Borrando…',
+
+    // Catálogo (M2): su edad y «Actualizar catálogo» (§9.1, §15.5).
+    catalogTitle: 'Catálogo de Steam',
+    catalogVersion: (version: string, date: string, ago: string) =>
+      `Versión ${version}, del ${date} (${ago}).`,
+    catalogNone: 'Aún no hay catálogo en este dispositivo.',
+    catalogEnrichment: (days: number) =>
+      days === 1
+        ? 'Fechas, reseñas y portadas: de hace 1 día.'
+        : `Fechas, reseñas y portadas: de hace ${formatCount(days)} días.`,
+    catalogRefresh: 'Actualizar catálogo',
+    catalogRefreshing: 'Buscando una versión nueva…',
+    catalogUpToDate: 'Ya tienes la última versión del catálogo.',
+    catalogUpdated: (version: string) => `Hemos descargado el catálogo ${version}.`,
+    catalogRefreshFailed: 'No hemos podido comprobar el catálogo. Inténtalo más tarde.',
+  },
+
+  // Ajustes › Privacidad (M2; §11.1 y §11.2).
+  privacy: {
+    covers: 'Portadas',
+    loadCovers: 'Cargar portadas',
+    loadCoversHint:
+      'Las portadas se cargan desde servidores de Valve en EE. UU., que reciben tu dirección IP. Sin ellas, cada juego lleva una portada con sus iniciales.',
+    coversKilled: 'Ahora mismo las portadas están desactivadas para todos.',
+    steamData: 'Datos de Steam que guardamos',
+    what: 'Qué: el catálogo público de Steam (nombres, fechas de lanzamiento, reseñas, plataformas, compatibilidad con Steam Deck y las rutas de las portadas). No guardamos nada de tu cuenta de Steam.',
+    where:
+      'Dónde: en este dispositivo, en la caché del navegador. El catálogo se publica en la red global de Cloudflare, y GitHub, en EE. UU., guarda el estado del proceso que lo actualiza, sin datos personales.',
+    ip: 'Portadas: tu navegador las pide a los servidores de Valve en EE. UU. (shared.akamai.steamstatic.com), que reciben tu dirección IP. Van sin cookies ni página de origen, y nunca las copiamos en un servidor propio.',
+    agenda: 'Tu lista y tus ajustes se quedan en este dispositivo.',
+    browserCache:
+      'Las portadas que guarda la caché de tu navegador se borran desde los ajustes del navegador.',
+    delete: 'Borrar los datos de Steam de este dispositivo',
+    deleting: 'Borrando…',
+    deleted:
+      'Hemos borrado los datos de Steam de este dispositivo. El catálogo se volverá a descargar la próxima vez que abras GameAgenda.',
+  },
+
+  // Aviso de primera capa de las portadas (§9.9 y §11.2).
+  coverNotice: {
+    label: 'Aviso sobre las portadas',
+    text: 'Las portadas se cargan desde servidores de Valve en EE. UU., que reciben tu dirección IP.',
+    moreInfo: 'Más información',
+    ok: 'Entendido',
+    disable: 'Desactivar portadas',
   },
 
   about: {

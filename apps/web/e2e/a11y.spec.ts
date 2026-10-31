@@ -47,7 +47,14 @@ for (const colorScheme of ['light', 'dark'] as const) {
 
     await nav.getByRole('link', { name: 'Ajustes' }).click();
     await expectAccessible(page, 'Ajustes');
-    for (const section of ['Apariencia', 'Contenido', 'Teclado y gestos', 'Datos', 'Acerca de']) {
+    for (const section of [
+      'Apariencia',
+      'Contenido',
+      'Teclado y gestos',
+      'Datos',
+      'Privacidad',
+      'Acerca de',
+    ]) {
       await page.getByRole('link', { name: section, exact: true }).click();
       await expect(page.getByRole('heading', { level: 2, name: section })).toBeVisible();
       await expectAccessible(page, `Ajustes › ${section}`);

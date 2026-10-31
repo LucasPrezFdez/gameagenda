@@ -188,9 +188,38 @@
   font-size: 0.75rem;
 }
 
+.cover--palette {
+  width: 24px;
+  font-size: 0.625rem;
+}
+
 .cover--sheet {
   width: 104px;
   font-size: 1.75rem;
+}
+
+/* La imagen ocupa el hueco de la generada, que se ve mientras carga o si falla (§9.5). */
+.cover {
+  position: relative;
+  overflow: hidden;
+}
+
+.cover__img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+}
+
+.cover.has-image .cover__img {
+  opacity: 1;
+  transition: opacity var(--motion) ease-out;
+}
+
+.cover.has-image .cover__initials {
+  visibility: hidden;
 }
 
 .cover--t0 {
@@ -244,6 +273,24 @@
 
 .entry-row__title:hover {
   text-decoration: underline;
+}
+
+/* Próximos y orden por lanzamiento: «Sale el jue, 19 nov 2026 · dentro de 22 días». */
+.entry-row__release {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.entry-row--skeleton .skeleton--line {
+  width: min(50%, 16rem);
+}
+
+/* El contador de Próximos llega cuando se saben las fechas: su hueco ya está (§9.5, regla 3). */
+.chip-button__count[data-view="upcoming"] {
+  min-width: 1ch;
 }
 
 .flag-badges {

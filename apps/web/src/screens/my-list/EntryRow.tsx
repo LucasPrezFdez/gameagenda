@@ -2,6 +2,7 @@
 import { memo } from 'react';
 import {
   type AgendaEntry,
+  appidOf,
   FLAGS,
   type Flag,
   type MoveTarget,
@@ -26,6 +27,8 @@ export interface RowActions {
 
 export interface EntryRowProps {
   readonly entry: AgendaEntry;
+  /** Lanzamiento (Próximos y orden por lanzamiento), o `null`. */
+  readonly release?: string | null;
   /** Número de prioridad en Quiero jugar, o `null`. */
   readonly position: number | null;
   /** Se puede reordenar desde el menú (orden por prioridad). */
@@ -44,6 +47,7 @@ export function rowTitleId(id: string): string {
 
 function EntryRowView({
   entry,
+  release = null,
   position,
   movable,
   isFirst,
@@ -107,7 +111,7 @@ function EntryRowView({
           {position}
         </span>
       )}
-      <Cover title={entry.title} />
+      <Cover title={entry.title} appid={appidOf(entry.id)} />
       <div className="entry-row__main">
         <Link
           id={rowTitleId(entry.id)}
@@ -121,6 +125,7 @@ function EntryRowView({
           )}
           {entry.title}
         </Link>
+        {release !== null && <span className="entry-row__release">{release}</span>}
         <FlagBadges entry={entry} />
       </div>
       <div className="entry-row__actions">
@@ -172,6 +177,7 @@ export const EntryRow = memo(
   (a, b) =>
     a.entry.id === b.entry.id &&
     a.entry.lastHlc === b.entry.lastHlc &&
+    a.release === b.release &&
     a.position === b.position &&
     a.movable === b.movable &&
     a.isFirst === b.isFirst &&

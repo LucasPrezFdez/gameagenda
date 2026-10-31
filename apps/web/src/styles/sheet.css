@@ -55,6 +55,24 @@
   color: var(--text-muted);
 }
 
+.sheet__release {
+  color: var(--text);
+}
+
+/* Datos de los *shards* (CA2.8): el hueco tiene su alto final mientras llegan (§9.5). */
+.sheet__details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: calc(3 * 1.45em + 8px);
+  font-size: 0.9375rem;
+}
+
+.sheet__details .skeleton--line {
+  width: min(70%, 14rem);
+  height: 1.1em;
+}
+
 .badge {
   padding: 1px 8px;
   border: 1px solid var(--control-border);

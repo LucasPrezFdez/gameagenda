@@ -1,0 +1,344 @@
+# Catálogo diario (§4.5–§4.9, §5.4 y §12.5 de prototipe.md; CA2.1, CA2.2, CA2.4, CA2.5 y CA2.7):
+# canario, estado de la Release `catalog-state`, pipeline (pasos 0–5 de la §4.5) con la firma,
+# búsqueda de las claves, montaje con los ficheros de la versión anterior, despliegue de
+# `ga-catalog`, prueba de humo, estado nuevo y aviso a healthchecks.io (dead-man switch: correo a
+# las 36 h sin una ejecución correcta). Si algo falla antes de desplegar no se publica nada y la
+# versión anterior sigue servida; el trabajo `report` abre o comenta el issue `catalogo` y avisa
+# a healthchecks.io (`/fail`).
+#
+# Con `source=staging` toma lo que subió `npm run catalog:stage` desde el PC (Release
+# `catalog-staging`): sin canario ni llamadas a Steam, vuelve a derivar el catálogo con esas
+# páginas (`--from-raw`) y pasa las puertas, firma y publica. El PC nunca firma ni despliega
+# (DECISIONES §10.12). Puesta en marcha, secretos y runbook: ADR-007.
+#
+# Hora: `schedule` va en UTC. 04:17 UTC son las 05:17 en Madrid en invierno (CET, UTC+1) y las
+# 06:17 en verano (CEST, UTC+2). GitHub puede retrasar el cron (más en las horas en punto, por eso
+# el :17). El cron solo corre con la variable `CATALOG_SCHEDULE` = `on` (con `off` se pausa sin
+# desactivar el flujo). En un repositorio público, GitHub desactiva el cron tras 60 días sin
+# actividad (R-04): `workflow_dispatch`, el dead-man switch y, si se repite, un Cron Trigger de
+# Cloudflare (ADR-007).
+name: catalog
+
+on:
+  schedule:
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+    inputs:
+      source:
+        description: "steam: descarga de Steam. staging: lo que subió `npm run catalog:stage` a la Release catalog-staging."
+        type: choice
+        options: [steam, staging]
+        default: steam
+      skip_delta_gates:
+        description: "Salta las puertas que comparan con la versión anterior (tras un parón largo, §4.6)."
+        type: boolean
+        default: false
+      keyless:
+        description: "Plan B sin clave: con la clave revocada (403), §4.8. Con staging manda lo que diga catalog:stage."
+        type: boolean
+        default: false
+      no_previous:
+        description: "No conserva la versión anterior: solo para la primera publicación en una cuenta o un origen nuevos."
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# Una ejecución cada vez y en orden: nunca dos despliegues ni dos escrituras del estado a la vez.
+concurrency:
+  group: catalog
+  cancel-in-progress: false
+
+defaults:
+  run:
+    # Con `shell: bash` explícito, GitHub añade `-o pipefail` (el `tee` de la construcción).
+    shell: bash
+
+env:
+  # --- Configuración (un solo sitio; las variables del repositorio, si existen, mandan) --------
+  # Origen publicado de `ga-catalog`: de él sale la versión anterior que se conserva y la prueba de
+  # humo comprueba que wrangler ha publicado ahí. Al pasar `ga-catalog` a su cuenta de Cloudflare
+  # cambia el subdominio: variable CATALOG_ORIGIN (y, en la app, `VITE_CATALOG_URL` de
+  # deploy-web.yml y `connect-src` de apps/web/public/_headers).
+  CATALOG_ORIGIN: ${{ vars.CATALOG_ORIGIN || 'https://ga-catalog.gameagenda.workers.dev' }}
+  # Origen de `ga-web`: el único con CORS en pipeline/catalog.headers (se comprueba).
+  WEB_ORIGIN: ${{ vars.WEB_ORIGIN || 'https://ga-web.gameagenda.workers.dev' }}
+  # `kid` de la clave de producción: el de su pública en CATALOG_SIGNING_KEYS (core).
+  CATALOG_SIGNING_KID: ${{ vars.CATALOG_SIGNING_KID || 'prod-1' }}
+  # -----------------------------------------------------------------------------------------------
+  SOURCE: ${{ inputs.source || 'steam' }}
+  REPORTS: pipeline/state/reports
+  GH_REPO: ${{ github.repository }}
+  WRANGLER_SEND_METRICS: "false"
+
+jobs:
+  publish:
+    name: Construye, firma y publica
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name != 'schedule' || vars.CATALOG_SCHEDULE == 'on')
+    runs-on: ubuntu-latest
+    # CA2.1: ≤30 min (≈11–13 con Steam, §4.7).
+    timeout-minutes: 30
+    permissions:
+      # Releases `catalog-state` (lectura y escritura) y `catalog-staging` (lectura).
+      contents: write
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      previous: ${{ steps.version.outputs.previous }}
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - name: Aviso de inicio (healthchecks.io)
+        env:
+          HC_URL: ${{ secrets.HEALTHCHECKS_PING_URL }}
+        run: |
+          if [ -z "$HC_URL" ]; then
+            echo "::warning::Sin el secreto HEALTHCHECKS_PING_URL no hay dead-man switch (CA2.5)"
+            exit 0
+          fi
+          curl -fsS -m 10 --retry 3 -o /dev/null "$HC_URL/start" || echo "::warning::healthchecks.io no responde"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - name: Configuración (secretos, CORS y hash de la clave)
+        env:
+          STEAM_WEB_API_KEY: ${{ secrets.STEAM_API_TOKEN }}
+          STEAM_KEY_SHA256_VAR: ${{ vars.STEAM_KEY_SHA256 }}
+          HAS_SIGNING_KEY: ${{ secrets.CATALOG_SIGNING_KEY != '' }}
+          HAS_CF_TOKEN: ${{ secrets.CATALOG_CLOUDFLARE_API_TOKEN != '' }}
+          HAS_CF_ACCOUNT: ${{ secrets.CATALOG_CLOUDFLARE_ACCOUNT_ID != '' }}
+          KEYLESS: ${{ inputs.keyless }}
+        run: |
+          ok=true
+          for s in "CATALOG_SIGNING_KEY=$HAS_SIGNING_KEY" "CATALOG_CLOUDFLARE_API_TOKEN=$HAS_CF_TOKEN" \
+            "CATALOG_CLOUDFLARE_ACCOUNT_ID=$HAS_CF_ACCOUNT"; do
+            if [ "${s#*=}" != true ]; then
+              echo "::error::Falta el secreto ${s%%=*} (ADR-007, puesta en marcha)"
+              ok=false
+            fi
+          done
+          allowed=$(sed -n 's/^  Access-Control-Allow-Origin: //p' pipeline/catalog.headers)
+          if [ "$allowed" != "$WEB_ORIGIN" ]; then
+            echo "::error::pipeline/catalog.headers da CORS a «$allowed» y WEB_ORIGIN es $WEB_ORIGIN"
+            ok=false
+          fi
+          # La búsqueda de la clave compara *hashes* (scripts/scan-secrets.ts): aquí, el de la clave
+          # real, que solo vive en este paso. La variable del CI (ci.yml) tiene que ser el mismo.
+          key=$(printf '%s' "$STEAM_WEB_API_KEY" | tr -d '[:space:]')
+          if [ -n "$key" ]; then
+            hash=$(printf '%s' "$key" | sha256sum | cut -d' ' -f1)
+            var=$(printf '%s' "$STEAM_KEY_SHA256_VAR" | tr 'A-F' 'a-f')
+            if [ -n "$var" ] && [ "$hash" != "$var" ]; then
+              echo "::warning::La variable STEAM_KEY_SHA256 no es el hash de STEAM_API_TOKEN: ci.yml busca otra clave"
+            fi
+          else
+            hash="$STEAM_KEY_SHA256_VAR"
+            if [ "$SOURCE" = steam ] && [ "$KEYLESS" != true ]; then
+              echo "::warning::Sin el secreto STEAM_API_TOKEN: plan B sin clave (§4.8)"
+            fi
+          fi
+          echo "STEAM_KEY_SHA256=$hash" >> "$GITHUB_ENV"
+          mkdir -p "$REPORTS/ci"
+          [ "$ok" = true ]
+
+      - name: Canario de Steam (2 llamadas)
+        if: env.SOURCE == 'steam'
+        timeout-minutes: 4
+        env:
+          STEAM_WEB_API_KEY: ${{ secrets.STEAM_API_TOKEN }}
+          KEYLESS: ${{ inputs.keyless }}
+        run: |
+          args=(--report="$REPORTS/ci/canary.json")
+          if [ "$KEYLESS" = true ]; then args+=(--keyless); fi
+          node scripts/catalog-canary.ts "${args[@]}"
+      - name: Estado anterior (Release catalog-state)
+        id: state
+        timeout-minutes: 3
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/catalog-release.ts restore-state
+      - name: Lo que subió catalog:stage (Release catalog-staging)
+        id: stage
+        if: env.SOURCE == 'staging'
+        timeout-minutes: 3
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STATE_ASSET: ${{ steps.state.outputs.asset }}
+          STATE_SHA256: ${{ steps.state.outputs.sha256 }}
+        run: >-
+          node scripts/catalog-release.ts download-stage --dir="$RUNNER_TEMP/stage"
+          --state-asset="$STATE_ASSET" --state-sha256="$STATE_SHA256" --commit="$GITHUB_SHA"
+      - name: Versión publicada y la siguiente
+        id: version
+        env:
+          NOW: ${{ steps.stage.outputs.now }}
+          NO_PREVIOUS: ${{ inputs.no_previous }}
+        run: |
+          args=(next-version --origin="$CATALOG_ORIGIN")
+          if [ -n "$NOW" ]; then args+=(--now="$NOW"); fi
+          if [ "$NO_PREVIOUS" = true ]; then args+=(--no-previous); fi
+          node scripts/catalog-live.ts "${args[@]}"
+
+      - name: Construye y firma (pasos 0–5 de la §4.5)
+        timeout-minutes: 22
+        env:
+          STEAM_WEB_API_KEY: ${{ secrets.STEAM_API_TOKEN }}
+          CATALOG_SIGNING_KEY: ${{ secrets.CATALOG_SIGNING_KEY }}
+          VERSION: ${{ steps.version.outputs.version }}
+          # Con staging manda lo que construyó el PC; si no, las entradas.
+          KEYLESS: ${{ steps.stage.outputs.keyless || inputs.keyless }}
+          SKIP_DELTA: ${{ inputs.skip_delta_gates || steps.stage.outputs.skip_delta_gates }}
+          STAGE_RAW: ${{ steps.stage.outputs.raw }}
+          STAGE_NOW: ${{ steps.stage.outputs.now }}
+        run: |
+          # Sin una clave de firma `prod` cargada, `build.ts` sale con 2 y no escribe nada.
+          args=(--version="$VERSION" --require-signature)
+          if [ "$KEYLESS" = true ]; then args+=(--keyless); fi
+          if [ "$SKIP_DELTA" = true ]; then args+=(--skip-delta-gates); fi
+          if [ "$SOURCE" = staging ]; then args+=(--from-raw="$STAGE_RAW" --now="$STAGE_NOW"); fi
+          echo "npm run catalog:build -- ${args[*]}"
+          npm run catalog:build -- "${args[@]}" 2>&1 | tee "$REPORTS/ci/build.log"
+      - name: Búsqueda de la clave de Steam y de la de firma en pipeline/out
+        run: |
+          node scripts/scan-secrets.ts pipeline/out
+          if grep -rl "PRIVATE KEY" pipeline/out; then echo "::error::pipeline/out lleva una clave privada"; exit 1; fi
+      - name: Monta pipeline/dist con los ficheros de la versión anterior (CA2.4)
+        timeout-minutes: 5
+        env:
+          NO_PREVIOUS: ${{ inputs.no_previous }}
+        run: |
+          args=(pipeline/out --signature=prod)
+          if [ "$NO_PREVIOUS" != true ]; then args+=(--previous="$CATALOG_ORIGIN"); fi
+          node scripts/assemble-catalog.ts "${args[@]}"
+      - name: Búsqueda de la clave de Steam y de la de firma en pipeline/dist
+        run: |
+          node scripts/scan-secrets.ts pipeline/dist
+          if grep -rl "PRIVATE KEY" pipeline/dist; then echo "::error::pipeline/dist lleva una clave privada"; exit 1; fi
+
+      - name: Despliega ga-catalog
+        id: deploy
+        timeout-minutes: 5
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CATALOG_CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CATALOG_CLOUDFLARE_ACCOUNT_ID }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: npm run catalog:publish -- --message "catalogo $VERSION ($SOURCE) @ ${GITHUB_SHA::7}"
+      - name: Prueba de humo (manifest firmado; ficheros de las dos versiones, 200 y con CORS)
+        timeout-minutes: 5
+        env:
+          URL: ${{ steps.deploy.outputs.url }}
+        run: >-
+          node scripts/catalog-smoke.ts --url="$URL" --web-origin="$WEB_ORIGIN"
+          --expect-origin="$CATALOG_ORIGIN" --report="$REPORTS/ci/smoke.json"
+      - name: Estado nuevo (Release catalog-state, 7 copias)
+        timeout-minutes: 3
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: node scripts/catalog-release.ts save-state --version="$VERSION"
+      - name: Aviso de ejecución correcta (healthchecks.io)
+        env:
+          HC_URL: ${{ secrets.HEALTHCHECKS_PING_URL }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if [ -z "$HC_URL" ]; then exit 0; fi
+          curl -fsS -m 10 --retry 5 -o /dev/null --data-raw "catalogo $VERSION ($SOURCE)" "$HC_URL" \
+            || echo "::warning::healthchecks.io no responde: el dead-man switch puede avisar sin motivo"
+
+      - name: Resumen
+        if: always()
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: node scripts/catalog-report.ts summary --reports="$REPORTS" --version="$VERSION" >> "$GITHUB_STEP_SUMMARY" || true
+      # Los artefactos son públicos (repositorio público): antes, la misma búsqueda de la clave.
+      - name: Búsqueda de la clave en los artefactos
+        id: artifacts
+        if: always()
+        run: |
+          for d in "$REPORTS" pipeline/state/rejected; do
+            if [ -d "$d" ]; then node scripts/scan-secrets.ts "$d"; fi
+          done
+      - name: Informes (artefacto run-report)
+        if: always() && steps.artifacts.outcome == 'success'
+        continue-on-error: true
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: run-report
+          path: pipeline/state/reports/
+          retention-days: 30
+          if-no-files-found: ignore
+      - name: Catálogo rechazado por las puertas (artefacto)
+        if: failure() && steps.artifacts.outcome == 'success'
+        continue-on-error: true
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: rejected-catalog
+          path: pipeline/state/rejected/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  report:
+    name: Issue y aviso de fallo
+    needs: publish
+    if: always() && (needs.publish.result == 'failure' || needs.publish.result == 'cancelled')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      # `gh run view` y `gh run download` de esta misma ejecución.
+      actions: read
+      contents: read
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ISSUE: ${{ github.workspace }}/issue.md
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      # Sin `npm ci`: catalog-report.ts solo usa `node:`.
+      - name: Informe de la ejecución
+        env:
+          RESULT: ${{ needs.publish.result }}
+          PREVIOUS: ${{ needs.publish.outputs.previous }}
+          VERSION: ${{ needs.publish.outputs.version }}
+          URL: ${{ needs.publish.outputs.url }}
+          STEAM_KEY_SHA256: ${{ vars.STEAM_KEY_SHA256 }}
+        run: |
+          gh run view "$GITHUB_RUN_ID" --json jobs > "$RUNNER_TEMP/jobs.json" || echo '{}' > "$RUNNER_TEMP/jobs.json"
+          gh run download "$GITHUB_RUN_ID" --name run-report --dir "$RUNNER_TEMP/run-report" \
+            || echo "::warning::Sin el artefacto run-report"
+          node scripts/catalog-report.ts issue --reports="$RUNNER_TEMP/run-report" \
+            --jobs="$RUNNER_TEMP/jobs.json" \
+            --run-url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            --event="$GITHUB_EVENT_NAME" --source="$SOURCE" --result="$RESULT" \
+            --previous="$PREVIOUS" --version="$VERSION" --url="$URL" > "$ISSUE"
+          cat "$ISSUE"
+      - name: Aviso de fallo (healthchecks.io)
+        if: always()
+        env:
+          HC_URL: ${{ secrets.HEALTHCHECKS_PING_URL }}
+        run: |
+          if [ -z "$HC_URL" ]; then exit 0; fi
+          body=()
+          if [ -s "$ISSUE" ]; then body=(--data-binary "@$ISSUE"); fi
+          curl -fsS -m 10 --retry 5 -o /dev/null "${body[@]}" "$HC_URL/fail" || echo "::warning::healthchecks.io no responde"
+      - name: Issue «catalogo» (lo abre o lo comenta)
+        if: always()
+        run: |
+          [ -s "$ISSUE" ] || echo "La ejecución $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID ha fallado." > "$ISSUE"
+          gh label create catalogo --color B60205 --description "Fallos de catalog.yml (pipeline del catálogo)" --force
+          number=$(gh issue list --label catalogo --state open --limit 1 --json number --jq '.[0].number // empty')
+          if [ -n "$number" ]; then
+            gh issue comment "$number" --body-file "$ISSUE"
+          else
+            gh issue create --title "Catálogo: falla catalog.yml" --label catalogo --body-file "$ISSUE"
+          fi

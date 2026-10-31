@@ -11,18 +11,34 @@ export interface UiSettings {
   readonly showAdult: boolean;
   /** Última vista, filtros y orden de Mi lista (la parte `?…` de su URL). */
   readonly listSearch: string;
+  /**
+   * «Cargar portadas» (§11.2): encendido por defecto (interés legítimo, con oposición en un
+   * toque). Apagado, ninguna petición a `*.steamstatic.com` (CA2.7).
+   */
+  readonly loadCovers: boolean;
+  /** Aviso de primera capa de las portadas (§11.2): sin ver, visto o ya cerrado. */
+  readonly coverNotice: CoverNoticeState;
 }
+
+/**
+ * `unseen`: aún no ha salido y ninguna portada se carga; `shown`: ha salido y las portadas ya se
+ * cargan, pero sigue a la vista hasta que se cierra; `done`: cerrado.
+ */
+export type CoverNoticeState = 'unseen' | 'shown' | 'done';
 
 export const DEFAULT_SETTINGS: UiSettings = {
   theme: 'system',
   slashOpensPalette: true,
   showAdult: false,
   listSearch: '',
+  loadCovers: true,
+  coverNotice: 'unseen',
 };
 
 export type SettingKey = keyof UiSettings;
 const SETTING_KEYS = Object.keys(DEFAULT_SETTINGS) as SettingKey[];
 const THEMES: readonly ThemePreference[] = ['system', 'light', 'dark'];
+const COVER_NOTICE: readonly CoverNoticeState[] = ['unseen', 'shown', 'done'];
 const MAX_LIST_SEARCH = 2000;
 
 /** Valor válido de un ajuste, o `undefined` si no lo es (se queda el de por defecto). */
@@ -32,9 +48,12 @@ function validValue(key: SettingKey, value: unknown): UiSettings[SettingKey] | u
       return THEMES.find((theme) => theme === value);
     case 'slashOpensPalette':
     case 'showAdult':
+    case 'loadCovers':
       return typeof value === 'boolean' ? value : undefined;
     case 'listSearch':
       return typeof value === 'string' && value.length <= MAX_LIST_SEARCH ? value : undefined;
+    case 'coverNotice':
+      return COVER_NOTICE.find((state) => state === value);
   }
 }
 

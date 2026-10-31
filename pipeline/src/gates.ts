@@ -5,8 +5,15 @@
 
 import { brotliCompressSync, constants, gzipSync } from 'node:zlib';
 import {
+  applyRecent,
   type CatalogManifest,
+  type CoreCatalog,
   catalogManifestSchema,
+  DETAIL_SHARDS,
+  detailShardOf,
+  detailShardPath,
+  detailShardSchema,
+  detailsIndexSchema,
   parseAliases,
   parseCore,
 } from '@gameagenda/core/catalog-format';
@@ -54,6 +61,10 @@ export interface GateConfig {
   readonly sentinels: readonly number[];
   /** Núcleo con brotli 11 (≤3 MiB, §7.6). */
   readonly maxCoreBrotliBytes: number;
+  /** Por despliegue (§7.6, plan gratuito de Workers): ficheros de ≤25 MiB… */
+  readonly maxFileBytes: number;
+  /** …y ≤20 000 ficheros, con los de la versión anterior. */
+  readonly maxDeployFiles: number;
   /** `full`: dorado, exactos, prefijos y negativas; `smoke`: solo humo (catálogos de prueba). */
   readonly quality: 'full' | 'smoke';
 }
@@ -65,6 +76,8 @@ export const PUBLISH_GATES: GateConfig = {
   maxRenamedPct: 1,
   sentinels: SENTINELS,
   maxCoreBrotliBytes: 3 * 1024 * 1024,
+  maxFileBytes: 25 * 1024 * 1024,
+  maxDeployFiles: 20_000,
   quality: 'full',
 };
 
@@ -148,10 +161,94 @@ export function sentinelsGate(appids: ReadonlySet<number>, cfg: GateConfig): Gat
   };
 }
 
+/** `true` si los dos núcleos tienen las mismas filas, en el mismo orden. */
+function sameRows(a: CoreCatalog, b: CoreCatalog): boolean {
+  if (a.count !== b.count) return false;
+  for (let g = 0; g < a.count; g++) {
+    if (
+      a.appid[g] !== b.appid[g] ||
+      a.name[g] !== b.name[g] ||
+      a.nameEs.get(g) !== b.nameEs.get(g) ||
+      a.flags[g] !== b.flags[g] ||
+      a.year[g] !== b.year[g] ||
+      a.pop[g] !== b.pop[g]
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/** Recientes: se leen, son del núcleo y aplicarlos al núcleo de hoy lo deja igual. */
+function recentProblems(core: CoreCatalog, seen: ReadonlySet<number>, text: string): string[] {
+  const out: string[] = [];
+  const recent = parseCore(text, 'recent');
+  if (recent.version !== core.version) out.push('versión de recent ≠ núcleo');
+  const ids = new Set<number>();
+  let orphan = 0;
+  for (let r = 0; r < recent.count; r++) {
+    const a = recent.appid[r] as number;
+    if (ids.has(a)) out.push(`recent repite ${a}`);
+    ids.add(a);
+    if (!seen.has(a)) orphan++;
+  }
+  if (orphan > 0) out.push(`${orphan} filas de recent sin juego en el núcleo`);
+  if (!sameRows(applyRecent(core, recent), core)) {
+    out.push('aplicar recent al núcleo de hoy lo cambia');
+  }
+  return out;
+}
+
+/**
+ * *Shards* (§7.6): índice con su esquema y la versión del núcleo; cada *shard* citado existe, el
+ * *hash* de su nombre es el de su contenido, cumple su esquema Zod y solo tiene juegos del núcleo
+ * que caen en él (FNV-1a mod 1024); no hay *shards* sin citar.
+ */
+function detailsProblems(
+  core: CoreCatalog,
+  seen: ReadonlySet<number>,
+  files: CatalogFiles,
+): string[] {
+  const out: string[] = [];
+  const index = detailsIndexSchema.safeParse(JSON.parse(files.details.indexText));
+  if (!index.success) return ['el índice de shards no cumple su esquema'];
+  if (index.data.version !== core.version) out.push('versión del índice de shards ≠ núcleo');
+  let cited = 0;
+  for (let n = 0; n < DETAIL_SHARDS; n++) {
+    const h = index.data.shards[n];
+    if (!h) continue;
+    cited++;
+    const path = detailShardPath(n, h);
+    const text = files.files.get(path);
+    if (text === undefined) {
+      out.push(`falta ${path}`);
+      continue;
+    }
+    if (!sha256(text).startsWith(h)) out.push(`hash de ${path}`);
+    const shard = detailShardSchema.safeParse(JSON.parse(text));
+    if (!shard.success) {
+      out.push(`${path} no cumple su esquema`);
+      continue;
+    }
+    const keys = Object.keys(shard.data);
+    if (keys.length === 0) out.push(`${path} vacío (debería ser null)`);
+    for (const k of keys) {
+      const appid = Number(k);
+      if (detailShardOf(appid) !== n) out.push(`${appid} no va en el shard ${n}`);
+      if (!seen.has(appid)) out.push(`${appid} tiene detalles y no está en el núcleo`);
+    }
+  }
+  const shardFiles = [...files.files.keys()].filter(
+    (p) => p.startsWith('details/') && p !== files.details.indexPath,
+  ).length;
+  if (shardFiles !== cited) out.push(`${shardFiles} shards publicados y ${cited} en el índice`);
+  return out;
+}
+
 /**
  * Integridad: todas las filas se leen con el lector de la app, sin `appid` repetidos ni nombres
- * vacíos; los alias apuntan a juegos del núcleo; el *manifest* cumple su esquema y sus `sha256`,
- * tamaños, rutas y recuentos casan con los ficheros. (Los *shards* llegan en M2.)
+ * vacíos; los alias apuntan a juegos del núcleo; los recientes y los *shards* son válidos; el
+ * *manifest* cumple su esquema y sus `sha256`, tamaños, rutas y recuentos casan con los ficheros.
  */
 export function integrityGate(files: CatalogFiles): GateOutcome {
   const problems: string[] = [];
@@ -178,19 +275,32 @@ export function integrityGate(files: CatalogFiles): GateOutcome {
     const orphan = aliases.pairs.filter(([, a]) => !seen.has(a)).length;
     if (orphan > 0) problems.push(`${orphan} alias sin juego`);
     if (aliases.version !== core.version) problems.push('versiones distintas en núcleo y alias');
+    problems.push(...recentProblems(core, seen, files.recentText));
+    problems.push(...detailsProblems(core, seen, files));
     if (manifest) {
       if (manifest.version !== core.version) problems.push('versión del manifest ≠ núcleo');
       if (manifest.counts.core !== core.count) problems.push('counts.core ≠ filas del núcleo');
       if (manifest.counts.aliases !== aliases.pairs.length) problems.push('counts.aliases ≠ alias');
-      for (const [key, text] of [
-        ['core', files.coreText],
-        ['aliases', files.aliasesText],
-      ] as const) {
+      if (manifest.counts.recent !== files.recentText.split('\n').length - 2) {
+        problems.push('counts.recent ≠ filas de recent');
+      }
+      if (!manifest.killSwitches) problems.push('faltan los kill switches');
+      const expected = [
+        ['core', files.coreText, (h: string) => `core.${h}.tsv`],
+        ['recent', files.recentText, (h: string) => `recent.${h}.tsv`],
+        ['aliases', files.aliasesText, (h: string) => `aliases.${h}.tsv`],
+        ['details', files.details.indexText, (h: string) => `details/index.${h}.json`],
+      ] as const;
+      for (const [key, text, pathOf] of expected) {
         const f = manifest.files[key];
+        if (!f) {
+          problems.push(`falta files.${key}`);
+          continue;
+        }
         const h = sha256(text);
         if (f.sha256 !== h) problems.push(`sha256 de ${key}`);
         if (f.bytes !== Buffer.byteLength(text)) problems.push(`bytes de ${key}`);
-        if (f.path !== `${key}.${h.slice(0, 16)}.tsv`) problems.push(`ruta de ${key}`);
+        if (f.path !== pathOf(h.slice(0, 16))) problems.push(`ruta de ${key}`);
         if (files.files.get(f.path) !== text) problems.push(`fichero de ${key}`);
       }
     }
@@ -202,28 +312,105 @@ export function integrityGate(files: CatalogFiles): GateOutcome {
     status: problems.length === 0 ? 'pass' : 'fail',
     detail:
       problems.length === 0
-        ? 'todas las filas se leen; manifest y hashes correctos'
-        : problems.join('; '),
+        ? `todas las filas se leen; recent, ${files.details.shards.size} shards, manifest y hashes correctos`
+        : problems.slice(0, 20).join('; '),
   };
 }
 
-/** Tamaño del núcleo con brotli 11 (puerta) y con gzip -6 (lo anota el informe, §7.6). */
-export function sizeGate(coreText: string, cfg: GateConfig): GateOutcome {
-  const buf = Buffer.from(coreText, 'utf8');
-  const br11 = brotliCompressSync(buf, {
+/** Bytes con brotli 11, como lo mide la §7.6. */
+export function brotli11(text: string): number {
+  const buf = Buffer.from(text, 'utf8');
+  return brotliCompressSync(buf, {
     params: {
       [constants.BROTLI_PARAM_QUALITY]: 11,
       [constants.BROTLI_PARAM_LGWIN]: 24,
       [constants.BROTLI_PARAM_SIZE_HINT]: buf.length,
     },
   }).length;
-  const gzip6 = gzipSync(buf, { level: 6 }).length;
-  const mib = (n: number): string => `${(n / 1024 / 1024).toFixed(2)} MiB`;
+}
+
+/** Un fichero de un despliegue de `ga-catalog`. */
+export interface DeployFile {
+  readonly path: string;
+  readonly bytes: number;
+}
+
+/**
+ * Límites de un despliegue del plan gratuito (§7.6): ≤`maxDeployFiles` ficheros de
+ * ≤`maxFileBytes`. `files` es lo que se sube (esta versión, la anterior y `_headers`); `count`, si
+ * se cuenta otra cosa.
+ */
+export function deployProblems(
+  files: readonly DeployFile[],
+  cfg: GateConfig,
+  count = files.length,
+): string[] {
+  const out: string[] = [];
+  if (count > cfg.maxDeployFiles) {
+    out.push(`${fmt(count)} ficheros por despliegue > ${fmt(cfg.maxDeployFiles)}`);
+  }
+  const big = files.filter((f) => f.bytes > cfg.maxFileBytes);
+  if (big.length > 0) {
+    out.push(`${big.length} ficheros de más de ${mib(cfg.maxFileBytes)} (${big[0]?.path})`);
+  }
+  return out;
+}
+
+const mib = (n: number): string => `${(n / 1024 / 1024).toFixed(2)} MiB`;
+const kb = (n: number): string => `${(n / 1000).toFixed(1)} KB`;
+
+/** *Shards* en los que se mide brotli 11 (uno de cada 16): medirlos todos costaría ≈30 s. */
+const SHARD_SAMPLE_EVERY = 16;
+
+/**
+ * Tamaño (§7.6): el núcleo con brotli 11 (puerta; el informe anota también gzip -6) y los límites
+ * del despliegue, contando esta versión dos veces porque cada despliegue reincluye la anterior,
+ * que tiene los mismos ficheros más o menos. Mide también `recent`, los *shards* y su índice.
+ */
+export function sizeGate(files: CatalogFiles, cfg: GateConfig): GateOutcome {
+  const raw = Buffer.byteLength(files.coreText);
+  const br11 = brotli11(files.coreText);
+  const gzip6 = gzipSync(Buffer.from(files.coreText, 'utf8'), { level: 6 }).length;
+  const deploy: DeployFile[] = [
+    { path: 'manifest.json', bytes: Buffer.byteLength(files.manifestText) },
+    ...[...files.files].map(([path, text]) => ({ path, bytes: Buffer.byteLength(text) })),
+  ];
+  // Esta versión, la anterior (con tantos ficheros como esta, más o menos) y `_headers`.
+  const deployCount = deploy.length * 2 + 1;
+  const problems = deployProblems(deploy, cfg, deployCount);
+  if (br11 > cfg.maxCoreBrotliBytes) {
+    problems.unshift(`núcleo con brotli 11 ${mib(br11)} > ${mib(cfg.maxCoreBrotliBytes)}`);
+  }
+  const shardTexts = [...files.details.shards.values()];
+  const shardRaw = shardTexts.map((t) => Buffer.byteLength(t));
+  const sample = shardTexts.filter((_, i) => i % SHARD_SAMPLE_EVERY === 0);
+  const sampleRaw = sample.reduce((a, t) => a + Buffer.byteLength(t), 0);
+  const sampleBr = sample.reduce((a, t) => a + brotli11(t), 0);
+  const shardsRaw = shardRaw.reduce((a, b) => a + b, 0);
+  const shards = {
+    count: shardTexts.length,
+    games: files.details.games,
+    raw: shardsRaw,
+    meanRaw: shardTexts.length ? Math.round(shardsRaw / shardTexts.length) : 0,
+    maxRaw: Math.max(0, ...shardRaw),
+    // Estimado con la proporción de la muestra.
+    brotli11: sampleRaw ? Math.round((shardsRaw * sampleBr) / sampleRaw) : 0,
+    sampled: sample.length,
+  };
+  const recent = {
+    rows: files.recentText.split('\n').length - 2,
+    raw: Buffer.byteLength(files.recentText),
+    brotli11: brotli11(files.recentText),
+  };
+  const index = {
+    raw: Buffer.byteLength(files.details.indexText),
+    brotli11: brotli11(files.details.indexText),
+  };
   return {
     id: 'size',
-    status: br11 <= cfg.maxCoreBrotliBytes ? 'pass' : 'fail',
-    detail: `núcleo ${mib(buf.length)} · brotli 11 ${mib(br11)} (≤${mib(cfg.maxCoreBrotliBytes)}) · gzip -6 ${mib(gzip6)}`,
-    data: { raw: buf.length, brotli11: br11, gzip6 },
+    status: problems.length === 0 ? 'pass' : 'fail',
+    detail: `${problems.length > 0 ? `${problems.join('; ')} · ` : ''}núcleo ${mib(raw)} · brotli 11 ${mib(br11)} (≤${mib(cfg.maxCoreBrotliBytes)}) · gzip -6 ${mib(gzip6)} · recent ${recent.rows} filas, ${kb(recent.raw)} (${kb(recent.brotli11)} brotli 11) · ${shards.count} shards, ${mib(shards.raw)} (≈${mib(shards.brotli11)} brotli 11) · ${fmt(deployCount)} ficheros por despliegue (≤${fmt(cfg.maxDeployFiles)})`,
+    data: { raw, brotli11: br11, gzip6, recent, shards, index, deployFiles: deployCount },
   };
 }
 
@@ -301,7 +488,7 @@ export async function runGates(input: GateInput): Promise<GateOutcome[]> {
     renamesGate(names, previous, cfg, skipDelta),
     sentinelsGate(new Set(names.keys()), cfg),
     integrityGate(files),
-    sizeGate(files.coreText, cfg),
+    sizeGate(files, cfg),
   ];
   if (out[3]?.status === 'fail') {
     for (const id of ['smoke', 'golden', 'exact', 'prefix', 'negatives'] as const) {

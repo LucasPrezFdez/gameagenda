@@ -3,15 +3,21 @@
 // estado, informe de cobertura y la orden `catalog:build -- --source=fixtures`.
 
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { CatalogFlag, catalogManifestSchema, parseCore } from '@gameagenda/core/catalog-format';
+import {
+  CatalogFlag,
+  catalogManifestSchema,
+  parseCore,
+  trustedSigningKeys,
+} from '@gameagenda/core/catalog-format';
 import { afterAll, describe, expect, it } from 'vitest';
 import { coverageReport, frozenDiff } from '../src/coverage.ts';
 import { RawStore } from '../src/raw-store.ts';
 import { type BuildResult, buildCatalog, FIXTURES_PROFILE, versionFor } from '../src/run.ts';
+import { verifyManifest } from '../src/signing.ts';
 import { readState, serializeState, writeState } from '../src/state.ts';
 import { SteamClient, type Transport } from '../steam/client.ts';
 import { fixtureTransport } from '../steam/transports.ts';
@@ -40,7 +46,7 @@ async function build(
   const result = await buildCatalog(client, {
     keyless,
     profile: FIXTURES_PROFILE,
-    state: readState(statePath()),
+    state: readState(statePath()).rows,
     dump: null,
     frozen: null,
     golden: [],
@@ -95,7 +101,7 @@ describe('con clave (lista de GetAppList, sintética en los fixtures)', async ()
     expect(row(r, 644560)?.flags).toBe(CatalogFlag.adult);
   });
 
-  it('escribe núcleo, alias y manifest de M1 con los serializadores de core', () => {
+  it('escribe núcleo, recent, alias, shards y manifest de M2 con los serializadores de core', () => {
     const m = catalogManifestSchema.parse(JSON.parse(r.files.manifestText));
     expect(Object.keys(m).sort()).toEqual([
       'counts',
@@ -103,12 +109,22 @@ describe('con clave (lista de GetAppList, sintética en los fixtures)', async ()
       'files',
       'format',
       'generatedAt',
+      'killSwitches',
       'minClientVersion',
       'v',
       'version',
     ]);
-    expect(Object.keys(m.files).sort()).toEqual(['aliases', 'core']);
+    expect(Object.keys(m.files).sort()).toEqual(['aliases', 'core', 'details', 'recent']);
+    expect(m).toMatchObject({
+      enrichmentAgeDays: 0,
+      minClientVersion: '0.0.0',
+      killSwitches: { covers: false, details: false },
+    });
     expect(m.files.core.path).toMatch(/^core\.[0-9a-f]{16}\.tsv$/);
+    expect(m.files.details?.path).toMatch(/^details\/index\.[0-9a-f]{16}\.json$/);
+    // El estado de los fixtures solo tiene los retirados: todo lo demás es alta.
+    expect(m.counts.recent).toBe(r.games.length - 5);
+    expect(parseCore(r.files.recentText, 'recent').count).toBe(m.counts.recent);
     const core = parseCore(r.files.coreText);
     expect(core.count).toBe(r.games.length);
     expect(core.appid[0]).toBe(730);
@@ -161,12 +177,17 @@ describe('determinismo y páginas crudas', () => {
 });
 
 describe('estado, versión e informes', () => {
-  it('el estado se escribe y se vuelve a leer igual (gzip)', async () => {
+  it('el estado se escribe y se vuelve a leer igual (gzip), con su cabecera', async () => {
     const { result } = await build(false);
     const f = join(tempDir(), 'master.ndjson.gz');
-    writeState(f, result.state);
-    expect([...readState(f).values()]).toEqual(result.state);
-    expect(readState(join(tempDir(), 'no-existe.ndjson.gz')).size).toBe(0);
+    writeState(f, result.state, result.stateMeta);
+    const back = readState(f);
+    expect([...back.rows.values()]).toEqual(result.state);
+    expect(back.meta).toEqual({ version: '20261029.1', enrichedOn: '2026-10-29' });
+    expect(result.state.some((r) => r.details)).toBe(true);
+    expect(readState(join(tempDir(), 'no-existe.ndjson.gz')).rows.size).toBe(0);
+    // El estado de M1, sin cabecera: el último enriquecimiento sale de las filas.
+    expect(readState(statePath()).meta).toEqual({ version: null, enrichedOn: '2026-10-29' });
   });
 
   it('AAAAMMDD.N en Europe/Madrid', () => {
@@ -210,27 +231,86 @@ describe('estado, versión e informes', () => {
   });
 });
 
+/** Ficheros de `dir` (con `details/`), ordenados, con su contenido. */
+function listing(dir: string): Array<[string, string]> {
+  return readdirSync(dir, { recursive: true, withFileTypes: true })
+    .filter((e) => e.isFile())
+    .map((e) =>
+      join(e.parentPath, e.name)
+        .slice(dir.length + 1)
+        .replaceAll('\\', '/'),
+    )
+    .sort()
+    .map((f) => [f, readFileSync(join(dir, f), 'utf8')]);
+}
+
+function catalogBuild(args: readonly string[], env: Record<string, string> = {}) {
+  return spawnSync(process.execPath, ['pipeline/build.ts', '--source=fixtures', ...args], {
+    cwd: ROOT,
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      STEAM_MODE: 'fixtures',
+      STEAM_WEB_API_KEY: '',
+      CATALOG_SIGNING_KEY: '',
+      ...env,
+    },
+  });
+}
+
 describe('npm run catalog:build -- --source=fixtures', () => {
-  it('construye sin red y dos veces da los mismos bytes', { timeout: 60_000 }, () => {
+  it('construye sin red, firma con --dev-sign y dos veces da los mismos bytes', {
+    timeout: 60_000,
+  }, () => {
     const outs = [tempDir(), tempDir()];
     for (const out of outs) {
-      const p = spawnSync(
-        process.execPath,
-        ['pipeline/build.ts', '--source=fixtures', `--out=${out}`],
-        {
-          cwd: ROOT,
-          encoding: 'utf8',
-          env: { ...process.env, STEAM_MODE: 'fixtures', STEAM_WEB_API_KEY: '' },
-        },
-      );
+      const p = catalogBuild([`--out=${out}`, '--dev-sign']);
       expect(p.status, p.stderr).toBe(0);
     }
-    const [a, b] = outs.map((d) =>
-      readdirSync(d)
-        .sort()
-        .map((f) => [f, readFileSync(join(d, f), 'utf8')]),
-    );
-    expect(a?.map(([f]) => f)).toContain('manifest.json');
+    const [a, b] = outs.map(listing);
+    const names = a?.map(([f]) => f) ?? [];
+    expect(names).toContain('manifest.json');
+    expect(names.some((f) => /^details\/index\.[0-9a-f]{16}\.json$/.test(f))).toBe(true);
+    expect(names.some((f) => /^details\/\d{4}\.[0-9a-f]{16}\.json$/.test(f))).toBe(true);
+    expect(names.some((f) => /^recent\.[0-9a-f]{16}\.tsv$/.test(f))).toBe(true);
+    // ed25519 es determinista: la firma también sale igual.
     expect(b).toEqual(a);
+    const m = JSON.parse(readFileSync(join(outs[0] as string, 'manifest.json'), 'utf8'));
+    expect(m).toMatchObject({ minClientVersion: '0.2.0', sig: { kid: 'dev-1' } });
+    expect(verifyManifest(m, trustedSigningKeys({ dev: true }))).toBe(true);
+    expect(verifyManifest(m, trustedSigningKeys({ dev: false }))).toBe(false);
+  });
+
+  it('si falla una puerta sale con 1 y no toca --out (CA2.2)', { timeout: 60_000 }, () => {
+    const out = tempDir();
+    expect(catalogBuild([`--out=${out}`]).status).toBe(0);
+    const before = listing(out);
+    // Sin clave, los fixtures no traen los centinelas que salen de GetAppList.
+    const p = catalogBuild([`--out=${out}`, '--keyless', '--dev-sign']);
+    expect(p.status).toBe(1);
+    expect(p.stdout).toContain('✗ sentinels');
+    expect(listing(out)).toEqual(before);
+    const rejected = listing(`${out}-rejected`);
+    const m = JSON.parse(rejected.find(([f]) => f === 'manifest.json')?.[1] ?? '{}');
+    // Lo rechazado no se firma.
+    expect(m.sig).toBeUndefined();
+  });
+
+  it('una etapa que falla sale con 2; una clave de producción fuera de Actions, también', {
+    timeout: 60_000,
+  }, () => {
+    const out = tempDir();
+    const bad = join(tempDir(), 'kill-switches.json');
+    writeFileSync(bad, '{"covers": "sí"}');
+    expect(catalogBuild([`--out=${out}`, `--kill-switches=${bad}`]).status).toBe(2);
+    const p = catalogBuild([`--out=${out}`], {
+      CATALOG_SIGNING_KEY: readFileSync(join(ROOT, 'fixtures/signing/dev-catalog-key.pem'), 'utf8'),
+      CATALOG_SIGNING_KID: 'prod-1',
+    });
+    expect(p.status).toBe(2);
+    // Desde que `prod-1` está en `CATALOG_SIGNING_KEYS`, la de desarrollo ya no casa con su kid.
+    expect(p.stderr).toContain('«prod-1»');
+    expect(catalogBuild([`--out=${out}`, '--dev-sign', '--require-signature']).status).toBe(2);
+    expect(readdirSync(out)).toEqual([]);
   });
 });

@@ -34,7 +34,7 @@ En Cloudflare Workers Static Assets (ver [ADR-003](docs/adr/003-hosting-desplieg
 | Worker | URL | Cómo se despliega |
 |---|---|---|
 | `ga-web` | https://ga-web.gameagenda.workers.dev | Tras cada `ci` en verde de un *push* a `main` (`.github/workflows/deploy-web.yml`) |
-| `ga-catalog` | https://ga-catalog.gameagenda.workers.dev | A mano (`deploy-catalog.yml`); en M2, cada día con `catalog.yml` |
+| `ga-catalog` | https://ga-catalog.gameagenda.workers.dev (mini-catálogo de M0; en M2 pasa a otra cuenta de Cloudflare) | Cada día con `catalog.yml` (ver ADR-007) |
 
 Los despliegues necesitan los secretos `CLOUDFLARE_API_TOKEN` («Workers Scripts: Edit») y `CLOUDFLARE_ACCOUNT_ID` en GitHub. Para volver atrás: `npx wrangler rollback -c apps/web/wrangler.jsonc`.
 

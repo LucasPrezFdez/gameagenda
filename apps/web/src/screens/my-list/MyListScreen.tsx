@@ -15,6 +15,7 @@ import { ChoiceMenu } from '../../components/ChoiceMenu.tsx';
 import { Icon } from '../../components/icons.tsx';
 import { ScreenHeading } from '../../components/ScreenHeading.tsx';
 import { copyReminderDue } from '../../data/copy-reminder.ts';
+import { groupLabel, releaseText } from '../../details/release-text.ts';
 import { logError } from '../../errors/error-log.ts';
 import { es } from '../../i18n/es.ts';
 import { isIosBrowserTab } from '../../lib/hooks.ts';
@@ -24,14 +25,42 @@ import { settingsPath, withSearch } from '../../router/routes.ts';
 import { EntryRow, type RowActions, rowTitleId } from './EntryRow.tsx';
 import {
   buildSections,
+  countUpcoming,
   countViews,
   LIST_ORDERS,
   LIST_VIEWS,
   type ListParams,
+  type ListSection,
   listSearchParams,
   PURCHASE_FILTERS,
   parseListParams,
 } from './list-model.ts';
+import { useReleases } from './use-releases.ts';
+
+function sectionLabel(section: ListSection): string {
+  if (section.group) return groupLabel(section.group);
+  return section.id === null ? es.list.allEntries : es.list.section[section.id];
+}
+
+/** Huecos de la lista mientras llegan las fechas (§9.5, regla 4: nunca una pantalla de carga). */
+function ListSkeleton({ label }: { label: string }) {
+  return (
+    <div className="list-sections" aria-busy="true">
+      <p className="visually-hidden" role="status">
+        {label}
+      </p>
+      <span className="skeleton skeleton--line" />
+      <ol className="entry-list">
+        {[0, 1, 2].map((index) => (
+          <li key={index} className="entry-row entry-row--skeleton">
+            <span className="cover cover--row skeleton" />
+            <span className="skeleton skeleton--line" />
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
 
 /** Si una acción saca la fila enfocada de la vista, el foco pasa a la siguiente (ver §9.5). */
 function keepFocusNear(container: HTMLElement | null, id: string): () => void {
@@ -75,8 +104,19 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
   // Mi lista sale de Dexie antes del primer pintado (ver `main.tsx`): ya tiene sus datos.
   useLayoutEffect(() => measureListVisible(), []);
 
-  const sections = useMemo(() => buildSections(entries, params), [entries, params]);
+  const releases = useReleases(entries, params);
+  const sections = useMemo(
+    () => buildSections(entries, params, releases.lookup ?? undefined),
+    [entries, params, releases.lookup],
+  );
   const counts = useMemo(() => countViews(entries, params.purchase), [entries, params.purchase]);
+  const upcomingCount = useMemo(
+    () => countUpcoming(entries, params.purchase, releases.upcoming),
+    [entries, params.purchase, releases.upcoming],
+  );
+  const byRelease = params.view === 'upcoming' || params.order === 'release';
+  const releasesPending = byRelease && releases.lookup === null;
+  const today = releases.lookup?.today ?? 0;
   const visibleIds = sections.flatMap((section) =>
     section.collapsible && !showOnHold ? [] : section.entries.map((entry) => entry.id),
   );
@@ -157,7 +197,8 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
     <div className="screen my-list">
       <header className="screen__header">
         <ScreenHeading primary={primary}>{es.list.title}</ScreenHeading>
-        {total > 0 && (
+        {/* Próximos siempre va por lanzamiento. */}
+        {total > 0 && params.view !== 'upcoming' && (
           <ChoiceMenu
             className="list-order"
             label={es.list.order}
@@ -220,17 +261,24 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
         <div className="list-filters">
           {/* biome-ignore lint/a11y/useSemanticElements: grupo de botones de alternar. */}
           <div className="chips" role="group" aria-label={es.list.views}>
-            {LIST_VIEWS.map((view) => (
-              <button
-                key={view}
-                type="button"
-                className="chip-button"
-                aria-pressed={params.view === view}
-                onClick={() => update({ view })}
-              >
-                {es.list.view[view]} <span className="chip-button__count">{counts[view]}</span>
-              </button>
-            ))}
+            {LIST_VIEWS.map((view) => {
+              // El de Próximos sale cuando se saben las fechas; su hueco ya está reservado.
+              const count = view === 'upcoming' ? upcomingCount : counts[view];
+              return (
+                <button
+                  key={view}
+                  type="button"
+                  className="chip-button"
+                  aria-pressed={params.view === view}
+                  onClick={() => update({ view })}
+                >
+                  {es.list.view[view]}{' '}
+                  <span className="chip-button__count" data-view={view}>
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
           </div>
           <div className="list-filters__row">
             {/* biome-ignore lint/a11y/useSemanticElements: grupo de botones de alternar. */}
@@ -273,9 +321,17 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
             {es.list.exploreCatalog}
           </Link>
         </div>
+      ) : releasesPending ? (
+        <ListSkeleton
+          label={params.view === 'upcoming' ? es.list.upcoming.loading : es.list.releaseLoading}
+        />
       ) : sections.length === 0 ? (
         <div className="empty-state">
-          <p>{es.list.noMatches}</p>
+          <p>
+            {params.view === 'upcoming' && params.purchase === 'any' && params.q === ''
+              ? es.list.upcoming.empty
+              : es.list.noMatches}
+          </p>
           {filtered && (
             <button type="button" className="btn" onClick={() => update(parseListParams(''))}>
               {es.list.clearFilters}
@@ -286,18 +342,15 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
         // biome-ignore lint/a11y/noStaticElementInteractions: ↑ y ↓ de las filas (tabindex itinerante).
         <div ref={listRef} className="list-sections" onKeyDown={onListKeyDown}>
           {sections.map((section) => {
-            const label = section.id === null ? es.list.allEntries : es.list.section[section.id];
-            const headingId = `${filterId}-${section.id ?? 'all'}`;
+            const label = sectionLabel(section);
+            const headingId = `${filterId}-${section.key}`;
             const collapsed = section.collapsible && !showOnHold;
             const movable =
               params.order === 'priority' &&
+              params.view !== 'upcoming' &&
               (section.id === 'want_to_play' || section.id === 'next');
             return (
-              <section
-                key={section.id ?? 'all'}
-                className="list-section"
-                aria-labelledby={headingId}
-              >
+              <section key={section.key} className="list-section" aria-labelledby={headingId}>
                 <div className="list-section__header">
                   <h2 id={headingId}>{es.list.sectionCount(label, section.entries.length)}</h2>
                   {section.collapsible && (
@@ -315,19 +368,23 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
                 </div>
                 <ol id={`${headingId}-rows`} className="entry-list" hidden={collapsed}>
                   {!collapsed &&
-                    section.entries.map((entry, index) => (
-                      <EntryRow
-                        key={entry.id}
-                        entry={entry}
-                        position={section.ranked ? index + 1 : null}
-                        movable={movable}
-                        isFirst={index === 0}
-                        isLast={index === section.entries.length - 1}
-                        active={entry.id === rovingId}
-                        actions={actions}
-                        onActivate={onActivate}
-                      />
-                    ))}
+                    section.entries.map((entry, index) => {
+                      const info = byRelease ? releases.lookup?.get(entry) : null;
+                      return (
+                        <EntryRow
+                          key={entry.id}
+                          entry={entry}
+                          release={info ? releaseText(info, today) : null}
+                          position={section.ranked ? index + 1 : null}
+                          movable={movable}
+                          isFirst={index === 0}
+                          isLast={index === section.entries.length - 1}
+                          active={entry.id === rovingId}
+                          actions={actions}
+                          onActivate={onActivate}
+                        />
+                      );
+                    })}
                 </ol>
               </section>
             );

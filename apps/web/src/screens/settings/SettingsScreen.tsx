@@ -1,10 +1,12 @@
-// Ajustes de M1 (ver §9.1): Apariencia, Contenido (+18), Teclado (solo el atajo `/`), Datos y
-// Acerca de (con el aviso de marca, ver §11.1). En escritorio, menú y sección a la vez; en móvil,
-// primero la lista de secciones y después cada una.
+// Ajustes (ver §9.1): Apariencia, Contenido (+18), Teclado (solo el atajo `/`), Datos (con la
+// edad del catálogo y «Actualizar catálogo», M2), Privacidad («Cargar portadas» y «Datos de Steam
+// que guardamos», M2) y Acerca de (con el aviso de marca, ver §11.1). En escritorio, menú y
+// sección a la vez; en móvil, primero la lista de secciones y después cada una.
 import { type JSX, useId, useRef, useState } from 'react';
-import { useServices, useSettings } from '../../app/services.tsx';
+import { useCatalogStatus, useServices, useSettings } from '../../app/services.tsx';
 import { Icon } from '../../components/icons.tsx';
 import { ScreenHeading } from '../../components/ScreenHeading.tsx';
+import { useDetailsCatalog, useDetailsStore } from '../../details/details-context.tsx';
 import { logError } from '../../errors/error-log.ts';
 import { es } from '../../i18n/es.ts';
 import { CaptureButton } from '../../palette/palette-context.tsx';
@@ -215,6 +217,8 @@ function Data() {
         )}
       </div>
 
+      <CatalogAge />
+
       <div className="settings__danger">
         <p id={`${id}-hint`} className="muted">
           {es.settings.deleteAllHint}
@@ -266,6 +270,164 @@ function Data() {
   );
 }
 
+const dayFormat = new Intl.DateTimeFormat('es-ES', {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+});
+const relativeDays = new Intl.RelativeTimeFormat('es-ES', { numeric: 'auto' });
+
+type RefreshState =
+  | { readonly kind: 'idle' }
+  | { readonly kind: 'busy' }
+  | { readonly kind: 'done'; readonly message: string };
+
+/** Edad del catálogo y «Actualizar catálogo» (§9.1 y §15.5). */
+function CatalogAge() {
+  const { search } = useServices();
+  const { catalog } = useCatalogStatus();
+  const [refresh, setRefresh] = useState<RefreshState>({ kind: 'idle' });
+  const id = useId();
+
+  async function onRefresh(): Promise<void> {
+    setRefresh({ kind: 'busy' });
+    const before = search.getStatus().catalog?.version ?? null;
+    try {
+      await search.refresh();
+      // El índice nuevo puede tardar en construirse: se avisa con la versión ya descargada.
+      const after = search.getStatus().catalog?.version ?? null;
+      setRefresh({
+        kind: 'done',
+        message:
+          after !== null && after !== before
+            ? es.settings.catalogUpdated(after)
+            : es.settings.catalogUpToDate,
+      });
+    } catch {
+      setRefresh({ kind: 'done', message: es.settings.catalogRefreshFailed });
+    }
+  }
+
+  let age: string = es.settings.catalogNone;
+  if (catalog) {
+    const generated = new Date(catalog.generatedAt);
+    const days = Math.round((Date.now() - generated.getTime()) / 86_400_000);
+    age = es.settings.catalogVersion(
+      catalog.version,
+      dayFormat.format(generated),
+      relativeDays.format(-Math.max(0, days), 'day'),
+    );
+  }
+
+  return (
+    <section className="settings__catalog" aria-labelledby={`${id}-title`}>
+      <h3 id={`${id}-title`} className="settings__subtitle">
+        {es.settings.catalogTitle}
+      </h3>
+      <p>{age}</p>
+      {catalog && catalog.enrichmentAgeDays > 0 && (
+        <p className="muted">{es.settings.catalogEnrichment(catalog.enrichmentAgeDays)}</p>
+      )}
+      <div className="settings__buttons">
+        <button
+          type="button"
+          className="btn"
+          disabled={refresh.kind === 'busy'}
+          onClick={() => void onRefresh()}
+        >
+          {es.settings.catalogRefresh}
+        </button>
+      </div>
+      <div className="settings__import-result" role="status">
+        {refresh.kind === 'busy' && <p>{es.settings.catalogRefreshing}</p>}
+        {refresh.kind === 'done' && <p>{refresh.message}</p>}
+      </div>
+    </section>
+  );
+}
+
+/** Ajustes › Privacidad (§11): «Cargar portadas» y «Datos de Steam que guardamos». */
+function Privacy() {
+  const { settings } = useServices();
+  const { loadCovers, coverNotice } = useSettings();
+  const catalog = useDetailsCatalog();
+  const store = useDetailsStore();
+  const [deleting, setDeleting] = useState<'idle' | 'busy' | 'done'>('idle');
+  const id = useId();
+
+  async function deleteSteamData(): Promise<void> {
+    setDeleting('busy');
+    try {
+      if (typeof caches !== 'undefined') {
+        const names = await caches.keys();
+        await Promise.all(
+          names.filter((name) => name.startsWith('gacat-')).map((name) => caches.delete(name)),
+        );
+      }
+      store.clear();
+    } finally {
+      setDeleting('done');
+    }
+  }
+
+  return (
+    <div className="settings__privacy">
+      <section className="settings__choice-block" aria-labelledby={`${id}-covers`}>
+        <h3 id={`${id}-covers`} className="settings__subtitle">
+          {es.privacy.covers}
+        </h3>
+        <label className="settings__choice">
+          <input
+            type="checkbox"
+            checked={loadCovers}
+            aria-describedby={`${id}-covers-hint`}
+            onChange={(event) =>
+              settings.update({
+                loadCovers: event.target.checked,
+                // Quien las apaga aquí ya ha leído el aviso: no hace falta enseñarlo.
+                ...(coverNotice === 'unseen' && !event.target.checked
+                  ? { coverNotice: 'done' as const }
+                  : {}),
+              })
+            }
+          />
+          {es.privacy.loadCovers}
+        </label>
+        <p id={`${id}-covers-hint`} className="muted">
+          {es.privacy.loadCoversHint}
+        </p>
+        {(catalog?.killSwitches.covers === true || catalog?.killSwitches.details === true) && (
+          <p className="muted">{es.privacy.coversKilled}</p>
+        )}
+      </section>
+
+      <section className="settings__steam-data" aria-labelledby={`${id}-steam`}>
+        <h3 id={`${id}-steam`} className="settings__subtitle">
+          {es.privacy.steamData}
+        </h3>
+        <p>{es.privacy.what}</p>
+        <p>{es.privacy.where}</p>
+        <p>{es.privacy.ip}</p>
+        <p>{es.privacy.agenda}</p>
+        <p className="muted">{es.privacy.browserCache}</p>
+        <div className="settings__buttons">
+          <button
+            type="button"
+            className="btn btn--danger"
+            disabled={deleting === 'busy'}
+            onClick={() => void deleteSteamData()}
+          >
+            {deleting === 'busy' ? es.privacy.deleting : es.privacy.delete}
+          </button>
+        </div>
+        <div className="settings__import-result" role="status">
+          {deleting === 'done' && <p>{es.privacy.deleted}</p>}
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function About() {
   return (
     <div className="settings__about">
@@ -284,6 +446,7 @@ const SECTIONS: Readonly<Record<SettingsSection, () => JSX.Element>> = {
   content: Content,
   keyboard: Keyboard,
   data: Data,
+  privacy: Privacy,
   about: About,
 };
 

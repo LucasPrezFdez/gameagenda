@@ -79,7 +79,7 @@ Dos Workers en el subdominio `gameagenda.workers.dev` de la cuenta, registrado e
 - **`deploy-web.yml`:** se lanza con el `workflow_run` de `ci`, solo si acabó en `success` tras un *push* a `main`, o a mano.
   - Construye `head_sha` con `VITE_CATALOG_URL`, busca la clave y comprueba que `connect-src` incluye el origen del catálogo y que no hay `unsafe-inline`.
   - Despliega con `wrangler deploy --message <sha>` y hace una prueba de humo: 200, `index.html` y la CSP exacta en `/` y en `/juego/steam:730`.
-- **`deploy-catalog.yml`:** a mano, con el mini-catálogo de M0. Monta, busca la clave, despliega, hace la prueba de humo y deja una tabla de cabeceras en el resumen. En M2 lo sustituye `catalog.yml`.
+- **`deploy-catalog.yml`:** a mano, con el mini-catálogo de M0. Montaba, buscaba la clave, desplegaba, hacía la prueba de humo y dejaba una tabla de cabeceras en el resumen. Se retiró el 31-10-2026: lo sustituye `catalog.yml` (ADR-007), porque podía desplegar el mini-catálogo sin firmar encima del real.
 - **Secretos:** `CLOUDFLARE_API_TOKEN` (permiso «Workers Scripts: Edit») y `CLOUDFLARE_ACCOUNT_ID`, como secretos de repositorio.
 - **Vuelta atrás:** en `ga-web`, `npx wrangler rollback -c apps/web/wrangler.jsonc`; cada versión lleva su SHA como mensaje. En `ga-catalog` se republican los ficheros de la versión buena con una `version` nueva, porque el cliente rechaza las anteriores a la suya (§5.4).
 - **Repositorio público.** El plan lo daba por privado, en el plan Free. Al ser público, los minutos de los *runners* estándar no cuentan, y la estimación de la §12.5 ya no limita nada. Los secretos siguen siendo de repositorio.
@@ -138,7 +138,7 @@ Detalle en [`docs/medidas/verificaciones-m0-20261030.md`](../medidas/verificacio
 - Hecho el 30-10-2026: el usuario creó los secretos `CLOUDFLARE_API_TOKEN` (*token* propio con solo «Account › Workers Scripts › Edit») y `CLOUDFLARE_ACCOUNT_ID`. El primer *push* después dio `ci` en verde en 3 min 2 s (ejecución 41140409104), y `deploy-web` desplegó `ga-web` solo, en 33 s (ejecución 41140742020). La versión `f5044388-039e-4e13-ae52-c77456dbfd4e` lleva como mensaje el SHA `d981870`. Con ese permiso bastó.
 - Hecho el 31-10-2026: el usuario consiguió la clave y la guardó en `.env.local` y en el secreto `STEAM_API_TOKEN`; la variable `STEAM_KEY_SHA256` lleva su *hash*. Desde entonces, el CI también busca la clave.
 - Pendiente: confirmar si el *token* se puede limitar a un *script*. Si no se puede, `ga-catalog` pasa a otra cuenta gratuita con su propio *token* (§11.3).
-- Pendiente (M2): medir lo transferido con el núcleo completo, `aliases` y `recent`. `catalog.yml` sustituye a `deploy-catalog.yml`.
+- Pendiente (M2): medir lo transferido con el núcleo completo, `aliases` y `recent`. `catalog.yml` ya sustituye a `deploy-catalog.yml`.
 - Pendiente (M4): `@cloudflare/workers-types` llega con el *script* de la micro-API (ver ADR-002).
 
 ### Confirmación
@@ -148,7 +148,7 @@ Detalle en [`docs/medidas/verificaciones-m0-20261030.md`](../medidas/verificacio
 - **CA0.3:** ✓. El núcleo llega con `zstd`, `br` o `gzip`, según lo que anuncie el navegador. `aliases` comparte la regla de `_headers`; `recent` llega en M2.
 - **CA0.4:** Vitest prueba la búsqueda con una clave falsa, y una copia del *build* con una clave falsa añadida salió con código 1. La puerta de tamaño va en `check` y bloquea.
 - **CA0.5:** ✓. Desde un clon limpio de GitHub, `npm run setup` tardó 15 s, con la caché de npm caliente y los navegadores de Playwright ya instalados. `npm run dev` sirvió la app en 2 s con el mini-catálogo de 298 juegos, sin acceso a Steam. Una máquina nueva de verdad necesita unos minutos más para las descargas.
-- **En cada despliegue:** la prueba de humo de `deploy-web.yml` y la tabla de cabeceras de `deploy-catalog.yml`.
+- **En cada despliegue:** la prueba de humo de `deploy-web.yml` y la de `catalog.yml` (ADR-007).
 
 ## Pros y contras de las opciones
 
