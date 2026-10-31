@@ -38,7 +38,7 @@
     3. que el usuario borre `%USERPROFILE%\gameagenda-firma-catalogo-PRIVADA.pem` (la primera publicación firmada ya salió bien);
     4. fundir `007-pipeline-del-catalogo.parte-publicacion.md` en el ADR-007;
     5. CHANGELOG y `v0.2.0`;
-    6. borrar la rama `m2-cliente` (integrada) y las ramas y carpetas `worktree-agent-*` de la sesión 4, todas integradas, si el usuario lo confirma.
+    6. ~~borrar la rama `m2-cliente` y las ramas y carpetas `worktree-agent-*`~~ **No se borran** (decisión del usuario, 31-10-2026: «por si acaso»), aunque todas están integradas.
   - **Avisos de los agentes:** el reinicio con caché sube a ≈1,85 s con recientes (≤2 s; con el equipo cargado, a veces se pasa; el 31-10-2026, 1 893 ms); el Worker pesa 36,9 KB de 40; los cambios del plan están anotados en sus informes (§4.5–4.7, §5.4, §7.6, §8.7, §9.1–9.2, §11.2–11.3 y §12.3).
 - **M1 · Apuntar: cerrado con `v0.1.0`** (30-10-2026; etiqueta anotada en GitHub, con `CHANGELOG.md`). Las mediciones en el dispositivo pasan a M3 (ver «Pendiente de M1», punto 6). Todo está en `main` y subido, sin agentes ni *worktrees* abiertos:
   - **Búsqueda.** En `core`: `normalize`, `catalog-format`, `search` y `search-quality`. Sobre la copia congelada: conjunto dorado 94,9 % / 99,0 %, exactos 99,9 %, prefijos 93,1 %, y `scan` da lo mismo que `full`.
