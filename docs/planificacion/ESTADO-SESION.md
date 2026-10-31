@@ -1,7 +1,39 @@
 # Estado del proyecto — punto de partida de la próxima sesión
 
-**Actualizado:** 31-10-2026, en la sesión 5 (cron del catálogo encendido).
+**Actualizado:** 31-10-2026, al cerrar la sesión 5.
 **Cómo retomar:** escribe *«Retoma GameAgenda desde docs/planificacion/ESTADO-SESION.md»*.
+
+## 0. Lo primero en la próxima sesión
+
+Todo está en `main` y subido, con el CI y el despliegue en verde y sin agentes en marcha. Por orden:
+
+1. **Mirar las ejecuciones programadas del catálogo:** 01-11, 02-11 y 03-11 a las 04:17 UTC (05:17 en Madrid). Con `gh run list --workflow catalog.yml --limit 5`, o en la web de Actions.
+   - Si alguna falla, se abre el *issue* `catalogo`; se sigue el *runbook* del ADR-007.
+   - Relanzar el flujo a mano lo tiene que hacer el usuario: el modo automático no deja al asistente.
+   - La del 01-11 es la primera con un estado anterior: traerá recientes por primera vez y pasará las puertas de variación. Hay que mirar sus cifras en el resumen.
+2. **Medir CA2.4 en producción** tras la publicación del 01-11:
+   - lanzar `npm run smoke:web -- --profile=.cache/smoke-web`;
+   - el perfil se sembró el 31-10 a las 15:43 UTC con el catálogo `20261031.1`, y han pasado más de 12 h, así que la primera visita comprueba el *manifest*;
+   - la línea «de ga-catalog» dice lo que baja un cliente con el núcleo de ayer: tiene que ser ≤200 KB y no incluir el núcleo;
+   - se guarda en `docs/medidas/ca2.4-AAAAMMDD.md`.
+
+   Sin `--profile`, `smoke:web` es la prueba de humo de cada despliegue: primera visita (el 31-10, en `full` en 1,9 s con 3 017 KB), segunda visita sin pedir el *manifest*, y sin red.
+3. **Cerrar M2** cuando haya 3 ejecuciones programadas seguidas en verde (CA2.1):
+   - poner al día la tabla de CA del CHANGELOG (CA2.1 y CA2.4, y CA2.5 si se ha probado);
+   - cabecera `## [0.2.0] · M2 Catálogo vivo · <fecha>`;
+   - ADR-007 y ADR-008 a «aceptada», también en `docs/adr/README.md`;
+   - etiqueta anotada `v0.2.0` y *push* de la etiqueta.
+
+   Después ya se puede tocar el pipeline: núcleo de arranque, abaratar `applyRecent` y ADR-009.
+4. **Preguntar al usuario por la app de escritorio:** si la instaló y si el atajo y las 10 capturas van bien (CA3.7 y CA3.8). El instalador está en `apps/desktop/src-tauri/target/release/bundle/nsis/GameAgenda_0.2.0_x64-setup.exe`; si no está, `npm run desktop:build`.
+5. **Seguir con M3**, por este orden si el usuario no dice otra cosa:
+   1. atajos de una tecla, gestos y reordenar arrastrando (CA3.4);
+   2. índice persistido (CA3.2): no necesita el pipeline;
+   3. «Compartir» en Android, `Ctrl+V` en cualquier pantalla y chip «Pegar enlace»;
+   4. panel de rendimiento;
+   5. WCAG 2.2 AA (CA3.5) y prueba guiada (CA3.6).
+
+   Hay que avisar al usuario al acabar cada parte.
 
 ## 1. Dónde estamos
 
@@ -115,7 +147,10 @@
 | ~~Pedir la clave de la Steam Web API~~ | **Hecho (31-10-2026):** en `.env.local` (`STEAM_WEB_API_KEY`) y en el secreto de GitHub `STEAM_API_TOKEN`, con su *hash* en la variable `STEAM_KEY_SHA256` del CI. Funciona: `GetAppList` responde 200 | `catalog.yml` (M2) mapea `STEAM_API_TOKEN` a `STEAM_WEB_API_KEY` |
 | ~~Cuenta de GitHub~~ | **Hecho el 30-10-2026:** `gh` 2.103.3 instalado (`C:\Program Files\GitHub CLI\gh.exe`; una terminal abierta antes de instalarlo no lo encuentra en el `PATH`) y con sesión como `LucasPrezFdez` (ámbitos `repo`, `read:org` y `gist`). No toca las credenciales de git | — |
 | ~~Cuenta gratuita de Cloudflare~~ | **Hecho el 30-10-2026:** `wrangler login` con la cuenta del usuario y subdominio `gameagenda.workers.dev` | Falta el *token* de la API para GitHub (ver §1) |
-| Cuenta de healthchecks.io (gratis) | Aviso si el pipeline diario deja de ejecutarse | No es urgente: se usa en M2 |
+| ~~Cuenta de healthchecks.io~~ | **Hecho (31-10-2026):** *check* «catalog» (1 día + 12 h) y secreto `HEALTHCHECKS_PING_URL`. Si llega un correo suyo, el cron no ha corrido: ver el *runbook* del ADR-007 | — |
+| Probar la app de escritorio | CA3.7 y CA3.8 (M3) | Instalar `apps/desktop/src-tauri/target/release/bundle/nsis/GameAgenda_0.2.0_x64-setup.exe` (SmartScreen: «Más información» → «Ejecutar de todas formas»). Hacer 10 capturas con `Ctrl+Mayús+Espacio` desde otros programas, probar el modo avión y mirar el menú de la bandeja. Ojo: tiene su propia agenda hasta M4 |
+| Mirar el correo de GitHub del 1 al 3 de noviembre | CA2.1 | Un fallo de `catalog.yml` abre el *issue* `catalogo` y manda correo. Relanzar el flujo lo hace el usuario: Actions › catalog › Run workflow |
+| Opcional: renovar la clave de Steam | Por si acaso | Un agente abrió por error `.env.local` en el Bloc de notas y dice que lo cerró sin leerlo. Si se renueva: `.env.local`, el secreto `STEAM_API_TOKEN` y la variable `STEAM_KEY_SHA256` |
 | Móviles reales | Medir los presupuestos de rendimiento | Un Android de gama media de referencia (M1) y un iPhone, aunque sea prestado (M3 y M4) |
 | Responder las preguntas de la §18 | Afinar el orden de los hitos y el alcance | Sobre todo PA-01 (¿apuntarás desde el móvil y el PC desde el principio?) y PA-02 (¿iPhone o Android?) |
 
@@ -148,6 +183,14 @@
 - **Seguridad:** la clave de Steam nunca va en el chat, el repo ni el *bundle*; solo en `.env.local` y en secretos de GitHub.
 - **Idioma:** español de España en la interfaz y en la documentación; código e identificadores en inglés.
 - **Commits:** desde el 29-10-2026, el usuario quiere que se hagan y se suban a `origin/main` en cuanto el trabajo esté en verde, sin preguntar cada vez.
+- **Ritmo:** se pueden usar subagentes para trabajos independientes, pero hay que avisar al usuario al acabar cada parte y preguntar si sigue.
+- **No borrar** ramas, *worktrees* ni borradores sin que el usuario lo pida (31-10-2026: «no borres nada por si acaso»).
+- **Lo que el modo automático no deja hacer al asistente:** escribir secretos de GitHub, lanzar `catalog.yml` (despliega en producción) y cambiar `CATALOG_SCHEDULE`. Se le dan al usuario los pasos en la web de GitHub. Las variables normales, como `CATALOG_ORIGIN`, sí se pueden poner.
+- **Hasta cerrar M2, no tocar el pipeline** (`pipeline/`, `scripts/catalog-*`, `catalog.yml`): las ejecuciones programadas usan `main`.
+- **Después de cada despliegue de `ga-web`, `npm run smoke:web`.** `vite preview` esconde diferencias con Workers Static Assets: el 31-10, el Service Worker roto desde el 30-10.
+- **`npm run perf` en local** necesita antes `npm run catalog:frozen` (catálogo firmado con `dev-1`). Con procesos pesados en marcha (Discord, `cargo`), `perf` y los E2E de WebKit sensibles al tiempo fallan sueltos: se repiten antes de culpar al código.
+- **Los informes de los subagentes** llegan por `SubagentHandback`; los antiguos están en `~/.claude/projects/<proyecto>/<sesión>/subagents/agent-*.jsonl`.
+- **Nunca** meter comillas invertidas de Markdown dentro de un `node -e "…"` en Bash: la *shell* las ejecuta como órdenes. Para texto, Write o Edit.
 
 ## 6. Mapa de ficheros
 

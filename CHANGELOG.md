@@ -59,7 +59,8 @@ Será la **0.2.0 · M2 Catálogo vivo**: el catálogo se actualiza solo cada dí
 - **Pruebas:**
   - 698 unitarias y 134 E2E en la lista local (Chromium y WebKit con un iPhone 15). En el CI, solo Chromium;
   - el mini-catálogo de `fixtures/` va firmado con `dev-1` y trae recientes y *shards* sintéticos;
-  - `npm run perf` necesita antes `npm run catalog:frozen`, porque el catálogo tiene que ir firmado.
+  - `npm run perf` necesita antes `npm run catalog:frozen`, porque el catálogo tiene que ir firmado;
+  - `npm run smoke:web`, prueba de humo de `ga-web` en producción con un Chromium real: primera y segunda visita, sin red y errores. Con `--profile`, mide la actualización de un cliente con el catálogo de ayer (CA2.4).
 - **ADR:**
   - 007 (pipeline y publicación) y 008 (portadas), propuestos;
   - la parte de M2 del Worker en el ADR-005 y la cuenta nueva en el ADR-003.
