@@ -45,15 +45,15 @@ Opción elegida: **1, Workers Static Assets**, porque:
 
 ### *Hosting*
 
-Dos Workers en el subdominio `gameagenda.workers.dev` de la cuenta, registrado el 30-10-2026 con la API de Cloudflare (elección del usuario):
+Dos Workers, cada uno en su cuenta de Cloudflare. El subdominio `gameagenda.workers.dev` se registró el 30-10-2026 con la API de Cloudflare (elección del usuario). Desde el 31-10-2026 (M2), `ga-catalog` va en una segunda cuenta gratuita, con el subdominio `gameagenda-cat.workers.dev` y su propio *token* (§11.3). Hasta entonces, el mini-catálogo de M0 se servía en https://ga-catalog.gameagenda.workers.dev:
 
 | Worker | URL | Configuración | Qué sirve |
 |---|---|---|---|
 | `ga-web` | https://ga-web.gameagenda.workers.dev | `apps/web/wrangler.jsonc` | `apps/web/dist`, con `not_found_handling: single-page-application` y las cabeceras de `apps/web/public/_headers` |
-| `ga-catalog` | https://ga-catalog.gameagenda.workers.dev | `pipeline/wrangler.jsonc` | `pipeline/dist/`, sin *fallback*. Lo monta `scripts/assemble-catalog.ts` desde `fixtures/catalog/` (M0) o `pipeline/out/` (M2), con las cabeceras de `pipeline/catalog.headers` |
+| `ga-catalog` | https://ga-catalog.gameagenda-cat.workers.dev | `pipeline/wrangler.jsonc` | `pipeline/dist/`, sin *fallback*. Lo monta `scripts/assemble-catalog.ts` desde `fixtures/catalog/` (M0) o `pipeline/out/` (M2), con las cabeceras de `pipeline/catalog.headers` |
 
 - **`ga-web`:**
-  - la CSP de la §11.3, sin `unsafe-inline`, con `connect-src 'self' https://ga-catalog.gameagenda.workers.dev` y `upgrade-insecure-requests`;
+  - la CSP de la §11.3, sin `unsafe-inline`, con `connect-src 'self' https://ga-catalog.gameagenda-cat.workers.dev` y `upgrade-insecure-requests`;
   - `nosniff`, `Referrer-Policy`, COOP, HSTS y `Permissions-Policy`;
   - `/assets/*` se cachea un año (`immutable`), y el resto conserva el valor por defecto, `public, max-age=0, must-revalidate`.
 - **`ga-catalog`:**
@@ -137,7 +137,7 @@ Detalle en [`docs/medidas/verificaciones-m0-20261030.md`](../medidas/verificacio
 - Mal, porque «Workers Scripts: Edit» abarca toda la cuenta: un pipeline comprometido podría desplegar `ga-web` (§11.3).
 - Hecho el 30-10-2026: el usuario creó los secretos `CLOUDFLARE_API_TOKEN` (*token* propio con solo «Account › Workers Scripts › Edit») y `CLOUDFLARE_ACCOUNT_ID`. El primer *push* después dio `ci` en verde en 3 min 2 s (ejecución 41140409104), y `deploy-web` desplegó `ga-web` solo, en 33 s (ejecución 41140742020). La versión `f5044388-039e-4e13-ae52-c77456dbfd4e` lleva como mensaje el SHA `d981870`. Con ese permiso bastó.
 - Hecho el 31-10-2026: el usuario consiguió la clave y la guardó en `.env.local` y en el secreto `STEAM_API_TOKEN`; la variable `STEAM_KEY_SHA256` lleva su *hash*. Desde entonces, el CI también busca la clave.
-- Pendiente: confirmar si el *token* se puede limitar a un *script*. Si no se puede, `ga-catalog` pasa a otra cuenta gratuita con su propio *token* (§11.3).
+- Hecho el 31-10-2026: `ga-catalog` pasa a otra cuenta gratuita con su propio *token* («Account › Workers Scripts › Edit», solo en esa cuenta) y el subdominio `gameagenda-cat.workers.dev`. Así, el *token* de `ga-web` no está en el pipeline, que procesa datos no confiables, y el del pipeline no llega a `ga-web` (§11.3). Los secretos son `CATALOG_CLOUDFLARE_API_TOKEN` y `CATALOG_CLOUDFLARE_ACCOUNT_ID`, y la variable `CATALOG_ORIGIN` lleva el origen nuevo (ADR-007).
 - Pendiente (M2): medir lo transferido con el núcleo completo, `aliases` y `recent`. `catalog.yml` ya sustituye a `deploy-catalog.yml`.
 - Pendiente (M4): `@cloudflare/workers-types` llega con el *script* de la micro-API (ver ADR-002).
 
