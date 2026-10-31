@@ -55,12 +55,12 @@ test('parte 1: búsqueda de core en el hilo principal con CPU ×4', async ({ pag
       stat: 'peor de 2',
       value: Math.max(restart.scanMs, held.scanMs),
       limit: 2000,
-      note: `${restart.scanMs} y ${held.scanMs} ms: leer Cache Storage, comprobar el sha256, leer el TSV y normalizar las claves (CA1.11)`,
+      note: `${restart.scanMs} y ${held.scanMs} ms: leer Cache Storage, comprobar el sha256, leer el TSV, aplicar los recientes y normalizar las claves (CA1.11)`,
     });
     rows.add({
       metric: 'Desglose hasta scan, sin ceder el turno',
-      value: Math.round(phases.cacheMs + phases.readMs + phases.keysMs),
-      note: `Cache Storage + sha256 ${Math.round(phases.cacheMs)} ms, lectura del TSV ${Math.round(phases.readMs)} ms, claves, exactos y pajar ${Math.round(phases.keysMs)} ms`,
+      value: Math.round(phases.cacheMs + phases.readMs + phases.recentMs + phases.keysMs),
+      note: `Cache Storage + sha256 ${Math.round(phases.cacheMs)} ms, lectura del TSV ${Math.round(phases.readMs)} ms, recientes ${Math.round(phases.recentMs)} ms, claves, exactos y pajar ${Math.round(phases.keysMs)} ms`,
     });
     rows.add({ metric: 'Reinicio con caché → índice completo (full)', value: restart.fullMs });
     rows.addStats({

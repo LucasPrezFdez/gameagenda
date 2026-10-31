@@ -6,11 +6,17 @@ import type { HostTestHooks } from './host.ts';
 
 export interface WorkerTestHooks extends HostTestHooks {
   control(message: TestControlMessage): void;
+  /**
+   * ¿Acepta el almacén, sin verificarla, la firma de una clave de desarrollo en un navegador sin
+   * Ed25519? Solo lo pide `webkit-movil` (el WebKit de Playwright en Windows no lo trae; §11.3).
+   */
+  unverifiedDevSignature(): boolean;
 }
 
 export function createWorkerTestHooks(): WorkerTestHooks {
   let hold: 'none' | 'scan' | null = null;
   let failNext = false;
+  let unverifiedDev = false;
   return {
     hold: () => hold,
     beforeLoad() {
@@ -18,9 +24,13 @@ export function createWorkerTestHooks(): WorkerTestHooks {
       failNext = false;
       throw new CatalogLoadError('network', 'Fallo de red simulado (E2E)');
     },
+    unverifiedDevSignature: () => unverifiedDev,
     control(message) {
       if (message.hold !== undefined) hold = message.hold;
       if (message.failFirstLoad) failNext = true;
+      if (message.unverifiedDevSignature !== undefined) {
+        unverifiedDev = message.unverifiedDevSignature;
+      }
     },
   };
 }

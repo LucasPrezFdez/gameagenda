@@ -169,12 +169,15 @@ export type WorkerToUiMessage =
 /**
  * Control de los E2E: solo lo atiende el *build* del modo `e2e` (ver §12.3), nunca el de
  * producción. `hold` deja la construcción quieta en ese estado hasta recibir `hold: null`;
- * `failFirstLoad` hace que la próxima carga del catálogo falle como sin red.
+ * `failFirstLoad` hace que la próxima carga del catálogo falle como sin red;
+ * `unverifiedDevSignature`, que en un navegador sin Ed25519 (el WebKit de Playwright en Windows)
+ * se acepte sin verificar un *manifest* firmado con la clave de desarrollo (§11.3).
  */
 export interface TestControlMessage {
   readonly type: 'test';
   readonly hold?: 'none' | 'scan' | null;
   readonly failFirstLoad?: boolean;
+  readonly unverifiedDevSignature?: boolean;
 }
 
 /** Lo mínimo de un `Worker` que necesita el cliente: un `Worker` real ya lo cumple. */

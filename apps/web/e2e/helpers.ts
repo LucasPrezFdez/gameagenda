@@ -9,19 +9,38 @@ export interface SearchTestOptions {
   readonly hold?: 'none' | 'scan';
   /** La primera carga del catálogo falla como sin red. */
   readonly failFirstLoad?: boolean;
+  /**
+   * Sin Ed25519 en WebCrypto, acepta sin verificarlo el *manifest* firmado con la clave de
+   * desarrollo. `setup()` lo enciende por defecto: el WebKit de Playwright en Windows no tiene
+   * Ed25519 y, sin esto, `webkit-movil` no tendría catálogo (§11.3; ver ADR-005). En Chromium no
+   * cambia nada: la firma se verifica siempre.
+   */
+  readonly unverifiedDevSignature?: boolean;
+}
+
+/** El `status` del Worker que guardan los ganchos (`StatusMessage` de `protocol.ts`). */
+export interface CatalogStatus {
+  readonly state: 'none' | 'boot' | 'scan' | 'full';
+  readonly version: string | null;
+  readonly count: number;
+  readonly error: { readonly code: string; readonly retryable: boolean } | null;
+  readonly catalog: { readonly version: string } | null;
 }
 
 declare global {
   var __GA_SEARCH_TEST__: SearchTestOptions | undefined;
-  var __gaSearchTest: { release(): void; readonly workerMs: number[] } | undefined;
+  var __gaSearchTest:
+    | { release(): void; readonly workerMs: number[]; readonly status: CatalogStatus | null }
+    | undefined;
   var __cspViolations: string[];
 }
 
 /**
- * Ganchos de la búsqueda (por defecto, ninguno: el Worker real con el mini-catálogo) y registro
- * de violaciones de CSP y errores de la página y de sus Workers.
+ * Ganchos de la búsqueda (por defecto, solo `unverifiedDevSignature`: el Worker real con el
+ * mini-catálogo) y registro de violaciones de CSP y errores de la página y de sus Workers.
  */
-export async function setup(page: Page, search: SearchTestOptions = {}) {
+export async function setup(page: Page, options: SearchTestOptions = {}) {
+  const search: SearchTestOptions = { unverifiedDevSignature: true, ...options };
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   page.on('console', (message) => {
@@ -46,6 +65,11 @@ export async function setup(page: Page, search: SearchTestOptions = {}) {
       expect(await page.evaluate(() => globalThis.__cspViolations)).toEqual([]);
     },
   };
+}
+
+/** El último `status` del Worker, o `null` si aún no ha llegado ninguno. */
+export async function catalogStatus(page: Page): Promise<CatalogStatus | null> {
+  return page.evaluate(() => globalThis.__gaSearchTest?.status ?? null);
 }
 
 /** Suelta el Worker parado con `hold`: sigue construyendo el índice. */
