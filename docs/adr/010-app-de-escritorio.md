@@ -90,7 +90,7 @@ Opción elegida: **1**, porque es la única en la que el propio Tauri trata `ga-
 - Mal, porque **el atajo solo abre la paleta cuando `ga-web` tenga desplegado `desktop-capture.ts`**. Hasta entonces, la ventana sale delante, pero sin la paleta. Hay que publicar la web antes de repartir el instalador.
 - Mal, porque la primera apertura necesita red y, hasta M4, la agenda de escritorio es otra distinta de la del navegador (R-18). Ojo: el desinstalador ofrece «borrar los datos de la aplicación», que borra esa agenda. Antes, exportar.
 - Mal, porque sin firma SmartScreen avisa al instalar (se decide en Fase 2).
-- Mal, porque `auto-launch` 0.6.0 escribe la ruta en `Run` sin comillas e intenta antes `HKLM` (sin elevar cae a `HKCU`). Con la ruta por defecto solo importa si el nombre del usuario lleva espacios; Windows suele resolverla aun así.
+- Mal, porque `auto-launch` 0.6.0 escribe la ruta en `Run` sin comillas e intenta antes `HKLM` (sin elevar cae a `HKCU`). Con la ruta por defecto solo importa si el nombre del usuario lleva espacios; Windows suele resolverla aun así. Además, al desactivarlo deja `StartupApproved\Run\GameAgenda`, que el desinstalador tampoco borra: no arranca nada, pero queda en el registro.
 - Mal, porque un atajo pulsado antes de que React monte la página (en el primer segundo tras abrir la app) muestra la ventana sin abrir la paleta.
 - Pendiente: CA3.7 con una persona al teclado (10 altas tecleadas; ver «Confirmación») y CA3.8 en modo avión de verdad, con la app instalada desde `ga-web` ya desplegada.
 - Pendiente: Dependabot para Cargo (§6.5). Aún no hay `.github/dependabot.yml` en el repositorio.
