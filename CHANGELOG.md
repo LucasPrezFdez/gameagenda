@@ -48,7 +48,8 @@ Será la **0.2.0 · M2 Catálogo vivo**: el catálogo se actualiza solo cada dí
   - verifica la firma con WebCrypto (en producción, solo claves `prod`) y aplica `recent`;
   - regla de los 7 días (CA2.4): con un núcleo local de 7 días o menos, solo baja el *manifest*, los recientes y lo que cambió;
   - ante un 404, relee el *manifest* una vez y reintenta de 1 min a 1 h;
-  - una versión que solo cambia un *kill switch* se adopta sin reconstruir el índice.
+  - una versión que solo cambia un *kill switch* se adopta sin reconstruir el índice;
+  - el *manifest* se comprueba como mucho cada 12 h (`meta.catalog`, en IndexedDB, sin Dexie), y siempre al volver la red y con «Actualizar catálogo».
 - **Cliente de detalles**, en un *chunk* diferido: comprueba el índice y cada *shard* (*hash* y Zod), los guarda en Cache Storage `gacat-details` y cede el hilo entre *shards*.
 - **`ga-catalog` en su propia cuenta de Cloudflare** (https://ga-catalog.gameagenda-cat.workers.dev), con su *token*: el del pipeline no puede desplegar `ga-web` (§11.3, ADR-003).
 - **Primera publicación** (31-10-2026, ejecución 41201112633, a mano):
@@ -122,7 +123,6 @@ Será la **0.2.0 · M2 Catálogo vivo**: el catálogo se actualiza solo cada dí
 - **CA2.2 en un fallo real:** el *issue* `catalogo`, el `/fail` de healthchecks.io y `gh run download` desde el trabajo `report`.
 - **Safari:** Ed25519 y el resto de la firma, en el dispositivo (§11.3).
 - **R-04:** comprobar que un flujo sin `schedule` no se desactiva y que `…/enable` reactiva uno desactivado.
-- **`meta.catalog` y la comprobación cada 12 h** (§7.6): aún no están. Hoy el *manifest* se comprueba en cada arranque.
 - **Medir:**
   - `recent` en régimen, a los 14 días;
   - lo que transfiere el núcleo completo (ADR-003);

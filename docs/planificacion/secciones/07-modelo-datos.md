@@ -194,7 +194,7 @@ El `recent` en régimen se estima con las 3 696 filas de `appid` más alto de la
 - Al cambiar de versión solo se borran las cachés `gacat-AAAAMMDD.N`; `gacat-details` se conserva y limpia lo que ya no está en el índice nuevo.
 - La caché solo se escribe después de verificar la firma y los `sha256`: al arrancar no se vuelve a verificar la firma, y sin Ed25519 se puede seguir usando (RNF-12).
 
-IndexedDB guarda `meta.catalog` (versión y última comprobación; pendiente en M2: hoy no se escribe y el *manifest* se comprueba en cada arranque, no cada 12 h) y, desde M3, el índice construido en `meta.searchIndex` (ver §8). El Worker de búsqueda no importa Dexie (ver §5.2): abre la base con la API de IndexedDB, solo toca esas dos claves y la cierra ante `versionchange` para no bloquear migraciones; así, la copia del índice (19,2 MB) no ocupa el hilo principal.
+IndexedDB guarda `meta.catalog` (`{version, checkedAt}`: la versión cuyo *manifest* se comprobó y cuándo; con un catálogo en la caché, el arranque solo lo vuelve a pedir pasadas 12 h, y una comprobación fallida no se apunta) y, desde M3, el índice construido en `meta.searchIndex` (ver §8). El Worker de búsqueda no importa Dexie (ver §5.2): abre la base con la API de IndexedDB, solo toca esas dos claves y la cierra ante `versionchange` para no bloquear migraciones; así, la copia del índice (19,2 MB) no ocupa el hilo principal.
 
 ### 7.7 Esquema de D1 (M4)
 

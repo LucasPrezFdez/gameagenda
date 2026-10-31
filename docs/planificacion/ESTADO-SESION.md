@@ -46,7 +46,9 @@
        - `DECISIONES.md` §10.19 (catálogo) y §10.20 (interfaz);
        - las secciones 4, 5, 7, 8, 9, 11, 12, 13 y 15, y `prototipe.md` montado de nuevo.
 
-       Los informes estaban en las transcripciones de los subagentes de la sesión 4, en las llamadas `SubagentHandback` de `~/.claude/projects/…/ba53a48a-…/subagents/`. Quedan dos pendientes de código que salieron de ellos: `meta.catalog` con la comprobación cada 12 h, y abaratar `applyRecent` si el arranque pasa de 2 s;
+       Los informes estaban en las transcripciones de los subagentes de la sesión 4, en las llamadas `SubagentHandback` de `~/.claude/projects/…/ba53a48a-…/subagents/`. De ellos salieron dos pendientes de código:
+       - `meta.catalog` con la comprobación cada 12 h: **hecho** (31-10-2026, `catalog-meta.ts`). Hay 13 pruebas unitarias nuevas, un E2E y el gancho `checkEveryStart` para los E2E que publican y recargan. El Worker pesa 37,4 KB de 40;
+       - abaratar `applyRecent` si el arranque pasa de 2 s: no se ha hecho;
     7. ~~borrar la rama `m2-cliente` y las ramas y carpetas `worktree-agent-*`~~ **No se borran** (decisión del usuario, 31-10-2026: «por si acaso»), aunque todas están integradas.
   - **Avisos de los agentes:** el reinicio con caché sube a ≈1,85 s con recientes (≤2 s; con el equipo cargado, a veces se pasa; el 31-10-2026, 1 893 ms); el Worker pesa 36,9 KB de 40; los cambios del plan de sus informes ya están aplicados (punto 6).
 - **M1 · Apuntar: cerrado con `v0.1.0`** (30-10-2026; etiqueta anotada en GitHub, con `CHANGELOG.md`). Las mediciones en el dispositivo pasan a M3 (ver «Pendiente de M1», punto 6). Todo está en `main` y subido, sin agentes ni *worktrees* abiertos:

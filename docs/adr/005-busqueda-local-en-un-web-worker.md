@@ -226,9 +226,13 @@ Opción elegida: **1**, porque de las medidas es la única que cumple a la vez l
 - Resuelto el 30-10-2026: con CPU ×4 en la página de prueba, el escaneo tardaba ≈2,2 s tras un reinicio con caché, frente a ≤2 s de CA1.11. La mayor parte, ≈1,7 s, eran claves, exactos y pajar en el *builder* de `core`. Tras optimizar el *builder* y el lector del TSV, está listo en 1,55–1,64 s (claves 1 179 ms y TSV 287 ms); el detalle está en `docs/medidas/builder-m1-20261030.md`.
 - Pendiente: medir el Worker real en el Android de referencia.
 - Medido: CDP no estrangula el Worker dedicado. `Emulation.setCPUThrottlingRate` responde «Operation is only supported for pages, not workers», aun adjuntado con `Target.setAutoAttach`. Por eso la parte 1 de `perf` busca en el hilo principal de una página de prueba.
-- Pendiente (M2): guardar `meta.catalog` y comprobar el *manifest* solo si han pasado ≥12 h (aún se comprueba en cada arranque).
+- Hecho (M2, 31-10-2026): `meta.catalog` (`{version, checkedAt}`, `catalog-meta.ts`).
+  - El Worker la lee y la escribe con IndexedDB nativo, sin Dexie, y cierra la conexión al acabar; si la base aún no existe, no la crea.
+  - Con un catálogo en la caché, el arranque solo pide el *manifest* si han pasado 12 h o si la versión no coincide; si no, programa la comprobación para cuando toque. La vuelta de la red y «Actualizar catálogo» comprueban siempre.
+  - Una comprobación fallida no se apunta.
+  - En los E2E que «publican» otra versión y recargan, el gancho `checkEveryStart` lo pide en cada arranque.
 - Hecho (M2, 31-10-2026): `recent`, la regla de los 7 días para el núcleo, la firma del *manifest* y la recuperación ante un 404 (ver «M2 · Catálogo vivo en el cliente»).
-- Mal, porque un *build* de producción solo confía en las claves `prod`, y `CATALOG_SIGNING_KEYS` aún no tiene ninguna. Hasta que se añada la pública de producción, ese *build* descarta todos los *manifest*: no hay que desplegar `ga-web` con esta parte sin ella, ni sin un `ga-catalog` firmado.
+- Mal, porque un *build* de producción solo confía en las claves `prod`: sin la pública de producción, o sin un `ga-catalog` firmado, descartaría todos los *manifest*. Resuelto: `prod-1` está en `CATALOG_SIGNING_KEYS` desde `9ace9f8`, y el 31-10-2026 `ga-web` 0.2.0 verificó en producción el catálogo `20261031.1` firmado con ella.
 - Pendiente (M3): índice persistido y núcleo de arranque (ADR-009).
 
 ### Confirmación
