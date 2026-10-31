@@ -95,6 +95,7 @@ Será la **0.2.0 · M2 Catálogo vivo**: el catálogo se actualiza solo cada dí
 
 ### Corregido
 
+- **`ga-web` no volvía a abrir tras la primera visita** (desde el despliegue del 30-10-2026). Workers Static Assets redirige `/index.html` a `/`, y el Service Worker guardaba esa respuesta redirigida, que Chrome no acepta para una navegación: cada visita siguiente fallaba con `net::ERR_FAILED`, también sin red. Ahora guarda una copia sin la redirección, y quien tenía la versión rota se recupera solo en la siguiente visita (comprobado en producción). `vite preview` no redirige, así que hay un E2E nuevo que reproduce el 307.
 - **Clave de Steam:** el cliente HTTP la mandaba a todas las peticiones, unas 220 con clave al día frente a las ≤10 del CA2.1. Ahora solo la lleva `GetAppList`.
 - **`--from-raw`** vuelve a derivar con clave si las páginas crudas traen `GetAppList`, aunque no haya clave en el entorno.
 - **Sin conexión**, el cliente de detalles no hace peticiones que fallarían igual.

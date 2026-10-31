@@ -140,6 +140,7 @@ Detalle en [`docs/medidas/verificaciones-m0-20261030.md`](../medidas/verificacio
 - Hecho el 31-10-2026: `ga-catalog` pasa a otra cuenta gratuita con su propio *token* («Account › Workers Scripts › Edit», solo en esa cuenta) y el subdominio `gameagenda-cat.workers.dev`. Así, el *token* de `ga-web` no está en el pipeline, que procesa datos no confiables, y el del pipeline no llega a `ga-web` (§11.3). Los secretos son `CATALOG_CLOUDFLARE_API_TOKEN` y `CATALOG_CLOUDFLARE_ACCOUNT_ID`, y la variable `CATALOG_ORIGIN` lleva el origen nuevo (ADR-007).
 - Pendiente (M2): medir lo transferido con el núcleo completo, `aliases` y `recent`. `catalog.yml` ya sustituye a `deploy-catalog.yml`.
 - Pendiente (M4): `@cloudflare/workers-types` llega con el *script* de la micro-API (ver ADR-002).
+- Encontrado el 31-10-2026: con el `html_handling` por defecto, `ga-web` responde a `/index.html` con un 307 a `/`. El Service Worker precacheaba esa respuesta redirigida, y Chrome la rechaza para una navegación (`net::ERR_FAILED`). Desde el despliegue del 30-10-2026, cada visita tras la primera fallaba. El Service Worker guarda ahora una copia sin la redirección (`e8f6dd5`), y `pwa.spec` reproduce el 307, porque `vite preview` no redirige. Es una diferencia más entre `vite preview` y Workers Static Assets que los E2E no cubrían. Comprobado en producción: un navegador con el Service Worker roto se recuperó solo en la primera visita tras el despliegue, sin borrar nada.
 
 ### Confirmación
 
