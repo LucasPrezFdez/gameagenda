@@ -1,0 +1,59 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "GameAgenda",
+  "mainBinaryName": "GameAgenda",
+  "version": "../package.json",
+  "identifier": "dev.workers.gameagenda",
+  "build": {
+    "devUrl": "http://127.0.0.1:5173",
+    "beforeDevCommand": {
+      "script": "npm run dev",
+      "cwd": "../../web",
+      "wait": false
+    }
+  },
+  "app": {
+    "withGlobalTauri": false,
+    "windows": [
+      {
+        "label": "main",
+        "create": false,
+        "url": "https://ga-web.gameagenda.workers.dev/",
+        "title": "GameAgenda",
+        "width": 1100,
+        "height": 760,
+        "minWidth": 360,
+        "minHeight": 480,
+        "center": true,
+        "visible": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "publisher": "GameAgenda",
+    "shortDescription": "Agenda de videojuegos",
+    "longDescription": "Apunta en segundos los juegos que quieres jugar, desde cualquier aplicación con Ctrl+Mayús+Espacio.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.png",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper",
+        "silent": true
+      },
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": ["Spanish"]
+      }
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "name": "@gameagenda/desktop",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "App de escritorio para Windows: envoltorio Tauri de ga-web con el atajo global Ctrl+Mayús+Espacio.",
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "tauri": "tauri"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2.12.4"
+  }
+}

@@ -5,6 +5,7 @@ pipeline/out/
 pipeline/state/
 .wrangler/
 apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/
 *.tsbuildinfo
 
 # Playwright

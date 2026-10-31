@@ -25,6 +25,8 @@ npm run dev     # http://127.0.0.1:5173
 | `npm run perf` | Rendimiento con CPU ×4 y el catálogo completo de `pipeline/out/` (ver §12.4) |
 | `npm run catalog:build -- --keyless` | Catálogo de M1 sin clave de Steam en `pipeline/out/` (ver §4) |
 | `npm run catalog:frozen` | Catálogo completo y mini-catálogo de `fixtures/catalog/` desde la copia congelada |
+| `npm run desktop:dev` | App de escritorio (Tauri) contra `npm run dev`; necesita Rust (ver ADR-010) |
+| `npm run desktop:build` | Instalador NSIS de la app de escritorio en `apps/desktop/src-tauri/target/release/bundle/nsis/` |
 | `npm run format` | Formatea y ordena los imports con Biome |
 
 ## Despliegue
