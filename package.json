@@ -28,6 +28,8 @@
     "perf": "npm run perf -w @gameagenda/web",
     "catalog:frozen": "node scripts/catalog-from-frozen.ts",
     "catalog:build": "node --env-file-if-exists=.env.local pipeline/build.ts",
+    "catalog:stage": "node --env-file-if-exists=.env.local scripts/catalog-stage.ts",
+    "catalog:publish": "node scripts/catalog-publish.ts",
     "fixtures:record": "node --env-file-if-exists=.env.local pipeline/record-fixtures.ts",
     "fixtures:freeze": "node pipeline/freeze-fixtures.ts"
   },
