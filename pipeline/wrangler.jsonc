@@ -1,8 +1,14 @@
 // Worker `ga-catalog` (§5.2, §7.6 y §14 de prototipe.md): solo *assets* estáticos, sin *fallback*
-// (lo que no existe da 404). Sirve `pipeline/dist/`, que monta `scripts/assemble-catalog.ts` con
-// el catálogo (en M0, el mini-catálogo de `fixtures/catalog/`; desde M2, `pipeline/out/`) y las
-// cabeceras de `pipeline/catalog.headers`. Lo despliega `.github/workflows/deploy-catalog.yml`
-// (en M2, `catalog.yml`); en local: `npx wrangler dev -c pipeline/wrangler.jsonc`.
+// (lo que no existe da 404). Sirve `pipeline/dist/`, que monta `scripts/assemble-catalog.ts`: la
+// versión nueva del catálogo (`pipeline/out/`) más los ficheros de la anterior (CA2.4), con las
+// cabeceras de `pipeline/catalog.headers`. Cada despliegue sustituye todos los *assets*: por eso
+// la carpeta lleva también los de la versión anterior.
+//
+// Lo despliega solo `.github/workflows/catalog.yml` (`npm run catalog:publish`), con los secretos
+// `CATALOG_CLOUDFLARE_API_TOKEN` y `CATALOG_CLOUDFLARE_ACCOUNT_ID`: `ga-catalog` va en su propia
+// cuenta de Cloudflare, sin acceso a `ga-web` (§11.3). Sin `account_id` aquí: lo da
+// `CLOUDFLARE_ACCOUNT_ID`. En local: `node scripts/assemble-catalog.ts` (el mini-catálogo de
+// `fixtures/catalog/`) y `npx wrangler dev -c pipeline/wrangler.jsonc`.
 {
   "$schema": "../node_modules/wrangler/config-schema.json",
   "name": "ga-catalog",
