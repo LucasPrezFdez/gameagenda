@@ -262,10 +262,11 @@
   min-width: 9rem;
 }
 
-/* Aviso con Deshacer */
+/* Aviso con Deshacer. Sube por encima del de las portadas: `--cover-notice-space` (su alto más el
+   hueco) lo pone CoverNotice en la raíz mientras se ve. */
 .toaster {
   position: fixed;
-  bottom: 24px;
+  bottom: calc(24px + var(--cover-notice-space, 0px));
   left: calc(50% + 100px);
   z-index: var(--z-toast);
   width: min(36rem, calc(100vw - 2 * var(--gutter) - 200px));
@@ -274,8 +275,7 @@
 }
 
 /* Aviso de primera capa de las portadas (§11.2): fijo abajo, donde el de Deshacer, que sube por
-   encima de él (`--cover-notice-h` lo mide el componente). No empuja la lista (§9.5, regla 3) y,
-   con la paleta abierta, no la tapa. */
+   encima de él. No empuja la lista (§9.5, regla 3) y, con la paleta abierta, no la tapa. */
 .cover-notice {
   position: fixed;
   bottom: 24px;
@@ -294,11 +294,10 @@
   margin-left: auto;
 }
 
-.app:has(.cover-notice) .toaster {
-  bottom: calc(24px + var(--cover-notice-h, 0px) + 8px);
-}
-
-.app:has(.palette.is-open) .cover-notice {
+/* Nada de `:has()` en `.app`: cada cambio del DOM de la app (cada resultado de la paleta) lo vuelve
+   a comprobar recorriendo Mi lista entera. Con 500 entradas y CPU ×4 eran dos tareas largas por
+   nombre tecleado (npm run perf, 31-10-2026). En la cabecera, el recorrido es corto. */
+.app-header:has(.palette.is-open) ~ .cover-notice {
   display: none;
 }
 
@@ -418,7 +417,7 @@
     --notices-bottom: calc(var(--tabbar-h) + 12px + env(safe-area-inset-bottom));
   }
 
-  .app:has(.cover-notice) .toaster {
-    bottom: calc(var(--notices-bottom) + var(--cover-notice-h, 0px) + 8px);
+  .toaster {
+    bottom: calc(var(--notices-bottom) + var(--cover-notice-space, 0px));
   }
 }

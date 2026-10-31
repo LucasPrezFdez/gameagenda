@@ -9,6 +9,9 @@ import { es } from '../i18n/es.ts';
 import { Link } from '../router/router.tsx';
 import { settingsPath } from '../router/routes.ts';
 
+/** Hueco entre este aviso y el de Deshacer, que va encima (px). */
+const NOTICE_GAP = 8;
+
 /** Tras el primer fotograma con el aviso pintado. */
 function afterPaint(task: () => void): () => void {
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -35,20 +38,24 @@ export function CoverNotice({ hidden }: { hidden: boolean }) {
     return afterPaint(() => settings.update({ coverNotice: 'shown' }));
   }, [visible, coverNotice, settings]);
 
-  // Su alto, para que el aviso de Deshacer suba por encima (por CSSOM: la CSP no admite estilos
-  // en línea).
+  // Lo que sube el aviso de Deshacer: el alto de este más el hueco (por CSSOM: la CSP no admite
+  // estilos en línea). Con la paleta abierta no se pinta (alto 0) y se queda la última medida:
+  // cada cambio de una propiedad de la raíz recalcula los estilos de toda la página.
   const ref = useRef<HTMLElement>(null);
   useLayoutEffect(() => {
     const element = ref.current;
     if (!visible || !element) return;
     const root = document.documentElement;
-    const measure = () => root.style.setProperty('--cover-notice-h', `${element.offsetHeight}px`);
+    const measure = () => {
+      const height = element.offsetHeight;
+      if (height > 0) root.style.setProperty('--cover-notice-space', `${height + NOTICE_GAP}px`);
+    };
     measure();
     const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
     observer?.observe(element);
     return () => {
       observer?.disconnect();
-      root.style.removeProperty('--cover-notice-h');
+      root.style.removeProperty('--cover-notice-space');
     };
   }, [visible]);
 

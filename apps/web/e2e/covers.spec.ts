@@ -3,7 +3,7 @@
 // `*.steamstatic.com`; `library_capsule` → `header` → portada generada; 0 violaciones de CSP.
 import { expect, type Page, test } from '@playwright/test';
 import { coverUrl, serveCovers, serveDetails, watchSteamRequests } from './details.ts';
-import { capture, expectAccessible, openPalette, setup } from './helpers.ts';
+import { capture, expectAccessible, openPalette, setup, toast } from './helpers.ts';
 import { expectStoredSetting } from './storage.ts';
 
 const HADES_II = 1145350;
@@ -98,6 +98,31 @@ test('el aviso de primera capa sale antes de la primera portada y se cierra con 
   await expect(option).toHaveAccessibleName(/^Celeste/);
   await expect(option.locator('.cover')).toHaveClass(/has-image/);
   await expect(option.locator('img')).toHaveAttribute('src', coverUrl(CELESTE, 'header.jpg'));
+  await checks.expectClean();
+});
+
+test('el aviso de Deshacer va justo encima del de las portadas, que no tapa la paleta', async ({
+  page,
+  context,
+}) => {
+  const checks = await setup(page);
+  await serveDetails(context, GAMES);
+  await serveCovers(context);
+  await page.goto('/');
+  await capture(page, 'hades ii', 'Hades II');
+  await expect(notice(page)).toBeVisible();
+  // Los dos entran con una animación (`toast-in`): se mide cuando ha acabado.
+  await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished)));
+  const toastBox = await toast(page).boundingBox();
+  const noticeBox = await notice(page).boundingBox();
+  if (!toastBox || !noticeBox) throw new Error('Los dos avisos tienen que estar a la vista');
+  // Sin solaparse y con el hueco de 8 px entre los dos.
+  expect(noticeBox.y - (toastBox.y + toastBox.height)).toBeCloseTo(8, 0);
+
+  await openPalette(page);
+  await expect(notice(page)).toBeHidden();
+  await page.keyboard.press('Escape');
+  await expect(notice(page)).toBeVisible();
   await checks.expectClean();
 });
 
