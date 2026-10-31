@@ -98,17 +98,23 @@ describe('assemble-catalog: carpeta de ga-catalog con la versión anterior (CA2.
     expect(first.previousOnly).toBe(0);
   });
 
-  it('sigue montando el mini-catálogo de M0 (fixtures/catalog, sin firma)', async () => {
+  it('sigue montando el mini-catálogo (fixtures/catalog, firmado con la clave de desarrollo)', async () => {
     const out = join(tempDir('out-', dirs), 'dist');
     const r = await assemble({ source: join(root, 'fixtures/catalog'), out });
     expect(r.version).toBe('20261028.1');
-    expect(r.signature).toBe('sin firma');
-    expect(files(out)).toEqual([
+    expect(r.signature).toBe('firmado con dev-1 (dev)');
+    const listed = files(out);
+    for (const name of [
       '_headers',
       'aliases.c2260f78db024b1a.tsv',
       'core.f7d1ce6bcb576d9b.tsv',
       'manifest.json',
-    ]);
+    ]) {
+      expect(listed).toContain(name);
+    }
+    // Desde M2, con recientes y *shards* de detalles sintéticos (`npm run catalog:frozen`).
+    expect(listed.some((f) => f.startsWith('recent.'))).toBe(true);
+    expect(listed.some((f) => f.startsWith('details/index.'))).toBe(true);
     expect(readFileSync(join(out, '_headers'), 'utf8')).toBe(
       readFileSync(join(root, 'pipeline/catalog.headers'), 'utf8'),
     );
