@@ -1,10 +1,12 @@
 // Lógica de cada puerta de publicación (§4.6) con entradas pequeñas.
 
+import { serializeCore } from '@gameagenda/core/catalog-format';
 import { describe, expect, it } from 'vitest';
 import { buildCatalogFiles, type CatalogFiles } from '../src/catalog-files.ts';
 import type { Game } from '../src/derive.ts';
 import {
   countGate,
+  deployProblems,
   type GateConfig,
   gatesPassed,
   integrityGate,
@@ -30,6 +32,15 @@ function game(appid: number, name: string, reviews = 0): Game {
     pop: Math.min(63, Math.floor(2 * Math.log2(reviews + 1))),
     cls: 'visible',
     enrichedOn: '2026-10-29',
+    details: [
+      `steam/apps/${appid}/\${FILENAME}?t=1700000000`,
+      'library_600x900.jpg',
+      'header.jpg',
+      [1577836800, 'day'],
+      [8, reviews, 90],
+      1,
+      0,
+    ],
   };
 }
 
@@ -109,9 +120,54 @@ describe('centinelas, integridad y tamaño', () => {
     expect(integrityGate(broken).status).toBe('fail');
   });
 
-  it('tamaño: brotli 11 frente al máximo', () => {
-    expect(sizeGate(files().coreText, cfg).status).toBe('pass');
-    expect(sizeGate(files().coreText, { ...cfg, maxCoreBrotliBytes: 10 }).status).toBe('fail');
+  it('tamaño: núcleo con brotli 11 y, por despliegue, ficheros de ≤25 MiB y ≤20 000', () => {
+    const f = files();
+    const r = sizeGate(f, cfg);
+    expect(r.status).toBe('pass');
+    // manifest, núcleo, recent, alias, índice y los shards, dos veces, y `_headers`.
+    const deployFiles = (5 + f.details.shards.size) * 2 + 1;
+    expect(r.data).toMatchObject({ deployFiles, shards: { games: 7 } });
+    expect(sizeGate(f, { ...cfg, maxCoreBrotliBytes: 10 }).detail).toContain('núcleo con');
+    expect(sizeGate(f, { ...cfg, maxFileBytes: 100 }).status).toBe('fail');
+    expect(sizeGate(f, { ...cfg, maxDeployFiles: deployFiles - 1 }).detail).toContain(
+      `${deployFiles} ficheros`,
+    );
+    expect(deployProblems([{ path: 'core.x.tsv', bytes: 26 * 1024 * 1024 }], cfg)[0]).toContain(
+      'core.x.tsv',
+    );
+  });
+});
+
+describe('recent y shards en la integridad', () => {
+  it('recent con un juego que no está en el núcleo, o que cambia el núcleo, no pasa', () => {
+    const f = files();
+    const extra = serializeCore([{ appid: 999, name: 'Nadie' }], {
+      version: '20261029.1',
+      kind: 'recent',
+    });
+    expect(integrityGate({ ...f, recentText: extra }).detail).toContain('sin juego en el núcleo');
+    const changed = serializeCore([{ appid: 570, name: 'Dota 3' }], {
+      version: '20261029.1',
+      kind: 'recent',
+    });
+    expect(integrityGate({ ...f, recentText: changed }).detail).toContain('lo cambia');
+  });
+
+  it('un shard alterado, que falta o con un juego en el shard equivocado, no pasa', () => {
+    const f = files();
+    const [path, text] = [...f.details.shards][0] as [string, string];
+    const files2 = new Map(f.files);
+    files2.set(path, text.replace('"day"', '"year"'));
+    expect(integrityGate({ ...f, files: files2 }).detail).toContain(`hash de ${path}`);
+    expect(integrityGate({ ...f, files: files2 }).status).toBe('fail');
+    const files3 = new Map(f.files);
+    files3.delete(path);
+    expect(integrityGate({ ...f, files: files3 }).detail).toContain(`falta ${path}`);
+    const files4 = new Map(f.files);
+    const wrong = JSON.parse(text) as Record<string, unknown>;
+    wrong['1'] = Object.values(wrong)[0];
+    files4.set(path, JSON.stringify(wrong));
+    expect(integrityGate({ ...f, files: files4 }).status).toBe('fail');
   });
 });
 

@@ -16,9 +16,37 @@ const releaseSchema = z.object({
   coming_soon_display: z.string().optional(),
 });
 
-/** Reseñas (`include_reviews`): la popularidad sale de `summary_filtered.review_count`. */
+/**
+ * Reseñas (`include_reviews`): la popularidad sale de `summary_filtered.review_count`, y la ficha
+ * completa (§7.6), también de `review_score` (0–9) y `percent_positive`.
+ */
 const reviewsSchema = z.object({
-  summary_filtered: z.object({ review_count: uint.optional() }).optional(),
+  summary_filtered: z
+    .object({
+      review_count: uint.optional(),
+      review_score: uint.optional(),
+      percent_positive: uint.optional(),
+    })
+    .optional(),
+});
+
+/**
+ * Imágenes (`include_assets`): `asset_url_format` (`steam/apps/730/${FILENAME}?t=…`) y los ficheros
+ * de las portadas, que los *shards* guardan tal cual (§4.10). Las rutas se validan al construir los
+ * *shards* y no aquí: un nombre raro deja ese juego sin portada, no tumba la pasada.
+ */
+const assetsSchema = z.object({
+  asset_url_format: z.string().optional(),
+  library_capsule: z.string().optional(),
+  header: z.string().optional(),
+});
+
+/** Plataformas y Steam Deck (`include_platforms`): `steam_deck_compat_category` de 0 a 3. */
+const platformsSchema = z.object({
+  windows: z.boolean().optional(),
+  mac: z.boolean().optional(),
+  steamos_linux: z.boolean().optional(),
+  steam_deck_compat_category: uint.optional(),
 });
 
 /**
@@ -42,6 +70,8 @@ const storeItemFields = {
   content_descriptorids: z.array(z.int()).optional(),
   release: releaseSchema.optional(),
   reviews: reviewsSchema.optional(),
+  assets: assetsSchema.optional(),
+  platforms: platformsSchema.optional(),
 };
 
 /** Juego de Query: siempre trae `appid` y `type`. */

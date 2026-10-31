@@ -24,6 +24,11 @@ export function madridDate(ms: number): string {
   return MADRID.format(new Date(ms));
 }
 
+/** Días de `from` a `to`, dos fechas `AAAA-MM-DD` (negativo si `to` va antes). */
+export function daysBetween(from: string, to: string): number {
+  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
+}
+
 /** ISO 8601 en UTC sin milisegundos (`generatedAt` del *manifest*). */
 export function isoSeconds(ms: number): string {
   return new Date(Math.floor(ms / 1000) * 1000).toISOString().replace('.000Z', 'Z');

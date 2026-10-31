@@ -45,13 +45,24 @@ describe('fixtures grabados', () => {
     expect(filesWithKey(FIXTURES, null)).toEqual([]);
   });
 
-  it('Zod quita lo desconocido (assets, categorías…) y conserva lo usado', () => {
+  it('Zod quita lo desconocido (categorías, otras imágenes…) y conserva lo usado', () => {
     const q = records.find((r) => endpointOf(r.url) === 'query');
     const page = queryResponseSchema.parse(JSON.parse(fixtureBody(q as never)));
     const it0 = page.response.store_items[0] as Record<string, unknown>;
     expect(it0.appid).toBe(10);
-    expect(it0).not.toHaveProperty('assets');
     expect(it0).not.toHaveProperty('categories');
+    // De las imágenes, solo lo que guardan los shards (§7.6).
+    expect(Object.keys(it0.assets as object).sort()).toEqual([
+      'asset_url_format',
+      'header',
+      'library_capsule',
+    ]);
+    expect(it0.platforms).toEqual({
+      windows: true,
+      mac: true,
+      steamos_linux: true,
+      steam_deck_compat_category: 2,
+    });
     expect(page.response.metadata.total_matching_records).toBeGreaterThan(190_000);
   });
 
