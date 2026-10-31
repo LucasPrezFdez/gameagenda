@@ -565,6 +565,9 @@ describe('createSearchHost · catálogo vivo (M2)', () => {
     t.server.serve(await publish('20261029.1', NEWER_ROWS, undefined, { recent: [BALATRO] }));
     t.server.reset();
     t.send(init);
+    // La caché carga a la vez que se comprueba el *manifest*: en una máquina lenta, el reintento
+    // se programa antes de que el catálogo local esté en `full`.
+    await t.reach('full', '20261028.1');
     await t.scheduler.runUntil(() => t.timers.pending.length === 1);
     expect(t.server.state.requests.filter((url) => url.endsWith('manifest.json'))).toHaveLength(1);
     expect(t.lastStatus()).toMatchObject({ version: '20261028.1', error: null });
