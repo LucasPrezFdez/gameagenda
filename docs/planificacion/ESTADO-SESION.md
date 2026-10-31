@@ -16,6 +16,26 @@
     - ~~los secretos de Cloudflare en GitHub~~ **hecho**: el usuario los creó y el despliegue automático funciona (`ci` 41140409104 y `deploy-web` 41140742020). CA0.1–CA0.5 cumplidos;
     - M0 no lleva etiqueta: `v0.0.1` quedaría después de `v0.1.0` (decisión del usuario, 30-10-2026). Su cierre va en el CHANGELOG, en «Sin publicar».
   - **Repositorio público:** el plan lo daba por privado. Los minutos de Actions no cuentan, pero el *cron* se desactiva a los 60 días sin *commits* (R-04).
+- **M2 · Catálogo vivo: en curso** (31-10-2026, sesión 4, con cuatro agentes en paralelo):
+  - **Contrato en `core`** (`4f6877e`): JSON canónico y firma, *shards* de detalles, `applyRecent` y `StatusMessage.catalog`. Claves de firma `dev-1` (privada en `fixtures/signing/`) y `prod-1` (`9ace9f8`; privada solo para el secreto de GitHub).
+  - **En `main`:**
+    - A1, la construcción: recientes, *shards*, *kill switches*, firma, puertas, ADR-007 y el arreglo de la clave, que ahora solo va a `GetAppList`. Ejecución real: 217 llamadas, 4 con clave, 0,33 pet./s y 11,3 min.
+    - A2, la publicación: `catalog.yml` (04:17 UTC, encendido con la variable `CATALOG_SCHEDULE=on`), estado en la *Release* `catalog-state`, canario, *issue* si falla una puerta, *dead-man switch*, versión anterior conservada y `catalog:stage`. Se retira `deploy-catalog.yml`. Su parte del ADR-007 está en `docs/adr/007-pipeline-del-catalogo.parte-publicacion.md` y falta fundirla.
+    - C, la interfaz: portadas con «Cargar portadas» (activado por defecto), aviso de primera capa, Ajustes › Privacidad, ficha completa, Próximos, orden por lanzamiento, edad del catálogo y ADR-008.
+  - **En la rama `m2-cliente`, sin integrar** (subida; `ba35762`): B, la verificación de la firma, recientes, regla de los 7 días, 404 y mini-catálogo firmado con *shards* sintéticos. Pasan 698 pruebas unitarias y 122 E2E. **No puede entrar en `main`** hasta que `ga-catalog` sirva un catálogo firmado con `prod-1`: si no, `deploy-web` publicaría un cliente que rechaza el catálogo de M0.
+  - **Le toca al usuario:**
+    - el secreto `CATALOG_SIGNING_KEY` (el `.pem` de `%USERPROFILE%`, que después se borra) y la variable `CATALOG_SIGNING_KID=prod-1`;
+    - la segunda cuenta de Cloudflare para `ga-catalog` (§11.3), con su subdominio y los secretos `CATALOG_CLOUDFLARE_API_TOKEN` y `CATALOG_CLOUDFLARE_ACCOUNT_ID`;
+    - healthchecks.io: un *check* de 1 día + 12 h y el secreto `HEALTHCHECKS_PING_URL`.
+  - **Después:**
+    1. variable `CATALOG_ORIGIN` con el origen nuevo;
+    2. cambiar `VITE_CATALOG_URL` y el `connect-src` de `ga-web` al origen nuevo;
+    3. primera ejecución manual de `catalog.yml` con `no_previous=true`;
+    4. integrar `m2-cliente`;
+    5. `CATALOG_SCHEDULE=on`;
+    6. tres ejecuciones programadas en verde (CA2.1);
+    7. CHANGELOG y `v0.2.0`.
+  - **Avisos de los agentes:** el reinicio con caché sube a ≈1,85 s con recientes (≤2 s; con el equipo cargado, a veces se pasa); el Worker pesa 36,9 KB de 40; los cambios del plan están anotados en sus informes (§4.5–4.7, §5.4, §7.6, §8.7, §9.1–9.2, §11.2–11.3 y §12.3).
 - **M1 · Apuntar: cerrado con `v0.1.0`** (30-10-2026; etiqueta anotada en GitHub, con `CHANGELOG.md`). Las mediciones en el dispositivo pasan a M3 (ver «Pendiente de M1», punto 6). Todo está en `main` y subido, sin agentes ni *worktrees* abiertos:
   - **Búsqueda.** En `core`: `normalize`, `catalog-format`, `search` y `search-quality`. Sobre la copia congelada: conjunto dorado 94,9 % / 99,0 %, exactos 99,9 %, prefijos 93,1 %, y `scan` da lo mismo que `full`.
   - **Worker y catálogo.** Worker real con Cache Storage `gacat-<versión>`, `/catalog-dev/` y Catálogo virtual. Mini-catálogo de 298 juegos en `fixtures/catalog/`, generado con `npm run catalog:frozen`.
