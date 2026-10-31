@@ -1,10 +1,11 @@
 // Etapa 4 · Construir (§4.5, §4.9 y §7.6): L ∪ Q (más los huecos), solo `type 0`, fuera los
 // vacíos, los inexistentes y la lista negra exacta, SKU regionales duplicados, y `nameEs`,
-// `flags`, `year` y `pop` de cada juego, en el orden del rango estático.
+// `flags`, `year`, `pop` y los detalles de cada juego, en el orden del rango estático.
 
-import { CatalogFlag } from '@gameagenda/core/catalog-format';
+import { CatalogFlag, type GameDetails } from '@gameagenda/core/catalog-format';
 import { normalize } from '@gameagenda/core/normalize';
 import type { StoreItem } from '../steam/schemas.ts';
+import { detailsOf } from './details.ts';
 import type { Classified, GameClass } from './get-items.ts';
 
 /** Lista negra **exacta** (§4.9): `appid` y nombre a la vez, nunca por prefijo. */
@@ -202,6 +203,12 @@ export interface StateRow {
   readonly enrichedOn: string;
   readonly lastModified?: number;
   readonly priceChangeNumber?: number;
+  /** Detalles del último enriquecimiento (*shards*, §7.6): la reserva si falla Query (§4.8). */
+  readonly details?: GameDetails;
+  /** Día en que entró en el catálogo, si fue en los últimos 14 días (`recent`, §7.6). */
+  readonly addedOn?: string;
+  /** Último día en que cambió `name` o `nameEs`, si fue en los últimos 14 días. */
+  readonly renamedOn?: string;
 }
 
 /** Un juego del núcleo, antes de serializarlo. */
@@ -218,6 +225,9 @@ export interface Game {
   readonly enrichedOn: string;
   readonly lastModified?: number;
   readonly priceChangeNumber?: number;
+  readonly details?: GameDetails;
+  readonly addedOn?: string;
+  readonly renamedOn?: string;
 }
 
 export type ExclusionReason =
@@ -333,6 +343,8 @@ export function assemble(input: AssembleInput): Assembled {
     const flags = e.flags | (cls === 'retired' ? CatalogFlag.retired : 0);
     const lastModified = l?.last_modified ?? s?.lastModified;
     const priceChangeNumber = l?.price_change_number ?? s?.priceChangeNumber;
+    // Detalles del enriquecimiento de hoy; sin él (falla Query), los del estado.
+    const details = item ? detailsOf(appid, item) : (s?.details ?? null);
     games.push({
       appid,
       name: base,
@@ -345,6 +357,7 @@ export function assemble(input: AssembleInput): Assembled {
       enrichedOn: fresh ? today : (s?.enrichedOn ?? today),
       ...(lastModified !== undefined ? { lastModified } : {}),
       ...(priceChangeNumber !== undefined ? { priceChangeNumber } : {}),
+      ...(details ? { details } : {}),
     });
   }
   // SKU regionales duplicados (§4.9): si uno no visible en ES se llama igual que otro visible,
@@ -387,5 +400,8 @@ export function stateRows(games: readonly Game[]): StateRow[] {
       enrichedOn: g.enrichedOn,
       ...(g.lastModified !== undefined ? { lastModified: g.lastModified } : {}),
       ...(g.priceChangeNumber !== undefined ? { priceChangeNumber: g.priceChangeNumber } : {}),
+      ...(g.details ? { details: g.details } : {}),
+      ...(g.addedOn ? { addedOn: g.addedOn } : {}),
+      ...(g.renamedOn ? { renamedOn: g.renamedOn } : {}),
     }));
 }

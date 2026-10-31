@@ -1,16 +1,23 @@
-// Orquestación de los pasos 0–5 de la §4.5 (el 6, publicar, queda fuera en M1): descargar
-// (`collectInputs`) y construir y pasar las puertas (`buildCatalog`). Sin E/S de ficheros: la
-// hace `build.ts`, así que las pruebas ejecutan todo con *fixtures* y en memoria.
+// Orquestación de los pasos 0–5 de la §4.5 y de la firma del paso 6 (desplegar y subir el estado
+// quedan fuera): descargar (`collectInputs`) y construir, pasar las puertas y firmar
+// (`buildCatalog`). Sin E/S de ficheros: la hace `build.ts`, así que las pruebas ejecutan todo con
+// *fixtures* y en memoria.
 
-import { CatalogFlag, type CoreCatalog } from '@gameagenda/core/catalog-format';
+import { CatalogFlag, type CoreCatalog, trustedSigningKeys } from '@gameagenda/core/catalog-format';
 import type { GoldenQuery } from '@gameagenda/core/search-quality';
-import type { RequestRecord, SteamClient } from '../steam/client.ts';
+import { type RequestRecord, type SteamClient, SteamError } from '../steam/client.ts';
 import { ENGLISH_ES } from '../steam/endpoints.ts';
 import type { AppListEntry, StoreItem } from '../steam/schemas.ts';
 import { type AliasBuild, buildAliases } from './aliases.ts';
 import { appListPass } from './app-list.ts';
-import { buildCatalogFiles, type CatalogFiles } from './catalog-files.ts';
-import { isoSeconds, madridDate } from './clock.ts';
+import {
+  buildCatalogFiles,
+  type CatalogFiles,
+  MIN_CLIENT_VERSION,
+  MIN_CLIENT_VERSION_SIGNED,
+  withSignature,
+} from './catalog-files.ts';
+import { daysBetween, isoSeconds, madridDate } from './clock.ts';
 import {
   type CoverageReport,
   coverageReport,
@@ -35,11 +42,15 @@ import {
   runGates,
 } from './gates.ts';
 import { type Classified, classifyAppids, getItems } from './get-items.ts';
+import { KILL_SWITCHES_OFF, type KillSwitches } from './kill-switches.ts';
 import { type QueryPass, queryPass } from './query-pass.ts';
+import { markRecent, recentGames } from './recent.ts';
+import { type Signer, verifyManifest } from './signing.ts';
+import type { StateMeta } from './state.ts';
 
 /** Parámetros de una ejecución: el catálogo real o el de prueba sobre `fixtures/steam/`. */
 export interface Profile {
-  readonly name: 'steam' | 'fixtures';
+  readonly name: 'steam' | 'fixtures' | 'world';
   readonly pageSize: number;
   readonly overlap: number;
   readonly maxPages?: number;
@@ -47,6 +58,13 @@ export interface Profile {
   readonly listPageSize: number;
   /** Mínimo de juegos de `GetAppList` para fiarse de la lista. */
   readonly minListApps: number;
+  /**
+   * Con clave: parte de L que Query tiene que devolver para fiarse de su enriquecimiento (el
+   * 29-10-2026, el 99,88 %). Por debajo, Query cuenta como caída (§4.8).
+   */
+  readonly minQueryCoverage: number;
+  /** `appid` como mucho en los huecos (H1 ∪ H2): 20 lotes de `GetItems`, el margen de la §4.7. */
+  readonly maxGapIds: number;
   /** `false`: nunca compara con la versión anterior (el estado de los *fixtures* es parcial). */
   readonly deltaGates: boolean;
   readonly gates: GateConfig;
@@ -58,6 +76,8 @@ export const STEAM_PROFILE: Profile = {
   overlap: 50,
   listPageSize: 50_000,
   minListApps: 150_000,
+  minQueryCoverage: 0.95,
+  maxGapIds: 4000,
   deltaGates: true,
   gates: PUBLISH_GATES,
 };
@@ -74,9 +94,19 @@ export const FIXTURES_PROFILE: Profile = {
   maxPages: 2,
   listPageSize: 40,
   minListApps: 1,
+  // Dos páginas de Query frente a toda la lista sintética: no se exige cobertura.
+  minQueryCoverage: 0,
+  maxGapIds: 4000,
   deltaGates: false,
   gates: { ...PUBLISH_GATES, minGames: 20, quality: 'smoke' },
 };
+
+/** Una etapa que falló sin tumbar la ejecución (§4.8): se publica con lo que hay. */
+export interface StageFailure {
+  readonly stage: 'query' | 'gaps' | 'baseNames';
+  readonly kind: string;
+  readonly message: string;
+}
 
 export interface Inputs {
   /** L (con clave); `null` en el plan B. */
@@ -91,7 +121,32 @@ export interface Inputs {
   readonly baseNames: ReadonlyMap<number, string>;
   /** `GetItems` de los juegos del volcado que no están en L ni en los huecos (`--compare`). */
   readonly compare: ReadonlyMap<number, Classified> | null;
+  /**
+   * Si falló Query con clave (§4.6: «si falla solo el enriquecimiento»): se publican los nombres
+   * de `GetAppList` con el último enriquecimiento del estado.
+   */
+  readonly enrichmentFailed: StageFailure | null;
+  /** Etapas secundarias que fallaron (`GetItems`): se publica igual y lo anota el informe. */
+  readonly degraded: readonly StageFailure[];
   readonly timings: Record<string, number>;
+}
+
+const EMPTY_QUERY: QueryPass = {
+  items: new Map(),
+  pages: 0,
+  firstTotal: 0,
+  lastTotal: 0,
+  rows: 0,
+  truncated: false,
+};
+
+/**
+ * Un fallo de Steam que no tumba la ejecución. Una página cruda o un *fixture* que falta sí: al
+ * volver a derivar (`--from-raw`) o en las pruebas tiene que salir lo mismo.
+ */
+function stageFailure(stage: StageFailure['stage'], e: unknown): StageFailure | null {
+  if (!(e instanceof SteamError) || e.kind === 'missing-fixture') return null;
+  return { stage, kind: e.kind, message: e.message };
 }
 
 export interface CollectOptions {
@@ -121,21 +176,77 @@ export async function collectInputs(client: SteamClient, opts: CollectOptions): 
   if (list) log(`1 · Lista: ${list.size} juegos en GetAppList`);
   else log('1 · Lista: plan B sin clave (L := ids de Q)');
 
-  const query = await queryPass(client, {
-    pageSize: profile.pageSize,
-    overlap: profile.overlap,
-    ...(profile.maxPages !== undefined ? { maxPages: profile.maxPages } : {}),
-    log,
-  });
+  // Con clave, que falle Query no tumba la ejecución: se publican los nombres de GetAppList con el
+  // último enriquecimiento (§4.6 y §4.8). Sin clave, Query es también la lista: sin ella no hay
+  // catálogo.
+  let query = EMPTY_QUERY;
+  let enrichmentFailed: StageFailure | null = null;
+  const degraded: StageFailure[] = [];
+  try {
+    query = await queryPass(client, {
+      pageSize: profile.pageSize,
+      overlap: profile.overlap,
+      ...(profile.maxPages !== undefined ? { maxPages: profile.maxPages } : {}),
+      log,
+    });
+  } catch (e) {
+    enrichmentFailed = list ? stageFailure('query', e) : null;
+    if (!enrichmentFailed) throw e;
+  }
+  if (list && !enrichmentFailed) {
+    let inList = 0;
+    for (const a of query.items.keys()) if (list.has(a)) inList++;
+    if (inList < profile.minQueryCoverage * list.size) {
+      enrichmentFailed = {
+        stage: 'query',
+        kind: 'coverage',
+        message: `Query devolvió ${inList} de los ${list.size} juegos de GetAppList`,
+      };
+      query = EMPTY_QUERY;
+    }
+  }
   lap('query');
-  log(
-    `2 · Query: ${query.items.size} juegos únicos en ${query.pages} páginas (total ${query.lastTotal})`,
-  );
+  if (enrichmentFailed) {
+    log(
+      `2 · Query FALLA (${enrichmentFailed.kind}: ${enrichmentFailed.message}): nombres de GetAppList con el último enriquecimiento`,
+    );
+  } else {
+    log(
+      `2 · Query: ${query.items.size} juegos únicos en ${query.pages} páginas (total ${query.lastTotal})`,
+    );
+  }
 
   const inL = (a: number): boolean => (list ? list.has(a) : query.items.has(a));
-  const h1 = list ? [...list.keys()].filter((a) => !query.items.has(a)).sort((a, b) => a - b) : [];
+  // Sin Query, H1 sería toda la lista (≈1 000 lotes): solo se clasifican los que desaparecen.
+  const h1 =
+    list && !enrichmentFailed
+      ? [...list.keys()].filter((a) => !query.items.has(a)).sort((a, b) => a - b)
+      : [];
   const h2 = [...state.keys()].filter((a) => !inL(a)).sort((a, b) => a - b);
-  const gaps = await classifyAppids(client, [...h1, ...h2]);
+  const gapIds = [...h1, ...h2];
+  if (gapIds.length > profile.maxGapIds) {
+    degraded.push({
+      stage: 'gaps',
+      kind: 'budget',
+      message: `${gapIds.length} huecos; se clasifican ${profile.maxGapIds} (§4.7)`,
+    });
+  }
+  const toClassify = gapIds.slice(0, profile.maxGapIds);
+  let gaps: Map<number, Classified>;
+  try {
+    gaps = await classifyAppids(client, toClassify);
+  } catch (e) {
+    const failure = stageFailure('gaps', e);
+    if (!failure) throw e;
+    degraded.push(failure);
+    gaps = new Map();
+  }
+  // Lo que no se pudo clasificar se conserva como esté en el estado (o en L).
+  for (const a of gapIds) {
+    if (!gaps.has(a)) {
+      gaps.set(a, { cls: 'unknown', item: null, country: null, reason: 'sin clasificar' });
+    }
+  }
   lap('gaps');
 
   // Nombre base: en el plan B, si el *slug* dice que el nombre está traducido; con clave, solo
@@ -146,11 +257,16 @@ export async function collectInputs(client: SteamClient, opts: CollectOptions): 
     const listName = cleanName(list?.get(appid)?.name);
     if (list ? !listName && !cleanName(it.name) : needsBaseName(it)) ask.push(appid);
   }
-  const english = await getItems(client, ask, ENGLISH_ES);
   const baseNames = new Map<number, string>();
-  for (const [appid, it] of english) {
-    const n = cleanName(it.name);
-    if (n && it.success === 1) baseNames.set(appid, n);
+  try {
+    for (const [appid, it] of await getItems(client, ask, ENGLISH_ES)) {
+      const n = cleanName(it.name);
+      if (n && it.success === 1) baseNames.set(appid, n);
+    }
+  } catch (e) {
+    const failure = stageFailure('baseNames', e);
+    if (!failure) throw e;
+    degraded.push(failure);
   }
   lap('baseNames');
   log(
@@ -175,6 +291,8 @@ export async function collectInputs(client: SteamClient, opts: CollectOptions): 
     baseNamesAsked: ask.length,
     baseNames,
     compare,
+    enrichmentFailed,
+    degraded,
     timings,
   };
 }
@@ -259,6 +377,7 @@ export function requestSummary(records: readonly RequestRecord[]): Record<string
     out[endpoint] = {
       responses: rs.length,
       network: rs.filter((r) => !r.cached).length,
+      keyed: rs.filter((r) => r.keyed).length,
       fromRawPages: rs.filter((r) => r.cached).length,
       statuses,
       wireBytes: stats(ok.map((r) => r.wireBytes)),
@@ -269,7 +388,36 @@ export function requestSummary(records: readonly RequestRecord[]): Record<string
   return out;
 }
 
+/**
+ * Presupuesto del CA2.1: llamadas a Steam (las de la red, con reintentos), cuántas con clave, el
+ * ritmo máximo entre dos inicios seguidos y la duración de la pasada.
+ */
+export function budgetSummary(records: readonly RequestRecord[]): {
+  calls: number;
+  keyed: number;
+  maxPerSecond: number;
+  minGapMs: number | null;
+  spanMs: number;
+} {
+  const net = records.filter((r) => !r.cached);
+  const starts = net.map((r) => r.startedAt).sort((a, b) => a - b);
+  let minGap: number | null = null;
+  for (let i = 1; i < starts.length; i++) {
+    const gap = (starts[i] as number) - (starts[i - 1] as number);
+    if (minGap === null || gap < minGap) minGap = gap;
+  }
+  return {
+    calls: net.length,
+    keyed: net.filter((r) => r.keyed).length,
+    maxPerSecond: minGap ? +(1000 / minGap).toFixed(3) : 0,
+    minGapMs: minGap,
+    spanMs: starts.length > 1 ? (starts[starts.length - 1] as number) - (starts[0] as number) : 0,
+  };
+}
+
 export interface BuildOptions extends CollectOptions {
+  /** Cabecera del estado: versión publicada y día del último enriquecimiento. */
+  readonly stateMeta?: StateMeta;
   readonly frozen: CoreCatalog | null;
   readonly golden: readonly GoldenQuery[];
   readonly skipDeltaGates: boolean;
@@ -278,6 +426,9 @@ export interface BuildOptions extends CollectOptions {
   /** Versión publicada anterior (para `.N`); o la versión exacta con `version`. */
   readonly previousVersion: string | null;
   readonly version?: string;
+  readonly killSwitches?: KillSwitches;
+  /** Clave con la que se firma el *manifest* si pasan las puertas; `null`, sin firma. */
+  readonly signer?: Signer | null;
 }
 
 export interface BuildResult {
@@ -287,12 +438,25 @@ export interface BuildResult {
   readonly games: readonly Game[];
   readonly excluded: readonly Exclusion[];
   readonly aliases: AliasBuild;
+  /** Con el *manifest* firmado si hay `signer` y pasan las puertas. */
   readonly files: CatalogFiles;
   readonly gates: readonly GateOutcome[];
   readonly state: readonly StateRow[];
+  /** Cabecera del estado nuevo. */
+  readonly stateMeta: { readonly version: string; readonly enrichedOn: string };
+  readonly enrichmentAgeDays: number;
+  readonly recent: readonly Game[];
   readonly coverage: CoverageReport | null;
   readonly frozenDiff: FrozenDiff | null;
   readonly summary: Record<string, unknown>;
+}
+
+/** Último día con una pasada de Query correcta, del estado (o de sus filas, si es de M1). */
+function lastEnrichedOn(state: ReadonlyMap<number, StateRow>, meta?: StateMeta): string | null {
+  if (meta?.enrichedOn) return meta.enrichedOn;
+  let latest = '';
+  for (const r of state.values()) if (r.enrichedOn > latest) latest = r.enrichedOn;
+  return latest || null;
 }
 
 function countBits(games: readonly Game[]): Record<string, number> {
@@ -303,7 +467,10 @@ function countBits(games: readonly Game[]): Record<string, number> {
   return out;
 }
 
-/** Pasos 0–5 de la §4.5 con el cliente dado: descarga, construye y pasa las puertas. */
+/**
+ * Pasos 0–5 de la §4.5 con el cliente dado: descarga, construye y pasa las puertas; si pasan y hay
+ * clave de firma, firma el *manifest* (el despliegue y la subida del estado son de `catalog.yml`).
+ */
 export async function buildCatalog(client: SteamClient, opts: BuildOptions): Promise<BuildResult> {
   const { state, now, log } = opts;
   log(
@@ -313,7 +480,14 @@ export async function buildCatalog(client: SteamClient, opts: BuildOptions): Pro
   const t0 = now();
   const today = madridDate(opts.runAt);
   const version = opts.version ?? versionFor(opts.runAt, opts.previousVersion);
-  const { games, excluded } = assemble({
+  // Si solo falló Query, crece la edad del enriquecimiento (§4.6; CA2.2).
+  const enrichedBefore = lastEnrichedOn(state, opts.stateMeta);
+  if (inputs.enrichmentFailed && !enrichedBefore) {
+    throw new Error('Query falla y no hay estado con un enriquecimiento anterior');
+  }
+  const enrichedOn = inputs.enrichmentFailed ? (enrichedBefore as string) : today;
+  const enrichmentAgeDays = Math.max(0, daysBetween(enrichedOn, today));
+  const assembled = assemble({
     list: inputs.list,
     query: inputs.query.items,
     gaps: inputs.gaps,
@@ -321,17 +495,33 @@ export async function buildCatalog(client: SteamClient, opts: BuildOptions): Pro
     state,
     today,
   });
+  const { excluded } = assembled;
+  const games = markRecent(assembled.games, state, today);
+  const recent = recentGames(games, today);
   const aliases = buildAliases(games);
-  const files = buildCatalogFiles(games, aliases.pairs, {
-    version,
-    generatedAt: isoSeconds(opts.runAt),
-  });
+  const signer = opts.signer ?? null;
+  let files = buildCatalogFiles(
+    games,
+    aliases.pairs,
+    {
+      version,
+      generatedAt: isoSeconds(opts.runAt),
+      enrichmentAgeDays,
+      minClientVersion: signer ? MIN_CLIENT_VERSION_SIGNED : MIN_CLIENT_VERSION,
+      killSwitches: opts.killSwitches ?? KILL_SWITCHES_OFF,
+    },
+    recent,
+  );
   inputs.timings.build = now() - t0;
   const byReason: Record<string, number> = {};
   for (const e of excluded) byReason[e.reason] = (byReason[e.reason] ?? 0) + 1;
   log(
-    `4 · Construir ${version}: ${games.length} juegos, ${aliases.pairs.length} alias; fuera ${excluded.length} (${JSON.stringify(byReason)})`,
+    `4 · Construir ${version}: ${games.length} juegos, ${aliases.pairs.length} alias, ${recent.length} recientes, ${files.details.games} con detalles en ${files.details.shards.size} shards; fuera ${excluded.length} (${JSON.stringify(byReason)})`,
   );
+  if (enrichmentAgeDays > 0) {
+    log(`   enrichmentAgeDays ${enrichmentAgeDays}: último enriquecimiento del ${enrichedOn}`);
+  }
+  for (const d of inputs.degraded) log(`   ! ${d.stage} (${d.kind}): ${d.message}`);
 
   const t1 = now();
   const previous =
@@ -352,6 +542,16 @@ export async function buildCatalog(client: SteamClient, opts: BuildOptions): Pro
   for (const g of gates)
     log(`   ${g.status === 'pass' ? '✓' : g.status === 'skip' ? '–' : '✗'} ${g.id}: ${g.detail}`);
 
+  // Se firma solo lo que pasa las puertas, y se comprueba la firma como lo hará la app.
+  if (ok && signer) {
+    files = withSignature(files, signer);
+    const keys = trustedSigningKeys({ dev: signer.use === 'dev' });
+    if (!verifyManifest(files.manifestJson, keys)) {
+      throw new Error('La firma del manifest no se verifica con su clave pública');
+    }
+    log(`   firmado con «${signer.kid}» (${signer.use})`);
+  }
+
   const coverage =
     opts.dump && inputs.compare
       ? coverageReport({ dump: opts.dump, games, excluded, classified: inputs.compare })
@@ -363,6 +563,14 @@ export async function buildCatalog(client: SteamClient, opts: BuildOptions): Pro
     mode: opts.keyless ? 'sin clave (plan B)' : 'con clave',
     profile: opts.profile.name,
     skipDeltaGates: opts.skipDeltaGates,
+    signature: files.manifest.sig ? { kid: files.manifest.sig.kid, use: signer?.use } : null,
+    enrichment: {
+      ageDays: enrichmentAgeDays,
+      enrichedOn,
+      failed: inputs.enrichmentFailed,
+      degraded: inputs.degraded,
+    },
+    budget: budgetSummary(client.records),
     counts: {
       list: inputs.list?.size ?? null,
       queryUnique: inputs.query.items.size,
@@ -389,6 +597,12 @@ export async function buildCatalog(client: SteamClient, opts: BuildOptions): Pro
       aliasesGenerated: aliases.generated,
       aliasesCurated: aliases.curated,
       aliasesMissing: aliases.missing,
+      recent: recent.length,
+      recentAdded: recent.filter((g) => g.addedOn).length,
+      recentRenamed: recent.filter((g) => g.renamedOn).length,
+      withDetails: files.details.games,
+      withoutDetails: games.length - files.details.games,
+      detailShards: files.details.shards.size,
       excluded: byReason,
     },
     files: files.manifest.files,
@@ -407,6 +621,9 @@ export async function buildCatalog(client: SteamClient, opts: BuildOptions): Pro
     files,
     gates,
     state: stateRows(games),
+    stateMeta: { version, enrichedOn },
+    enrichmentAgeDays,
+    recent,
     coverage,
     frozenDiff: fdiff,
     summary,
