@@ -20,7 +20,7 @@
   - **Contrato en `core`** (`4f6877e`): JSON canónico y firma, *shards* de detalles, `applyRecent` y `StatusMessage.catalog`. Claves de firma `dev-1` (privada en `fixtures/signing/`) y `prod-1` (`9ace9f8`; privada solo para el secreto de GitHub).
   - **En `main`:**
     - A1, la construcción: recientes, *shards*, *kill switches*, firma, puertas, ADR-007 y el arreglo de la clave, que ahora solo va a `GetAppList`. Ejecución real: 217 llamadas, 4 con clave, 0,33 pet./s y 11,3 min.
-    - A2, la publicación: `catalog.yml` (04:17 UTC, encendido con la variable `CATALOG_SCHEDULE=on`), estado en la *Release* `catalog-state`, canario, *issue* si falla una puerta, *dead-man switch*, versión anterior conservada y `catalog:stage`. Se retira `deploy-catalog.yml`. Su parte del ADR-007 está en `docs/adr/007-pipeline-del-catalogo.parte-publicacion.md` y falta fundirla.
+    - A2, la publicación: `catalog.yml` (04:17 UTC, encendido con la variable `CATALOG_SCHEDULE=on`), estado en la *Release* `catalog-state`, canario, *issue* si falla una puerta, *dead-man switch*, versión anterior conservada y `catalog:stage`. Se retira `deploy-catalog.yml`. Su parte del ADR-007 ya está fundida en `007-pipeline-del-catalogo.md`; el borrador se conserva, marcado como desfasado.
     - C, la interfaz: portadas con «Cargar portadas» (activado por defecto), aviso de primera capa, Ajustes › Privacidad, ficha completa, Próximos, orden por lanzamiento, edad del catálogo y ADR-008.
     - B, el cliente (integrado el 31-10-2026 en la sesión 5, `5d0b95f`): la verificación de la firma, recientes, regla de los 7 días, 404 y mini-catálogo firmado con *shards* sintéticos. Pasan 698 pruebas unitarias y 122 E2E. `ga-web` apunta ya a `https://ga-catalog.gameagenda-cat.workers.dev` (`VITE_CATALOG_URL` y `connect-src`).
   - **Puesta en marcha (31-10-2026, sesión 5):**
@@ -36,9 +36,14 @@
     1. ~~`CATALOG_SCHEDULE=on`~~ **hecho** por el usuario (31-10-2026, 13:47 UTC);
     2. tres ejecuciones programadas en verde (CA2.1): la primera, el 01-11-2026 a las 04:17 UTC (05:17 en Madrid); como pronto, del 1 al 3 de noviembre;
     3. ~~borrar `%USERPROFILE%\gameagenda-firma-catalogo-PRIVADA.pem`~~ **hecho** (31-10-2026): la privada solo está en el secreto `CATALOG_SIGNING_KEY`;
-    4. fundir `007-pipeline-del-catalogo.parte-publicacion.md` en el ADR-007;
-    5. CHANGELOG y `v0.2.0`;
-    6. ~~borrar la rama `m2-cliente` y las ramas y carpetas `worktree-agent-*`~~ **No se borran** (decisión del usuario, 31-10-2026: «por si acaso»), aunque todas están integradas.
+    4. ~~fundir la parte de publicación en el ADR-007~~ **hecho** (31-10-2026), con la puesta en marcha real, el *runbook* al día y la primera publicación. El borrador no se borra (decisión del usuario): lleva un aviso de que está fundido y desfasado;
+    5. CHANGELOG: **redactado** en «Sin publicar» con la forma de la 0.2.0, con la tabla de CA2.1–CA2.8. Al cerrar M2:
+       - poner al día la fila de CA2.1 (y la de CA2.5, si se prueba);
+       - cambiar la cabecera a `## [0.2.0] · M2 Catálogo vivo · <fecha>`;
+       - pasar ADR-007 y ADR-008 a «aceptada»;
+       - etiqueta anotada `v0.2.0`;
+    6. pasar al plan (`docs/planificacion/secciones/`) los cambios que anotaron los informes de M2: no se ha hecho (desde `v0.1.0` solo ha cambiado la sección que tocó `4f6877e`);
+    7. ~~borrar la rama `m2-cliente` y las ramas y carpetas `worktree-agent-*`~~ **No se borran** (decisión del usuario, 31-10-2026: «por si acaso»), aunque todas están integradas.
   - **Avisos de los agentes:** el reinicio con caché sube a ≈1,85 s con recientes (≤2 s; con el equipo cargado, a veces se pasa; el 31-10-2026, 1 893 ms); el Worker pesa 36,9 KB de 40; los cambios del plan están anotados en sus informes (§4.5–4.7, §5.4, §7.6, §8.7, §9.1–9.2, §11.2–11.3 y §12.3).
 - **M1 · Apuntar: cerrado con `v0.1.0`** (30-10-2026; etiqueta anotada en GitHub, con `CHANGELOG.md`). Las mediciones en el dispositivo pasan a M3 (ver «Pendiente de M1», punto 6). Todo está en `main` y subido, sin agentes ni *worktrees* abiertos:
   - **Búsqueda.** En `core`: `normalize`, `catalog-format`, `search` y `search-quality`. Sobre la copia congelada: conjunto dorado 94,9 % / 99,0 %, exactos 99,9 %, prefijos 93,1 %, y `scan` da lo mismo que `full`.

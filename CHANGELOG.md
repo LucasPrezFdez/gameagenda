@@ -4,6 +4,122 @@ Cambios de GameAgenda por versión. Cada hito cierra una versión SemVer 0.x (§
 
 ## [Sin publicar]
 
+Será la **0.2.0 · M2 Catálogo vivo**: el catálogo se actualiza solo cada día, firmado, y la app muestra portadas, la ficha completa y los próximos lanzamientos. La app ya es la versión 0.2.0 desde el 31-10-2026, porque el catálogo firmado la pide. La etiqueta `v0.2.0` llega con CA2.1: tres ejecuciones programadas seguidas en verde, desde el 01-11-2026. Al etiquetar, esta cabecera pasa a `## [0.2.0] · M2 Catálogo vivo · <fecha>`.
+
+### Añadido
+
+#### Para el usuario
+
+- **Catálogo al día, sin hacer nada:**
+  - cada mañana se publica uno nuevo y la app lo adopta sola;
+  - los juegos nuevos o renombrados en los últimos 14 días llegan con los recientes, aunque el núcleo local sea de hace unos días;
+  - entran los ≈205 juegos bloqueados en España que faltaban en M1.
+
+  En Ajustes › Datos se ve la edad del catálogo, y «Actualizar catálogo» baja el completo.
+- **Portadas** en Mi lista, en la paleta (tras 150 ms sin teclear) y en la ficha. Sale la `library_capsule`; si falla, el `header`, y si falla también, una portada generada con las iniciales. Ocupan un hueco fijo de 2:3, para que no salte nada al cargar.
+- **Aviso de primera capa** antes de la primera portada: las portadas vienen de servidores de Valve en EE. UU., que reciben tu IP. Tiene «Más información», «Entendido» y «Desactivar portadas». Va fijo abajo, debajo del aviso de Deshacer, y no tapa la paleta.
+- **Ajustes › Privacidad:** «Cargar portadas» (activado por defecto) y «Datos de Steam que guardamos».
+- **Ficha completa:** portada, lanzamiento o «Por confirmar» con cuenta atrás, reseñas, plataformas y Steam Deck. Sin detalles, la ficha básica de M1.
+- **Vista Próximos** (`/?vista=proximos`), por lanzamiento: Ya disponibles (14 días), Esta semana, por meses, Más adelante y Por confirmar. Mi lista se puede ordenar también por lanzamiento.
+- **Si el navegador no verifica firmas Ed25519**, sigue con el catálogo guardado y pide otro navegador. Sin catálogo guardado, avisa sin «Reintentar» y se puede apuntar a mano (RNF-12).
+
+#### Ingeniería
+
+- **Contrato de M2 en `core`:**
+  - JSON canónico (RFC 8785) y los bytes que se firman;
+  - claves públicas con `kid` y uso: `prod-1` y `dev-1`, que ningún *build* de producción acepta;
+  - *shards* de detalles por FNV-1a mod 1024, con sus esquemas;
+  - `applyRecent`, en menos de 200 ms con el núcleo real.
+- **Pipeline diario** (ADR-007):
+  - `GetAppList` con clave, que es la única petición que la lleva; Query y `GetItems`, sin ella;
+  - recientes de 14 días, con `addedOn` y `renamedOn` en cada fila del estado;
+  - detalles en 1 024 *shards* con su índice, y *kill switches* `covers` y `details`;
+  - firma ed25519 solo en GitHub Actions;
+  - si falla Query, se publican los nombres y crece `enrichmentAgeDays`;
+  - puertas nuevas de integridad y de tamaño por despliegue, y códigos de salida 0–3.
+- **`catalog.yml`**, cada día a las 04:17 UTC, con `CATALOG_SCHEDULE` = `on`:
+  - canario de Steam y estado en la *Release* `catalog-state` (7 copias);
+  - versión anterior conservada en cada despliegue (CA2.4);
+  - prueba de humo de cada fichero publicado;
+  - *issue* `catalogo` si falla y *dead-man switch* con healthchecks.io.
+
+  Además, `npm run catalog:stage` sube desde el PC las páginas crudas, y el CI las vuelve a derivar sin red. `npm run catalog:publish` solo funciona en Actions.
+- **Worker de búsqueda:**
+  - verifica la firma con WebCrypto (en producción, solo claves `prod`) y aplica `recent`;
+  - regla de los 7 días (CA2.4): con un núcleo local de 7 días o menos, solo baja el *manifest*, los recientes y lo que cambió;
+  - ante un 404, relee el *manifest* una vez y reintenta de 1 min a 1 h;
+  - una versión que solo cambia un *kill switch* se adopta sin reconstruir el índice.
+- **Cliente de detalles**, en un *chunk* diferido: comprueba el índice y cada *shard* (*hash* y Zod), los guarda en Cache Storage `gacat-details` y cede el hilo entre *shards*.
+- **`ga-catalog` en su propia cuenta de Cloudflare** (https://ga-catalog.gameagenda-cat.workers.dev), con su *token*: el del pipeline no puede desplegar `ga-web` (§11.3, ADR-003).
+- **Primera publicación** (31-10-2026, ejecución 41201112633, a mano):
+  - versión `20261031.1`: 197 786 juegos, 3 562 alias y 197 607 con detalles;
+  - 218 llamadas a Steam, 4 con clave, como mucho 0,334 por segundo;
+  - 12 min 7 s en total y todas las puertas en verde.
+- **Pruebas:**
+  - 698 unitarias y 134 E2E en la lista local (Chromium y WebKit con un iPhone 15). En el CI, solo Chromium;
+  - el mini-catálogo de `fixtures/` va firmado con `dev-1` y trae recientes y *shards* sintéticos;
+  - `npm run perf` necesita antes `npm run catalog:frozen`, porque el catálogo tiene que ir firmado.
+- **ADR:**
+  - 007 (pipeline y publicación) y 008 (portadas), propuestos;
+  - la parte de M2 del Worker en el ADR-005 y la cuenta nueva en el ADR-003.
+
+#### Estado de los criterios de aceptación
+
+| CA | Estado | Evidencia |
+|---|---|---|
+| CA2.1 Pipeline diario | Pendiente | La primera publicación, lanzada a mano, salió en verde: 218 llamadas, 4 con clave, 0,334/s y 12 min 7 s. Faltan 3 ejecuciones programadas seguidas, desde el 01-11-2026 |
+| CA2.2 Puertas | Cumplido con *fixtures*; falta un fallo real | `publish.test.ts` fuerza cada puerta y el «solo falla el enriquecimiento». El *issue* y el aviso del trabajo `report` no se han visto en un fallo real |
+| CA2.3 Firma y *kill switch* | Cumplido en Chromium | `catalog-update.spec` (*manifest* manipulado), `covers.spec` (*kill switch* `covers`) y `host.test`. El WebKit de Playwright para Windows no trae Ed25519 |
+| CA2.4 Actualización ligera | Cumplido en pruebas | `catalog-update.spec` y `host.test` (solo el *manifest* y los recientes); `assemble-catalog` y la prueba de humo (versión anterior). Falta medir lo transferido en producción tras la segunda publicación |
+| CA2.5 *Dead-man switch* | Pendiente | El *check* de healthchecks.io existe y respondió al `/start`. Falta probarlo deteniendo el cron |
+| CA2.6 Portadas | Parcial | `covers.spec`: ninguna URL fuera de `asset_url_format`, y la cadena `library_capsule` → `header` → generada. Falta la agenda de 300 juegos reales (ADR-008) |
+| CA2.7 Privacidad y clave | Cumplido | `covers.spec`: aviso antes de la primera portada, 0 peticiones con «Cargar portadas» apagado y 0 violaciones de CSP. La clave se busca en el *build*, `pipeline/out`, `pipeline/dist` y los artefactos |
+| CA2.8 Ficha y Próximos | Cumplido | `details.spec`: ficha completa, sin detalles y Próximos, que solo pide los *shards* que hacen falta |
+
+### Cambiado
+
+- **La app pasa a la versión 0.2.0 antes de la etiqueta:** un *manifest* firmado pide `minClientVersion` 0.2.0.
+- **`ga-catalog` cambia de cuenta y de origen:** del subdominio `gameagenda.workers.dev` a `gameagenda-cat.workers.dev`. `VITE_CATALOG_URL` y el `connect-src` de `ga-web` lo siguen.
+- **`catalog:stage`** sube las páginas crudas de Steam y no `pipeline/out/` ni el estado, como decía el plan. Así, las puertas y la firma corren siempre en el CI (ADR-007).
+- **`deploy-catalog.yml` se retira:** desplegaría el mini-catálogo sin firma encima del real.
+
+### Corregido
+
+- **Clave de Steam:** el cliente HTTP la mandaba a todas las peticiones, unas 220 con clave al día frente a las ≤10 del CA2.1. Ahora solo la lleva `GetAppList`.
+- **`--from-raw`** vuelve a derivar con clave si las páginas crudas traen `GetAppList`, aunque no haya clave en el entorno.
+- **Sin conexión**, el cliente de detalles no hace peticiones que fallarían igual.
+- **Producción sin catálogo, el 31-10-2026, unos 20 min:** el cliente nuevo era todavía la 0.1.0 y rechazaba el catálogo firmado (`client-too-old`), así que la búsqueda solo ofrecía «Apuntar a mano». Lo arregla el paso a 0.2.0.
+- **Tareas largas al teclear con CPU ×4:** dos reglas `.app:has(…)` del aviso de portadas obligaban a recorrer Mi lista entera en cada cambio del DOM. Con 500 entradas daban 40 tareas largas; ahora, 0, y el INP baja de 88 a 40 ms.
+- **`host.test.ts`:** una prueba fallaba solo en el *runner* de GitHub por un orden de carga no fijado.
+
+### Seguridad
+
+- ***Manifest* firmado con ed25519:**
+  - en producción, el cliente solo confía en las claves `prod`;
+  - la privada de `prod-1` solo existe en un secreto de GitHub;
+  - el PC nunca firma con ella ni despliega, y `catalog:publish` se niega fuera de Actions.
+- **El *token* del pipeline es de otra cuenta de Cloudflare:** no puede desplegar `ga-web`.
+- **Portadas:**
+  - solo se piden desde `asset_url_format`, y `library_capsule` y `header` solo se aceptan con forma de fichero de imagen (uno traía `manuals/…pdf#/../../../`);
+  - van con `referrerpolicy="no-referrer"` y `crossorigin="anonymous"`;
+  - la CSP solo admite imágenes propias y de `shared.akamai.steamstatic.com`.
+- **La clave de Steam** se busca también en `pipeline/out`, en `pipeline/dist`, en los artefactos (que son públicos) y en las páginas crudas que sube `catalog:stage`.
+
+### Pendiente
+
+- **CA2.1:** tres ejecuciones programadas seguidas en verde. Después, ADR-007 y ADR-008 pasan a «aceptada» y se etiqueta `v0.2.0`.
+- **CA2.5:** probar el *dead-man switch* deteniendo el cron.
+- **CA2.6:** la agenda de prueba con 300 juegos reales.
+- **CA2.2 en un fallo real:** el *issue* `catalogo`, el `/fail` de healthchecks.io y `gh run download` desde el trabajo `report`.
+- **Safari:** Ed25519 y el resto de la firma, en el dispositivo (§11.3).
+- **R-04:** comprobar que un flujo sin `schedule` no se desactiva y que `…/enable` reactiva uno desactivado.
+- **Medir:**
+  - `recent` en régimen, a los 14 días;
+  - lo que transfiere el núcleo completo (ADR-003);
+  - el reinicio con caché hasta `scan`, que va justo: 1 893 ms frente a 2 000 con 4 000 recientes.
+- **El plan:** pasar a `docs/planificacion/secciones/` los cambios que anotaron los informes de M2 (§4.5–4.7, §5.4, §7.6, §8.7, §9.1–9.2, §11.2–11.3 y §12.3).
+- **De M1, en M3** ([issue #1](https://github.com/LucasPrezFdez/gameagenda/issues/1)): el Android de referencia y la pasada con NVDA.
+
 ### M0 · Esqueleto, cerrado después de M1 (30-10-2026)
 
 Sin etiqueta propia: `v0.0.1` quedaría después de `v0.1.0`, así que M0 va dentro de la próxima versión (decisión del usuario). El detalle está en el [ADR-003](docs/adr/003-hosting-despliegue-y-ci.md).
