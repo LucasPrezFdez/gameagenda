@@ -43,10 +43,11 @@ function writeJson(path: string, value: unknown): void {
 /** Resumen de las puertas en Markdown: el cuerpo del *issue* que abre `catalog.yml` si fallan. */
 export function gatesMarkdown(r: BuildResult): string {
   const mark = { pass: '✅', fail: '❌', skip: '➖' } as const;
+  const n = (x: number): string => x.toLocaleString('es-ES');
   const lines = [
     `## Catálogo ${r.version}: ${r.ok ? 'puertas en verde' : 'no se publica'}`,
     '',
-    `- Juegos: ${r.games.length}; recientes: ${r.recent.length}; con detalles: ${r.files.details.games}`,
+    `- Juegos: ${n(r.games.length)}; recientes: ${n(r.recent.length)}; con detalles: ${n(r.files.details.games)}`,
     `- enrichmentAgeDays: ${r.enrichmentAgeDays}${r.inputs.enrichmentFailed ? ` (Query: ${r.inputs.enrichmentFailed.kind}, ${r.inputs.enrichmentFailed.message})` : ''}`,
     ...r.inputs.degraded.map((d) => `- Etapa degradada: ${d.stage} (${d.kind}): ${d.message}`),
     '',
