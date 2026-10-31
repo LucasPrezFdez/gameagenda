@@ -1,6 +1,8 @@
 # ADR-007 · Parte de publicación: `catalog.yml`, secretos y *runbook*
 
-> **Borrador para fusionar** en `007-pipeline-del-catalogo.md`, el ADR que escribe la parte del pipeline (A1). Cubre el paso 6 de la §4.5 y lo que lo rodea: el flujo diario, el estado entre ejecuciones, la conservación de la versión anterior, la vía del PC (`catalog-staging`), los secretos y el *runbook*. Las secciones siguen MADR: al fusionar, «Decisión», «Consecuencias» y «Confirmación» van dentro de las del ADR.
+> **Fundido el 31-10-2026 en [`007-pipeline-del-catalogo.md`](007-pipeline-del-catalogo.md), que manda.** Este borrador ya no se actualiza: se conserva tal como quedó, por decisión del propietario, y lo que dice sobre secretos «por crear» o pasos pendientes está desfasado.
+>
+> Era el borrador de la parte de publicación (A2): el paso 6 de la §4.5 y lo que lo rodea, es decir, el flujo diario, el estado entre ejecuciones, la conservación de la versión anterior, la vía del PC (`catalog-staging`), los secretos y el *runbook*.
 
 ## Contexto y problema
 
