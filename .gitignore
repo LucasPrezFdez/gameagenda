@@ -16,3 +16,4 @@ playwright/.cache/
 
 # Worktrees de los agentes de Claude Code
 .claude/worktrees/
+.cache/

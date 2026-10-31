@@ -27,6 +27,7 @@
     "size": "node scripts/size-gate.ts",
     "e2e": "npm run e2e -w @gameagenda/web",
     "perf": "npm run perf -w @gameagenda/web",
+    "smoke:web": "node scripts/smoke-web.ts",
     "desktop:dev": "npm run dev -w @gameagenda/desktop",
     "desktop:build": "npm run build -w @gameagenda/desktop",
     "catalog:frozen": "node scripts/catalog-from-frozen.ts",
