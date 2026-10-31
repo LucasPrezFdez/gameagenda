@@ -1,6 +1,6 @@
 # Estado del proyecto — punto de partida de la próxima sesión
 
-**Actualizado:** 30-10-2026, en la sesión 4.
+**Actualizado:** 31-10-2026, en la sesión 5.
 **Cómo retomar:** escribe *«Retoma GameAgenda desde docs/planificacion/ESTADO-SESION.md»*.
 
 ## 1. Dónde estamos
@@ -22,20 +22,24 @@
     - A1, la construcción: recientes, *shards*, *kill switches*, firma, puertas, ADR-007 y el arreglo de la clave, que ahora solo va a `GetAppList`. Ejecución real: 217 llamadas, 4 con clave, 0,33 pet./s y 11,3 min.
     - A2, la publicación: `catalog.yml` (04:17 UTC, encendido con la variable `CATALOG_SCHEDULE=on`), estado en la *Release* `catalog-state`, canario, *issue* si falla una puerta, *dead-man switch*, versión anterior conservada y `catalog:stage`. Se retira `deploy-catalog.yml`. Su parte del ADR-007 está en `docs/adr/007-pipeline-del-catalogo.parte-publicacion.md` y falta fundirla.
     - C, la interfaz: portadas con «Cargar portadas» (activado por defecto), aviso de primera capa, Ajustes › Privacidad, ficha completa, Próximos, orden por lanzamiento, edad del catálogo y ADR-008.
-  - **En la rama `m2-cliente`, sin integrar** (subida; `ba35762`): B, la verificación de la firma, recientes, regla de los 7 días, 404 y mini-catálogo firmado con *shards* sintéticos. Pasan 698 pruebas unitarias y 122 E2E. **No puede entrar en `main`** hasta que `ga-catalog` sirva un catálogo firmado con `prod-1`: si no, `deploy-web` publicaría un cliente que rechaza el catálogo de M0.
-  - **Le toca al usuario:**
-    - el secreto `CATALOG_SIGNING_KEY` (el `.pem` de `%USERPROFILE%`, que después se borra) y la variable `CATALOG_SIGNING_KID=prod-1`;
-    - la segunda cuenta de Cloudflare para `ga-catalog` (§11.3), con su subdominio y los secretos `CATALOG_CLOUDFLARE_API_TOKEN` y `CATALOG_CLOUDFLARE_ACCOUNT_ID`;
-    - healthchecks.io: un *check* de 1 día + 12 h y el secreto `HEALTHCHECKS_PING_URL`.
-  - **Después:**
-    1. variable `CATALOG_ORIGIN` con el origen nuevo;
-    2. cambiar `VITE_CATALOG_URL` y el `connect-src` de `ga-web` al origen nuevo;
-    3. primera ejecución manual de `catalog.yml` con `no_previous=true`;
-    4. integrar `m2-cliente`;
-    5. `CATALOG_SCHEDULE=on`;
-    6. tres ejecuciones programadas en verde (CA2.1);
-    7. CHANGELOG y `v0.2.0`.
-  - **Avisos de los agentes:** el reinicio con caché sube a ≈1,85 s con recientes (≤2 s; con el equipo cargado, a veces se pasa); el Worker pesa 36,9 KB de 40; los cambios del plan están anotados en sus informes (§4.5–4.7, §5.4, §7.6, §8.7, §9.1–9.2, §11.2–11.3 y §12.3).
+    - B, el cliente (integrado el 31-10-2026 en la sesión 5, `5d0b95f`): la verificación de la firma, recientes, regla de los 7 días, 404 y mini-catálogo firmado con *shards* sintéticos. Pasan 698 pruebas unitarias y 122 E2E. `ga-web` apunta ya a `https://ga-catalog.gameagenda-cat.workers.dev` (`VITE_CATALOG_URL` y `connect-src`).
+  - **Puesta en marcha (31-10-2026, sesión 5):**
+    - El usuario creó los secretos `CATALOG_SIGNING_KEY`, `HEALTHCHECKS_PING_URL`, `CATALOG_CLOUDFLARE_API_TOKEN` y `CATALOG_CLOUDFLARE_ACCOUNT_ID`, y la segunda cuenta de Cloudflare, con el subdominio `gameagenda-cat.workers.dev` (§11.3; ADR-003). La variable `CATALOG_ORIGIN` lleva el origen nuevo. `CATALOG_SIGNING_KID` no hace falta: `catalog.yml` usa `prod-1` por defecto.
+    - El modo automático no deja al asistente escribir secretos, lanzar `catalog.yml` (despliega en producción) ni cambiar `CATALOG_SCHEDULE`: lo hace el usuario, desde la web de GitHub o con `gh`. `CATALOG_ORIGIN` sí la pudo poner el asistente.
+    - **Primera publicación firmada** (ejecución 41201112633, con `no_previous=true`): en verde en 12 min 7 s. Versión `20261031.1`: 197 786 juegos, 3 562 alias, 0 recientes (no hay estado anterior con el que comparar), 197 607 con detalles en 1 024 *shards*. Núcleo de 2,16 MiB en brotli. 218 llamadas a Steam, 4 con clave. Todas las puertas en verde; las de variación se saltan sin versión anterior. La firma con `prod-1` se ha comprobado aparte, con la pública de `core`.
+    - **Tres arreglos al integrar B:**
+      - **La app pasa a la versión 0.2.0** (`653db54`). Un *manifest* firmado pide `minClientVersion` 0.2.0, y el cliente entró como 0.1.0: en producción rechazaba el catálogo con `client-too-old` y la búsqueda se quedaba sin catálogo durante unos 20 min. Con el cambio, en un Chromium limpio el catálogo llega a `full` en 4,2 s. La etiqueta `v0.2.0` y el CHANGELOG van al cerrar M2.
+      - **Prueba de `host.test.ts`** (`07ce4f5`): en el *runner*, el reintento se programaba antes de que la caché llegara a `full`; ahora espera las dos cosas.
+      - **Tareas largas por `:has()` en `.app`** (`15090b6`): `npm run perf` daba 40 tareas largas con ×4 (dos por nombre tecleado, casi todo recálculo de estilos). Las causaban dos reglas de C, `.app:has(.cover-notice)` y `.app:has(.palette.is-open)`. No se veían porque el catálogo de `perf` no traía detalles hasta B. Ahora: 0 tareas largas, INP de 40 ms (antes, 88) y `perf` entero en verde. Se encontró con `PERF_TRACE=1` y el seguimiento de invalidaciones de la traza.
+    - **`perf` en local** necesita un catálogo firmado con `dev-1`: `npm run catalog:frozen` (el de `pipeline/out/` de M1 no lleva firma y el cliente lo rechaza). Así se ha regenerado el 31-10-2026; el catálogo real se vuelve a sacar de las páginas crudas con `--from-raw`.
+  - **Falta:**
+    1. que el usuario ponga `CATALOG_SCHEDULE=on`;
+    2. tres ejecuciones programadas en verde (CA2.1);
+    3. que el usuario borre `%USERPROFILE%\gameagenda-firma-catalogo-PRIVADA.pem` (la primera publicación firmada ya salió bien);
+    4. fundir `007-pipeline-del-catalogo.parte-publicacion.md` en el ADR-007;
+    5. CHANGELOG y `v0.2.0`;
+    6. borrar la rama `m2-cliente` (integrada) y las ramas y carpetas `worktree-agent-*` de la sesión 4, todas integradas, si el usuario lo confirma.
+  - **Avisos de los agentes:** el reinicio con caché sube a ≈1,85 s con recientes (≤2 s; con el equipo cargado, a veces se pasa; el 31-10-2026, 1 893 ms); el Worker pesa 36,9 KB de 40; los cambios del plan están anotados en sus informes (§4.5–4.7, §5.4, §7.6, §8.7, §9.1–9.2, §11.2–11.3 y §12.3).
 - **M1 · Apuntar: cerrado con `v0.1.0`** (30-10-2026; etiqueta anotada en GitHub, con `CHANGELOG.md`). Las mediciones en el dispositivo pasan a M3 (ver «Pendiente de M1», punto 6). Todo está en `main` y subido, sin agentes ni *worktrees* abiertos:
   - **Búsqueda.** En `core`: `normalize`, `catalog-format`, `search` y `search-quality`. Sobre la copia congelada: conjunto dorado 94,9 % / 99,0 %, exactos 99,9 %, prefijos 93,1 %, y `scan` da lo mismo que `full`.
   - **Worker y catálogo.** Worker real con Cache Storage `gacat-<versión>`, `/catalog-dev/` y Catálogo virtual. Mini-catálogo de 298 juegos en `fixtures/catalog/`, generado con `npm run catalog:frozen`.
@@ -151,3 +155,4 @@
 | 2 | 28-10-2026 | Decisiones cerradas; redacción en paralelo (9 agentes); benchmark de búsqueda con el catálogo real; revisión (4 críticos y 9 correctores); retoques (11 agentes); `prototipe.md` terminado |
 | 3 | 29-10-2026 | App de escritorio (Tauri) adelantada de Fase 2 a M3 y plan 0.2. M0, pasos 1–3 (repositorio, *workspaces* y herramientas). M1 casi completo con agentes en paralelo: búsqueda, Worker y Catálogo virtual; agenda en Dexie con exportar/importar y enlaces; pipeline sin clave con el catálogo real (CA1.1); `npm run perf` y la puerta de tamaño; ADR-001, 002, 004, 005 y 006 |
 | 4 | 30-10-2026 | Pendiente de M1, puntos 1–5: presupuesto de la pulsación según la frecuencia (§10.17); *builder* y lector del TSV más rápidos (CA1.11, 1,64 s); fuentes de reserva CJK y emoji calentadas; `npm run perf` entero en verde; aviso de copia a los 30 días (RNF-08); arreglos del plan, retirada de `dexie-react-hooks` y reglas de Biome de la §14.3. `CHANGELOG.md`, versión 0.1.0 y guía de medidas en el dispositivo |
+| 5 | 31-10-2026 | M2, puesta en marcha: secretos, segunda cuenta de Cloudflare (`gameagenda-cat.workers.dev`) y healthchecks.io; primera publicación firmada con `prod-1` (`20261031.1`, 197 786 juegos, 12 min 7 s); cliente de M2 (B) integrado en `main` y `ga-web` apuntando al catálogo nuevo; la app pasa a la versión 0.2.0 (la que pide el catálogo firmado); fuera los `:has()` de `.app`, que daban 40 tareas largas con ×4 (`perf` entero en verde) |
