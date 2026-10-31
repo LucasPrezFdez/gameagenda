@@ -9,7 +9,8 @@
 //   npm run catalog:build -- --compare=<volcado.json>      informe de cobertura del CA1.1
 //   npm run catalog:build -- --skip-delta-gates            sin las puertas que comparan
 //   npm run catalog:build -- --from-raw=pipeline/state/raw-AAAA-MM-DD
-//                                                          vuelve a derivar sin red
+//                                                          vuelve a derivar sin red (con clave
+//                                                          si las páginas traen GetAppList)
 //   npm run catalog:build -- --source=fixtures --out=<dir> desde fixtures/steam/, sin red
 //   npm run catalog:build -- --dev-sign                    firma con la clave de desarrollo
 //   npm run catalog:build -- --kill-switches=<fichero>     por defecto, pipeline/kill-switches.json
@@ -92,9 +93,14 @@ async function main(): Promise<number> {
   const runAt = args.now ? Date.parse(args.now) : fixtures ? fixturesNow : Date.now();
   if (!Number.isFinite(runAt) || runAt <= 0) throw new Error('--now no válido');
 
-  // Solo el pipeline lee la clave (§14.3); nunca se imprime ni se guarda.
-  const key = fixtureMode || args.keyless ? null : process.env.STEAM_WEB_API_KEY?.trim() || null;
-  const keyless = fixtures ? args.keyless : args.keyless || key === null;
+  // Solo el pipeline lee la clave (§14.3); nunca se imprime ni se guarda. Sin red (`--from-raw`)
+  // no hace falta: la ejecución es con clave si las páginas crudas traen GetAppList.
+  const fromRaw = args['from-raw'] ? userPath(args['from-raw']) : null;
+  const key =
+    fixtureMode || args.keyless || fromRaw ? null : process.env.STEAM_WEB_API_KEY?.trim() || null;
+  const rawHasList =
+    fromRaw !== null && readdirSync(fromRaw).some((f) => f.startsWith('getapplist-'));
+  const keyless = fixtures ? args.keyless : args.keyless || (key === null && !rawHasList);
   const signer = loadSigner({
     devSign: args['dev-sign'],
     devKeyPath: at('fixtures/signing/dev-catalog-key.pem'),
@@ -109,7 +115,7 @@ async function main(): Promise<number> {
   const transport: Transport = fixtureMode ? fixtureTransport(records) : httpsTransport();
   const rawDir = fixtures
     ? null
-    : userPath(args['from-raw'] ?? args.raw ?? at(`pipeline/state/raw-${madridDate(runAt)}`));
+    : (fromRaw ?? userPath(args.raw ?? at(`pipeline/state/raw-${madridDate(runAt)}`)));
   const outDir = args.out ? userPath(args.out) : fixtures ? null : at('pipeline/out');
   if (!outDir) throw new Error('Con --source=fixtures hay que indicar --out=<carpeta>');
   const statePath = args.state
@@ -131,11 +137,11 @@ async function main(): Promise<number> {
     ...runtime,
     key,
     cache: rawDir ? new RawStore(rawDir, realRuntime.now) : null,
-    offline: Boolean(args['from-raw']),
+    offline: fromRaw !== null,
     log,
   });
   log(
-    `Catálogo · origen ${source}${fixtureMode ? ' (STEAM_MODE=fixtures)' : ''} · ${keyless ? 'sin clave' : 'con clave'} · ${signer ? `firma ${signer.kid} (${signer.use})` : 'sin firma'}${rawDir ? ` · páginas crudas en ${rawDir}${args['from-raw'] ? ' (sin red)' : ''}` : ''}`,
+    `Catálogo · origen ${source}${fixtureMode ? ' (STEAM_MODE=fixtures)' : ''} · ${keyless ? 'sin clave' : 'con clave'} · ${signer ? `firma ${signer.kid} (${signer.use})` : 'sin firma'}${rawDir ? ` · páginas crudas en ${rawDir}${fromRaw ? ' (sin red)' : ''}` : ''}`,
   );
   const state = readState(statePath);
   const result = await buildCatalog(client, {
