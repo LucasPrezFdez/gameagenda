@@ -1,13 +1,19 @@
-// Utilidades de las pruebas del Worker: catálogo sintético publicado, Cache Storage en memoria y
-// un planificador manual (las tareas cedidas se ejecutan cuando la prueba quiere).
+// Utilidades de las pruebas del Worker: catálogo sintético publicado y firmado con la clave de
+// desarrollo, Cache Storage en memoria, un servidor de catálogo en memoria y un planificador
+// manual (las tareas cedidas se ejecutan cuando la prueba quiere).
 import {
   type AliasPair,
   CatalogFlag,
   type CatalogManifest,
   type CoreRow,
+  DETAIL_SHARDS,
+  manifestSigningBytes,
   serializeAliases,
   serializeCore,
+  toBase64Url,
 } from '@gameagenda/core/catalog-format';
+// biome-ignore lint/style/noRestrictedImports: las pruebas firman con la clave de desarrollo, que solo vive en fixtures/.
+import devKeyPem from '../../../../fixtures/signing/dev-catalog-key.pem?raw';
 import type { CatalogTexts } from './catalog-store.ts';
 
 const { adult, free, retired, soon } = CatalogFlag;
@@ -31,53 +37,145 @@ export const ALIASES: readonly AliasPair[] = [
   ['cs2', 730],
 ];
 
+/** `kid` de la clave de desarrollo (`fixtures/signing/dev-catalog-key.pem`). */
+export const DEV_KID = 'dev-1';
+
 async function sha256(text: string): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
   return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
+let devKey: Promise<CryptoKey> | null = null;
+
+function devSigningKey(): Promise<CryptoKey> {
+  devKey ??= (async () => {
+    const base64 = devKeyPem.replace(/-----[A-Z ]+-----/g, '').replace(/\s+/g, '');
+    const der = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+    return crypto.subtle.importKey('pkcs8', der, { name: 'Ed25519' }, false, ['sign']);
+  })();
+  return devKey;
+}
+
+/** `manifest` con `sig`: ed25519 de la clave de desarrollo sobre su JSON canónico sin `sig`. */
+export async function signManifest<T extends Record<string, unknown>>(
+  manifest: T,
+  kid = DEV_KID,
+): Promise<T & { sig: { kid: string; ed25519: string } }> {
+  const bytes = new Uint8Array(manifestSigningBytes(manifest));
+  const signature = await crypto.subtle.sign('Ed25519', await devSigningKey(), bytes);
+  return { ...manifest, sig: { kid, ed25519: toBase64Url(new Uint8Array(signature)) } };
+}
+
 export interface Published {
+  /** El *manifest* tal como se sirve (firmado, salvo con `sign: false`). */
   readonly manifest: CatalogManifest;
   readonly files: ReadonlyMap<string, string>;
   readonly texts: CatalogTexts;
 }
 
-/** Catálogo publicado como lo deja `catalog:frozen`: *manifest* y ficheros con su *hash*. */
+export interface PublishOptions {
+  /** Filas de `recent`; `null`, un *manifest* sin `recent` (como el de M1). Por defecto, ninguna. */
+  readonly recent?: readonly CoreRow[] | null;
+  /**
+   * Versión en la cabecera de `recent`, de los alias y del índice de *shards* (por defecto, la
+   * del *manifest*): con la de una versión anterior, los mismos ficheros dan el mismo *hash*.
+   */
+  readonly fileVersion?: string;
+  readonly killSwitches?: { readonly covers: boolean; readonly details: boolean };
+  /** `false`: sin firma. */
+  readonly sign?: boolean;
+  /** Campos más del *manifest* (van firmados). */
+  readonly extra?: Readonly<Record<string, unknown>>;
+}
+
+const bytesOf = (text: string) => new TextEncoder().encode(text).byteLength;
+
+async function fileOf(prefix: string, ext: string, text: string) {
+  const hash = await sha256(text);
+  return { path: `${prefix}.${hash.slice(0, 16)}.${ext}`, sha256: hash, bytes: bytesOf(text) };
+}
+
+/**
+ * Catálogo publicado como lo deja `catalog:frozen`: *manifest* firmado con la clave de desarrollo
+ * y ficheros con su *hash*: núcleo, `recent`, alias e índice de *shards* (vacío).
+ */
 export async function publish(
   version: string,
   rows: readonly CoreRow[] = ROWS,
   aliases: readonly AliasPair[] = ALIASES,
+  options: PublishOptions = {},
 ): Promise<Published> {
+  const recentRows = options.recent === undefined ? [] : options.recent;
   const core = serializeCore(rows, { version });
-  const aliasText = serializeAliases(aliases, { version });
-  const coreHash = await sha256(core);
-  const aliasHash = await sha256(aliasText);
-  const bytes = (text: string) => new TextEncoder().encode(text).byteLength;
-  const manifest: CatalogManifest = {
+  const fileVersion = options.fileVersion ?? version;
+  const recent = recentRows && serializeCore(recentRows, { version: fileVersion, kind: 'recent' });
+  const aliasText = serializeAliases(aliases, { version: fileVersion });
+  const detailsIndex = JSON.stringify({
+    format: 'gacat-details-index',
+    v: 1,
+    version: fileVersion,
+    shards: Array.from({ length: DETAIL_SHARDS }, () => null),
+  });
+  const coreFile = await fileOf('core', 'tsv', core);
+  const recentFile = recent === null ? null : await fileOf('recent', 'tsv', recent);
+  const aliasFile = await fileOf('aliases', 'tsv', aliasText);
+  const detailsFile = await fileOf('details/index', 'json', detailsIndex);
+  const unsigned: Record<string, unknown> = {
     format: 'gacat',
     v: 1,
     version,
-    generatedAt: '2026-10-28T00:00:00Z',
-    counts: { core: rows.length, aliases: aliases.length },
+    generatedAt: `${version.slice(0, 4)}-${version.slice(4, 6)}-${version.slice(6, 8)}T03:00:00Z`,
+    counts: {
+      core: rows.length,
+      aliases: aliases.length,
+      ...(recentRows ? { recent: recentRows.length } : {}),
+    },
     files: {
-      core: { path: `core.${coreHash.slice(0, 16)}.tsv`, sha256: coreHash, bytes: bytes(core) },
-      aliases: {
-        path: `aliases.${aliasHash.slice(0, 16)}.tsv`,
-        sha256: aliasHash,
-        bytes: bytes(aliasText),
-      },
+      core: coreFile,
+      aliases: aliasFile,
+      ...(recentFile ? { recent: recentFile } : {}),
+      details: detailsFile,
     },
     enrichmentAgeDays: 0,
     minClientVersion: '0.0.0',
+    killSwitches: options.killSwitches ?? { covers: false, details: false },
+    ...options.extra,
   };
+  const manifest = (
+    options.sign === false ? unsigned : await signManifest(unsigned)
+  ) as CatalogManifest;
+  const files = new Map([
+    [coreFile.path, core],
+    [aliasFile.path, aliasText],
+    [detailsFile.path, detailsIndex],
+  ]);
+  if (recentFile && recent !== null) files.set(recentFile.path, recent);
   return {
     manifest,
-    files: new Map([
-      [manifest.files.core.path, core],
-      [manifest.files.aliases.path, aliasText],
-    ]),
-    texts: { manifest, core, aliases: aliasText },
+    files,
+    texts: {
+      manifest,
+      coreFile: { ...coreFile, version },
+      core,
+      recent,
+      aliases: aliasText,
+    },
   };
+}
+
+/**
+ * WebCrypto sin Ed25519, como el WebKit de Playwright en Windows o Safari <17: `importKey` y
+ * `verify` dan `NotSupportedError`; SHA-256 sí funciona.
+ */
+export function subtleWithoutEd25519(): SubtleCrypto {
+  const unsupported = () =>
+    Promise.reject(new DOMException('Algorithm: Unrecognized name', 'NotSupportedError'));
+  return {
+    digest: (algorithm: AlgorithmIdentifier, data: BufferSource) =>
+      crypto.subtle.digest(algorithm, data),
+    importKey: unsupported,
+    verify: unsupported,
+  } as unknown as SubtleCrypto;
 }
 
 /** Cache Storage en memoria, con lo que usa el Worker. */
@@ -143,26 +241,52 @@ export class MemoryCacheStorage {
   }
 }
 
-/** Servidor de catálogo en memoria para `fetch`; `offline` simula el modo avión. */
+/**
+ * Servidor de catálogo en memoria para `fetch`. Como el publicador, conserva los ficheros de las
+ * versiones anteriores (`drop` quita uno); `offline` simula el modo avión y `missing`, ficheros
+ * que dan 404. `bytes` suma los cuerpos servidos.
+ */
 export function catalogServer(base: string) {
   let current: Published | null = null;
-  const state = { offline: false, requests: [] as string[], corrupt: false };
+  const files = new Map<string, string>();
+  const state = {
+    offline: false,
+    requests: [] as string[],
+    corrupt: false,
+    bytes: 0,
+    missing: new Set<string>(),
+  };
   const fetchFn = (async (input: RequestInfo | URL) => {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
     state.requests.push(url);
     if (state.offline) throw new TypeError('Failed to fetch');
     if (!current || !url.startsWith(base)) return new Response('', { status: 404 });
     const path = url.slice(base.length);
-    if (path === 'manifest.json') return Response.json(current.manifest);
-    const text = current.files.get(path);
-    if (text === undefined) return new Response('', { status: 404 });
-    return new Response(state.corrupt ? `${text}x` : text);
+    if (path === 'manifest.json') {
+      const body = JSON.stringify(current.manifest);
+      state.bytes += bytesOf(body);
+      return new Response(body, { headers: { 'Content-Type': 'application/json' } });
+    }
+    const text = files.get(path);
+    if (text === undefined || state.missing.has(path)) return new Response('', { status: 404 });
+    const body = state.corrupt ? `${text}x` : text;
+    state.bytes += bytesOf(body);
+    return new Response(body);
   }) as typeof fetch;
   return {
     fetch: fetchFn,
     state,
     serve(published: Published) {
       current = published;
+      for (const [path, text] of published.files) files.set(path, text);
+    },
+    drop(path: string) {
+      files.delete(path);
+    },
+    /** Pone a cero el registro de peticiones y bytes. */
+    reset() {
+      state.requests.length = 0;
+      state.bytes = 0;
     },
   };
 }
@@ -193,6 +317,29 @@ export function manualScheduler() {
           await new Promise((resolve) => setTimeout(resolve, 1));
         }
       }
+    },
+  };
+}
+
+/** Temporizador manual (`HostDeps.setTimer`): la prueba ve las esperas y las dispara. */
+export function manualTimers() {
+  const pending: { task: () => void; ms: number }[] = [];
+  /** Esperas pedidas hasta ahora, en orden. */
+  const delays: number[] = [];
+  return {
+    setTimer: (task: () => void, ms: number) => {
+      pending.push({ task, ms });
+      delays.push(ms);
+    },
+    delays,
+    get pending() {
+      return pending.map((p) => p.ms);
+    },
+    /** Dispara la primera espera pendiente. */
+    fire(): void {
+      const next = pending.shift();
+      if (!next) throw new Error('No hay ningún temporizador pendiente');
+      next.task();
     },
   };
 }

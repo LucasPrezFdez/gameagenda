@@ -29,7 +29,7 @@ Desde M2 el catálogo se publica solo, cada día, desde GitHub Actions (§4.5, �
 - **Solo desde `main`**, una ejecución cada vez (`concurrency: catalog`, sin cancelar la que corre) y ≤30 min (`timeout-minutes: 30`; la construcción tiene 22).
 - **Permisos:** `contents: read` por defecto. El trabajo `publish` añade `contents: write` (las *Releases*) y `report`, `issues: write` y `actions: read`, para leer los pasos de la propia ejecución y bajar su artefacto. Las *actions* son las de `ci.yml`, fijadas por SHA (`checkout` v7.0.1, `setup-node` v7.1.0 y `upload-artifact` v7.0.2); no entra ninguna nueva.
 - **Configuración en un solo sitio:** el `env` de arriba del flujo, con un valor por defecto que manda una variable del repositorio si existe:
-  - `CATALOG_ORIGIN`, por defecto `https://ga-catalog.gameagenda.workers.dev`;
+  - `CATALOG_ORIGIN`, por defecto `https://ga-catalog.gameagenda-cat.workers.dev`;
   - `WEB_ORIGIN`, por defecto `https://ga-web.gameagenda.workers.dev`, que tiene que coincidir con el CORS de `pipeline/catalog.headers` (se comprueba);
   - `CATALOG_SIGNING_KID`, por defecto `prod-1`.
 

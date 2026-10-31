@@ -5,7 +5,8 @@
   "generatedAt": "2026-10-28T00:00:00Z",
   "counts": {
     "core": 298,
-    "aliases": 219
+    "aliases": 219,
+    "recent": 8
   },
   "files": {
     "core": {
@@ -13,12 +14,30 @@
       "sha256": "f7d1ce6bcb576d9bae9dcb2f67b83d922584e9116377c6ef93b742e04ad83ad3",
       "bytes": 11219
     },
+    "recent": {
+      "path": "recent.9521d4f7d61fe41c.tsv",
+      "sha256": "9521d4f7d61fe41c30aee1a6a70124e810aabd180934579b51349b79fc887fc0",
+      "bytes": 379
+    },
     "aliases": {
       "path": "aliases.c2260f78db024b1a.tsv",
       "sha256": "c2260f78db024b1af9dc29f68f1f4bcb74b3d2a64e155dc1f50697afad60bc3e",
       "bytes": 2783
+    },
+    "details": {
+      "path": "details/index.58ba42e9f2fff2e2.json",
+      "sha256": "58ba42e9f2fff2e2775c7cc3272b6cdd31e23dff1279e724c3ad2205b6d462b4",
+      "bytes": 8762
     }
   },
   "enrichmentAgeDays": 0,
-  "minClientVersion": "0.0.0"
+  "minClientVersion": "0.0.0",
+  "killSwitches": {
+    "covers": false,
+    "details": false
+  },
+  "sig": {
+    "kid": "dev-1",
+    "ed25519": "r332tOzHHd3-Ugk811ss8jhus5NkXtFikqJbgxbKCLZ9gLQTXZyztgUj5CtTiAUePYAg4KLs3lvxj_AUuPJRBw"
+  }
 }

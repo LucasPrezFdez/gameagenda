@@ -5,7 +5,7 @@
 import { loadFuzzy } from '@gameagenda/core/search';
 import { catalogBaseUrl } from '../search-client/catalog-url.ts';
 import type { TestControlMessage, UiToWorkerMessage } from '../search-client/protocol.ts';
-import { createCatalogStore } from './catalog-store.ts';
+import { createCatalogStore, signingKeysForMode } from './catalog-store.ts';
 import { createWorkerTestHooks } from './e2e-hooks.ts';
 import { createSearchHost } from './host.ts';
 
@@ -25,12 +25,20 @@ const host = createSearchHost({
     tasks.push(task);
     channel.port2.postMessage(null);
   },
+  setTimer(task, ms) {
+    setTimeout(task, ms);
+  },
   store: createCatalogStore({
     fetch: (input, init) => fetch(input, init),
     caches: 'caches' in self ? self.caches : null,
     subtle: crypto.subtle,
     baseUrl: catalogBaseUrl(self.location.origin),
     appVersion: __APP_VERSION__,
+    // En producción, solo las claves `prod`; en `development` y `e2e`, también la de desarrollo
+    // (§11.3). `MODE` es una constante del *build*.
+    signingKeys: signingKeysForMode(import.meta.env.MODE),
+    // Solo existe en el *build* del modo `e2e` (ver `e2e-hooks.ts`).
+    acceptUnverifiedDevSignature: testHooks?.unverifiedDevSignature,
   }),
   loadFuzzy,
   testHooks,

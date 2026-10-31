@@ -1,9 +1,17 @@
 // Lado Worker del protocolo de la §8.7 sobre `@gameagenda/core`, sin `self` ni E/S propias (las
 // recibe en `HostDeps`), para probarlo en Vitest. Estados `none` → `scan` → `full` (§8.8): el
 // núcleo se lee y se indexa a bloques de ≈6 ms que ceden el turno, así que una consulta espera
-// como mucho un bloque; en `scan` ya se busca en todo el catálogo.
+// como mucho un bloque; en `scan` ya se busca en todo el catálogo. El índice se construye sobre el
+// núcleo con `recent` ya aplicado (§7.6).
+//
+// Actualización (§5.3 y §5.4): tras arrancar con la caché se comprueba el *manifest*; una versión
+// nueva se descarga (regla de los 7 días en `catalog-store.ts`) y se indexa en segundo plano. Si
+// falla, sigue el catálogo vigente: un *manifest* rechazado (firma, navegador o app) se anuncia en
+// `status.error`; un fichero que da 404 hace releer el *manifest* una vez y, si sigue igual (o
+// falla la red), se reintenta más tarde con una espera que se dobla.
 import {
   type AliasPair,
+  applyRecent,
   CatalogFlag,
   CatalogFormatError,
   type CatalogManifest,
@@ -11,6 +19,7 @@ import {
   type CoreCatalog,
   createCoreReader,
   parseAliases,
+  parseCore,
 } from '@gameagenda/core/catalog-format';
 import {
   type BrowseResult,
@@ -33,9 +42,11 @@ import type {
   WorkerToUiMessage,
 } from '../search-client/protocol.ts';
 import {
+  type CatalogErrorCode,
   CatalogLoadError,
   type CatalogStore,
   type CatalogTexts,
+  type CoreFile,
   compareCatalogVersions,
 } from './catalog-store.ts';
 
@@ -64,6 +75,8 @@ export interface HostDeps {
   now(): number;
   /** Ejecuta `task` en otra tarea, cediendo el turno (en el Worker, con un `MessageChannel`). */
   schedule(task: () => void): void;
+  /** Ejecuta `task` dentro de `ms` (`setTimeout`): los reintentos de una actualización fallida. */
+  setTimer?(task: () => void, ms: number): void;
   readonly store: CatalogStore;
   loadFuzzy(): Promise<FuzzyMatcher>;
   /** Plazo de cada bloque de trabajo: ≈6 ms da bloques de ≤8 ms (§8.8). */
@@ -87,11 +100,34 @@ const READ_SHARE = 0.1;
 /** `progress` del constructor al llegar a `scan` (pesos de `builder.ts`). */
 const BUILDER_SCAN_AT = 0.5;
 
+/** Reintentos de una actualización fallida: 1 min, 2, 4… hasta 1 h. */
+export const RETRY_MIN_MS = 60_000;
+export const RETRY_MAX_MS = 3_600_000;
+
+/**
+ * Fallos de la actualización que se anuncian en `status.error` aunque se siga buscando con el
+ * catálogo vigente: piden algo a la interfaz (un catálogo bueno, otro navegador u otra app).
+ */
+const SHOWN_UPDATE_ERRORS: ReadonlySet<CatalogErrorCode> = new Set([
+  'signature',
+  'browser-too-old',
+  'client-too-old',
+]);
+
+/** De dónde sale un catálogo: su *manifest* y el núcleo que se usa (sin los textos). */
+interface Source {
+  readonly manifest: CatalogManifest;
+  readonly coreFile: CoreFile;
+}
+
 interface BuildJob {
-  readonly texts: CatalogTexts;
+  /** El *manifest* puede cambiar a mitad (otra versión con el mismo índice; ver `adopt`). */
+  texts: CatalogTexts;
   /** El primer catálogo publica `scan`; una actualización solo sustituye al anterior en `full`. */
   readonly foreground: boolean;
   readonly aliases: readonly AliasPair[];
+  /** `recent` leído, que se aplica al núcleo antes del índice; `null` si no hay. */
+  readonly recent: CoreCatalog | null;
   reader: CooperativeTask<CoreCatalog> | null;
   builder: IndexBuilder | null;
   adults: number;
@@ -128,15 +164,34 @@ function asLoadError(error: unknown): CatalogLoadError {
   return new CatalogLoadError('network', error instanceof Error ? error.message : String(error));
 }
 
-/** ¿Es `next` más nuevo que el catálogo vigente? Una versión anterior se rechaza (§11.3). */
-function isUpdate(next: CatalogManifest, active: CatalogManifest | null): boolean {
-  if (!active) return true;
-  const order = compareCatalogVersions(next.version, active.version);
-  if (order !== 0) return order > 0;
-  // Misma versión con otros ficheros (en desarrollo, al cambiar `CATALOG_DIR`).
+const FILE_KINDS = ['core', 'recent', 'aliases', 'details'] as const;
+
+/** ¿Citan los dos *manifest* algún fichero distinto? */
+function filesDiffer(a: CatalogManifest, b: CatalogManifest): boolean {
+  return FILE_KINDS.some((kind) => a.files[kind]?.sha256 !== b.files[kind]?.sha256);
+}
+
+/** ¿Se construye el mismo índice? Mismo núcleo, mismos recientes y mismos alias. */
+function sameIndex(a: Source, b: Source): boolean {
   return (
-    next.files.core.sha256 !== active.files.core.sha256 ||
-    next.files.aliases.sha256 !== active.files.aliases.sha256
+    a.coreFile.sha256 === b.coreFile.sha256 &&
+    a.manifest.files.recent?.sha256 === b.manifest.files.recent?.sha256 &&
+    a.manifest.files.aliases.sha256 === b.manifest.files.aliases.sha256
+  );
+}
+
+/**
+ * ¿Hay que pasar a `next`? Una versión anterior a la vigente se rechaza (§11.3). Con la misma
+ * versión, solo si cambia algún fichero (en desarrollo, al cambiar `CATALOG_DIR`) o si `force`
+ * («Actualizar catálogo») y el núcleo en uso no es el del *manifest* (regla de los 7 días).
+ */
+function isUpdate(next: CatalogManifest, active: Source | null, force: boolean): boolean {
+  if (!active) return true;
+  const order = compareCatalogVersions(next.version, active.manifest.version);
+  if (order !== 0) return order > 0;
+  return (
+    filesDiffer(next, active.manifest) ||
+    (force && next.files.core.sha256 !== active.coreFile.sha256)
   );
 }
 
@@ -149,15 +204,20 @@ export function createSearchHost(deps: HostDeps): SearchHost {
   let showAdult = false;
   /** El buscador que responde: el de escaneo en `scan` y el índice en `full`. */
   let searcher: Searcher | null = null;
-  let searcherManifest: CatalogManifest | null = null;
+  let searcherSource: Source | null = null;
   let searcherAdults = 0;
   let job: BuildJob | null = null;
   /** Catálogo nuevo que espera a que acabe la construcción en curso. */
   let pendingUpdate: CatalogTexts | null = null;
   let loading = false;
   let downloadProgress = 0;
+  /** Error de la carga del primer catálogo (sin catálogo, en `none`). */
   let error: CatalogError | null = null;
+  /** Error de la última comprobación, si hay que anunciarlo con el catálogo vigente. */
+  let updateError: CatalogError | null = null;
   let checking: Promise<void> | null = null;
+  let retryPending = false;
+  let retryAttempts = 0;
 
   let latestSeq = 0;
   let lastQuery: { seq: number; q: string; strong: number; appids: number[] } | null = null;
@@ -176,8 +236,8 @@ export function createSearchHost(deps: HostDeps): SearchHost {
   }
 
   /** El catálogo más nuevo que ya responde, se está indexando o espera su turno. */
-  function activeManifest(): CatalogManifest | null {
-    return pendingUpdate?.manifest ?? job?.texts.manifest ?? searcherManifest;
+  function activeSource(): Source | null {
+    return pendingUpdate ?? job?.texts ?? searcherSource;
   }
 
   function progress(): number {
@@ -196,11 +256,12 @@ export function createSearchHost(deps: HostDeps): SearchHost {
     const message: StatusMessage = {
       type: 'status',
       state: state(),
-      version: searcher ? (searcherManifest?.version ?? searcher.version) : null,
+      version: searcher ? (searcherSource?.manifest.version ?? searcher.version) : null,
       count: visible,
       progress: Math.round(progress() * 100) / 100,
-      error,
-      catalog: searcher && searcherManifest ? catalogInfo(searcherManifest) : null,
+      // El de la actualización solo con catálogo: sin él, la interfaz aún dice «Preparando…».
+      error: error ?? (searcher ? updateError : null),
+      catalog: searcher && searcherSource ? catalogInfo(searcherSource.manifest) : null,
     };
     const key = JSON.stringify(message);
     if (key === lastStatus) return;
@@ -234,8 +295,11 @@ export function createSearchHost(deps: HostDeps): SearchHost {
 
   function startJob(texts: CatalogTexts, foreground: boolean): void {
     let aliases: readonly AliasPair[];
+    let recent: CoreCatalog | null;
     try {
       aliases = parseAliases(texts.aliases).pairs;
+      // ≈4 000 filas: menos de 2 ms, de una vez.
+      recent = texts.recent === null ? null : parseCore(texts.recent, 'recent');
     } catch (cause) {
       if (foreground) fail(cause);
       return;
@@ -244,6 +308,7 @@ export function createSearchHost(deps: HostDeps): SearchHost {
       texts,
       foreground,
       aliases,
+      recent,
       reader: createCoreReader(texts.core, { kind: 'core', now: deps.now }),
       builder: null,
       adults: 0,
@@ -255,7 +320,7 @@ export function createSearchHost(deps: HostDeps): SearchHost {
   function use(next: Searcher, from: BuildJob): void {
     const changed = searcher !== next;
     searcher = next;
-    searcherManifest = from.texts.manifest;
+    searcherSource = { manifest: from.texts.manifest, coreFile: from.texts.coreFile };
     searcherAdults = from.adults;
     error = null;
     if (changed) {
@@ -271,8 +336,10 @@ export function createSearchHost(deps: HostDeps): SearchHost {
     if (isPaused(current)) return;
     if (current.reader) {
       if (!current.reader.step(deadline)) return;
-      const catalog = current.reader.result as CoreCatalog;
+      const base = current.reader.result as CoreCatalog;
       current.reader = null;
+      // Los recientes, de una vez (≈16 ms con el catálogo completo, sin estrangular).
+      const catalog = current.recent ? applyRecent(base, current.recent) : base;
       current.adults = countAdults(catalog);
       current.builder = createIndexBuilder(catalog, current.aliases, { now: deps.now });
       if (isPaused(current)) return;
@@ -317,12 +384,45 @@ export function createSearchHost(deps: HostDeps): SearchHost {
   // --- Carga del catálogo ----------------------------------------------------
 
   function fail(cause: unknown): void {
-    if (searcher) return; // ya hay catálogo: una actualización fallida no se muestra
+    if (searcher) return; // ya hay catálogo: una actualización fallida no lo quita
     const loadError = asLoadError(cause);
     error = { code: loadError.code, retryable: loadError.retryable };
     job = null;
     emitStatus(true);
     flushWaiting();
+  }
+
+  /**
+   * Los ficheros de `manifest`. Si un fichero con *hash* da un error HTTP (un 404 tras un
+   * despliegue), relee el *manifest* una vez y, si es otro, sigue con ese (§5.4, principio 8):
+   * `fetchFile` ya ha reintentado sin la caché HTTP. `null` si el *manifest* releído no es una
+   * actualización.
+   *
+   * Un fallo de red no relee al momento: sin red tampoco llegaría el *manifest*, y al cerrar la
+   * página WebKit corta las descargas del Worker y daría por un error la petición nueva. Lo relee
+   * el reintento (`scheduleRetry`), que empieza siempre por el *manifest*. Un 404 sin CORS se vería
+   * así, pero `ga-catalog` manda CORS también en los 404 (ADR-003).
+   */
+  async function downloadNewest(
+    manifest: CatalogManifest,
+    force: boolean,
+    onProgress?: (fraction: number) => void,
+  ): Promise<CatalogTexts | null> {
+    const options = () => ({
+      current: activeSource()?.coreFile ?? null,
+      forceCore: force,
+      onProgress,
+    });
+    try {
+      return await deps.store.download(manifest, options());
+    } catch (cause) {
+      const failure = asLoadError(cause);
+      if (failure.path === null || failure.code !== 'http') throw cause;
+      const again = await deps.store.fetchManifest();
+      if (!filesDiffer(again, manifest)) throw cause;
+      if (!isUpdate(again, activeSource(), force)) return null;
+      return deps.store.download(again, options());
+    }
   }
 
   async function load(): Promise<void> {
@@ -336,10 +436,12 @@ export function createSearchHost(deps: HostDeps): SearchHost {
       return;
     }
     const manifest = await deps.store.fetchManifest();
-    const texts = await deps.store.download(manifest, (fraction) => {
+    const texts = await downloadNewest(manifest, false, (fraction) => {
       downloadProgress = fraction;
       emitStatus(false);
     });
+    // Sin catálogo en uso, cualquier *manifest* válido es una actualización: `null` no llega.
+    if (!texts) throw new CatalogLoadError('manifest', 'El manifest releído no sirve');
     downloadProgress = 1;
     startJob(texts, true);
   }
@@ -357,20 +459,80 @@ export function createSearchHost(deps: HostDeps): SearchHost {
       });
   }
 
-  /** Comprueba el *manifest* y, si hay versión nueva, la descarga y la indexa en segundo plano. */
-  function checkForUpdate(): Promise<void> {
-    if (checking) return checking;
-    checking = (async () => {
-      const manifest = await deps.store.fetchManifest();
-      if (!isUpdate(manifest, activeManifest())) return;
-      const texts = await deps.store.download(manifest);
-      if (!isUpdate(manifest, activeManifest())) return;
-      if (!searcher) startJob(texts, true);
-      else if (job) pendingUpdate = texts;
-      else startJob(texts, false);
-    })().finally(() => {
-      checking = null;
-    });
+  function setUpdateError(next: CatalogError | null): void {
+    if (next?.code === updateError?.code && next?.retryable === updateError?.retryable) return;
+    updateError = next;
+    emitStatus(true);
+  }
+
+  /** Reintento de una actualización fallida, con una espera que se dobla (1 min … 1 h). */
+  function scheduleRetry(): void {
+    if (retryPending || !deps.setTimer) return;
+    const delay = Math.min(RETRY_MAX_MS, RETRY_MIN_MS * 2 ** retryAttempts);
+    retryAttempts++;
+    retryPending = true;
+    deps.setTimer(() => {
+      retryPending = false;
+      void checkForUpdate().catch(() => undefined);
+    }, delay);
+  }
+
+  /** Una comprobación fallida: el catálogo vigente sigue; se anuncia o se reintenta más tarde. */
+  function updateFailed(cause: unknown): void {
+    const failure = asLoadError(cause);
+    if (SHOWN_UPDATE_ERRORS.has(failure.code)) {
+      setUpdateError({ code: failure.code, retryable: failure.retryable });
+    }
+    // Sin red ni para el *manifest*: lo repite `online()`. Sin Ed25519 o con la app vieja, no.
+    const offline = failure.code === 'network' && failure.path === null;
+    if (failure.retryable && !offline) scheduleRetry();
+  }
+
+  async function update(force: boolean): Promise<void> {
+    const manifest = await deps.store.fetchManifest();
+    // Firma válida: lo que se anunciaba de una comprobación anterior ya no vale.
+    setUpdateError(null);
+    if (isUpdate(manifest, activeSource(), force)) {
+      const texts = await downloadNewest(manifest, force);
+      if (texts && isUpdate(texts.manifest, activeSource(), force)) adopt(texts);
+    }
+    retryAttempts = 0;
+  }
+
+  /** Pasa al catálogo descargado: indexándolo en segundo plano o, si da el mismo índice, ya. */
+  function adopt(texts: CatalogTexts): void {
+    const active = activeSource();
+    if (active && sameIndex(texts, active)) {
+      // Otra versión con el mismo núcleo, recientes y alias (p. ej., solo cambia un *kill
+      // switch*): cambia el *manifest* del más nuevo, sin reconstruir nada.
+      const source: Source = { manifest: texts.manifest, coreFile: texts.coreFile };
+      if (pendingUpdate) pendingUpdate = { ...pendingUpdate, ...source };
+      else if (job) job.texts = { ...job.texts, ...source };
+      else searcherSource = source;
+      emitStatus(true);
+      return;
+    }
+    if (!searcher) startJob(texts, true);
+    else if (job) pendingUpdate = texts;
+    else startJob(texts, false);
+  }
+
+  /**
+   * Comprueba el *manifest* y, si hay versión nueva, la descarga y la indexa en segundo plano.
+   * `force` («Actualizar catálogo») baja también el núcleo nuevo aunque el local tenga ≤7 días.
+   */
+  function checkForUpdate(force = false): Promise<void> {
+    if (checking) {
+      return force ? checking.catch(() => undefined).then(() => checkForUpdate(true)) : checking;
+    }
+    checking = update(force)
+      .catch((cause: unknown) => {
+        updateFailed(cause);
+        throw cause;
+      })
+      .finally(() => {
+        checking = null;
+      });
     return checking;
   }
 
@@ -459,7 +621,8 @@ export function createSearchHost(deps: HostDeps): SearchHost {
         startLoad();
         return;
       case 'refresh':
-        checkForUpdate().then(
+        // «Actualizar catálogo» (§5.3): también el núcleo nuevo, aunque el local tenga ≤7 días.
+        checkForUpdate(true).then(
           () => reply({ type: 'refresh', reqId: m.reqId }),
           (cause: unknown) =>
             deps.post({ type: 'error', reqId: m.reqId, code: asLoadError(cause).code }),

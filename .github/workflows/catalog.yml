@@ -58,10 +58,10 @@ defaults:
 env:
   # --- Configuración (un solo sitio; las variables del repositorio, si existen, mandan) --------
   # Origen publicado de `ga-catalog`: de él sale la versión anterior que se conserva y la prueba de
-  # humo comprueba que wrangler ha publicado ahí. Al pasar `ga-catalog` a su cuenta de Cloudflare
-  # cambia el subdominio: variable CATALOG_ORIGIN (y, en la app, `VITE_CATALOG_URL` de
-  # deploy-web.yml y `connect-src` de apps/web/public/_headers).
-  CATALOG_ORIGIN: ${{ vars.CATALOG_ORIGIN || 'https://ga-catalog.gameagenda.workers.dev' }}
+  # humo comprueba que wrangler ha publicado ahí. Si `ga-catalog` cambia de cuenta o de dominio,
+  # cambia la variable CATALOG_ORIGIN (y, en la app, `VITE_CATALOG_URL` de deploy-web.yml y
+  # `connect-src` de apps/web/public/_headers).
+  CATALOG_ORIGIN: ${{ vars.CATALOG_ORIGIN || 'https://ga-catalog.gameagenda-cat.workers.dev' }}
   # Origen de `ga-web`: el único con CORS en pipeline/catalog.headers (se comprueba).
   WEB_ORIGIN: ${{ vars.WEB_ORIGIN || 'https://ga-web.gameagenda.workers.dev' }}
   # `kid` de la clave de producción: el de su pública en CATALOG_SIGNING_KEYS (core).

@@ -9,10 +9,12 @@
 // estrangulamiento entre pasos.
 import { latencyStats, realisticFinals, typedSequences } from '@gameagenda/core/bench';
 import {
+  applyRecent,
   type CoreCatalog,
   createCoreReader,
   parseAliases,
   parseCore,
+  trustedSigningKeys,
 } from '@gameagenda/core/catalog-format';
 import { canSuggest, createIndexBuilder, loadFuzzy } from '@gameagenda/core/search';
 import golden from '../../../../packages/core/test/golden.es.tsv?raw';
@@ -33,6 +35,8 @@ const store = createCatalogStore({
   subtle: crypto.subtle,
   baseUrl: new URL('/catalog-dev/', location.origin).href,
   appVersion: '0.0.0',
+  // La página de prueba sirve el catálogo de `catalog:frozen`, firmado con la clave de desarrollo.
+  signingKeys: trustedSigningKeys({ dev: true }),
 });
 
 interface Bench {
@@ -188,10 +192,19 @@ const api: BenchApi = {
     }
     const aliases = parseAliases(texts.aliases).pairs;
     const t2 = now();
-    const builder = createIndexBuilder(reader.result as CoreCatalog, aliases, { now });
-    while (builder.state !== 'scan') builder.step(now());
+    // Como el host: `recent` leído de una vez y aplicado al núcleo antes del índice (§7.6).
+    const base = reader.result as CoreCatalog;
+    const catalog = texts.recent ? applyRecent(base, parseCore(texts.recent, 'recent')) : base;
     const t3 = now();
-    return { cacheMs: round(t1 - t0), readMs: round(t2 - t1), keysMs: round(t3 - t2) };
+    const builder = createIndexBuilder(catalog, aliases, { now });
+    while (builder.state !== 'scan') builder.step(now());
+    const t4 = now();
+    return {
+      cacheMs: round(t1 - t0),
+      readMs: round(t2 - t1),
+      recentMs: round(t3 - t2),
+      keysMs: round(t4 - t3),
+    };
   },
 
   /** Suelta el escaneo y espera al índice completo. */

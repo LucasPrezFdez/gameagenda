@@ -9,11 +9,29 @@ export interface SearchTestOptions {
   readonly hold?: 'none' | 'scan';
   /** La primera carga del catálogo falla como sin red. */
   readonly failFirstLoad?: boolean;
+  /**
+   * Sin Ed25519 en WebCrypto, acepta sin verificarlo el *manifest* firmado con la clave de
+   * desarrollo. En el *build* del modo `e2e` va encendido salvo `false`: el WebKit de Playwright
+   * en Windows no tiene Ed25519 y, sin esto, `webkit-movil` no tendría catálogo (§11.3; ver
+   * ADR-005). En Chromium no cambia nada: la firma se verifica siempre.
+   */
+  readonly unverifiedDevSignature?: boolean;
+}
+
+/** El `status` del Worker que guardan los ganchos (`StatusMessage` de `protocol.ts`). */
+export interface CatalogStatus {
+  readonly state: 'none' | 'boot' | 'scan' | 'full';
+  readonly version: string | null;
+  readonly count: number;
+  readonly error: { readonly code: string; readonly retryable: boolean } | null;
+  readonly catalog: { readonly version: string } | null;
 }
 
 declare global {
   var __GA_SEARCH_TEST__: SearchTestOptions | undefined;
-  var __gaSearchTest: { release(): void; readonly workerMs: number[] } | undefined;
+  var __gaSearchTest:
+    | { release(): void; readonly workerMs: number[]; readonly status: CatalogStatus | null }
+    | undefined;
   var __cspViolations: string[];
 }
 
@@ -47,6 +65,10 @@ export async function setup(page: Page, search: SearchTestOptions = {}) {
   );
   await page.addInitScript((options) => {
     globalThis.__GA_SEARCH_TEST__ = options;
+    // Desde M2, el mini-catálogo trae *shards* sintéticos: sin esto, cada prueba vería portadas y
+    // el aviso de primera capa. Las de portadas y detalles lo fijan con `serveDetails` (antes o
+    // después que este *script*: solo se pone si nadie lo ha puesto).
+    globalThis.__GA_DETAILS_TEST__ ??= { killSwitches: { covers: true, details: true } };
     globalThis.__cspViolations = [];
     document.addEventListener('securitypolicyviolation', (event) => {
       globalThis.__cspViolations.push(`${event.violatedDirective} ${event.blockedURI}`);
@@ -59,6 +81,11 @@ export async function setup(page: Page, search: SearchTestOptions = {}) {
       expect(await page.evaluate(() => globalThis.__cspViolations)).toEqual([]);
     },
   };
+}
+
+/** El último `status` del Worker, o `null` si aún no ha llegado ninguno. */
+export async function catalogStatus(page: Page): Promise<CatalogStatus | null> {
+  return page.evaluate(() => globalThis.__gaSearchTest?.status ?? null);
 }
 
 /** Suelta el Worker parado con `hold`: sigue construyendo el índice. */

@@ -22,9 +22,10 @@ concurrency:
 
 env:
   # Carpeta del catálogo publicado (`ga-catalog`) para el *build*. Su origen tiene que estar en el
-  # `connect-src` de `apps/web/public/_headers`: el paso «Cabeceras» lo comprueba. El subdominio
-  # `gameagenda.workers.dev` también va en `pipeline/catalog.headers` (CORS).
-  VITE_CATALOG_URL: https://ga-catalog.gameagenda.workers.dev/
+  # `connect-src` de `apps/web/public/_headers`: el paso «Cabeceras» lo comprueba. `ga-catalog` va
+  # en su propia cuenta de Cloudflare (subdominio `gameagenda-cat.workers.dev`, §11.3); el CORS de
+  # `pipeline/catalog.headers` da paso a `ga-web`, en `gameagenda.workers.dev`.
+  VITE_CATALOG_URL: https://ga-catalog.gameagenda-cat.workers.dev/
   WRANGLER_SEND_METRICS: "false"
 
 jobs:

@@ -106,6 +106,13 @@ export const es = {
     failed: 'No hemos podido descargar el catálogo de Steam.',
     retry: 'Reintentar',
     meanwhile: 'Mientras, puedes apuntar a mano.',
+    // `status.error` con o sin catálogo en uso (§8.7): si lo hay, se sigue buscando en él.
+    /** `browser-too-old`: el navegador no tiene Ed25519 en WebCrypto (RNF-12). */
+    browserTooOld:
+      'Actualiza el navegador para recibir el catálogo de Steam al día: este no puede comprobar su firma.',
+    /** `signature`: el *manifest* nuevo no lleva una firma válida (§11.3; CA2.3). */
+    signatureRejected:
+      'El catálogo de Steam nuevo no ha pasado la comprobación de seguridad. Lo volveremos a intentar más tarde.',
   },
 
   toast: {

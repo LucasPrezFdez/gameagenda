@@ -98,6 +98,11 @@ export function createDetailsSource(deps: DetailsSourceDeps): DetailsSource {
   }
 
   async function download(url: string): Promise<Uint8Array<ArrayBuffer>> {
+    // Sin conexión no se pide nada: la petición fallaría igual y el navegador lo apunta como error
+    // en la consola. Se reintenta como cualquier fallo de red.
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      throw new DetailsError('network', `Sin conexión: ${url}`);
+    }
     let response: Response;
     try {
       // Inmutables (el *hash* va en el nombre), pero `ga-catalog` sirve también los 404 con

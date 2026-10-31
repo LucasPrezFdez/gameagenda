@@ -1,7 +1,7 @@
 # ADR-005 · Búsqueda local en un Web Worker
 
 - **Estado:** aceptada
-- **Fecha:** 29-10-2026
+- **Fecha:** 29-10-2026. El 31-10-2026 se añadió la parte de M2: firma del *manifest*, recientes, regla de los 7 días y recuperación ante un 404.
 - **Deciden:** el usuario y el asistente
 
 ## Contexto y problema
@@ -112,6 +112,104 @@ Opción elegida: **1**, porque de las medidas es la única que cumple a la vez l
 
 **Tamaño:** el Worker pesa 31,8 KiB brotli (límite 40), con el esquema Zod del *manifest* dentro. De momento no hace falta `zod/mini` (§6.2).
 
+### M2 · Catálogo vivo en el cliente (31-10-2026)
+
+**Firma del *manifest*** (`catalog-store.ts`; §7.6 y §11.3):
+
+- `fetchManifest()` lee el JSON, lo pasa por el esquema y verifica la firma ed25519 con WebCrypto (`Ed25519`) antes que nada más, también antes de `minClientVersion`.
+- Se firma y se verifica el objeto de `JSON.parse`, no el del esquema: Zod quita los campos desconocidos, y también van firmados (`manifestSigningBytes` de `core`).
+- Las claves en las que confía el *build* salen de `signingKeysForMode(import.meta.env.MODE)`:
+  - producción: solo las `prod` de `CATALOG_SIGNING_KEYS`;
+  - `development` y `e2e`: también la de desarrollo, `dev-1`, cuya privada está en `fixtures/signing/`.
+- Se descarta, con el código `signature`, un *manifest* sin `sig`, con un `kid` desconocido o con una firma que no cuadra. El catálogo vigente sigue respondiendo.
+- Sin Ed25519 (`importKey` da `NotSupportedError`: Chrome <137, Safari <17 o el WebKit de Playwright en Windows), no se acepta ningún *manifest*. El código es `browser-too-old`, sin reintento: la interfaz puede pedir que se actualice el navegador (RNF-12).
+- La caché es de confianza. Solo se escribe tras verificar la firma y los `sha256`, así que al arrancar no se vuelve a verificar. Por eso un navegador sin Ed25519 sigue con el último catálogo válido, también con el de M1.
+
+**Recientes:**
+
+- `recent` se baja y se guarda con los demás ficheros.
+- Al arrancar se lee de una vez y `applyRecent` lo aplica al núcleo leído antes de construir el índice (§8.8).
+- Con el catálogo completo y 4 000 filas, `applyRecent` tarda 16–27 ms sin estrangular, en un solo bloque (no es cooperativo). En una actualización en segundo plano puede retrasar una consulta una vez; si el Android de referencia lo nota, `core` tendría que ofrecer una versión por trozos.
+
+**Regla de los 7 días** (§5.4; CA2.4):
+
+- Con un *manifest* nuevo, `download()` reutiliza el núcleo en uso si es el mismo fichero o si el *manifest* trae `recent` y el núcleo local no tiene más de 7 días. Los días se cuentan entre las fechas de las versiones `AAAAMMDD`.
+- Así solo se piden a la red el *manifest*, `recent` y, si ha cambiado su *hash*, los alias y el índice de *shards*. Un fichero con el mismo *hash* sale de cualquier caché `gacat-*`.
+- La caché nueva, `gacat-<versión>`, guarda el núcleo antiguo con su nombre y apunta cuál es en `gacat-local.json` (`path`, `sha256`, `bytes` y la `version` que lo trajo). Una caché de M1, sin ese fichero, usa el núcleo de su *manifest*.
+- «Actualizar catálogo» (la petición `refresh`) baja también el núcleo nuevo.
+- Si el núcleo en uso ya no está en la caché, se baja el del *manifest*.
+- Con el *kill switch* `details`, no se baja el índice de *shards*.
+- Una versión que da el mismo índice (mismo núcleo en uso, mismos recientes y mismos alias; por ejemplo, la que solo cambia un *kill switch*) se adopta sin reconstruir nada.
+- Al terminar se borran las demás cachés de versión, `gacat-AAAAMMDD.N`. La de los *shards*, `gacat-details`, no se toca.
+
+**Recuperación ante un 404** (§5.4, principio 8; §15.5):
+
+- `fetchFile` ya reintentaba una vez con `cache: 'reload'`.
+- Si un fichero con *hash* sigue dando un error HTTP (un 404 tras un despliegue), el host relee el *manifest* una vez y, si cita otros ficheros, sigue con él.
+- Si no, la actualización se abandona y sigue el catálogo vigente: la búsqueda nunca se rompe.
+- Se reintenta con una espera que se dobla, de 1 min a 1 h como mucho (`HostDeps.setTimer`), y vuelve a 1 min tras una comprobación correcta. Cada reintento empieza por el *manifest*. Sin red ni para el *manifest* no se programa nada: lo repite `online()`.
+- Un fallo de red al bajar un fichero no relee el *manifest* al momento, aunque el principio 8 de la §5.4 lo pida:
+  - sin red, tampoco llegaría;
+  - al cerrar la página, WebKit corta las descargas del Worker y da por un error la petición nueva; en `data.spec.ts` salía en la consola;
+  - lo relee el reintento, al minuto.
+
+  Un 404 sin CORS llega como fallo de red, pero `ga-catalog` manda CORS también en los 404 (ADR-003).
+
+**Errores en `status.error`:**
+
+- Sin catálogo, el de la carga, como en M1.
+- Con catálogo, solo los de la actualización que piden algo: `signature`, `browser-too-old` y `client-too-old`. Mientras se lee la caché, el estado `none` no los muestra, para que la interfaz no diga «No hemos podido descargar…» con el catálogo a punto.
+- Los textos, en `es.catalogState.browserTooOld` y `es.catalogState.signatureRejected`.
+
+**E2E en `webkit-movil`:**
+
+- El WebKit de Playwright en Windows no tiene Ed25519 (`docs/medidas/verificaciones-m0-20261030.md`). Sin más, ese proyecto no tendría catálogo.
+- **Decisión:** un gancho explícito del modo `e2e`, `unverifiedDevSignature`, encendido salvo que la prueba pase `false` (`search-client/e2e-hooks.ts`):
+  - solo actúa si `importKey` da `NotSupportedError`;
+  - solo con una clave `use: 'dev'` de las de confianza, y la firma tiene que estar con un `kid` conocido;
+  - en Chromium no cambia nada: la firma se verifica en todos los E2E.
+- No debilita producción:
+  - el gancho vive en `search-worker/e2e-hooks.ts`, que el *build* de producción no lleva (se ha comprobado en `dist/`);
+  - aunque lo llevara, producción no confía en ninguna clave `dev`.
+- El camino de RNF-12 sí se prueba en `webkit-movil`, con el gancho apagado (`catalog-update.spec.ts`):
+  - con caché, sigue buscando y anuncia `browser-too-old`;
+  - sin caché, no hay catálogo, avisa sin «Reintentar» y se puede apuntar a mano.
+- El *manifest* manipulado (CA2.3) solo se prueba en Chromium.
+
+**Fixtures:**
+
+- `npm run catalog:frozen` firma con `dev-1` el mini-catálogo (`fixtures/catalog/`) y el completo (`pipeline/out/`). Les añade `recent` y *shards* de detalles **sintéticos**:
+  - `asset_url_format` falso, `steam/apps/<appid>/${FILENAME}`, con `library_600x900.jpg` y `header.jpg`;
+  - lanzamiento el 1 de enero de `year`;
+  - unas reseñas que dan su `pop`;
+  - `plat` 1 y `deck` 0.
+- Es determinista: la firma ed25519 también lo es.
+- `recent` son las filas de `appid` más alto (≈4 000 y 8), iguales a las del núcleo, como el `recent` del mismo día. No cambian el recuento.
+- `publish()` de `test-helpers.ts` firma con la misma clave.
+
+**Resultados de M2:**
+
+- **Bytes de una actualización** con el núcleo local y el catálogo completo (`pipeline/out/`):
+
+  | Ficheros | Sin comprimir | brotli 11 | gzip -6 |
+  |---|---|---|---|
+  | *Manifest* + `recent` | 136 KB | 49 KB | 60 KB |
+  | Más alias e índice de *shards* | 201 KB | 74 KB | 91 KB |
+
+  Los alias y el índice llevan la versión en la cabecera, así que cambian de *hash* cada día aunque su contenido no cambie.
+- **Reinicio con caché** (CA1.11, `npm run perf`, CPU ×4, 31-10-2026, con el equipo en reposo):
+
+  | Medida | M1 | Con recientes |
+  |---|---|---|
+  | Escaneo listo (`scan`), dos reinicios | 1 463 y 1 677 ms | 1 825 y 1 848 ms |
+  | Desglose sin ceder el turno | 1 668 ms | 1 884 ms, con 119 ms de recientes |
+  | App real: `search:ready` | 616 ms | 643 ms |
+
+  - Los recientes cuestan 119–129 ms con ×4 en todas las pasadas; el resto de la diferencia es ruido.
+  - Sigue dentro de los 2 s, pero el margen baja a ≈150 ms. Con el equipo cargado por otros procesos, cinco de doce reinicios pasaron de 2 s (hasta 2,5 s); con el código de M1, en las mismas condiciones, el peor fue de 1,87 s.
+  - Para recuperarlo hay dos caminos: un `applyRecent` más barato en `core` (hoy rehace las seis columnas fila a fila, con un `Map` por fila) o el índice persistido de M3.
+- **Tamaño:** el Worker pasa a 36,9 KB brotli (límite 40). Parte es de los esquemas de detalles, que entran por el índice de `@gameagenda/core/catalog-format` aunque el Worker no los use.
+
 ### Consecuencias
 
 - Bien, porque se busca en todo el catálogo sin red, con la misma calidad en `scan` que en `full`.
@@ -128,8 +226,9 @@ Opción elegida: **1**, porque de las medidas es la única que cumple a la vez l
 - Resuelto el 30-10-2026: con CPU ×4 en la página de prueba, el escaneo tardaba ≈2,2 s tras un reinicio con caché, frente a ≤2 s de CA1.11. La mayor parte, ≈1,7 s, eran claves, exactos y pajar en el *builder* de `core`. Tras optimizar el *builder* y el lector del TSV, está listo en 1,55–1,64 s (claves 1 179 ms y TSV 287 ms); el detalle está en `docs/medidas/builder-m1-20261030.md`.
 - Pendiente: medir el Worker real en el Android de referencia.
 - Medido: CDP no estrangula el Worker dedicado. `Emulation.setCPUThrottlingRate` responde «Operation is only supported for pages, not workers», aun adjuntado con `Target.setAutoAttach`. Por eso la parte 1 de `perf` busca en el hilo principal de una página de prueba.
-- Pendiente (M2): guardar `meta.catalog` y comprobar el *manifest* solo si han pasado ≥12 h (en M1 se comprueba en cada arranque).
-- Pendiente (M2): `recent`, la regla de los 7 días para el núcleo y la firma del *manifest*.
+- Pendiente (M2): guardar `meta.catalog` y comprobar el *manifest* solo si han pasado ≥12 h (aún se comprueba en cada arranque).
+- Hecho (M2, 31-10-2026): `recent`, la regla de los 7 días para el núcleo, la firma del *manifest* y la recuperación ante un 404 (ver «M2 · Catálogo vivo en el cliente»).
+- Mal, porque un *build* de producción solo confía en las claves `prod`, y `CATALOG_SIGNING_KEYS` aún no tiene ninguna. Hasta que se añada la pública de producción, ese *build* descarta todos los *manifest*: no hay que desplegar `ga-web` con esta parte sin ella, ni sin un `ga-catalog` firmado.
 - Pendiente (M3): índice persistido y núcleo de arranque (ADR-009).
 
 ### Confirmación
@@ -140,6 +239,9 @@ Opción elegida: **1**, porque de las medidas es la única que cumple a la vez l
   - el tecleo realista de 150 nombres, carácter a carácter;
   - las pruebas del protocolo y de la caché del catálogo (`host.test.ts`, `catalog-store.test.ts` y `client.test.ts`).
 - **E2E:** `search.spec.ts`, `palette.spec.ts`, `catalog.spec.ts` y `full-catalog.spec.ts`. Cubren el puente de escaneo, la carrera de Intro, el Catálogo completo y la búsqueda sin red.
+- **M2:**
+  - en Vitest, la firma (válida, manipulada, otro `kid`, la clave de desarrollo en producción y sin Ed25519), los recientes, la regla de los 7 días y el 404 con sus reintentos;
+  - en E2E, `catalog-update.spec.ts`: la regla de los 7 días con una versión firmada del día siguiente, el *manifest* manipulado y RNF-12 en `webkit-movil`.
 - **Rendimiento:** `npm run perf` (CA1.5 y CA1.11) y, al cerrar M1, el Android de referencia. La puerta de tamaño del Worker llega con el CI.
 
 ## Pros y contras de las opciones

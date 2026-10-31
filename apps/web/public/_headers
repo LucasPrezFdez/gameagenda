@@ -4,10 +4,10 @@
 #
 # CSP: la de `PREVIEW_CSP` en `apps/web/vite.config.ts` (la que prueban los E2E) con dos añadidos de
 # producción: el origen de `ga-catalog` en `connect-src` (el mismo que `VITE_CATALOG_URL` en
-# `deploy-web.yml`, que lo comprueba) y `upgrade-insecure-requests`. El subdominio de la cuenta es
-# `gameagenda.workers.dev`. Máximo, 2 000 caracteres por cabecera.
+# `deploy-web.yml`, que lo comprueba) y `upgrade-insecure-requests`. `ga-catalog` va en su propia
+# cuenta de Cloudflare, en `gameagenda-cat.workers.dev` (§11.3). Máximo, 2 000 caracteres por cabecera.
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https://shared.akamai.steamstatic.com; connect-src 'self' https://ga-catalog.gameagenda.workers.dev; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https://shared.akamai.steamstatic.com; connect-src 'self' https://ga-catalog.gameagenda-cat.workers.dev; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Cross-Origin-Opener-Policy: same-origin
