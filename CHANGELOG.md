@@ -82,6 +82,15 @@ Será la **0.2.0 · M2 Catálogo vivo**: el catálogo se actualiza solo cada dí
 - **`ga-catalog` cambia de cuenta y de origen:** del subdominio `gameagenda.workers.dev` a `gameagenda-cat.workers.dev`. `VITE_CATALOG_URL` y el `connect-src` de `ga-web` lo siguen.
 - **`catalog:stage`** sube las páginas crudas de Steam y no `pipeline/out/` ni el estado, como decía el plan. Así, las puertas y la firma corren siempre en el CI (ADR-007).
 - **`deploy-catalog.yml` se retira:** desplegaría el mini-catálogo sin firma encima del real.
+- **El plan recoge lo construido en M2** (`DECISIONES.md` §10.19 y §10.20). Cambian:
+  - §4.5–4.7: el estado y las cifras medidas;
+  - §5.4: qué fallos hacen releer el *manifest*;
+  - §7.6: tamaños medidos, `gacat-local.json` y lo que no entra en los detalles;
+  - §8.7: el `status` con `catalog`;
+  - §9.1, §9.2 y §9.5: orden por lanzamiento, reglas de Próximos y la regla 7, sin `:has()` en la raíz;
+  - §11.2 y §11.3: el aviso de portadas, la cuenta propia de `ga-catalog` y los E2E sin Ed25519;
+  - §12.3–12.5 y §13.3: los ganchos E2E y `catalog:stage`;
+  - CA2.4: los ≤200 KB son comprimidos.
 
 ### Corregido
 
@@ -113,11 +122,11 @@ Será la **0.2.0 · M2 Catálogo vivo**: el catálogo se actualiza solo cada dí
 - **CA2.2 en un fallo real:** el *issue* `catalogo`, el `/fail` de healthchecks.io y `gh run download` desde el trabajo `report`.
 - **Safari:** Ed25519 y el resto de la firma, en el dispositivo (§11.3).
 - **R-04:** comprobar que un flujo sin `schedule` no se desactiva y que `…/enable` reactiva uno desactivado.
+- **`meta.catalog` y la comprobación cada 12 h** (§7.6): aún no están. Hoy el *manifest* se comprueba en cada arranque.
 - **Medir:**
   - `recent` en régimen, a los 14 días;
   - lo que transfiere el núcleo completo (ADR-003);
-  - el reinicio con caché hasta `scan`, que va justo: 1 893 ms frente a 2 000 con 4 000 recientes.
-- **El plan:** pasar a `docs/planificacion/secciones/` los cambios que anotaron los informes de M2 (§4.5–4.7, §5.4, §7.6, §8.7, §9.1–9.2, §11.2–11.3 y §12.3).
+  - el reinicio con caché hasta `scan`, que va justo: 1 893 ms frente a 2 000 con 4 000 recientes. Si se pasa, hay dos salidas: abaratar `applyRecent` (copias en bloque en vez de fila a fila) o esperar al índice persistido de M3.
 - **De M1, en M3** ([issue #1](https://github.com/LucasPrezFdez/gameagenda/issues/1)): el Android de referencia y la pasada con NVDA.
 
 ### M0 · Esqueleto, cerrado después de M1 (30-10-2026)

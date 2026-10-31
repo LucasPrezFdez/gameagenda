@@ -42,9 +42,13 @@
        - cambiar la cabecera a `## [0.2.0] · M2 Catálogo vivo · <fecha>`;
        - pasar ADR-007 y ADR-008 a «aceptada»;
        - etiqueta anotada `v0.2.0`;
-    6. pasar al plan (`docs/planificacion/secciones/`) los cambios que anotaron los informes de M2: no se ha hecho (desde `v0.1.0` solo ha cambiado la sección que tocó `4f6877e`);
+    6. ~~pasar al plan los cambios que anotaron los informes de M2~~ **hecho** (31-10-2026):
+       - `DECISIONES.md` §10.19 (catálogo) y §10.20 (interfaz);
+       - las secciones 4, 5, 7, 8, 9, 11, 12, 13 y 15, y `prototipe.md` montado de nuevo.
+
+       Los informes estaban en las transcripciones de los subagentes de la sesión 4, en las llamadas `SubagentHandback` de `~/.claude/projects/…/ba53a48a-…/subagents/`. Quedan dos pendientes de código que salieron de ellos: `meta.catalog` con la comprobación cada 12 h, y abaratar `applyRecent` si el arranque pasa de 2 s;
     7. ~~borrar la rama `m2-cliente` y las ramas y carpetas `worktree-agent-*`~~ **No se borran** (decisión del usuario, 31-10-2026: «por si acaso»), aunque todas están integradas.
-  - **Avisos de los agentes:** el reinicio con caché sube a ≈1,85 s con recientes (≤2 s; con el equipo cargado, a veces se pasa; el 31-10-2026, 1 893 ms); el Worker pesa 36,9 KB de 40; los cambios del plan están anotados en sus informes (§4.5–4.7, §5.4, §7.6, §8.7, §9.1–9.2, §11.2–11.3 y §12.3).
+  - **Avisos de los agentes:** el reinicio con caché sube a ≈1,85 s con recientes (≤2 s; con el equipo cargado, a veces se pasa; el 31-10-2026, 1 893 ms); el Worker pesa 36,9 KB de 40; los cambios del plan de sus informes ya están aplicados (punto 6).
 - **M1 · Apuntar: cerrado con `v0.1.0`** (30-10-2026; etiqueta anotada en GitHub, con `CHANGELOG.md`). Las mediciones en el dispositivo pasan a M3 (ver «Pendiente de M1», punto 6). Todo está en `main` y subido, sin agentes ni *worktrees* abiertos:
   - **Búsqueda.** En `core`: `normalize`, `catalog-format`, `search` y `search-quality`. Sobre la copia congelada: conjunto dorado 94,9 % / 99,0 %, exactos 99,9 %, prefijos 93,1 %, y `scan` da lo mismo que `full`.
   - **Worker y catálogo.** Worker real con Cache Storage `gacat-<versión>`, `/catalog-dev/` y Catálogo virtual. Mini-catálogo de 298 juegos en `fixtures/catalog/`, generado con `npm run catalog:frozen`.
