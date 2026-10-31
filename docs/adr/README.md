@@ -24,7 +24,7 @@ Este registro recoge las decisiones de arquitectura de GameAgenda, en español y
 | 005 | Búsqueda local en un Web Worker | M1 | aceptada (29-10-2026) | [005-busqueda-local-en-un-web-worker.md](005-busqueda-local-en-un-web-worker.md) |
 | 006 | Alcance y formato del catálogo | M1 | propuesta | [006-alcance-y-formato-del-catalogo.md](006-alcance-y-formato-del-catalogo.md) |
 | 007 | Pipeline diario, *manifest* firmado y plan B sin clave | M2 | pendiente | — |
-| 008 | Portadas desde el CDN de Valve y aviso de privacidad | M2 | pendiente | — |
+| 008 | Portadas desde el CDN de Valve y aviso de privacidad | M2 | propuesta | [008-portadas.md](008-portadas.md) |
 | 009 | Arranque rápido: índice persistido y núcleo de arranque | M3 | pendiente | — |
 | 010 | App de escritorio: envoltorio Tauri de `ga-web` con atajo global | M3 | pendiente | — |
 | 011 | Sincronización: micro-API, D1 en la UE y emparejamiento | M4 | pendiente | — |
