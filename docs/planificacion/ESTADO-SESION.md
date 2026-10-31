@@ -1,6 +1,6 @@
 # Estado del proyecto — punto de partida de la próxima sesión
 
-**Actualizado:** 31-10-2026, en la sesión 5.
+**Actualizado:** 31-10-2026, en la sesión 5 (cron del catálogo encendido).
 **Cómo retomar:** escribe *«Retoma GameAgenda desde docs/planificacion/ESTADO-SESION.md»*.
 
 ## 1. Dónde estamos
@@ -33,9 +33,9 @@
       - **Tareas largas por `:has()` en `.app`** (`15090b6`): `npm run perf` daba 40 tareas largas con ×4 (dos por nombre tecleado, casi todo recálculo de estilos). Las causaban dos reglas de C, `.app:has(.cover-notice)` y `.app:has(.palette.is-open)`. No se veían porque el catálogo de `perf` no traía detalles hasta B. Ahora: 0 tareas largas, INP de 40 ms (antes, 88) y `perf` entero en verde. Se encontró con `PERF_TRACE=1` y el seguimiento de invalidaciones de la traza.
     - **`perf` en local** necesita un catálogo firmado con `dev-1`: `npm run catalog:frozen` (el de `pipeline/out/` de M1 no lleva firma y el cliente lo rechaza). Así se ha regenerado el 31-10-2026; el catálogo real se vuelve a sacar de las páginas crudas con `--from-raw`.
   - **Falta:**
-    1. que el usuario ponga `CATALOG_SCHEDULE=on`;
-    2. tres ejecuciones programadas en verde (CA2.1);
-    3. que el usuario borre `%USERPROFILE%\gameagenda-firma-catalogo-PRIVADA.pem` (la primera publicación firmada ya salió bien);
+    1. ~~`CATALOG_SCHEDULE=on`~~ **hecho** por el usuario (31-10-2026, 13:47 UTC);
+    2. tres ejecuciones programadas en verde (CA2.1): la primera, el 01-11-2026 a las 04:17 UTC (05:17 en Madrid); como pronto, del 1 al 3 de noviembre;
+    3. ~~borrar `%USERPROFILE%\gameagenda-firma-catalogo-PRIVADA.pem`~~ **hecho** (31-10-2026): la privada solo está en el secreto `CATALOG_SIGNING_KEY`;
     4. fundir `007-pipeline-del-catalogo.parte-publicacion.md` en el ADR-007;
     5. CHANGELOG y `v0.2.0`;
     6. ~~borrar la rama `m2-cliente` y las ramas y carpetas `worktree-agent-*`~~ **No se borran** (decisión del usuario, 31-10-2026: «por si acaso»), aunque todas están integradas.
