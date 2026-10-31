@@ -26,7 +26,7 @@ Este registro recoge las decisiones de arquitectura de GameAgenda, en español y
 | 007 | Pipeline diario, publicación firmada y plan B sin clave | M2 | propuesta (pasa a aceptada con CA2.1) | [007-pipeline-del-catalogo.md](007-pipeline-del-catalogo.md) |
 | 008 | Portadas desde el CDN de Valve y aviso de privacidad | M2 | propuesta | [008-portadas.md](008-portadas.md) |
 | 009 | Arranque rápido: índice persistido y núcleo de arranque | M3 | pendiente | — |
-| 010 | App de escritorio: envoltorio Tauri de `ga-web` con atajo global | M3 | pendiente | — |
+| 010 | App de escritorio: envoltorio Tauri de `ga-web` con atajo global | M3 | propuesta (pasa a aceptada con CA3.7 y CA3.8) | [010-app-de-escritorio.md](010-app-de-escritorio.md) |
 | 011 | Sincronización: micro-API, D1 en la UE y emparejamiento | M4 | pendiente | — |
 | 012 | Cuenta de Steam con OpenID 2.0 | Fase 2 | pendiente | — |
 

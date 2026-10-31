@@ -7,6 +7,7 @@ import { CoverNotice } from './components/CoverNotice.tsx';
 import { Icon, type IconName } from './components/icons.tsx';
 import { MenuButton } from './components/MenuButton.tsx';
 import { ScreenHeading } from './components/ScreenHeading.tsx';
+import { desktopCaptureTarget, onDesktopCapture } from './desktop/desktop-capture.ts';
 import { DetailsProvider } from './details/details-context.tsx';
 import { ErrorBoundary } from './errors/ErrorBoundary.tsx';
 import { es } from './i18n/es.ts';
@@ -17,7 +18,7 @@ import { Palette, type PaletteActions, type PaletteHandle } from './palette/Pale
 import { PaletteProvider } from './palette/palette-context.tsx';
 import { endFirstCommit } from './perf/measures.ts';
 import { Link, navigate, useLocation } from './router/router.tsx';
-import { gamePath, type Route, settingsPath, withSearch } from './router/routes.ts';
+import { gamePath, parseRoute, type Route, settingsPath, withSearch } from './router/routes.ts';
 import { GameScreen } from './screens/game/GameScreen.tsx';
 import { MyListScreen } from './screens/my-list/MyListScreen.tsx';
 import type { ThemePreference } from './settings/settings-store.ts';
@@ -183,6 +184,20 @@ function AppShell() {
   useEffect(() => {
     if (route.name === 'capture') paletteRef.current?.open(performance.now());
   }, [route.name]);
+
+  // `Ctrl+Mayús+Espacio` en la app de escritorio (§17.3): lo mismo que `/apuntar`, sin recargar.
+  // Desde otra pantalla, la navegación a `/apuntar` la abre con el efecto de arriba.
+  useLayoutEffect(
+    () =>
+      onDesktopCapture(window, (timeStamp) => {
+        if (desktopCaptureTarget(parseRoute(window.location.pathname)) === 'here') {
+          paletteRef.current?.open(timeStamp);
+        } else {
+          navigate('/apuntar');
+        }
+      }),
+    [],
+  );
 
   const paletteActions = useMemo<PaletteActions>(
     () => ({
