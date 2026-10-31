@@ -19,7 +19,8 @@ gameagenda/
 │  ├─ public/_headers      CSP y cabeceras de ga-web (ver §11)
 │  └─ wrangler.jsonc       Worker ga-web (assets; /api/* desde M4)
 ├─ apps/desktop/           M3: app de escritorio, envoltorio Tauri
-│  └─ src-tauri/           Cargo.toml, tauri.conf.json, capabilities/,
+│  ├─ desktop.test.ts      sin capabilities ni órdenes; crates fijados
+│  └─ src-tauri/           Cargo.toml, tauri.conf.json, icons/,
 │                          src/main.rs (atajo, bandeja, una instancia)
 ├─ packages/core/          @gameagenda/core: lógica pura compartida
 │  ├─ src/                 normalize/ search/ steam-link/ entries/

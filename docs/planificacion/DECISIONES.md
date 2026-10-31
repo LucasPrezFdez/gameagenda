@@ -293,3 +293,9 @@ Resueltos a partir de las mediciones y de los conflictos detectados entre seccio
     - **Próximos:** fechas en UTC, semana de lunes a domingo, un grupo por mes durante 12 meses, la precisión de trimestre o de año a Más adelante y las fechas ya pasadas a Por confirmar.
     - **Orden por lanzamiento** de lo más antiguo a lo más nuevo, con Por confirmar y los juegos sin datos al final.
     - **Nada de `:has()` en la raíz de la app** (§9.5, regla 7). Dos reglas `.app:has(…)` hacían recorrer Mi lista en cada cambio del DOM. Medido con 500 entradas y CPU ×4: 40 tareas largas, que pasan a 0, y el INP baja de 88 a 40 ms.
+21. **App de escritorio tal como se ha construido (31-10-2026; cambia §6.1, §12.5, §13, §14.1, §16 R-18 y §17.3):** ADR-010.
+    - **`ga-web` va como origen remoto, no local.** La ventana se crea en código con `ga-web` como URL externa y sin `frontendDist`. Con `frontendDist` apuntando a la URL de producción, Tauri 2.12.5 trata ese origen como local, y cualquier *capability* u orden propia que se añadiera después le llegaría a la página, contra el CA3.8.
+    - **Sin `capabilities/` ni órdenes propias**, y con `withGlobalTauri` apagado. `apps/desktop/desktop.test.ts` lo vigila en `npm run check`, sin Rust.
+    - **El atajo abre la paleta con un evento fijo** (`gameagenda:capture`) que la parte nativa ejecuta en la página. En Mi lista o en `/apuntar`, la paleta se abre ahí mismo; desde otra pantalla, la página va a `/apuntar`.
+    - **Los enlaces `https` de fuera se abren en el navegador del sistema**: sin esto, WebView2 descartaba «Ver en Steam» sin avisar.
+    - **El *crate* `windows` 0.62.2**, el mismo que ya usa Tauri, es la única dependencia nueva.

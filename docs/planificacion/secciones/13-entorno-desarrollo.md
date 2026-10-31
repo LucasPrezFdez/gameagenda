@@ -23,7 +23,7 @@ La clave de la Web API de Steam se pide el primer día de M0 (requisitos: ver §
 - `.gitattributes` con `* text=auto eol=lf`.
 - `.npmrc` con `save-exact=true`; `package.json` con `"engines": { "node": "^24.21.0" }` y `.node-version` con `24.21.0`, que también lee el CI.
 - npm ejecuta los scripts con `cmd.exe`: no sirven `VAR=valor comando` ni `rm -rf`, así que la lógica va en scripts `.ts`.
-- `.gitignore`: `node_modules/`, `.env.local`, `dist*/`, `pipeline/out/`, `pipeline/state/`, `.wrangler/`, `apps/desktop/src-tauri/target/` y los informes de Playwright.
+- `.gitignore`: `node_modules/`, `.env.local`, `dist*/`, `pipeline/out/`, `pipeline/state/`, `.wrangler/`, `apps/desktop/src-tauri/target/`, `apps/desktop/src-tauri/gen/` y los informes de Playwright.
 
 ### 13.3 Scripts npm
 

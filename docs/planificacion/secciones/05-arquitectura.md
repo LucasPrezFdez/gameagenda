@@ -269,7 +269,7 @@ Registro inicial, numerado por orden de escritura: cada ADR se escribe al empeza
 | ADR-004 | Datos del usuario: Dexie, ids naturales, estados y marcas, HLC y `outbox` | M1 | §3, §7 |
 | ADR-005 | Búsqueda local en un Web Worker | M1 | §8 |
 | ADR-006 | Alcance y formato del catálogo | M1 | §4, §7 |
-| ADR-007 | Pipeline diario, *manifest* firmado y plan B sin clave | M2 | §4, §12 |
+| ADR-007 | Pipeline diario, publicación firmada y plan B sin clave | M2 | §4, §12 |
 | ADR-008 | Portadas desde el CDN de Valve y aviso de privacidad | M2 | §9, §11 |
 | ADR-009 | Arranque rápido: índice persistido y núcleo de arranque | M3 | §8 |
 | ADR-010 | App de escritorio: envoltorio Tauri de `ga-web` con atajo global | M3 | §17 |

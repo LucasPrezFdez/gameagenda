@@ -64,6 +64,19 @@ Será la **0.2.0 · M2 Catálogo vivo**: el catálogo se actualiza solo cada dí
   - 007 (pipeline y publicación) y 008 (portadas), propuestos;
   - la parte de M2 del Worker en el ADR-005 y la cuenta nueva en el ADR-003.
 
+#### Adelantado de M3: app de escritorio para Windows
+
+Entra en `main` antes de la etiqueta, así que va en esta versión. Sus criterios (CA3.7 y CA3.8) se cierran con M3. Ver ADR-010.
+- **`apps/desktop`**: ventana de Tauri 2 que carga `ga-web`.
+  - **`Ctrl+Mayús+Espacio`** desde cualquier aplicación la pone delante con la paleta abierta, sin recargar la página; pulsado otra vez, la oculta.
+  - **Bandeja:** «Abrir», el estado del atajo (con «Reintentar» si otra aplicación lo tiene), «Iniciar con Windows» y «Salir». Una sola instancia.
+  - **Instalador** NSIS por usuario, sin derechos de administrador y sin firma: `npm run desktop:build`.
+- **La página no puede invocar nada de Tauri:** sin *capabilities* ni órdenes propias, y `ga-web` como origen remoto. Lo vigila `apps/desktop/desktop.test.ts` en `npm run check`, que no necesita Rust.
+- **Comprobado por el agente con la app instalada, el 31-10-2026:**
+  - el atajo pone la paleta delante con el foco en 20 ms (p50), y de pulsarlo a la confirmación pasan 1,23 s (p50), con el tecleo simulado;
+  - abre y apunta sin red;
+  - la página no logró ninguna de 11 llamadas a Tauri.
+
 #### Estado de los criterios de aceptación
 
 | CA | Estado | Evidencia |
