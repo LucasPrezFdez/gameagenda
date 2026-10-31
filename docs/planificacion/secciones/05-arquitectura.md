@@ -25,7 +25,7 @@ flowchart LR
     CAT["ga-catalog<br/>manifest · núcleo · recientes<br/>alias · shards"]
   end
   subgraph GH["GitHub"]
-    ACT["Actions · pipeline<br/>diario 05:17 Europe/Madrid"]
+    ACT["Actions · pipeline<br/>diario 04:17 UTC"]
     REL[("Release catalog-state<br/>master.ndjson.gz")]
   end
   subgraph VALVE["Valve · Steam"]
@@ -57,7 +57,7 @@ Las flechas discontinuas llegan en M4; la Fase 2 no aparece. El navegador solo h
 | Almacén local | Dexie (IndexedDB) | `entries`, `outbox`, `settings` y `meta` (ver §7), `persist()`, exportar e importar | M1 |
 | Service Worker | Navegador | Precaché del *shell*, actualizaciones y caché LRU de ≈300 portadas; no guarda el catálogo (lo hace el Worker de búsqueda en Cache Storage) | M1; portadas, M2 |
 | `packages/core` | Navegador, Node y Cloudflare | Toda la lógica compartida, en una sola implementación (ver §14) | M1 |
-| Pipeline del catálogo | GitHub Actions o el PC | Descarga, clasifica, construye, pasa las puertas, firma (desde M2) y despliega (ver §4); guarda el estado en la *Release* `catalog-state` (7 copias) y avisa a healthchecks.io. Desde M2, si hay que lanzarlo en el PC (429 en los *runners* compartidos o falta de minutos), el PC solo descarga, construye y sube el resultado a la *Release* `catalog-staging`; `catalog.yml` (`workflow_dispatch`, `source=staging`) pasa las puertas, firma y publica | M1 en el PC; M2 diario |
+| Pipeline del catálogo | GitHub Actions o el PC | Descarga, clasifica, construye, pasa las puertas, firma (desde M2) y despliega (ver §4); guarda el estado en la *Release* `catalog-state` (7 copias) y avisa a healthchecks.io. Desde M2, si hay que lanzarlo en el PC (429 en los *runners* compartidos o falta de minutos), el PC construye y sube las páginas crudas de Steam a la *Release* `catalog-staging`; `catalog.yml` (`workflow_dispatch`, `source=staging`) vuelve a derivar el catálogo sin red, pasa las puertas, firma y publica | M1 en el PC; M2 diario |
 | `ga-catalog` | Workers Static Assets | `manifest.json` (`no-cache`) y ficheros inmutables con *hash*; CORS solo para el origen de la app | M0 (*fixture*) |
 | `ga-web` | Workers Static Assets | La SPA (`not_found_handling: single-page-application`), desplegada en cada *push* a `main`; desde M4, el *script* solo en `/api/*` | M0 |
 | Micro-API | `ga-web` (Hono) | Sincronización, emparejamiento, buzón y `resolve` (rutas en la tabla siguiente); `resolve` usa `GetItems` sin clave | M4 |
@@ -106,7 +106,7 @@ sequenceDiagram
   UI->>DB: entrada con HLC por campo + operación en outbox
 ```
 
-**Publicación diaria del catálogo** (desde M2; 05:17 Europe/Madrid o a mano, una ejecución a la vez; llamadas y puertas en la §4, formatos en la §7).
+**Publicación diaria del catálogo** (desde M2; 04:17 UTC, las 05:17 en Madrid en invierno, o a mano, una ejecución a la vez; llamadas y puertas en la §4, formatos en la §7).
 
 ```mermaid
 sequenceDiagram
@@ -124,7 +124,9 @@ sequenceDiagram
     GA->>GA: no publica y abre un issue
   else Todo correcto
     GA->>GA: firma manifest.json (ed25519)
+    GA->>CAT: baja los ficheros de la versión publicada
     GA->>CAT: wrangler deploy de la versión nueva y la anterior
+    GA->>CAT: prueba de humo: cada fichero, firma y CORS
     GA->>REL: estado nuevo (7 copias)
     GA->>HC: aviso de ejecución correcta
   end
@@ -208,7 +210,7 @@ sequenceDiagram
 5. **Mismo origen para la API.** `/api/*` vive en `ga-web`: cookie `__Host-` de primera parte, `connect-src 'self'` y sin CORS. El *script* solo corre en esas rutas (`run_worker_first`): si se agota la cuota gratuita, `/api/*` responde 429 y la app se sigue sirviendo.
 6. **Una sola implementación.** `packages/core` sirve a pipeline, Worker, micro-API y tests, con vectores de prueba compartidos.
 7. **Convergencia sin coordinación.** Ids naturales y LWW por campo con HLC: dos dispositivos que apuntan el mismo juego acaban en la misma fila (ver §7).
-8. **Degradar, no romper.** Si falla el enriquecimiento, se publica con el último conocido; un *kill switch* apaga portadas o detalles sin otra versión de la app; ante un 404 o un fallo de red o de CORS al pedir un fichero con *hash* (un 404 sin `Access-Control-Allow-Origin` llega como fallo de red), el cliente relee el *manifest* una vez y reintenta con la versión vigente.
+8. **Degradar, no romper.** Si falla el enriquecimiento, se publica con el último conocido. Un *kill switch* apaga portadas o detalles sin otra versión de la app, pero sí con otra `version` del catálogo: el cliente no vuelve a leer un *manifest* con la `version` que ya tiene. Ante un error HTTP al pedir un fichero con *hash* (un 404 tras un despliegue), el cliente relee el *manifest* una vez y sigue con la versión vigente. Si el fichero de la versión nueva sigue fallando, o ante un fallo de red, no relee nada al momento: sigue con el catálogo en uso y reintenta con espera creciente, de 1 min a 1 h. `ga-catalog` pone CORS también en los 404, así que un 404 no llega como fallo de red (CA0.3).
 9. **Fronteras validadas, secretos fuera del cliente.** Zod en cada entrada externa; en el prototipo, la clave de Steam solo la usa el pipeline (ver §11).
 10. **0 € y salida fácil.** *Assets* estáticos gratuitos e ilimitados, sin activar la caché de Workers; ficheros planos que sirve cualquier hosting; Hono y el SQL de D1 son portables.
 

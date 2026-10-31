@@ -54,7 +54,7 @@ Se recorre todo a diario, y no solo los cambios con `if_modified_since` (≈45 l
 ### 4.5 Algoritmo de ingesta (ejecución diaria)
 
 ```text
-EJECUCIÓN del catálogo · diaria a las 05:17 (Europe/Madrid) o manual
+EJECUCIÓN del catálogo · diaria a las 04:17 UTC o manual
  0 ESTADO     bajar state/master.ndjson.gz; si no existe, todo es alta
  1 LISTA      con clave (en modo sin clave se salta y L := ids de Q)
               GET /IStoreService/GetAppList/v1/?include_games=true
@@ -85,11 +85,16 @@ EJECUCIÓN del catálogo · diaria a las 05:17 (Europe/Madrid) o manual
 
 **Sin `include_basic_info`:** la ficha no muestra descripción ni desarrollador y el núcleo no usa sus campos. `is_free`, `is_early_access`, `is_coming_soon` y `content_descriptorids` van fuera de `basic_info`, pero el 28-10-2026 se pidieron con él. Verificado el 30-10-2026 con las 208 páginas de Query del 29-10-2026, pedidas sin él: llegan los cuatro y en la misma proporción (`is_free` en 23 748 juegos, el 12,05 %, frente al 12,06 % con él; ver `docs/medidas/verificaciones-m0-20261030.md`). Que Query respeta `include_best_purchase_option: false` sí se comprobó ese día: ningún precio en los 1 398 juegos publicados de dos páginas, frente a 939 de 1 000 con la opción por defecto.
 
-En GitHub Actions: `schedule` con `timezone`, `workflow_dispatch` y `concurrency`. Si sus *runners* reciben 429 o faltan minutos, el PC solo descarga y construye (pasos 0–4) y sube el resultado, con el estado nuevo, como *asset* de una *Release* de preparación (`catalog-staging`); después se lanza `catalog.yml` con `workflow_dispatch` (`source=staging`), que pasa las puertas, firma y publica (pasos 5 y 6). La clave privada de firma solo está en un secreto de GitHub: desde M2, el PC nunca firma ni despliega `ga-catalog`.
+En GitHub Actions: `schedule` en UTC (las 05:17 en Madrid en invierno y las 06:17 en verano), que solo corre con la variable `CATALOG_SCHEDULE` = `on`, además de `workflow_dispatch` y `concurrency`. Si sus *runners* reciben 429 o faltan minutos, el PC (`npm run catalog:stage`) baja el estado vigente, construye y sube **las páginas crudas de Steam** a una *Release* de preparación (`catalog-staging`). Después se lanza `catalog.yml` con `workflow_dispatch` (`source=staging`), que vuelve a derivar el catálogo sin red (`--from-raw`) con el código de `main`, pasa las puertas, firma y publica. Del PC solo se usan las respuestas de Steam, y el paquete solo vale con el estado con el que se construyó y durante 36 h. La clave privada de firma solo está en un secreto de GitHub: desde M2, el PC nunca firma ni despliega `ga-catalog` (ADR-007; DECISIONES §10.19).
 
 ### 4.6 Estado, puertas y ficheros publicados
 
-**Estado:** `state/master.ndjson.gz`, una fila por `appid` con nombre, `last_modified`, `price_change_number`, clasificación (visible, retirado o bloqueado por región) y último enriquecimiento fechado; es un *asset* de la *Release* `catalog-state` de GitHub (7 copias). Da H2, los recientes, las puertas y el enriquecimiento de reserva.
+**Estado:** `state/master.ndjson.gz`, con una cabecera (`{format: "gacat-state", v: 2, version, enrichedOn}`: la última versión publicada y el día de la última Query correcta) y una fila por `appid`. Cada fila lleva:
+- nombre, `last_modified`, `price_change_number` y clasificación (visible, retirado o bloqueado por región);
+- el último enriquecimiento, **detalles incluidos**;
+- el día de su alta (`addedOn`) y de su último renombrado (`renamedOn`) mientras caen en la ventana de 14 días. Un renombrado es un cambio de `name` o de `nameEs`, los dos nombres que se buscan.
+
+Va en un `.tgz` como *asset* de la *Release* `catalog-state` de GitHub (7 copias) y solo se sube después de desplegar. Da H2, los recientes, las puertas y el enriquecimiento de reserva. Con los detalles pesa 13,9 MB con gzip -9, frente a 3,7 MB sin ellos: ≈100 MB con las 7 copias (medido el 31-10-2026).
 
 | Puerta de publicación | Se publica si… |
 |---|---|
@@ -101,11 +106,11 @@ En GitHub Actions: `schedule` con `timezone`, `workflow_dispatch` y `concurrency
 | Consultas de humo | en el índice construido con `packages/core`: «hollow knight» → 367520 primero; «baldurs gate» → 1086940, «elden» → 1245620 y «counter strike» → 730 entre los 3 primeros (el 1.º será «Counter-Strike», 10: coincidencia exacta) |
 | Calidad de búsqueda | en ese mismo índice, el conjunto dorado, los 2 000 nombres exactos y los prefijos de 4 letras cumplen sus umbrales (ver §8.10) |
 
-Si falla **solo el enriquecimiento**, se publican los nombres al día con el último enriquecimiento conocido y `enrichmentAgeDays` crece.
+Si falla **solo el enriquecimiento**, se publican los nombres al día con el último enriquecimiento conocido y `enrichmentAgeDays` crece. Falla si, con clave, Query da cualquier error o devuelve menos del 95 % de los juegos de `GetAppList` (el 29-10-2026, el 99,88 %). Entonces H1 no se clasifica, porque sería toda la lista, y las altas de ese día van sin reseñas ni detalles. Si falla `GetItems`, lo no clasificado se conserva como está en el estado y la ejecución queda «degradada» en el informe. Sin clave, Query es también la lista: si falla, no hay catálogo.
 
 Tras un parón largo (a ≈+0,13 % al día, el +5 % se alcanza en ≈38 días), las comparaciones con la versión anterior bloquearían siempre: se relanza a mano con `--skip-delta-gates` (también como entrada de `workflow_dispatch`), que se las salta como en la primera versión, mantiene el mínimo de 190 000 juegos y lo anota en el informe de la ejecución (ver §12).
 
-**Ficheros** (ver §7): *manifest* firmado, núcleo, recientes (≈4 000 filas en 14 días: ≈264 altas + ≈17 renombrados al día), alias, 1 024 *shards* y su índice; cada despliegue reincluye los de la versión anterior. Secretos: clave de Steam, clave privada de firma, *token* de Cloudflare y URL del *dead-man switch* (healthchecks.io; aviso tras 36 h sin ping).
+**Ficheros** (ver §7): *manifest* firmado, núcleo, recientes (≈4 000 filas en 14 días: ≈264 altas + ≈17 renombrados al día), alias, 1 024 *shards* y su índice; cada despliegue reincluye los de la versión anterior, que se bajan del `ga-catalog` publicado. Secretos: clave de Steam, clave privada de firma, *token* de Cloudflare de la cuenta propia de `ga-catalog` (§11.3) y URL del *dead-man switch* (healthchecks.io; aviso tras 36 h sin ping). La lista completa de secretos y variables está en el ADR-007.
 
 ### 4.7 Presupuesto, volumen y política HTTP
 
@@ -117,11 +122,12 @@ Tras un parón largo (a ≈+0,13 % al día, el +5 % se alcanza en ≈38 días), 
 | `basic_info`, `release`, `reviews` (pasada de 208 páginas) | 218 KB (45,3 MB en total) | 1,15 MB | 1,3 s |
 | `basic_info`, `release`, `assets`, `reviews` | 236–488 KB | 1,66–2,18 MB | 0,9–1,0 s |
 | `basic_info`, `release`, `assets`, `reviews`, `platforms`, sin precios (descartado) | 306–506 KB | 1,73–2,37 MB | 1,4–1,7 s |
-| **El del pipeline:** `release`, `assets`, `reviews`, `platforms`, sin `basic_info` ni precios (estimado) | ≈150–335 KB (media ≈240 KB) | ≈1,2–2,0 MB | A medir en M0 |
+| **El del pipeline:** `release`, `assets`, `reviews`, `platforms`, sin `basic_info` ni precios (estimado) | ≈150–335 KB (media ≈240 KB) | ≈1,2–2,0 MB | — |
+| **El del pipeline, medido** en la primera publicación de `catalog.yml` (31-10-2026, 209 páginas) | 234 KB de media (48,8 MB en total) | 1,61 MB de media | 0,69 s de media (p95 0,95 s) |
 
-La última fila se estima quitando `basic_info` y los precios de las cuatro páginas de las dos filas anteriores y volviéndolas a comprimir. Peso por página: imágenes, 80–283 KB gzip (las rutas con *hash* casi no comprimen); `include_basic_info`, 74–172 KB (sobre todo `short_description`); precios (activados por defecto), 7,8 %; plataformas, ≈6 KB. **Pasada diaria estimada: ≈50 MB gzip** (≈0,3 GB de JSON) con el `data_request` del pipeline; con `include_basic_info` serían ≈80 MB (≈0,4 GB). Manda el ritmo: 208 páginas a una cada 3 s son ≈10,4 min (lo medido el 28-10-2026) y cada ejecución, con `GetAppList`, `GetItems`, la construcción y el despliegue, ≈11–13 min (≈330–400 min/mes de Actions: 30–31 ejecuciones × 11–13 min; ver §12).
+La fila estimada se calculó quitando `basic_info` y los precios de las cuatro páginas de las dos filas anteriores y volviéndolas a comprimir; la medida cae dentro. `GetAppList` pesa 1,2 MB gzip por página de 50 000 juegos. Peso por página: imágenes, 80–283 KB gzip (las rutas con *hash* casi no comprimen); `include_basic_info`, 74–172 KB (sobre todo `short_description`); precios (activados por defecto), 7,8 %; plataformas, ≈6 KB. **Pasada diaria estimada: ≈50 MB gzip** (≈0,3 GB de JSON) con el `data_request` del pipeline; con `include_basic_info` serían ≈80 MB (≈0,4 GB). Manda el ritmo: 208 páginas a una cada 3 s son ≈10,4 min (lo medido el 28-10-2026) y cada ejecución, con `GetAppList`, `GetItems`, la construcción y el despliegue, ≈11–13 min (≈330–400 min/mes de Actions: 30–31 ejecuciones × 11–13 min; ver §12). **Medido el 31-10-2026:** la pasada con clave en el PC fueron 53,7 MB gzip y 11,3 min, y la primera publicación de `catalog.yml`, 12 min 7 s de principio a fin.
 
-**Presupuesto: ≈4 + ≈208 + ≈5 ≈ 220 llamadas/día (≤230, el 0,23 % del límite).** `GetItems` recibe los 234 juegos de `GetAppList` que Query (ES) no devolvió y ≈8 bajas al día (margen: 20 llamadas). Los términos de uso limitan las llamadas del licenciatario, no las de cada clave: también se cuentan las que van sin clave.
+**Presupuesto: ≈4 + ≈208 + ≈5 ≈ 220 llamadas/día (≤230, el 0,23 % del límite).** Medido el 31-10-2026: 4 + 208 + 5 = 217 llamadas en la pasada del PC y 4 + 209 + 5 = 218 en `catalog.yml`. Solo las 4 de `GetAppList` llevan la clave, todas responden 200 y van como mucho a 0,334/s. `GetItems` recibe los 234 juegos de `GetAppList` que Query (ES) no devolvió y ≈8 bajas al día (margen: 20 llamadas). Los términos de uso limitan las llamadas del licenciatario, no las de cada clave: también se cuentan las que van sin clave.
 
 **Política HTTP** (todo sale del *runner* o del PC):
 - Un único *worker*, con una petición cada 3 s (0,33/s: el ritmo de la pasada medida, sin errores ni 429) y nunca más de 0,4/s, que es justo el límite que mide la comunidad (≈120 cada 5 min por IP); `Accept-Encoding: gzip` y tiempo máximo por petición.

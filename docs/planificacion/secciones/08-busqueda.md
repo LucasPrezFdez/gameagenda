@@ -86,7 +86,7 @@ Un número suelto es una búsqueda de título: «2077» da Cyberpunk 2077 primer
 | Mensaje | Sentido | Campos |
 |---|---|---|
 | `init` | UI → Worker | `catalogVersion`, `showAdult` |
-| `status` | Worker → UI | `state` (`none`, `boot` desde M3, `scan` o `full`; ver §8.8), `version`, `count`, `progress`, `error` (código y si admite reintento) |
+| `status` | Worker → UI | `state` (`none`, `boot` desde M3, `scan` o `full`; ver §8.8), `version`, `count`, `progress`, `error` (código y si admite reintento) y, desde M2, `catalog` (`version`, `generatedAt`, `enrichmentAgeDays`, `killSwitches` y el índice de *shards*). Con un catálogo en uso, `error` solo trae los rechazos que piden algo al usuario: `signature` (se reintenta), `client-too-old` y `browser-too-old` (sin reintento, RNF-12). Los demás fallos al actualizar no se muestran: sigue el catálogo vigente y se reintenta (§5.4, principio 8) |
 | `query` | UI → Worker | `seq`, `q`, `limit` |
 | `results` | Worker → UI | `seq`, `items` (`appid`, `name`, `nameEs`, `year`, `flags`, `tier`), `strong` (resultados de niveles 0–2), `ms` |
 | `suggest` / `suggestions` | UI ↔ Worker | `seq`; hasta 3 `items` del nivel 4 |
