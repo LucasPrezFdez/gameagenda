@@ -121,9 +121,11 @@ export async function serveDetails(
   const requests: string[] = [];
   await context.route('**/catalog-dev/details/**', async (route) => {
     const path = new URL(route.request().url()).pathname.replace(/^\/catalog-dev\//, '');
-    requests.push(path);
     const text = files.get(path);
-    if (text === undefined) return route.fulfill({ status: 404, body: '' });
+    // Lo que no es de la prueba (p. ej., el índice del mini-catálogo, que el Worker de búsqueda
+    // descarga con el catálogo) sigue hasta la vista previa.
+    if (text === undefined) return route.fallback();
+    requests.push(path);
     return route.fulfill({
       status: 200,
       contentType: 'application/json',

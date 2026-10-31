@@ -65,6 +65,10 @@ export async function setup(page: Page, search: SearchTestOptions = {}) {
   );
   await page.addInitScript((options) => {
     globalThis.__GA_SEARCH_TEST__ = options;
+    // Desde M2, el mini-catálogo trae *shards* sintéticos: sin esto, cada prueba vería portadas y
+    // el aviso de primera capa. Las de portadas y detalles lo fijan con `serveDetails` (antes o
+    // después que este *script*: solo se pone si nadie lo ha puesto).
+    globalThis.__GA_DETAILS_TEST__ ??= { killSwitches: { covers: true, details: true } };
     globalThis.__cspViolations = [];
     document.addEventListener('securitypolicyviolation', (event) => {
       globalThis.__cspViolations.push(`${event.violatedDirective} ${event.blockedURI}`);
