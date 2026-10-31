@@ -34,6 +34,20 @@ function versionOf(list: readonly PrecacheEntry[]): string {
 
 const CACHE = `${PREFIX}${versionOf(entries)}`;
 
+/**
+ * Una respuesta que ha seguido una redirección no vale para una navegación: Chrome la rechaza con
+ * `net::ERR_FAILED`. Workers Static Assets redirige `/index.html` a `/` (307), así que se guarda
+ * una copia sin la marca de redirigida, con el mismo cuerpo y las mismas cabeceras.
+ */
+async function storable(response: Response): Promise<Response> {
+  if (!response.redirected) return response;
+  return new Response(await response.blob(), {
+    status: response.status,
+    statusText: response.statusText,
+    headers: response.headers,
+  });
+}
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
     (async () => {
@@ -43,7 +57,7 @@ self.addEventListener('install', (event) => {
           // `reload`: nunca una copia vieja de la caché HTTP.
           const response = await fetch(url, { cache: 'reload' });
           if (!response.ok) throw new Error(`Precaché: ${url} respondió ${response.status}`);
-          await cache.put(url, response);
+          await cache.put(url, await storable(response));
         }),
       );
     })(),

@@ -42,3 +42,32 @@ test('tras la primera visita, la app abre sin red (precaché del Service Worker)
   await context.setOffline(false);
   await checks.expectClean();
 });
+
+test('con `/index.html` redirigido a `/`, como en Workers Static Assets, la app vuelve a abrir (con y sin red)', async ({
+  page,
+  context,
+  browserName,
+}) => {
+  test.skip(browserName !== 'chromium', 'Service Worker y modo sin red: en Chromium');
+  // `ga-web` responde a `/index.html` con un 307 a `/` (`html_handling` por defecto). La precaché
+  // guardaba esa respuesta redirigida y Chrome no la acepta para una navegación: cada visita tras
+  // la primera fallaba con `net::ERR_FAILED` (31-10-2026). `vite preview` no redirige.
+  await context.route('**/index.html', (route) =>
+    route.fulfill({ status: 307, headers: { Location: '/' } }),
+  );
+  const checks = await setup(page);
+  await page.goto('/');
+  await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
+  await waitForSearch(page, 'full');
+
+  await page.reload();
+  await expect(page.getByRole('heading', { level: 1, name: 'Mi lista' })).toBeVisible();
+  await page.goto('/catalogo');
+  await expect(page.getByRole('heading', { level: 1, name: 'Catálogo de Steam' })).toBeVisible();
+
+  await context.setOffline(true);
+  await page.reload();
+  await expect(page.getByRole('heading', { level: 1, name: 'Catálogo de Steam' })).toBeVisible();
+  await context.setOffline(false);
+  await checks.expectClean();
+});
