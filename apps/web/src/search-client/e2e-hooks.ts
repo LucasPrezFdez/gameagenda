@@ -18,8 +18,9 @@ export interface SearchTestOptions {
   readonly failFirstLoad?: boolean;
   /**
    * Sin Ed25519 en WebCrypto (el WebKit de Playwright en Windows), acepta sin verificarlo un
-   * *manifest* firmado con la clave de desarrollo. Donde hay Ed25519 no cambia nada: la firma se
-   * verifica igual. Ver ADR-005.
+   * *manifest* firmado con la clave de desarrollo. **Encendido salvo `false`**: sin él,
+   * `webkit-movil` no tendría catálogo. Donde hay Ed25519 no cambia nada: la firma se verifica
+   * igual. Ver ADR-005.
    */
   readonly unverifiedDevSignature?: boolean;
 }
@@ -42,14 +43,12 @@ export function withTestHooks(worker: Worker, transport: SearchTransport): Searc
   const options = globalThis.__GA_SEARCH_TEST__ ?? {};
   const control = (message: TestControlMessage) => worker.postMessage(message);
   // Antes de `init`: la carga del catálogo ya sale con los ajustes.
-  if (options.hold || options.failFirstLoad || options.unverifiedDevSignature) {
-    control({
-      type: 'test',
-      hold: options.hold ?? null,
-      failFirstLoad: options.failFirstLoad,
-      unverifiedDevSignature: options.unverifiedDevSignature,
-    });
-  }
+  control({
+    type: 'test',
+    hold: options.hold ?? null,
+    failFirstLoad: options.failFirstLoad,
+    unverifiedDevSignature: options.unverifiedDevSignature ?? true,
+  });
   let status: StatusMessage | null = null;
   const handle: SearchTestHandle = {
     release: () => control({ type: 'test', hold: null }),

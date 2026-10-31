@@ -11,9 +11,9 @@ export interface SearchTestOptions {
   readonly failFirstLoad?: boolean;
   /**
    * Sin Ed25519 en WebCrypto, acepta sin verificarlo el *manifest* firmado con la clave de
-   * desarrollo. `setup()` lo enciende por defecto: el WebKit de Playwright en Windows no tiene
-   * Ed25519 y, sin esto, `webkit-movil` no tendría catálogo (§11.3; ver ADR-005). En Chromium no
-   * cambia nada: la firma se verifica siempre.
+   * desarrollo. En el *build* del modo `e2e` va encendido salvo `false`: el WebKit de Playwright
+   * en Windows no tiene Ed25519 y, sin esto, `webkit-movil` no tendría catálogo (§11.3; ver
+   * ADR-005). En Chromium no cambia nada: la firma se verifica siempre.
    */
   readonly unverifiedDevSignature?: boolean;
 }
@@ -36,11 +36,10 @@ declare global {
 }
 
 /**
- * Ganchos de la búsqueda (por defecto, solo `unverifiedDevSignature`: el Worker real con el
- * mini-catálogo) y registro de violaciones de CSP y errores de la página y de sus Workers.
+ * Ganchos de la búsqueda (por defecto, ninguno: el Worker real con el mini-catálogo) y registro
+ * de violaciones de CSP y errores de la página y de sus Workers.
  */
-export async function setup(page: Page, options: SearchTestOptions = {}) {
-  const search: SearchTestOptions = { unverifiedDevSignature: true, ...options };
+export async function setup(page: Page, search: SearchTestOptions = {}) {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   page.on('console', (message) => {
