@@ -70,6 +70,14 @@ export function appListUrl(lastAppid: number, maxResults = APP_LIST_PAGE): strin
   return `${API_ORIGIN}/IStoreService/GetAppList/v1/?${q}`;
 }
 
+/**
+ * `true` si la petición lleva la clave: solo `GetAppList` (§4.4). Query y `GetItems` van sin ella
+ * aunque el pipeline la tenga, así que las llamadas con clave son ≈4 al día (CA2.1: ≤10).
+ */
+export function needsKey(url: string): boolean {
+  return endpointOf(url) === 'getapplist';
+}
+
 /** Endpoint de una URL de la API, para los registros y los nombres de los ficheros. */
 export function endpointOf(url: string): 'query' | 'getitems' | 'getapplist' | 'other' {
   if (url.includes('/IStoreQueryService/Query/')) return 'query';

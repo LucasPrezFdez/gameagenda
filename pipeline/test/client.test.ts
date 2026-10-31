@@ -20,6 +20,7 @@ import { fakeRuntime, scripted, syntheticFixtures } from './helpers.ts';
 const ok = z.object({ ok: z.literal(true) });
 const OK = { status: 200, body: '{"ok":true}' };
 const URL_A = 'https://api.steampowered.com/IStoreQueryService/Query/v1/?input_json=a';
+const URL_LIST = 'https://api.steampowered.com/IStoreService/GetAppList/v1/?include_games=true';
 
 function client(
   transport: Transport,
@@ -71,16 +72,20 @@ describe('ritmo', () => {
     expect(rt.sleeps).toEqual([2500]);
   });
 
-  it('gzip, tiempo máximo y la clave solo en la cabecera', async () => {
+  it('gzip, tiempo máximo y la clave solo en la cabecera y solo para GetAppList', async () => {
     const { transport, calls } = scripted([OK]);
     const { c } = client(transport, { key: 'CLAVE-DE-PRUEBA', timeoutMs: 1234 });
-    await c.get(URL_A, ok, 'a');
+    await c.get(URL_LIST, ok, 'a');
+    await c.get(URL_A, ok, 'b');
     expect(calls[0]?.headers['Accept-Encoding']).toBe('gzip');
     expect(calls[0]?.headers['x-webapi-key']).toBe('CLAVE-DE-PRUEBA');
     expect(calls[0]?.timeoutMs).toBe(1234);
     expect(calls[0]?.url).not.toContain('CLAVE');
+    // Query (y GetItems) van sin clave (§4.4; CA2.1: ≤10 llamadas con clave).
+    expect(calls[1]?.headers).not.toHaveProperty('x-webapi-key');
+    expect(c.records.map((r) => r.keyed)).toEqual([true, false]);
     const sinClave = scripted([OK]);
-    await client(sinClave.transport).c.get(URL_A, ok, 'a');
+    await client(sinClave.transport).c.get(URL_LIST, ok, 'a');
     expect(sinClave.calls[0]?.headers).not.toHaveProperty('x-webapi-key');
   });
 });
@@ -180,12 +185,17 @@ describe('5xx, tiempo agotado y errores sin reintento', () => {
 
   it('403 con clave para (clave revocada); sin clave, el endpoint pide clave', async () => {
     const a = scripted([{ status: 403 }]);
-    expect((await failure(client(a.transport, { key: 'K' }).c.get(URL_A, ok, 'a'))).kind).toBe(
+    expect((await failure(client(a.transport, { key: 'K' }).c.get(URL_LIST, ok, 'a'))).kind).toBe(
       'key-rejected',
     );
     const b = scripted([{ status: 403 }]);
     expect((await failure(client(b.transport).c.get(URL_A, ok, 'a'))).kind).toBe('forbidden');
     expect(a.calls).toHaveLength(1);
+    // Query va sin clave aunque el cliente la tenga: su 403 es que el endpoint la pide.
+    const c = scripted([{ status: 403 }]);
+    expect((await failure(client(c.transport, { key: 'K' }).c.get(URL_A, ok, 'a'))).kind).toBe(
+      'forbidden',
+    );
   });
 
   it('X-eresult distinto de 1 falla', async () => {

@@ -5,7 +5,7 @@
 // El transporte, el reloj, la espera y el azar se inyectan: las pruebas no esperan de verdad.
 
 import type { z } from 'zod';
-import { endpointOf } from './endpoints.ts';
+import { endpointOf, needsKey } from './endpoints.ts';
 
 /** Petición que recibe el transporte (la clave, si la hay, va en `headers`). */
 export interface TransportRequest {
@@ -81,6 +81,10 @@ export interface RequestRecord {
   readonly bodyBytes: number;
   readonly ms: number;
   readonly cached: boolean;
+  /** `true` si llevó la clave (solo `GetAppList`; CA2.1). */
+  readonly keyed: boolean;
+  /** Inicio de la petición (ms del reloj del cliente); 0 si vino de la caché. */
+  readonly startedAt: number;
 }
 
 /** Respuesta guardada, con lo que se midió al descargarla. */
@@ -103,7 +107,10 @@ export interface ClientOptions {
   readonly sleep: (ms: number) => Promise<void>;
   /** Azar en [0, 1) para el *jitter*. */
   readonly random: () => number;
-  /** Clave de la Web API: solo viaja en `x-webapi-key` y nunca se registra. */
+  /**
+   * Clave de la Web API: solo viaja en `x-webapi-key`, solo a `GetAppList` (§4.4), y nunca se
+   * registra.
+   */
   readonly key?: string | null;
   /** Intervalo entre inicios de petición (3 000 ms); nunca baja de 2 500 ms (0,4/s). */
   readonly intervalMs?: number;
@@ -220,6 +227,8 @@ export class SteamClient {
         bodyBytes: Buffer.byteLength(cached.body, 'utf8'),
         ms: cached.ms,
         cached: true,
+        keyed: false,
+        startedAt: 0,
       });
       return data;
     }
@@ -230,7 +239,8 @@ export class SteamClient {
       Accept: 'application/json',
       'User-Agent': 'GameAgenda-catalog/0.1 (+https://github.com/LucasPrezFdez/gameagenda)',
     };
-    if (this.opts.key) headers['x-webapi-key'] = this.opts.key;
+    const key = this.opts.key && needsKey(url) ? this.opts.key : null;
+    if (key) headers['x-webapi-key'] = key;
     const timeoutMs = this.opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
     for (let attempt = 1, retries = 0; ; attempt++) {
@@ -263,6 +273,8 @@ export class SteamClient {
         bodyBytes: Buffer.byteLength(res.body, 'utf8'),
         ms,
         cached: false,
+        keyed: key !== null,
+        startedAt: t0,
       });
 
       if (res.status === 429 || eresult === ERESULT_RATE_LIMIT) {
@@ -311,7 +323,7 @@ export class SteamClient {
         continue;
       }
       if (res.status === 403) {
-        throw this.opts.key
+        throw key
           ? new SteamError(
               'key-rejected',
               'HTTP 403 con clave: clave revocada o cuenta limitada',
