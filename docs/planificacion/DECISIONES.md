@@ -289,7 +289,7 @@ Resueltos a partir de las mediciones y de los conflictos detectados entre seccio
     - **CA2.4:** los ≤200 KB son bytes transferidos, es decir, comprimidos.
     - **E2E en WebKit:** el WebKit de Playwright para Windows no trae Ed25519. El *build* `e2e` tiene un gancho que acepta el mini-catálogo firmado con `dev-1` sin verificarlo, y `webkit-movil` prueba además, con el gancho apagado, el camino real sin Ed25519 (RNF-12).
 20. **Interfaz de M2 tal como se ha construido (31-10-2026; cambia §9.1, §9.2, §9.5 y §11.2):** ADR-008.
-    - **Portadas activadas por defecto** (interés legítimo con oposición en un toque). Esperan a que se haya pintado el aviso de primera capa. La paleta nunca lo hace salir, porque taparía el campo de captura. El Catálogo no lleva portadas en M2: pediría un *shard* por fila al desplazarse.
+    - **Portadas activadas por defecto** (interés legítimo con oposición en un toque). Esperan a que se haya pintado el aviso de primera capa. La paleta nunca lo hace salir, porque taparía el campo de captura. ~~El Catálogo no lleva portadas en M2: pediría un *shard* por fila al desplazarse.~~ Cambiado el 02-11-2026: ver el punto 22.
     - **Próximos:** fechas en UTC, semana de lunes a domingo, un grupo por mes durante 12 meses, la precisión de trimestre o de año a Más adelante y las fechas ya pasadas a Por confirmar.
     - **Orden por lanzamiento** de lo más antiguo a lo más nuevo, con Por confirmar y los juegos sin datos al final.
     - **Nada de `:has()` en la raíz de la app** (§9.5, regla 7). Dos reglas `.app:has(…)` hacían recorrer Mi lista en cada cambio del DOM. Medido con 500 entradas y CPU ×4: 40 tareas largas, que pasan a 0, y el INP baja de 88 a 40 ms.
@@ -299,3 +299,7 @@ Resueltos a partir de las mediciones y de los conflictos detectados entre seccio
     - **El atajo abre la paleta con un evento fijo** (`gameagenda:capture`) que la parte nativa ejecuta en la página. En Mi lista o en `/apuntar`, la paleta se abre ahí mismo; desde otra pantalla, la página va a `/apuntar`.
     - **Los enlaces `https` de fuera se abren en el navegador del sistema**: sin esto, WebView2 descartaba «Ver en Steam» sin avisar.
     - **El *crate* `windows` 0.62.2**, el mismo que ya usa Tauri, es la única dependencia nueva.
+22. **Portadas también en el Catálogo (02-11-2026, decisión del usuario tras probar la app de escritorio; cambia §9.1, §9.5 y el punto 20):** ADR-008.
+    - **Las filas del Catálogo llevan portada, como Mi lista**, con las mismas reglas: «Cargar portadas», el *kill switch* `covers`, el aviso de primera capa y la cadena `library_capsule` → `header` → generada.
+    - **Solo piden sus detalles con el desplazamiento parado**, 150 ms después del último movimiento (el `isScrolling` del virtualizador). Mientras se desplaza, una fila tampoco se observa. Así, arrastrar la barra por 197 000 juegos no pide un *shard* por fila: lo comprueba un E2E, en el que, sin esa condición, se piden 5 *shards* durante el desplazamiento.
+    - **Coste:** cada pantalla parada pide como mucho los *shards* de sus filas, unos 7,5 KB con brotli cada uno, y se guardan en `gacat-details`. Quien recorra mucho el Catálogo puede llegar a los ≈7,5 MiB de los 1 024. Las imágenes van por la caché HTTP del navegador: el Service Worker no las guarda, así que no echan las de Mi lista.

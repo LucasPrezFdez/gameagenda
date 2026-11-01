@@ -6,7 +6,7 @@
 
 ## Contexto y problema
 
-Desde M2, Mi lista, la paleta y la ficha llevan portada (§9.5, regla 5). Los ficheros de imagen son de Valve, y el catálogo solo publica, por juego, `asset_url_format` y los nombres de `library_capsule` y `header` en los *shards* de detalles (§4.10 y §7.6). Pedirlas desde el navegador manda la IP del usuario a Valve, en EE. UU. (§11.2), y la app tiene que seguir siendo «rápida y ágil»: nada se mueve bajo el cursor y nada bloquea la captura (§9.5).
+Desde M2, Mi lista, la paleta y la ficha llevan portada (§9.5, regla 5), y el Catálogo también desde el 02-11-2026, por decisión del usuario (`DECISIONES.md` §10.22). Los ficheros de imagen son de Valve, y el catálogo solo publica, por juego, `asset_url_format` y los nombres de `library_capsule` y `header` en los *shards* de detalles (§4.10 y §7.6). Pedirlas desde el navegador manda la IP del usuario a Valve, en EE. UU. (§11.2), y la app tiene que seguir siendo «rápida y ágil»: nada se mueve bajo el cursor y nada bloquea la captura (§9.5).
 
 ¿De dónde salen las portadas, cuándo se piden y qué se le dice al usuario antes de la primera?
 
@@ -38,7 +38,8 @@ Opción elegida: **1**, porque da portadas desde el primer día sin servidor pro
 
 ### Cuándo se piden
 
-- Las filas de Mi lista piden sus detalles al acercarse a la pantalla (un `IntersectionObserver` compartido, 600 px de margen); la ficha, al abrirse; la paleta, tras 150 ms sin teclear. La imagen va con `loading="lazy"`, `decoding="async"`, `referrerpolicy="no-referrer"` y `crossorigin="anonymous"` (sin cookies ni página de origen).
+- Las filas de Mi lista piden sus detalles al acercarse a la pantalla (un `IntersectionObserver` compartido, 600 px de margen); la ficha, al abrirse; la paleta, tras 150 ms sin teclear.
+- Las del Catálogo, igual que las de Mi lista, pero solo con el desplazamiento parado: 150 ms después del último movimiento (`isScrolling` del virtualizador). Mientras tanto ni se observan, así que arrastrar la barra por 197 000 juegos no pide un *shard* por cada fila que pasa de largo. La imagen va con `loading="lazy"`, `decoding="async"`, `referrerpolicy="no-referrer"` y `crossorigin="anonymous"` (sin cookies ni página de origen).
 - La imagen se pinta encima de la portada generada, en el mismo hueco de 2:3: lo que llega tarde no mueve nada.
 - Sin peticiones a Valve cuando «Cargar portadas» está apagado, con el *kill switch* `covers` (o `details`), sin índice de *shards* o mientras el aviso de primera capa no ha salido.
 
@@ -68,7 +69,7 @@ Opción elegida: **1**, porque da portadas desde el primer día sin servidor pro
 ### Confirmación
 
 - **Vitest, sin red:** `cover-url.test.ts` (formato, rutas no válidas y orden), `details-source.test.ts` (*hashes*, esquema, Cache Storage, sin red, un 404, limpieza al cambiar de índice y concurrencia) y `details-store.test.ts` (agrupación, *kill switches*, índice nuevo, reintento y demanda de portadas).
-- **E2E** (`covers.spec.ts`, Chromium y `webkit-movil`): el aviso sale antes de la primera petición a Valve; `library_capsule` → `header` → generada; con «Cargar portadas» apagado, tras «Desactivar portadas» o con el *kill switch* `covers`, 0 peticiones a `*.steamstatic.com`; axe y 0 violaciones de CSP. Las imágenes se sirven con `context.route`: ninguna prueba llega al CDN real.
+- **E2E** (`covers.spec.ts`, Chromium y `webkit-movil`): el aviso sale antes de la primera petición a Valve; `library_capsule` → `header` → generada; con «Cargar portadas» apagado, tras «Desactivar portadas» o con el *kill switch* `covers`, 0 peticiones a `*.steamstatic.com`; el Catálogo pinta las portadas y no pide *shards* mientras se desplaza; axe y 0 violaciones de CSP. Las imágenes se sirven con `context.route`: ninguna prueba llega al CDN real.
 
 ## Pros y contras de las opciones
 
@@ -95,5 +96,5 @@ Opción elegida: **1**, porque da portadas desde el primer día sin servidor pro
 ## Más información
 
 - **En `prototipe.md`:** [§4.10](../../prototipe.md#410-imágenes-portadas) (URL), [§7.6](../../prototipe.md#76-formatos-publicados-del-catálogo) (*shards* y cachés), [§9.5](../../prototipe.md#95-reglas-de-respuesta-inmediata-m1-portadas-desde-m2) (imágenes diferidas), [§9.9](../../prototipe.md#99-microcopy-español-de-españa) (texto del aviso), [§11.2](../../prototipe.md#112-privacidad-rgpd-lopdgdd-y-lssi) y [§11.3](../../prototipe.md#113-seguridad-de-la-app-y-del-catálogo) (CSP), y [§15.5](../../prototipe.md#155-m2--catálogo-vivo-v020--45-días-ideales) (CA2.6–CA2.8).
-- **Porqué:** [`DECISIONES.md`](../planificacion/DECISIONES.md), §10.10 (M2 trae la ficha completa y Próximos).
+- **Porqué:** [`DECISIONES.md`](../planificacion/DECISIONES.md), §10.10 (M2 trae la ficha completa y Próximos) y §10.22 (portadas en el Catálogo).
 - **Relacionados:** ADR-001 (catálogo estático), ADR-006 (formato del catálogo) y ADR-007 (pipeline, *manifest* firmado y *kill switches*).

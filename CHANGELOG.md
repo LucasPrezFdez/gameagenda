@@ -93,6 +93,7 @@ Entra en `main` antes de la etiqueta, así que va en esta versión. Sus criterio
 
 ### Cambiado
 
+- **El Catálogo lleva portadas** (02-11-2026, decisión del usuario; `DECISIONES.md` §10.22), con las mismas reglas que Mi lista. Sus filas solo piden los detalles con el desplazamiento parado, para no pedir un *shard* por cada fila que pasa de largo al arrastrar la barra.
 - **La app pasa a la versión 0.2.0 antes de la etiqueta:** un *manifest* firmado pide `minClientVersion` 0.2.0.
 - **`ga-catalog` cambia de cuenta y de origen:** del subdominio `gameagenda.workers.dev` a `gameagenda-cat.workers.dev`. `VITE_CATALOG_URL` y el `connect-src` de `ga-web` lo siguen.
 - **`catalog:stage`** sube las páginas crudas de Steam y no `pipeline/out/` ni el estado, como decía el plan. Así, las puertas y la firma corren siempre en el CI (ADR-007).
@@ -116,6 +117,7 @@ Entra en `main` antes de la etiqueta, así que va en esta versión. Sus criterio
 - **Producción sin catálogo, el 31-10-2026, unos 20 min:** el cliente nuevo era todavía la 0.1.0 y rechazaba el catálogo firmado (`client-too-old`), así que la búsqueda solo ofrecía «Apuntar a mano». Lo arregla el paso a 0.2.0.
 - **Tareas largas al teclear con CPU ×4:** dos reglas `.app:has(…)` del aviso de portadas obligaban a recorrer Mi lista entera en cada cambio del DOM. Con 500 entradas daban 40 tareas largas; ahora, 0, y el INP baja de 88 a 40 ms.
 - **`host.test.ts`:** una prueba fallaba solo en el *runner* de GitHub por un orden de carga no fijado.
+- **El menú de «Orden» de Mi lista sacaba una barra de desplazamiento horizontal** en ventanas de menos de ≈1 200 px, como la de escritorio (1 100 px): se abría hacia la derecha desde un botón pegado al borde y se salía 48 px. Lo encontró el usuario en la app de escritorio. Ahora se abre hacia la izquierda. Además, cualquier menú que no quepa en la pantalla se abre hacia el otro lado (`shouldFlipMenu`). Lo comprueba un E2E de 1 100 a 320 px.
 
 ### Seguridad
 
