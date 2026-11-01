@@ -1,6 +1,6 @@
 # Estado del proyecto — punto de partida de la próxima sesión
 
-**Actualizado:** 31-10-2026, al cerrar la sesión 5.
+**Actualizado:** 02-11-2026, en la sesión 6 (CA2.1 va 1 de 3 y CA2.4 está medido). Antes, el 31-10-2026, al cerrar la sesión 5.
 **Cómo retomar:** escribe *«Retoma GameAgenda desde docs/planificacion/ESTADO-SESION.md»*.
 
 ## 0. Lo primero en la próxima sesión
@@ -8,14 +8,14 @@
 Todo está en `main` y subido, con el CI y el despliegue en verde y sin agentes en marcha. Por orden:
 
 1. **Mirar las ejecuciones programadas del catálogo:** 01-11, 02-11 y 03-11 a las 04:17 UTC (05:17 en Madrid). Con `gh run list --workflow catalog.yml --limit 5`, o en la web de Actions.
+   - **La del 01-11 (41301033690): en verde** en 12 min 10 s. Versión `20261101.1`: 197 874 juegos (+0,044 %), 3 563 alias y 93 recientes, los primeros. Todas las puertas en verde, también las de variación, y conserva la versión `20261031.1`.
+   - **GitHub la arrancó a las 11:15 UTC, no a las 04:17:** casi 7 h tarde, algo normal en los *cron* de Actions con carga. El *check* de healthchecks.io (1 día + 12 h) lo aguanta. Las del 02-11 y el 03-11 pueden llegar igual de tarde.
    - Si alguna falla, se abre el *issue* `catalogo`; se sigue el *runbook* del ADR-007.
    - Relanzar el flujo a mano lo tiene que hacer el usuario: el modo automático no deja al asistente.
-   - La del 01-11 es la primera con un estado anterior: traerá recientes por primera vez y pasará las puertas de variación. Hay que mirar sus cifras en el resumen.
-2. **Medir CA2.4 en producción** tras la publicación del 01-11:
-   - lanzar `npm run smoke:web -- --profile=.cache/smoke-web`;
-   - el perfil se sembró el 31-10 a las 15:43 UTC con el catálogo `20261031.1`, y han pasado más de 12 h, así que la primera visita comprueba el *manifest*;
-   - la línea «de ga-catalog» dice lo que baja un cliente con el núcleo de ayer: tiene que ser ≤200 KB y no incluir el núcleo;
-   - se guarda en `docs/medidas/ca2.4-AAAAMMDD.md`.
+2. ~~**Medir CA2.4 en producción**~~ **Hecho el 02-11-2026:** `docs/medidas/ca2.4-20261102.md`. Un cliente con `20261031.1` baja 34,5 KB en 4 ficheros, sin núcleo y sin tareas largas.
+   - `smoke-web.ts` ha cambiado: con un perfil al que le toca comprobar, espera a la comprobación y a la versión nueva, y aplica la puerta de CA2.4. La versión anterior solo esperaba 1,5 s y dio un fallo falso.
+   - `.cache/smoke-web` quedó gastado en ese fallo. El perfil sembrado el 31-10, sin usar, está en `.cache/smoke-web-20261031`. Se mide siempre sobre una copia en una ruta corta, porque en Windows una ruta larga da `net::ERR_FAILED`.
+   - **Pendiente:** desde la publicación `20261108.1`, una copia de ese perfil prueba la otra rama de la regla de los 7 días, en la que sí baja el núcleo.
 
    Sin `--profile`, `smoke:web` es la prueba de humo de cada despliegue: primera visita (el 31-10, en `full` en 1,9 s con 3 017 KB), segunda visita sin pedir el *manifest*, y sin red.
 3. **Cerrar M2** cuando haya 3 ejecuciones programadas seguidas en verde (CA2.1):

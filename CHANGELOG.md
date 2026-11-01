@@ -60,7 +60,7 @@ Será la **0.2.0 · M2 Catálogo vivo**: el catálogo se actualiza solo cada dí
   - 698 unitarias y 134 E2E en la lista local (Chromium y WebKit con un iPhone 15). En el CI, solo Chromium;
   - el mini-catálogo de `fixtures/` va firmado con `dev-1` y trae recientes y *shards* sintéticos;
   - `npm run perf` necesita antes `npm run catalog:frozen`, porque el catálogo tiene que ir firmado;
-  - `npm run smoke:web`, prueba de humo de `ga-web` en producción con un Chromium real: primera y segunda visita, sin red y errores. Con `--profile`, mide la actualización de un cliente con el catálogo de ayer (CA2.4).
+  - `npm run smoke:web`, prueba de humo de `ga-web` en producción con un Chromium real: primera y segunda visita, sin red y errores. Con `--profile`, mide la actualización de un cliente con el catálogo de ayer (CA2.4): espera a la comprobación del *manifest* y a la versión nueva, y comprueba ≤200 KB, sin núcleo y sin tareas largas.
 - **ADR:**
   - 007 (pipeline y publicación) y 008 (portadas), propuestos;
   - la parte de M2 del Worker en el ADR-005 y la cuenta nueva en el ADR-003.
@@ -82,10 +82,10 @@ Entra en `main` antes de la etiqueta, así que va en esta versión. Sus criterio
 
 | CA | Estado | Evidencia |
 |---|---|---|
-| CA2.1 Pipeline diario | Pendiente | La primera publicación, lanzada a mano, salió en verde: 218 llamadas, 4 con clave, 0,334/s y 12 min 7 s. Faltan 3 ejecuciones programadas seguidas, desde el 01-11-2026 |
+| CA2.1 Pipeline diario | Pendiente (1 de 3) | La primera publicación, lanzada a mano, salió en verde: 218 llamadas, 4 con clave, 0,334/s y 12 min 7 s. Ejecuciones programadas: la del 01-11-2026 (41301033690), en verde en 12 min 10 s, con `20261101.1`, 93 recientes y todas las puertas, también las de variación (+0,044 % de juegos). GitHub la arrancó a las 11:15 UTC, no a las 04:17. Faltan la del 02-11 y la del 03-11 |
 | CA2.2 Puertas | Cumplido con *fixtures*; falta un fallo real | `publish.test.ts` fuerza cada puerta y el «solo falla el enriquecimiento». El *issue* y el aviso del trabajo `report` no se han visto en un fallo real |
 | CA2.3 Firma y *kill switch* | Cumplido en Chromium | `catalog-update.spec` (*manifest* manipulado), `covers.spec` (*kill switch* `covers`) y `host.test`. El WebKit de Playwright para Windows no trae Ed25519 |
-| CA2.4 Actualización ligera | Cumplido en pruebas | `catalog-update.spec` y `host.test` (solo el *manifest* y los recientes); `assemble-catalog` y la prueba de humo (versión anterior). Falta medir lo transferido en producción tras la segunda publicación |
+| CA2.4 Actualización ligera | Cumplido | En producción (`docs/medidas/ca2.4-20261102.md`), un cliente con el catálogo `20261031.1` pasa a `20261101.1` bajando 34,5 KB en 4 ficheros (*manifest*, recientes, alias e índice de *shards*), sin núcleo y sin tareas largas en el hilo principal. En pruebas, `catalog-update.spec` y `host.test` (solo el *manifest* y los recientes); `assemble-catalog` y la prueba de humo del pipeline (versión anterior) |
 | CA2.5 *Dead-man switch* | Pendiente | El *check* de healthchecks.io existe y respondió al `/start`. Falta probarlo deteniendo el cron |
 | CA2.6 Portadas | Parcial | `covers.spec`: ninguna URL fuera de `asset_url_format`, y la cadena `library_capsule` → `header` → generada. Falta la agenda de 300 juegos reales (ADR-008) |
 | CA2.7 Privacidad y clave | Cumplido | `covers.spec`: aviso antes de la primera portada, 0 peticiones con «Cargar portadas» apagado y 0 violaciones de CSP. La clave se busca en el *build*, `pipeline/out`, `pipeline/dist` y los artefactos |
