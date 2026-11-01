@@ -39,8 +39,8 @@ export interface CoverProps {
   readonly appid?: number | null;
   readonly size?: 'row' | 'sheet' | 'palette';
   /**
-   * ¿Puede pedir sus detalles? La paleta solo los pide tras 150 ms sin teclear (§9.5, regla 5);
-   * sin pedirlos, enseña lo que ya se sepa.
+   * ¿Puede pedir sus detalles? La paleta solo los pide tras 150 ms sin teclear (§9.5, regla 5) y
+   * el Catálogo, con el desplazamiento parado; sin pedirlos, enseña lo que ya se sepa.
    */
   readonly load?: boolean;
   /** ¿Saca el aviso de primera capa si aún no ha salido? (La paleta no: lo taparía.) */
@@ -63,8 +63,9 @@ export function Cover({
   const store = useDetailsStore();
   const mode = useCoverMode();
   const wanted = mode !== 'off' && appid !== null;
-  // Las filas piden sus detalles al acercarse a la pantalla; la ficha y la paleta, ya.
-  const near = useNearViewport(ref, wanted && size === 'row');
+  // Las filas piden sus detalles al acercarse a la pantalla; la ficha y la paleta, ya. Sin
+  // `load` ni se observa: una fila que pasa de largo al desplazarse no cuesta nada.
+  const near = useNearViewport(ref, wanted && load && size === 'row');
   const state = useGameDetails(wanted ? appid : null, load && (size !== 'row' || near));
   const sources = useMemo(
     () => (state.kind === 'ready' && state.details ? coverCandidates(state.details) : []),

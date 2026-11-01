@@ -5,6 +5,7 @@ import {
   type SyntheticEvent,
   useEffect,
   useId,
+  useLayoutEffect,
   useRef,
   useState,
 } from 'react';
@@ -38,6 +39,26 @@ export interface MenuButtonProps {
 }
 
 const ROLE = { item: 'menuitem', radio: 'menuitemradio', checkbox: 'menuitemcheckbox' } as const;
+const OTHER_SIDE = { start: 'end', end: 'start' } as const;
+
+/**
+ * ¿Hay que abrir el menú hacia el otro lado? Sí si, alineado con `align`, se sale de la pantalla
+ * y por el otro lado se sale menos: sin eso, un menú más ancho que su botón y pegado al borde
+ * saca una barra de desplazamiento horizontal (§9.3: sin desplazamiento horizontal).
+ */
+export function shouldFlipMenu(
+  align: 'start' | 'end',
+  button: { readonly left: number; readonly right: number },
+  menuWidth: number,
+  viewportWidth: number,
+): boolean {
+  // Con `start` empieza en el borde izquierdo del botón; con `end`, acaba en el derecho.
+  const overflowStart = Math.max(0, button.left + menuWidth - viewportWidth);
+  const overflowEnd = Math.max(0, menuWidth - button.right);
+  const [current, other] =
+    align === 'start' ? [overflowStart, overflowEnd] : [overflowEnd, overflowStart];
+  return current > 0 && other < current;
+}
 
 export function MenuButton({
   label,
@@ -51,9 +72,11 @@ export function MenuButton({
   menuLabel,
 }: MenuButtonProps) {
   const [open, setOpen] = useState(false);
+  const [flipped, setFlipped] = useState(false);
   const menuId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const popupRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const focusIndex = useRef(0);
 
@@ -68,6 +91,7 @@ export function MenuButton({
     const checked = items.findIndex((item) => item.checked && !item.disabled);
     const first = checked >= 0 ? checked : (enabled[0] ?? 0);
     focusIndex.current = target === 'last' ? (enabled.at(-1) ?? 0) : first;
+    setFlipped(false);
     setOpen(true);
   }
 
@@ -75,6 +99,14 @@ export function MenuButton({
     setOpen(false);
     if (returnFocus) buttonRef.current?.focus();
   }
+
+  // Antes de pintarlo, como mucho una vuelta por apertura (no puede oscilar).
+  useLayoutEffect(() => {
+    if (!open || flipped || !popupRef.current || !buttonRef.current) return;
+    const button = buttonRef.current.getBoundingClientRect();
+    const viewport = document.documentElement.clientWidth;
+    if (shouldFlipMenu(align, button, popupRef.current.offsetWidth, viewport)) setFlipped(true);
+  }, [open, flipped, align]);
 
   useEffect(() => {
     if (!open) return;
@@ -147,8 +179,9 @@ export function MenuButton({
         <div
           id={menuId}
           role="menu"
+          ref={popupRef}
           aria-label={menuLabel ?? label}
-          className={`menu__popup menu__popup--${align}`}
+          className={`menu__popup menu__popup--${flipped ? OTHER_SIDE[align] : align}`}
           onKeyDown={onMenuKeyDown}
         >
           {items.map((item, index) => {

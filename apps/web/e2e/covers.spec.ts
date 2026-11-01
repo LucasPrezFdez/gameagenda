@@ -101,6 +101,61 @@ test('el aviso de primera capa sale antes de la primera portada y se cierra con 
   await checks.expectClean();
 });
 
+test('el Catálogo pinta las portadas de sus filas, también tras el aviso de primera capa', async ({
+  page,
+  context,
+}) => {
+  const checks = await setup(page);
+  const details = await serveDetails(context, GAMES);
+  const covers = await serveCovers(context, { broken: ['roto'] });
+  await page.goto('/catalogo?q=hades');
+  await expect(notice(page)).toBeVisible();
+  await expectImage(page, 'Hades II', coverUrl(HADES_II, 'library_600x900_spanish.jpg'));
+  expect(covers.every((request) => request.noticeVisible)).toBe(true);
+
+  // La misma cadena que en Mi lista: sin `library_capsule`, el `header`.
+  await page.getByRole('textbox', { name: 'Filtrar el catálogo' }).fill('celeste');
+  await expectImage(page, 'Celeste', coverUrl(CELESTE, 'header.jpg'));
+  expect(details.requests.length).toBeGreaterThan(0);
+  await checks.expectClean();
+});
+
+test('el Catálogo no pide *shards* de las filas que pasan de largo al desplazarse', async ({
+  page,
+  context,
+}) => {
+  const checks = await setup(page);
+  await serveDetails(context, GAMES);
+  await serveCovers(context);
+  const shardTimes: number[] = [];
+  context.on('request', (request) => {
+    if (/\/details\/\d{4}\./.test(request.url())) shardTimes.push(Date.now());
+  });
+  await page.goto('/catalogo');
+  await expect(page.getByRole('link', { name: 'Counter-Strike 2', exact: true })).toBeVisible();
+  await page.waitForTimeout(500);
+
+  // De arriba abajo sin parar: un salto por fotograma, nunca 150 ms quieto.
+  const started = Date.now();
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        const step = () => {
+          const bottom = document.documentElement.scrollHeight - window.innerHeight;
+          if (window.scrollY >= bottom) return resolve();
+          window.scrollBy(0, 300);
+          requestAnimationFrame(step);
+        };
+        requestAnimationFrame(step);
+      }),
+  );
+  const ended = Date.now();
+  expect(shardTimes.filter((time) => time > started && time <= ended)).toEqual([]);
+  // Al pararse, las filas a la vista sí piden los suyos (si les toca uno con detalles).
+  await page.waitForTimeout(500);
+  await checks.expectClean();
+});
+
 test('el aviso de Deshacer va justo encima del de las portadas, que no tapa la paleta', async ({
   page,
   context,

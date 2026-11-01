@@ -15,6 +15,8 @@ export interface ChoiceMenuProps<T extends string> {
   readonly options: readonly Choice<T>[];
   readonly onChange: (value: T, event: SyntheticEvent) => void;
   readonly className?: string;
+  /** Lado del botón en el que se alinea el menú: `end` para un selector a la derecha. */
+  readonly align?: 'start' | 'end';
 }
 
 export function ChoiceMenu<T extends string>({
@@ -23,6 +25,7 @@ export function ChoiceMenu<T extends string>({
   options,
   onChange,
   className = '',
+  align = 'start',
 }: ChoiceMenuProps<T>) {
   const current = options.find((option) => option.value === value);
   return (
@@ -33,7 +36,7 @@ export function ChoiceMenu<T extends string>({
       <MenuButton
         label={`${label}: ${current?.label ?? ''}`}
         menuLabel={label}
-        align="start"
+        align={align}
         buttonClassName="btn choice__button"
         items={options.map((option) => ({
           key: option.value,

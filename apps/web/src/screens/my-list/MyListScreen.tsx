@@ -201,6 +201,7 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
         {total > 0 && params.view !== 'upcoming' && (
           <ChoiceMenu
             className="list-order"
+            align="end"
             label={es.list.order}
             value={params.order}
             options={LIST_ORDERS.map((order) => ({

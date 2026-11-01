@@ -153,6 +153,8 @@ export default function CatalogScreen() {
     rangeExtractor,
   });
   const items = virtualizer.getVirtualItems();
+  // Vuelve a `false` 150 ms después del último desplazamiento (`isScrollingResetDelay`).
+  const scrolling = virtualizer.isScrolling;
   // Lo visible (sin la fila activa, que puede estar lejos): solo esas ventanas se piden.
   const visible = virtualizer.range;
   const firstIndex = Math.max(0, (visible?.startIndex ?? 0) - OVERSCAN);
@@ -413,7 +415,8 @@ export default function CatalogScreen() {
           const name = displayName(game);
           return (
             <li key={item.key} className="catalog-row" {...common}>
-              <Cover title={name} />
+              {/* Con el desplazamiento parado: arrastrar la barra no pide un *shard* por fila. */}
+              <Cover title={name} appid={game.appid} load={!scrolling} />
               <div className="catalog-row__main">
                 <Link
                   to={gamePath(steamId(game.appid))}

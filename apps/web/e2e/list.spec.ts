@@ -126,3 +126,30 @@ test('el Catálogo filtra sin apuntar con Intro y apunta con `(+)` o con `+`', a
   await expect(page.getByRole('main').getByText('Quiero jugar')).toHaveCount(2);
   await checks.expectClean();
 });
+
+test('el menú de «Orden» cabe en la pantalla, sin barra horizontal', async ({ page }) => {
+  const checks = await setup(page);
+  await page.goto('/');
+  await threeGames(page);
+  // 1 100 px es el ancho inicial de la ventana de escritorio (`tauri.conf.json`).
+  for (const width of [1100, 900, 800, 375, 320]) {
+    await page.setViewportSize({ width, height: 760 });
+    await page.getByRole('button', { name: /^Orden: / }).click();
+    const menu = page.getByRole('menu', { name: 'Orden' });
+    await expect(menu).toBeVisible();
+    const box = await menu.boundingBox();
+    expect(box, `menú a ${width} px`).not.toBeNull();
+    expect(box?.x ?? -1, `borde izquierdo del menú a ${width} px`).toBeGreaterThanOrEqual(0);
+    expect(
+      (box?.x ?? 0) + (box?.width ?? 0),
+      `borde derecho del menú a ${width} px`,
+    ).toBeLessThanOrEqual(width);
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    expect(overflow, `desbordamiento horizontal a ${width} px`).toBe(0);
+    await page.keyboard.press('Escape');
+    await expect(menu).toBeHidden();
+  }
+  await checks.expectClean();
+});
