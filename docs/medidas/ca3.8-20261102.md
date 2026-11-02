@@ -64,3 +64,5 @@ Al empezar, la app cargó una versión anterior de `ga-web` (`index-CVMtonbU.js`
 No afecta a CA3.8: el catálogo sí se pone al día solo (pasó de `20261101.1` a `20261102.1` en la primera apertura). **Resuelto el mismo día,** a petición del usuario (DECISIONES §10.29):
 - la versión nueva entra al recargar, con la ventana 1 minuto en la bandeja y nada a medias;
 - la app de escritorio oculta también el WebView, para que la página sepa que está oculta.
+
+Comprobado en la app instalada y con producción el mismo día. Se abrió oculta, como al encender el PC, mientras se publicaba otra versión, y no se tocó nada más. A los 51 s tenía la versión nueva en espera, y a los 112 s ya iba con ella, sin mostrarse.

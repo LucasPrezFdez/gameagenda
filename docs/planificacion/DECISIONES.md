@@ -374,4 +374,5 @@ Resueltos a partir de las mediciones y de los conflictos detectados entre seccio
     - **Pruebas:**
       - `update-policy.test.ts` y `work-in-progress.test.ts`;
       - `pwa-update.spec.ts` (Chromium), con la página oculta por `visibilityState` y el reloj de Playwright: la versión entra tras el minuto y en la misma ruta; con texto en la paleta, no, y al vaciarla, sí; y no entra con otra pestaña a la vista.
+      - **En la app de escritorio instalada, con producción (02-11-2026):** se abrió con `--autostart`, oculta, con `index-CYfpGTZv.js`, mientras se publicaba otra versión, y no se tocó nada más. Encontró la nueva y la dejó en espera a los 51 s; a los 112 s ya iba con ella (`index-D8AJgvtc.js`), sin mostrarse y sin «Salir».
       - Playwright no intercepta la petición de `sw.js` con la que el navegador busca versión nueva. Por eso, la vista previa `e2e` sirve un `sw.js` con otro byte cuando la prueba lleva la *cookie* `ga-e2e-sw` (`e2e-sw-plugin.ts`).
