@@ -107,6 +107,15 @@ El resto de CA3.4 (§9.4; DECISIONES §10.24). Cada gesto tiene su botón y ning
 - **«Gestos táctiles»** en Ajustes › Teclado y gestos, activado por defecto. El asa `::` no depende de él.
 - **Pruebas:** `gesture-model.test.ts` (umbrales, zonas muertas, volver atrás, a qué estado avanza y dónde cae lo arrastrado), `agenda.test.ts` (mover antes o después de otra entrada) y `gestures.spec.ts`, con toques de verdad por CDP en Chromium y el arrastre con el ratón.
 
+#### Adelantado de M3: panel de rendimiento
+
+§12.7; DECISIONES §10.27.
+- **Ajustes › Rendimiento:** las medidas de este dispositivo, con n, p50, p75 y p95 frente a los presupuestos del móvil (tecla → resultados, toque → respuesta, INP, apuntar, LCP, Mi lista y poder buscar al abrir, y el índice). Debajo, la app, el navegador, el catálogo, el índice (restaurado o construido), `persist()` y el espacio usado.
+- **Se suman las sesiones:** las 500 últimas de cada medida, guardadas solo en el dispositivo (`meta.perfSamples`).
+- **«Copiar informe»**, «Exportar registro de errores» y «Borrar las medidas». No se envía nada.
+- Es para medir CA3.1 en el iPhone, donde no hay `chrome://inspect`.
+- **Pruebas:** `samples.test.ts` (percentiles, presupuestos y límite de 500) y `perf-panel.spec.ts` (medidas entre sesiones, informe, borrar, axe y 320 px).
+
 #### Adelantado de M3: más vías de captura (CA3.3)
 
 RF-07 (§9.2; DECISIONES §10.26).

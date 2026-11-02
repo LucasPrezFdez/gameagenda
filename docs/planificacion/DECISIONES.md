@@ -343,3 +343,11 @@ Resueltos a partir de las mediciones y de los conflictos detectados entre seccio
     - **Los tres esperan al catálogo como mucho 500 ms**, como Intro sobre un enlace en la paleta: un arranque en frío desde «Compartir» puede no tener aún el catálogo, y entonces el juego queda provisional y se resuelve después.
     - **La ayuda de atajos** lleva `Ctrl+V`.
     - **E2E:** `share.spec.ts` prueba `/share` y `Ctrl+V` en las dos plataformas, con eventos `paste` sintéticos, más un `Ctrl+V` de verdad con el portapapeles en Chromium. El chip se prueba en Chromium móvil, con `readText` simulado. La PWA instalada, la hoja de «Compartir» de Android y el «Pegar» de iOS solo se pueden probar en el dispositivo.
+27. **Panel de rendimiento tal como se ha construido (02-11-2026; cambia §9.1 y §12.7):** lo que la §12.7 no decía.
+    - **Se mide siempre, desde el arranque,** con `PerformanceObserver`: las medidas de la §12.4 que ya hacía la app, el INP y el LCP. No hay que encender nada antes de una sesión de medida. Cuesta un observador por tipo y una escritura en IndexedDB 2 s después del último cambio, y `npm run perf` lo confirma: ninguna tarea larga al teclear o apuntar.
+    - **Se guardan en `meta.perfSamples`,** las 500 últimas de cada medida, para sumar sesiones: cada reinicio da una muestra de arranque, y CA3.1 pide tres sesiones. Con varias pestañas a la vez gana la última que guarda; para medir basta una.
+    - **Los presupuestos son los del móvil** (§3): el panel es para el Android de referencia y el iPhone (CA3.1). En escritorio, tecla → resultados tiene el suyo, por fotogramas (§8.9), que mide `npm run perf`.
+    - **El INP es la entrada más lenta de cada interacción,** con `durationThreshold` de 16 ms, el mínimo de Event Timing: las interacciones más rápidas no se ven, así que el p75 sale por lo alto. Safari no tiene Event Timing: allí el INP queda sin muestras, y el panel lo dice.
+    - **El LCP es el último antes de la primera tecla o toque,** una muestra por carga, también en los reinicios.
+    - **«Copiar informe»** copia texto plano. Si no se puede escribir en el portapapeles, el informe sale en un campo para copiarlo a mano. No se envía nada.
+    - **La tabla se desplaza sola** a 320 px: su zona desplazable se puede enfocar con el teclado (axe: `scrollable-region-focusable`).
