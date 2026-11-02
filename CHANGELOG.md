@@ -150,6 +150,16 @@ No toca el pipeline (§8.8; DECISIONES §10.25).
   - `search-index.spec.ts`, el reinicio en la app;
   - `npm run perf`, la cifra de CA3.2.
 
+#### Adelantado de M3: versiones nuevas sin que se note
+
+Es el hallazgo de CA3.8 (DECISIONES §10.29).
+- **Una versión nueva de la app entra sola,** con una recarga en la misma ruta, cuando la página lleva 1 minuto oculta (una pestaña en segundo plano, o la app de escritorio en la bandeja) y no hay nada a medias.
+  - Nunca con la página a la vista, ni con otra ventana de la app a la vista.
+  - Antes, en la app de escritorio solo entraba tras «Salir» o al reiniciar Windows.
+- **La app mira cada hora si hay versión nueva.**
+- **App de escritorio:** al ocultarse en la bandeja, también se oculta su WebView. Así la página sabe que está oculta, y deja de pintar. Hace falta reinstalarla.
+- **Pruebas:** `update-policy.test.ts`, `work-in-progress.test.ts` y `pwa-update.spec.ts`. Este último usa `e2e-sw-plugin.ts`, que sirve un `sw.js` nuevo en la vista previa `e2e`.
+
 #### Estado de los criterios de aceptación
 
 | CA | Estado | Evidencia |

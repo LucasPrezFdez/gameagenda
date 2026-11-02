@@ -57,9 +57,9 @@ Opción elegida: **1**, porque es la única en la que el propio Tauri trata `ga-
   - «Salir».
 
   El *tooltip* repite el estado del atajo y el clic izquierdo muestra la ventana.
-- **Cerrar** (X o Alt+F4) oculta la ventana; «Salir» cierra la app.
+- **Cerrar** (X o Alt+F4) oculta la ventana; «Salir» cierra la app. Desde el 02-11-2026, al ocultarla se oculta también el WebView: la página pasa a «oculta», y ahí entra sola una versión nueva de `ga-web` (DECISIONES §10.29).
 - **Una sola instancia:** `tauri-plugin-single-instance` va el primero, y una segunda instancia muestra la ventana de la primera y sale.
-- **Arranque con Windows:** `tauri-plugin-autostart` escribe `HKCU\…\Run\GameAgenda` con `--autostart`. Con ese argumento la ventana empieza oculta, pero la página carga, así que el primer atajo ya es inmediato. El desinstalador de Tauri borra ese valor salvo en una actualización.
+- **Arranque con Windows:** `tauri-plugin-autostart` escribe `HKCU\…\Run\GameAgenda` con `--autostart`. Con ese argumento la ventana y la página empiezan ocultas, pero la página carga, así que el primer atajo ya es inmediato. El desinstalador de Tauri borra ese valor salvo en una actualización.
 
 ### La página no recibe órdenes (CA3.8)
 
@@ -84,7 +84,7 @@ Opción elegida: **1**, porque es la única en la que el propio Tauri trata `ga-
 ### Consecuencias
 
 - Bien, porque `ga-web` es remota para Tauri. Aunque mañana alguien añada una orden propia o una *capability* local, la página no la alcanza sin declarar `remote`.
-- Bien, porque un despliegue de `ga-web` actualiza también la app de escritorio, que no lleva código de la web.
+- Bien, porque un despliegue de `ga-web` actualiza también la app de escritorio, que no lleva código de la web. La versión nueva entra cuando la ventana lleva 1 minuto en la bandeja; antes, solo tras «Salir» (DECISIONES §10.29).
 - Bien, porque el atajo responde en ≈20 ms (p50 de 10, de pulsarlo a la paleta con el foco), sin recargar, y la parte nativa es un solo `main.rs` de ≈400 líneas, con comentarios y pruebas.
 - Bien, porque el CI sigue sin Rust y vigila lo que protege CA3.8.
 - Mal, porque **el atajo solo abre la paleta cuando `ga-web` tenga desplegado `desktop-capture.ts`**. Hasta entonces, la ventana sale delante, pero sin la paleta. Hay que publicar la web antes de repartir el instalador.
@@ -93,7 +93,7 @@ Opción elegida: **1**, porque es la única en la que el propio Tauri trata `ga-
 - Mal, porque `auto-launch` 0.6.0 escribe la ruta en `Run` sin comillas e intenta antes `HKLM` (sin elevar cae a `HKCU`). Con la ruta por defecto solo importa si el nombre del usuario lleva espacios; Windows suele resolverla aun así. Además, al desactivarlo deja `StartupApproved\Run\GameAgenda`, que el desinstalador tampoco borra: no arranca nada, pero queda en el registro.
 - Mal, porque un atajo pulsado antes de que React monte la página (en el primer segundo tras abrir la app) muestra la ventana sin abrir la paleta.
 - CA3.7, medido el 02-11-2026 con la app que instaló el usuario y `ga-web` de producción (`docs/medidas/ca3.7-20261102.md`). A petición suya, con tecleo simulado y no con una persona al teclado.
-- Pendiente: CA3.8 en modo avión de verdad y con el atajo cogido por otra aplicación, con la app instalada desde `ga-web` ya desplegada.
+- CA3.8, hecho el 02-11-2026 con la app instalada y `ga-web` de producción (`docs/medidas/ca3.8-20261102.md`). Lo hizo el asistente, a petición del usuario, con la red cortada solo a la app.
 - Pendiente: Dependabot para Cargo (§6.5). Aún no hay `.github/dependabot.yml` en el repositorio.
 
 ### Confirmación
@@ -123,7 +123,7 @@ Opción elegida: **1**, porque es la única en la que el propio Tauri trata `ga-
   - **sin red** (un *proxy* muerto en WebView2 y la página «sin conexión» por CDP; la red del PC no se toca): abre, el catálogo llega a `full` en 118 ms, busca «celeste» en 4 ms, apunta y lo conserva al reiniciar;
   - **órdenes:** 6 `invoke` desde la página de producción, todas `not allowed by ACL`;
   - **atajo ocupado** por otra aplicación antes de arrancar: el menú dice «Ctrl+Mayús+Espacio lo usa otra aplicación · Reintentar»; cuando se libera, «Reintentar» lo recupera, el menú pasa a «Atajo: Ctrl+Mayús+Espacio» y el atajo pone la paleta con el foco en 40 ms.
-  - **Hallazgo:** la ventana vive en la bandeja, así que una versión nueva de `ga-web` solo entra tras «Salir» o al reiniciar Windows (el Service Worker no usa `skipWaiting`). Queda para decidir.
+  - **Hallazgo:** la ventana vive en la bandeja, así que una versión nueva de `ga-web` solo entra tras «Salir» o al reiniciar Windows (el Service Worker no usa `skipWaiting`). Resuelto el mismo día (DECISIONES §10.29).
 
 ## Pros y contras de las opciones
 

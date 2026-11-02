@@ -358,3 +358,20 @@ Resueltos a partir de las mediciones y de los conflictos detectados entre seccio
     - **2.4.11 se prueba con el teclado,** en una ventana de 390 × 480: cada fila enfocada al bajar con `↓` queda entre la cabecera y las barras de abajo, gracias al `scroll-padding` de la §9.7.
     - **2.5.3 con la regla experimental de axe** `label-content-name-mismatch`, en Mi lista con juegos: sin hallazgos. No se activa en el resto de pruebas, por si da falsos positivos.
     - **Los lectores de pantalla no se pueden automatizar aquí:** la pasada de apuntar → cambiar estado → Deshacer con NVDA, Narrador, TalkBack y VoiceOver la hace el usuario, con `docs/medidas/guia-lectores-pantalla-m3.md`. La de NVDA es la misma de CA1.10 (*issue* #1).
+29. **Versiones nuevas de la app sin que se note (02-11-2026, decisión del usuario; cambia §5.2 y §17.3):** lo que el plan no decía.
+    - **El problema:** el Service Worker no usa `skipWaiting`, así que una versión nueva espera a que no quede ninguna ventana de la app. En la app de escritorio, la ventana vive en la bandeja, y la versión nueva solo entraba tras «Salir» o al reiniciar Windows (hallazgo de CA3.8, `docs/medidas/ca3.8-20261102.md`).
+    - **Cuándo entra:** cuando la página lleva 1 minuto seguido oculta (una pestaña en segundo plano, o la app de escritorio en la bandeja) y no hay nada a medias. Entonces pide el relevo al Service Worker en espera (`SKIP_WAITING`) y se recarga en la misma ruta. A la vista no se recarga nunca.
+      - «A medias» es: texto escrito en el campo con el foco; un diálogo, un menú o la lista de la paleta abiertos; un aviso a la vista (8 s, con su Deshacer); o el catálogo aún cargando.
+      - Si hay algo a medias, se vuelve a mirar cada minuto.
+      - La lógica está en `pwa/update-policy.ts` y `pwa/work-in-progress.ts`.
+    - **Nunca con otra ventana de la app a la vista:** el Service Worker solo toma el relevo si las demás ventanas están ocultas. Al activarse borra la precaché anterior, y una ventana a la vista seguiría con el código anterior y sin ella. Una pestaña oculta que se queda con el código anterior (porque otra puso la versión nueva) se recarga con las mismas reglas.
+    - **La app mira cada hora si hay versión nueva** (`registration.update()`), y también al ocultarse, si hace más de una hora que no mira. El navegador solo lo hace al navegar, y la app de escritorio puede pasar días sin recargar.
+    - **En la app de escritorio, el WebView se oculta con la ventana** (`Webview::hide` y `show`, sin funciones inestables de Tauri). Sin eso, la página seguía en `visible` dentro de la bandeja y pintaba a ritmo completo (84 fotogramas cada 500 ms), y la regla anterior no se cumplía nunca. Con el cambio, pasa a `hidden` y a 0 fotogramas (medido el 02-11-2026 con CDP en crudo).
+      - Ojo al medirlo: Playwright, al conectarse por CDP, emula una página activa, y `visibilityState` sale siempre `visible`.
+      - El atajo no se resiente: la paleta tiene el foco a los 32–87 ms de pulsarlo (antes, p50 de 37 ms).
+      - Con `--autostart`, ya nace oculta. Los guardados de Mi lista no esperan al fotograma más de 50 ms, y el atajo sigue abriendo la paleta.
+      - Hace falta el instalador nuevo.
+    - **Pruebas:**
+      - `update-policy.test.ts` y `work-in-progress.test.ts`;
+      - `pwa-update.spec.ts` (Chromium), con la página oculta por `visibilityState` y el reloj de Playwright: la versión entra tras el minuto y en la misma ruta; con texto en la paleta, no, y al vaciarla, sí; y no entra con otra pestaña a la vista.
+      - Playwright no intercepta la petición de `sw.js` con la que el navegador busca versión nueva. Por eso, la vista previa `e2e` sirve un `sw.js` con otro byte cuando la prueba lleva la *cookie* `ga-e2e-sw` (`e2e-sw-plugin.ts`).

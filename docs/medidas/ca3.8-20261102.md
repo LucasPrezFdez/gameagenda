@@ -61,4 +61,6 @@ Al empezar, la app cargó una versión anterior de `ga-web` (`index-CVMtonbU.js`
 - **En el navegador,** eso pasa al cerrar la pestaña.
 - **En la app de escritorio,** la ventana sigue viva en la bandeja. La versión nueva solo entra después de «Salir» o de reiniciar Windows, y con «Iniciar con Windows» va siempre un reinicio por detrás.
 
-No afecta a CA3.8: el catálogo sí se pone al día solo (pasó de `20261101.1` a `20261102.1` en la primera apertura). Queda para decidir cómo se activa una versión nueva (§5.2).
+No afecta a CA3.8: el catálogo sí se pone al día solo (pasó de `20261101.1` a `20261102.1` en la primera apertura). **Resuelto el mismo día,** a petición del usuario (DECISIONES §10.29):
+- la versión nueva entra al recargar, con la ventana 1 minuto en la bandeja y nada a medias;
+- la app de escritorio oculta también el WebView, para que la página sepa que está oculta.
