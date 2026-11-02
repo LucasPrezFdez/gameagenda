@@ -1005,7 +1005,7 @@ El `recent` en régimen se estima con las 3 696 filas de `appid` más alto de la
 - Al cambiar de versión solo se borran las cachés `gacat-AAAAMMDD.N`; `gacat-details` se conserva y limpia lo que ya no está en el índice nuevo.
 - La caché solo se escribe después de verificar la firma y los `sha256`: al arrancar no se vuelve a verificar la firma, y sin Ed25519 se puede seguir usando (RNF-12).
 
-IndexedDB guarda `meta.catalog` (`{version, checkedAt}`: la versión cuyo *manifest* se comprobó y cuándo; con un catálogo en la caché, el arranque solo lo vuelve a pedir pasadas 12 h, y una comprobación fallida no se apunta) y, desde M3, el índice construido en `meta.searchIndex`, con su clave aparte en `meta.searchIndexKey` para no leer el índice si no es el que toca (ver §8.8). El Worker de búsqueda no importa Dexie (ver §5.2): abre la base con la API de IndexedDB, solo toca esas claves y la cierra ante `versionchange` para no bloquear migraciones; así, la copia del índice (≈27 MB) no ocupa el hilo principal. «Borrar todos mis datos» la borra con el resto de `meta`, y el siguiente arranque la vuelve a construir.
+IndexedDB guarda `meta.catalog` (`{version, checkedAt}`: la versión cuyo *manifest* se comprobó y cuándo; con un catálogo en la caché, el arranque solo lo vuelve a pedir pasadas 12 h, y una comprobación fallida no se apunta) y, desde M3, el índice construido en `meta.searchIndex`, con su clave aparte en `meta.searchIndexKey` para no leer el índice si no es el que toca y el pajar del nivel 3 en `meta.searchIndexHaystack`, que se lee después (ver §8.8). El Worker de búsqueda no importa Dexie (ver §5.2): abre la base con la API de IndexedDB, solo toca esas claves y la cierra ante `versionchange` para no bloquear migraciones; así, la copia del índice (≈27 MB) no ocupa el hilo principal. «Borrar todos mis datos» la borra con el resto de `meta`, y el siguiente arranque la vuelve a construir.
 
 ### 7.7 Esquema de D1 (M4)
 
@@ -1207,7 +1207,8 @@ El índice se construye sobre el núcleo con `recent` ya aplicado. En M1 se cons
 
 - **Clave:** el formato, la ruta del *chunk* del Worker (lleva el *hash* de su contenido, así que otra versión de la app no lo usa) y los `sha256` del núcleo, de `recent` y de los alias. Una versión nueva del catálogo se indexa como siempre y su índice sustituye al anterior.
 - **Se guarda después de `full`,** a trozos que ceden el turno, detrás de la construcción y de las consultas: ≈27 MB.
-- **Formato:** *typed arrays*; las listas de cadenas, en UTF-8. Los nombres y las claves base no se parten al restaurar: se decodifican una vez y cada fila se recorta al pedirla (con CPU ×4, partirlos era el 60 % de restaurar). El pajar va en UTF-8 y, al decodificarlo, su parte de 1 byte vuelve a serlo.
+- **Formato:** *typed arrays*; las listas de cadenas, en UTF-8. Los nombres, las claves base y el diccionario de tokens no se parten al restaurar: se decodifican una vez y cada uno se recorta al pedirlo (con CPU ×4, partirlos era el 75 % de restaurar). El pajar va en UTF-8 y, al decodificarlo, su parte de 1 byte vuelve a serlo.
+- **Dos fases:** lo principal (≈22 MB) basta para los niveles 0–2; el pajar del nivel 3 (≈5 MB) va en otra fila y se lee justo después. Si falta o no cuadra, el índice se construye en segundo plano desde la caché y se vuelve a guardar.
 - **Va en un *chunk* diferido** del Worker, como uFuzzy, que no importa nada: si importara el de entrada, WebKit lo volvería a evaluar.
 - Si el índice guardado no cuadra o IndexedDB falla, se construye como en M1.
 
@@ -1219,7 +1220,7 @@ El índice se construye sobre el núcleo con `recent` ya aplicado. En M1 se cons
 | Nivel 4 (diferido) | ≤70 ms con CPU ×4 | mismo banco de pruebas, en las consultas que lo activan |
 | Reinicio con caché hasta poder buscar | ≤2 s (RNF-04): en M1, con `scan`; en M3, con el índice restaurado | marca `search:ready` (primer `status` distinto de `none`) |
 | Búsqueda lista tras la primera carga (M3) | ≤1,5 s (RNF-05), con `boot` | marca `search:ready` |
-| Restaurar índice persistido (M3) | ≤0,4 s con CPU ×4. Medido el 02-11-2026: 275 ms (peor de 2), del arranque a la primera consulta respondida (IndexedDB 124 ms, restaurar 114 ms, primera consulta 21 ms; ver `docs/medidas/ca3.2-20261102.md`) | marca `search:index-restored` |
+| Restaurar índice persistido (M3) | ≤0,4 s con CPU ×4. Medido el 02-11-2026: 162 ms (peor de 2), del arranque a la primera consulta respondida, con la restauración en dos fases (IndexedDB 119 ms, restaurar 73 ms; ver `docs/medidas/ca3.2-20261102.md`) | marca `search:index-restored` |
 | *Chunk* del Worker | ≤40 KB brotli | puerta de tamaño (ver §6) |
 
 El estrangulamiento de CPU por CDP **no afecta a los Workers dedicados** (medido en Edge 156: p95 interno de 2,4 ms a ×1 y a ×4. En el Chromium de Playwright lo comprueba cada pasada de `npm run perf`: con ×4, el hilo principal va 4,2–5,2 veces más lento y el Worker dedicado, 0,9–1,1. Con `Target.setAutoAttach` el Worker se adjunta, pero `Emulation.setCPUThrottlingRate` responde «Operation is only supported for pages, not workers»; medido el 29 y el 30-10-2026). Por eso la prueba de búsqueda con ×4 ejecuta el núcleo de búsqueda en el hilo principal de una página de prueba y el Worker real se valida en el Android de referencia; INP, toque → respuesta y tareas largas se miden en la app real con ×4 (ver §12.4).

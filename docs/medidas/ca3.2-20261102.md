@@ -2,7 +2,22 @@
 
 **Criterio** (§15.6 de `prototipe.md`): con la misma versión de catálogo, el reinicio restaura el índice sin reconstruirlo, en ≤0,4 s con CPU ×4, medido como la búsqueda (§8.9); una versión nueva lo invalida.
 
-**Resultado: cumplido.** Del arranque a la primera consulta respondida, 275 ms (peor de 2) con CPU ×4 y el catálogo completo.
+**Resultado: cumplido.** Del arranque a la primera consulta respondida, **162 ms** (peor de 2) con CPU ×4 y el catálogo completo, con la restauración en dos fases. La primera versión, de una sola fase, daba 275 ms (tabla de abajo).
+
+## Dos fases (02-11-2026, por la tarde)
+
+En el *runner* del CI, leer de IndexedDB los ≈27 MB tardaba el doble que en el PC (251–263 ms frente a 117–124), y el trabajo «Rendimiento (informa)» salía en rojo: 463 ms. Por eso:
+- el pajar del nivel 3 (≈5 MB) va en otra fila de `meta` y se lee después; los niveles 0–2 responden ya con lo principal (§8.8);
+- el diccionario de tokens tampoco se parte al restaurar: es una columna que recorta cada token al pedirlo, como los nombres y las claves.
+
+| Medida (CPU ×4, catálogo completo) | Una fase | Dos fases |
+|---|---|---|
+| Reinicio con el índice guardado → primera consulta (peor de 2) | 275 ms | **162 ms** (159 y 162) |
+| · leer lo principal de IndexedDB | 124 ms | 119 ms |
+| · restaurar (decodificar y montar el buscador) | 114 ms | 73 ms |
+| Pulsación → resultados en `full` (p95) | 9,2 ms | 9,3 ms |
+
+## Primera versión, de una sola fase
 
 | Medida (CPU ×4, catálogo completo) | Valor |
 |---|---|
@@ -35,7 +50,9 @@ Equipo: Ryzen 5 3600, Windows 11, Chromium de Playwright 1.64.1, con Discord y S
 | Nombres y claves sin partir (`nameOf` y `keyOf` recortan cada fila) | 287 ms | 136 ms |
 | Lo mismo, en un *chunk* diferido que no importa nada | 275 ms | 114 ms |
 
-Con CPU ×4, partir los nombres costaba 74 ms; las claves base, otros 74; los tokens, 45, y decodificar el pajar, 10. Los tokens se siguen partiendo, porque la búsqueda binaria del diccionario los necesita como lista. Detalle en `DECISIONES.md` §10.25.
+| Dos fases y el diccionario sin partir | 162 ms | 73 ms |
+
+Con CPU ×4, partir los nombres costaba 74 ms; las claves base, otros 74; los tokens, 45, y decodificar el pajar, 10. Detalle en `DECISIONES.md` §10.25.
 
 ## Lo que no se ha medido
 

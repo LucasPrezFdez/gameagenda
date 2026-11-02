@@ -136,7 +136,7 @@ RF-07 (§9.2; DECISIONES §10.26).
 #### Adelantado de M3: índice persistido (CA3.2)
 
 No toca el pipeline (§8.8; DECISIONES §10.25).
-- **El reinicio con el mismo catálogo restaura el índice de búsqueda** de `meta.searchIndex` en vez de reconstruirlo: pasa de `none` a `full` sin leer el TSV ni normalizar nada. Con CPU ×4 y el catálogo completo, del arranque a la primera consulta: 275 ms (peor de 2), frente a ≈1,9 s hasta `scan` y ≈4 s hasta `full` sin él (`docs/medidas/ca3.2-20261102.md`).
+- **El reinicio con el mismo catálogo restaura el índice de búsqueda** de `meta.searchIndex` en vez de reconstruirlo: pasa de `none` a `full` sin leer el TSV ni normalizar nada. Con CPU ×4 y el catálogo completo, del arranque a la primera consulta: 162 ms (peor de 2), frente a ≈1,9 s hasta `scan` y ≈4 s hasta `full` sin él. Va en dos fases: con lo principal ya responden los niveles 0–2, y el pajar del nivel 3 llega justo después (`docs/medidas/ca3.2-20261102.md`).
 - **Cada índice que llega a `full` se guarda después,** a trozos que no quitan turno a las consultas (≈27 MB). Lo invalidan otra versión del catálogo (sus `sha256`) o de la app (el *hash* del *chunk* del Worker).
 - **El formato va en un *chunk* diferido del Worker,** como uFuzzy: el de entrada queda en 38,1 KB de 40. `npm run size` comprueba que ningún *chunk* diferido del Worker importa otro: en WebKit, eso hacía volver a evaluar el Worker, y la búsqueda contestaba vacío.
 - **Marca `search:index-restored`** (§12.4) en la interfaz cuando el índice se ha restaurado.
