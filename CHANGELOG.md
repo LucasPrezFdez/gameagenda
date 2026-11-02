@@ -77,6 +77,9 @@ Entra en `main` antes de la etiqueta, así que va en esta versión. Sus criterio
   - el atajo pone la paleta delante con el foco en 20 ms (p50), y de pulsarlo a la confirmación pasan 1,23 s (p50), con el tecleo simulado;
   - abre y apunta sin red;
   - la página no logró ninguna de 11 llamadas a Tauri.
+- **CA3.7 con producción, el 02-11-2026**, en la app que instaló el usuario. Lo hizo el asistente, a petición suya, con tecleo simulado a 100 ms por carácter (`docs/medidas/ca3.7-20261102.md`):
+  - 10 altas con el atajo desde otra ventana, con un p50 de 1,24 s y un máximo de 1,98 s del atajo a «Apuntado»;
+  - todas sin recargar, y la segunda pulsación oculta la ventana.
 
 #### Estado de los criterios de aceptación
 

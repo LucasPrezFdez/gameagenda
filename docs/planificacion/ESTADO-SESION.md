@@ -29,7 +29,10 @@ Todo está en `main` y subido, con el CI y el despliegue en verde y sin agentes 
    - **el menú de «Orden» de Mi lista sacaba una barra horizontal**, porque a 1 100 px se salía 48 px. Ahora se abre hacia la izquierda, y cualquier menú que no quepa se da la vuelta;
    - **el Catálogo no tenía portadas.** Las quiere siempre: ahora las lleva, pedidas con el desplazamiento parado (DECISIONES §10.22).
 
-   Llegan a la app sin reinstalar, porque carga `ga-web`. **Falta que confirme** las 10 capturas con el atajo (CA3.7, p50 ≤3 s), el modo avión y el menú de la bandeja (CA3.8). El instalador está en `apps/desktop/src-tauri/target/release/bundle/nsis/GameAgenda_0.2.0_x64-setup.exe`; si no está, `npm run desktop:build`.
+   Llegan a la app sin reinstalar, porque carga `ga-web`.
+   - **CA3.7: medido el 02-11-2026** por el asistente, a petición del usuario (`docs/medidas/ca3.7-20261102.md`). Fueron 10 altas con el atajo desde otra ventana y tecleo simulado a 100 ms por carácter: p50 de 1,24 s y máximo de 1,98 s, todas sin recargar. Las altas de prueba se quitaron después, y la app quedó abierta otra vez sin el puerto de depuración.
+   - **Falta CA3.8,** que le toca al usuario: el modo avión de verdad y el menú de la bandeja con el atajo cogido por otra aplicación. El asistente no apaga la red del PC.
+   - Con CA3.7 y CA3.8, el ADR-010 pasa a «aceptada». El instalador está en `apps/desktop/src-tauri/target/release/bundle/nsis/GameAgenda_0.2.0_x64-setup.exe`; si no está, `npm run desktop:build`.
 5. **Seguir con M3**, por este orden si el usuario no dice otra cosa:
    1. atajos de una tecla, gestos y reordenar arrastrando (CA3.4);
    2. índice persistido (CA3.2): no necesita el pipeline;

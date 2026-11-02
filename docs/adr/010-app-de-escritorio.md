@@ -92,7 +92,8 @@ Opción elegida: **1**, porque es la única en la que el propio Tauri trata `ga-
 - Mal, porque sin firma SmartScreen avisa al instalar (se decide en Fase 2).
 - Mal, porque `auto-launch` 0.6.0 escribe la ruta en `Run` sin comillas e intenta antes `HKLM` (sin elevar cae a `HKCU`). Con la ruta por defecto solo importa si el nombre del usuario lleva espacios; Windows suele resolverla aun así. Además, al desactivarlo deja `StartupApproved\Run\GameAgenda`, que el desinstalador tampoco borra: no arranca nada, pero queda en el registro.
 - Mal, porque un atajo pulsado antes de que React monte la página (en el primer segundo tras abrir la app) muestra la ventana sin abrir la paleta.
-- Pendiente: CA3.7 con una persona al teclado (10 altas tecleadas; ver «Confirmación») y CA3.8 en modo avión de verdad, con la app instalada desde `ga-web` ya desplegada.
+- CA3.7, medido el 02-11-2026 con la app que instaló el usuario y `ga-web` de producción (`docs/medidas/ca3.7-20261102.md`). A petición suya, con tecleo simulado y no con una persona al teclado.
+- Pendiente: CA3.8 en modo avión de verdad y con el atajo cogido por otra aplicación, con la app instalada desde `ga-web` ya desplegada.
 - Pendiente: Dependabot para Cargo (§6.5). Aún no hay `.github/dependabot.yml` en el repositorio.
 
 ### Confirmación
@@ -113,6 +114,11 @@ Opción elegida: **1**, porque es la única en la que el propio Tauri trata `ga-
   - **Arranque:** «Iniciar con Windows» escribe y borra el valor `Run`; con `--autostart`, la ventana empieza oculta y el atajo funciona igual (20 ms).
   - **Enlaces:** «Ver en Steam» se abre en el navegador del sistema y una navegación a otro origen no sale de la ventana.
   - **Sin red:** con el servidor parado, la app arranca desde el Service Worker, busca (76 ms) y apunta, y lo conserva al reiniciar.
+- **CA3.7 con producción (02-11-2026)**, en la app que instaló el usuario (`docs/medidas/ca3.7-20261102.md`):
+  - el método es el mismo, con una ventana de prueba propia en lugar del Bloc de notas, y comprueba que delante está GameAgenda antes de cada tecla;
+  - 10 altas a 100 ms por carácter, con 300 ms de reacción antes de Intro;
+  - del atajo a «Apuntado», p50 de 1,24 s y máximo de 1,98 s; ventana delante en 28 ms (p50) y paleta con el foco en 37 ms;
+  - 10 de 10 sin recargar, y la segunda pulsación oculta la ventana y devuelve el foco 10 de 10.
 
 ## Pros y contras de las opciones
 
