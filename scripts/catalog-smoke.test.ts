@@ -119,6 +119,36 @@ describe('catalog-smoke: lo publicado es lo montado (CA2.4)', () => {
     expect(all).toMatch(/manifest.json no es el montado/);
   });
 
+  it('espera a los ficheros que el CDN aún no sirve tras desplegar: aviso, no fallo (02-11-2026)', async () => {
+    const dist = await deployed();
+    const base = cdn(dist);
+    const misses = new Map<string, number>();
+    const fetchImpl: FetchLike = async (url, init) => {
+      const path = new URL(url).pathname.slice(1);
+      const late = path.startsWith('aliases.') || /^details\/\d{4}\./.test(path);
+      const seen = misses.get(path) ?? 0;
+      if (late && seen < 2) {
+        misses.set(path, seen + 1);
+        return new Response('', { status: 404, headers: { 'access-control-allow-origin': WEB } });
+      }
+      return base(url, init);
+    };
+    const r = await smoke({
+      url: URL_,
+      dist,
+      webOrigin: WEB,
+      signature: 'dev',
+      fetchImpl,
+      fileWaitMs: 5000,
+      pollMs: 1,
+    });
+    expect(r.problems).toEqual([]);
+    expect(misses.size).toBeGreaterThan(1);
+    expect(r.warnings.join('\n')).toMatch(
+      new RegExp(`${misses.size} ficheros dieron 404 al principio y aparecieron`),
+    );
+  });
+
   it('avisa si wrangler ha publicado en otro origen que CATALOG_ORIGIN', async () => {
     const dist = await deployed();
     const r = await smoke({

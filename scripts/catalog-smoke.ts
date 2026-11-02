@@ -4,7 +4,8 @@
 //   con CORS para `ga-web`. Espera hasta 2 min a que el CDN sirva la versión nueva;
 // - cada fichero de la carpeta (los de la versión nueva **y** los de la anterior, CA2.4): 200, el
 //   mismo SHA-256, CORS, `immutable` y, los TSV, `text/plain; charset=utf-8` (comprimidos: si no,
-//   avisa; R-16);
+//   avisa; R-16). Un 404 se reintenta hasta 90 s, porque el CDN puede tardar en servir algún
+//   fichero nuevo aunque ya sirva el *manifest* nuevo (02-11-2026);
 // - un fichero con *hash* que no existe da 404, también con CORS (el cliente ve el 404, §5.4).
 // Deja en `$GITHUB_STEP_SUMMARY` la tabla de cabeceras que hacía `deploy-catalog.yml` en M0.
 //
@@ -55,6 +56,8 @@ export interface SmokeOptions {
   readonly fetchImpl?: FetchLike;
   readonly waitMs?: number;
   readonly pollMs?: number;
+  /** Cuánto se reintenta un fichero que da 404 (por defecto, `waitMs` o 90 s). */
+  readonly fileWaitMs?: number;
 }
 
 /** Rutas publicadas (con `/`) de todos los ficheros de `dir`. */
@@ -128,8 +131,21 @@ export async function smoke(options: SmokeOptions): Promise<SmokeResult> {
   const listed = new Set(paths.filter((p) => !p.includes('/') || p.startsWith('details/index.')));
   const firstShard = paths.find((p) => p.startsWith('details/') && !p.startsWith('details/index.'));
   if (firstShard) listed.add(firstShard);
+  // Con el *manifest* nuevo ya servido, el CDN aún puede dar 404 en algún fichero nuevo: el
+  // 02-11-2026, 4 de 1 030 justo después de desplegar, y todos en 200 minutos después. Un 404 se
+  // reintenta hasta `fileWaitMs`; si al final aparece, queda como aviso.
+  const fileDeadline = Date.now() + (options.fileWaitMs ?? options.waitMs ?? 90_000);
+  const late: string[] = [];
   await mapLimit(paths, 16, async (path) => {
-    const res = await fetchWithRetry(fetchImpl, catalogUrl(options.url, path), { headers });
+    let res = await fetchWithRetry(fetchImpl, catalogUrl(options.url, path), { headers });
+    let waited = false;
+    while (res.status === 404 && Date.now() < fileDeadline) {
+      waited = true;
+      await res.body?.cancel();
+      await new Promise((r) => setTimeout(r, options.pollMs ?? 3000));
+      res = await fetchWithRetry(fetchImpl, catalogUrl(options.url, path), { headers });
+    }
+    if (waited && res.status === 200) late.push(path);
     const r = row(path, res);
     if (listed.has(path)) rows.push(r);
     if (res.status !== 200) {
@@ -152,6 +168,12 @@ export async function smoke(options: SmokeOptions): Promise<SmokeResult> {
       }
     }
   });
+  if (late.length > 0) {
+    const shown = late.sort().slice(0, 5).join(', ');
+    warnings.push(
+      `${late.length} ficheros dieron 404 al principio y aparecieron al esperar al CDN: ${shown}${late.length > 5 ? '…' : ''}`,
+    );
+  }
   rows.sort((a, b) =>
     a.path === 'manifest.json' ? -1 : b.path === 'manifest.json' ? 1 : a.path.localeCompare(b.path),
   );
