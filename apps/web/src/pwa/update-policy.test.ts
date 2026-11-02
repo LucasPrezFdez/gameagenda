@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { type ApplyResult, createUpdatePolicy } from './update-policy.ts';
 
 const DELAY = 60_000;
+const FIRST = 10_000;
 const EVERY = 3_600_000;
 
 /** Reloj y temporizadores a mano, visibilidad y lo que haya a medias. */
@@ -32,7 +33,7 @@ function harness(results: ApplyResult[] = ['reloading']) {
       },
       clearTimer: (id) => void timers.delete(id as number),
     },
-    { hiddenDelayMs: DELAY, checkEveryMs: EVERY },
+    { hiddenDelayMs: DELAY, firstCheckMs: FIRST, checkEveryMs: EVERY },
   );
   return {
     policy,
@@ -128,26 +129,33 @@ describe('createUpdatePolicy', () => {
     expect(h.state.applies).toBe(0);
   });
 
-  it('mira si hay versión nueva cada hora, y al ocultarse si hace más de una hora', async () => {
+  it('mira si hay versión nueva a los 10 s de arrancar, luego cada hora, y al ocultarse si hace más de una hora', async () => {
     const h = harness();
-    await h.advance(EVERY);
+    await h.advance(FIRST - 1);
+    expect(h.state.checks).toBe(0);
+    await h.advance(1);
     expect(h.state.checks).toBe(1);
+    await h.advance(EVERY - 1);
+    expect(h.state.checks).toBe(1);
+    await h.advance(1);
+    expect(h.state.checks).toBe(2);
+    // Ocultarse a la media hora de mirar no vuelve a mirar.
     await h.advance(EVERY / 2);
     h.setHidden(true);
-    expect(h.state.checks).toBe(1);
+    expect(h.state.checks).toBe(2);
     h.setHidden(false);
     await h.advance(EVERY / 2 - 1);
-    expect(h.state.checks).toBe(1);
-    // Una hora sin mirar (el temporizador se ha retrasado, como en una pestaña oculta).
+    expect(h.state.checks).toBe(2);
+    // Más de una hora sin mirar (el temporizador se ha retrasado, como en una pestaña oculta).
     h.timers.clear();
     await h.advance(EVERY);
     h.setHidden(true);
-    expect(h.state.checks).toBe(2);
+    expect(h.state.checks).toBe(3);
     // Y la cuenta de la hora vuelve a empezar desde ahí.
     await h.advance(EVERY - 1);
-    expect(h.state.checks).toBe(2);
-    await h.advance(1);
     expect(h.state.checks).toBe(3);
+    await h.advance(1);
+    expect(h.state.checks).toBe(4);
   });
 
   it('dispose quita el oyente y los temporizadores', () => {

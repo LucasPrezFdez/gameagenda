@@ -1,12 +1,15 @@
 // Cuándo entra una versión nueva de la app (§5.2; DECISIONES §10.29). El Service Worker nuevo se
 // instala solo y espera; la página le pide que tome el relevo y recarga cuando no se nota: tras un
 // rato oculta (una pestaña en segundo plano, o la app de escritorio en la bandeja) y sin nada a
-// medias. Además mira cada hora si hay versión nueva: la app de escritorio puede pasar días sin
-// recargar, y el navegador solo lo comprueba al navegar.
+// medias. Además mira si hay versión nueva al poco de arrancar y luego cada hora: la app de
+// escritorio puede pasar días sin recargar, y su navegador no lo miraba solo al abrirla (DECISIONES
+// §10.29).
 
 /** Oculta al menos este tiempo antes de recargar: un aviso con Deshacer dura 8 s. */
 export const HIDDEN_DELAY_MS = 60_000;
-/** Cada cuánto se mira si hay una versión nueva. */
+/** La primera vez que se mira si hay versión nueva: pasado lo más pesado del arranque. */
+export const FIRST_CHECK_MS = 10_000;
+/** Y luego, cada cuánto. */
 export const CHECK_EVERY_MS = 60 * 60_000;
 
 /** `retry`: no ha podido (otra ventana de la app a la vista); se vuelve a intentar más tarde. */
@@ -28,6 +31,7 @@ export interface UpdatePolicyDeps {
 
 export interface UpdatePolicyOptions {
   readonly hiddenDelayMs?: number;
+  readonly firstCheckMs?: number;
   readonly checkEveryMs?: number;
 }
 
@@ -42,6 +46,7 @@ export function createUpdatePolicy(
   options: UpdatePolicyOptions = {},
 ): UpdatePolicy {
   const hiddenDelayMs = options.hiddenDelayMs ?? HIDDEN_DELAY_MS;
+  const firstCheckMs = options.firstCheckMs ?? FIRST_CHECK_MS;
   const checkEveryMs = options.checkEveryMs ?? CHECK_EVERY_MS;
   let pending = false;
   let applying = false;
@@ -82,18 +87,18 @@ export function createUpdatePolicy(
     );
   }
 
-  function scheduleCheck(): void {
+  function scheduleCheck(ms: number): void {
     if (checkTimer !== null) deps.clearTimer(checkTimer);
-    checkTimer = deps.setTimer(check, checkEveryMs);
+    checkTimer = deps.setTimer(check, ms);
   }
 
   function check(): void {
     lastCheck = deps.now();
     deps.check();
-    scheduleCheck();
+    scheduleCheck(checkEveryMs);
   }
 
-  scheduleCheck();
+  scheduleCheck(firstCheckMs);
   const unsubscribe = deps.onVisibilityChange(() => {
     // Al ocultarse, si hace rato que no se mira: así la versión nueva ya está lista al volver.
     if (deps.isHidden() && deps.now() - lastCheck >= checkEveryMs) check();
