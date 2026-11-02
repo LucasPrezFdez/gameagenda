@@ -53,6 +53,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
       'Teclado y gestos',
       'Datos',
       'Privacidad',
+      'Rendimiento',
       'Acerca de',
     ]) {
       await page.getByRole('link', { name: section, exact: true }).click();
