@@ -25,7 +25,11 @@ Todo está en `main` y subido, con el CI y el despliegue en verde y sin agentes 
    - etiqueta anotada `v0.2.0` y *push* de la etiqueta.
 
    Después ya se puede tocar el pipeline: núcleo de arranque, abaratar `applyRecent` y ADR-009.
-4. **Preguntar al usuario por la app de escritorio:** si la instaló y si el atajo y las 10 capturas van bien (CA3.7 y CA3.8). El instalador está en `apps/desktop/src-tauri/target/release/bundle/nsis/GameAgenda_0.2.0_x64-setup.exe`; si no está, `npm run desktop:build`.
+4. **App de escritorio:** el usuario la instaló y la probó el 02-11-2026. Encontró dos cosas, arregladas ese día (`279c10a`):
+   - **el menú de «Orden» de Mi lista sacaba una barra horizontal**, porque a 1 100 px se salía 48 px. Ahora se abre hacia la izquierda, y cualquier menú que no quepa se da la vuelta;
+   - **el Catálogo no tenía portadas.** Las quiere siempre: ahora las lleva, pedidas con el desplazamiento parado (DECISIONES §10.22).
+
+   Llegan a la app sin reinstalar, porque carga `ga-web`. **Falta que confirme** las 10 capturas con el atajo (CA3.7, p50 ≤3 s), el modo avión y el menú de la bandeja (CA3.8). El instalador está en `apps/desktop/src-tauri/target/release/bundle/nsis/GameAgenda_0.2.0_x64-setup.exe`; si no está, `npm run desktop:build`.
 5. **Seguir con M3**, por este orden si el usuario no dice otra cosa:
    1. atajos de una tecla, gestos y reordenar arrastrando (CA3.4);
    2. índice persistido (CA3.2): no necesita el pipeline;
@@ -148,7 +152,7 @@ Todo está en `main` y subido, con el CI y el despliegue en verde y sin agentes 
 | ~~Cuenta de GitHub~~ | **Hecho el 30-10-2026:** `gh` 2.103.3 instalado (`C:\Program Files\GitHub CLI\gh.exe`; una terminal abierta antes de instalarlo no lo encuentra en el `PATH`) y con sesión como `LucasPrezFdez` (ámbitos `repo`, `read:org` y `gist`). No toca las credenciales de git | — |
 | ~~Cuenta gratuita de Cloudflare~~ | **Hecho el 30-10-2026:** `wrangler login` con la cuenta del usuario y subdominio `gameagenda.workers.dev` | Falta el *token* de la API para GitHub (ver §1) |
 | ~~Cuenta de healthchecks.io~~ | **Hecho (31-10-2026):** *check* «catalog» (1 día + 12 h) y secreto `HEALTHCHECKS_PING_URL`. Si llega un correo suyo, el cron no ha corrido: ver el *runbook* del ADR-007 | — |
-| Probar la app de escritorio | CA3.7 y CA3.8 (M3) | Instalar `apps/desktop/src-tauri/target/release/bundle/nsis/GameAgenda_0.2.0_x64-setup.exe` (SmartScreen: «Más información» → «Ejecutar de todas formas»). Hacer 10 capturas con `Ctrl+Mayús+Espacio` desde otros programas, probar el modo avión y mirar el menú de la bandeja. Ojo: tiene su propia agenda hasta M4 |
+| Probar la app de escritorio (**instalada y probada el 02-11-2026**; sus dos hallazgos, arreglados; falta confirmar lo de la derecha) | CA3.7 y CA3.8 (M3) | Instalar `apps/desktop/src-tauri/target/release/bundle/nsis/GameAgenda_0.2.0_x64-setup.exe` (SmartScreen: «Más información» → «Ejecutar de todas formas»). Hacer 10 capturas con `Ctrl+Mayús+Espacio` desde otros programas, probar el modo avión y mirar el menú de la bandeja. Ojo: tiene su propia agenda hasta M4 |
 | Mirar el correo de GitHub del 1 al 3 de noviembre | CA2.1 | Un fallo de `catalog.yml` abre el *issue* `catalogo` y manda correo. Relanzar el flujo lo hace el usuario: Actions › catalog › Run workflow |
 | Opcional: renovar la clave de Steam | Por si acaso | Un agente abrió por error `.env.local` en el Bloc de notas y dice que lo cerró sin leerlo. Si se renueva: `.env.local`, el secreto `STEAM_API_TOKEN` y la variable `STEAM_KEY_SHA256` |
 | Móviles reales | Medir los presupuestos de rendimiento | Un Android de gama media de referencia (M1) y un iPhone, aunque sea prestado (M3 y M4) |

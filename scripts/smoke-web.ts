@@ -204,9 +204,12 @@ async function metaBeforeVisit(page: Page): Promise<unknown> {
   }
 }
 
-const context = values.profile
-  ? await chromium.launchPersistentContext(values.profile)
-  : await (await chromium.launch()).newContext();
+// Sin perfil, el navegador se cierra aparte: cerrar solo el contexto lo dejaba abierto, y Node no
+// terminaba nunca (con perfil, cerrar el contexto cierra el navegador).
+const browser = values.profile ? null : await chromium.launch();
+const context = browser
+  ? await browser.newContext()
+  : await chromium.launchPersistentContext(values.profile ?? '');
 await context.addInitScript({ content: WATCH_STATUS });
 const page = context.pages()[0] ?? (await context.newPage());
 const beforeValue = values.profile ? await metaBeforeVisit(page) : null;
@@ -313,6 +316,7 @@ try {
   );
 } finally {
   await context.close();
+  await browser?.close();
 }
 
 if (failures.length > 0) {
