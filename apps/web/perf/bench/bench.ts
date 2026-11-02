@@ -16,7 +16,13 @@ import {
   parseCore,
   trustedSigningKeys,
 } from '@gameagenda/core/catalog-format';
-import { canSuggest, createIndexBuilder, loadFuzzy } from '@gameagenda/core/search';
+import {
+  canSuggest,
+  createIndexBuilder,
+  loadFuzzy,
+  searcherFromParts,
+} from '@gameagenda/core/search';
+import { INDEX_FORMAT, restoreParts } from '@gameagenda/core/search-persist';
 import golden from '../../../../packages/core/test/golden.es.tsv?raw';
 import type {
   ResultsMessage,
@@ -25,6 +31,10 @@ import type {
 } from '../../src/search-client/protocol.ts';
 import { createCatalogStore } from '../../src/search-worker/catalog-store.ts';
 import { createSearchHost, type SearchHost } from '../../src/search-worker/host.ts';
+import {
+  createIndexedDbSearchIndex,
+  type SearchIndexStore,
+} from '../../src/search-worker/search-index-store.ts';
 import type { BenchApi, TypingReport } from '../bench-api.ts';
 
 export const BENCH_MARKER = 'gameagenda-perf-bench';
@@ -39,6 +49,43 @@ const store = createCatalogStore({
   signingKeys: trustedSigningKeys({ dev: true }),
 });
 
+/** Base de la página de prueba con una tabla `meta` como la de Dexie, para `meta.searchIndex`. */
+const BENCH_DB = 'gameagenda-perf-bench';
+
+function openBenchDb(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(BENCH_DB, 1);
+    request.onupgradeneeded = () => request.result.createObjectStore('meta', { keyPath: 'key' });
+    request.onsuccess = () => {
+      request.result.close();
+      resolve();
+    };
+    request.onerror = () => reject(request.error);
+  });
+}
+
+let benchIndex: SearchIndexStore | null = null;
+
+/** `meta.searchIndex` de la página de prueba (con la base ya creada). */
+async function searchIndex(): Promise<SearchIndexStore> {
+  if (!benchIndex) {
+    await openBenchDb();
+    benchIndex = createIndexedDbSearchIndex(indexedDB, BENCH_DB);
+  }
+  return benchIndex;
+}
+
+/** Bytes de *typed arrays* y caracteres de cadenas de lo que se guarda (aproximado). */
+function sizeOf(value: unknown): number {
+  if (ArrayBuffer.isView(value)) return value.byteLength;
+  if (typeof value === 'string') return value.length;
+  if (Array.isArray(value)) return value.reduce((n: number, v) => n + sizeOf(v), 0);
+  if (value && typeof value === 'object') {
+    return Object.values(value).reduce((n: number, v) => n + sizeOf(v), 0);
+  }
+  return 8;
+}
+
 interface Bench {
   readonly host: SearchHost;
   /** Cierra el planificador: el host anterior deja de trabajar y se puede liberar. */
@@ -49,6 +96,8 @@ interface Bench {
   readonly startedAt: number;
   scanAt: number | null;
   fullAt: number | null;
+  /** Lo que tardó el host en restaurar el índice guardado, si lo hizo. */
+  restoredMs: number | null;
   readonly listeners: Set<(message: WorkerToUiMessage) => void>;
 }
 
@@ -62,7 +111,7 @@ function log(line: string): void {
 }
 
 /** Un `createSearchHost` en el hilo principal, como el del Worker (`src/search-worker/index.ts`). */
-function createBench(hold: 'scan' | null): Bench {
+function createBench(hold: 'scan' | null, index?: SearchIndexStore): Bench {
   const tasks: Array<() => void> = [];
   const channel = new MessageChannel();
   channel.port1.onmessage = () => tasks.shift()?.();
@@ -70,6 +119,7 @@ function createBench(hold: 'scan' | null): Bench {
   const bench: Bench = {
     host: createSearchHost({
       post(message) {
+        if (message.type === 'restored') bench.restoredMs = message.ms;
         if (message.type === 'status') {
           bench.status = message;
           const now = performance.now();
@@ -88,6 +138,9 @@ function createBench(hold: 'scan' | null): Bench {
       },
       store,
       loadFuzzy,
+      searchIndex: index,
+      indexBuild: 'perf',
+      loadIndexCodec: () => import('@gameagenda/core/search-persist'),
       testHooks: { hold: () => bench.hold, beforeLoad() {} },
     }),
     dispose() {
@@ -100,6 +153,7 @@ function createBench(hold: 'scan' | null): Bench {
     startedAt: performance.now(),
     scanAt: null,
     fullAt: null,
+    restoredMs: null,
     listeners,
   };
   return bench;
@@ -288,6 +342,99 @@ const api: BenchApi = {
       suggest: latencyStats(suggest),
     };
     log(`tecleo en ${state}: ${JSON.stringify(report)}`);
+    return report;
+  },
+
+  async persist() {
+    current?.dispose();
+    current = null;
+    await yieldTask();
+    const inner = await searchIndex();
+    let fullAt = 0;
+    let megabytes = 0;
+    const written = new Promise<number>((resolve, reject) => {
+      const index: SearchIndexStore = {
+        read: () => Promise.resolve(null),
+        async write(key, value) {
+          megabytes = sizeOf(value) / 1e6;
+          await inner.write(key, value);
+          resolve(performance.now());
+        },
+      };
+      const bench = createBench(null, index);
+      current = bench;
+      waitFor(bench, isState('full'))
+        .then(() => {
+          fullAt = performance.now();
+        })
+        .catch(reject);
+      bench.host.handle({ type: 'init', catalogVersion: null, showAdult: false });
+    });
+    const startedAt = (current as Bench | null)?.startedAt ?? performance.now();
+    const writtenAt = await written;
+    const report = {
+      fullMs: round(fullAt - startedAt),
+      persistMs: round(writtenAt - fullAt),
+      megabytes: round(megabytes),
+    };
+    log(`índice guardado: ${JSON.stringify(report)}`);
+    return report;
+  },
+
+  async restoreBreakdown() {
+    current?.dispose();
+    current = null;
+    await yieldTask();
+    const index = await searchIndex();
+    const now = () => performance.now();
+    const t0 = now();
+    const source = await store.readCachedSource();
+    if (!source) throw new Error('El catálogo no está en Cache Storage');
+    const t1 = now();
+    // La clave del host (`indexKey` en `host.ts`), con el `indexBuild` de la página de prueba.
+    const key = [
+      INDEX_FORMAT,
+      'perf',
+      source.coreFile.sha256,
+      source.manifest.files.recent?.sha256 ?? '-',
+      source.manifest.files.aliases.sha256,
+    ].join('|');
+    const stored = await index.read(key);
+    if (!stored) throw new Error('No hay índice guardado con esa clave');
+    const t2 = now();
+    const searcher = searcherFromParts(restoreParts(stored));
+    const t3 = now();
+    searcher.query('elden', { limit: 8 });
+    const t4 = now();
+    return {
+      cacheMs: round(t1 - t0),
+      idbMs: round(t2 - t1),
+      restoreMs: round(t3 - t2),
+      queryMs: round(t4 - t3),
+    };
+  },
+
+  async restoreIndex() {
+    current?.dispose();
+    current = null;
+    await yieldTask();
+    const index = await searchIndex();
+    const bench = createBench(null, index);
+    current = bench;
+    const full = waitFor(bench, isState('full'));
+    bench.host.handle({ type: 'init', catalogVersion: null, showAdult: false });
+    await full;
+    if (bench.restoredMs === null) throw new Error('No ha restaurado el índice guardado');
+    seq += 1;
+    const askedAt = performance.now();
+    bench.host.handle({ type: 'query', seq, q: 'elden', limit: 8 });
+    const answeredAt = performance.now();
+    const report = {
+      readyMs: round(answeredAt - bench.startedAt),
+      restoredMs: round(bench.restoredMs),
+      firstQueryMs: round(answeredAt - askedAt),
+    };
+    log(`índice restaurado: ${JSON.stringify(report)}`);
     return report;
   },
 };

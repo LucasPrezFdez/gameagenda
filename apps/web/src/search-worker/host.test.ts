@@ -12,6 +12,7 @@ import type {
 import type { CatalogMeta, CatalogMetaStore } from './catalog-meta.ts';
 import { createCatalogStore, signingKeysForMode } from './catalog-store.ts';
 import { CHECK_INTERVAL_MS, createSearchHost, type HostTestHooks, RETRY_MIN_MS } from './host.ts';
+import type { SearchIndexStore } from './search-index-store.ts';
 import {
   catalogServer,
   MemoryCacheStorage,
@@ -40,6 +41,9 @@ interface SetupOptions {
   readonly catalogMeta?: CatalogMetaStore;
   /** Reloj de pared (ms desde 1970). */
   readonly wallClock?: () => number;
+  /** `meta.searchIndex` (M3): sin él, el índice se construye en cada arranque. */
+  readonly searchIndex?: SearchIndexStore;
+  readonly indexBuild?: string;
 }
 
 function setup(options: SetupOptions = {}) {
@@ -66,6 +70,9 @@ function setup(options: SetupOptions = {}) {
     testHooks: options.hooks ?? null,
     catalogMeta: options.catalogMeta,
     wallClock: options.wallClock,
+    searchIndex: options.searchIndex,
+    indexBuild: options.indexBuild,
+    loadIndexCodec: () => import('@gameagenda/core/search-persist'),
   });
   let reqId = 0;
   const send = (message: UiToWorkerMessage) => host.handle(structuredClone(message));
@@ -79,6 +86,7 @@ function setup(options: SetupOptions = {}) {
     send,
     statuses,
     lastStatus,
+    messages: () => out,
     results: (seq: number) =>
       out.find((m): m is ResultsMessage => m.type === 'results' && m.seq === seq),
     suggestions: (seq: number) =>
@@ -727,5 +735,169 @@ describe('createSearchHost · comprobación del manifest cada 12 h (meta.catalog
     await t.scheduler.runUntil(() => meta.writes.length === 1);
     expect(manifestRequests(t)).toBe(1);
     expect(t.timers.pending).toEqual([]);
+  });
+});
+
+/** `meta.searchIndex` en memoria, con el clon estructurado de IndexedDB. */
+function memoryIndex() {
+  const store = {
+    key: null as string | null,
+    value: null as unknown,
+    reads: 0,
+    writes: [] as string[],
+    failReads: false,
+    async read(key: string): Promise<unknown> {
+      store.reads++;
+      if (store.failReads) throw new Error('IndexedDB no responde');
+      return store.key === key ? structuredClone(store.value) : null;
+    },
+    async write(key: string, value: unknown): Promise<void> {
+      store.key = key;
+      store.value = structuredClone(value);
+      store.writes.push(key);
+    },
+  };
+  return store;
+}
+
+describe('createSearchHost · índice persistido (meta.searchIndex, CA3.2)', () => {
+  const init = { type: 'init', catalogVersion: null, showAdult: false } as const;
+  const QUERIES = ['hollow', 'hades', 'the line', 'elden', 'celeste luna', 'cs2', 'hk', 'spec ops'];
+
+  function answers(t: ReturnType<typeof setup>, base: number) {
+    return QUERIES.map((q, i) => {
+      t.send({ type: 'query', seq: base + i, q, limit: 8 });
+      return t.results(base + i)?.items;
+    });
+  }
+
+  /** Primera visita con `idx`: construye, guarda y devuelve lo que responde. */
+  async function firstVisit(idx: ReturnType<typeof memoryIndex>, caches: MemoryCacheStorage) {
+    const t = setup({ caches, searchIndex: idx, indexBuild: 'build-a' });
+    const published = await publish('20261028.1');
+    t.server.serve(published);
+    t.send(init);
+    await t.reach('full');
+    await t.scheduler.runUntil(() => idx.writes.length === 1);
+    return { t, published, built: answers(t, 1000) };
+  }
+
+  it('la primera visita construye el índice y lo guarda después de `full`, con su clave', async () => {
+    const idx = memoryIndex();
+    const { t, published } = await firstVisit(idx, new MemoryCacheStorage());
+    const files = published.manifest.files;
+    expect(idx.writes[0]).toBe(
+      `1|build-a|${files.core.sha256}|${files.recent?.sha256}|${files.aliases.sha256}`,
+    );
+    expect(t.messages().some((m) => m.type === 'restored')).toBe(false);
+  });
+
+  it('el reinicio con el mismo catálogo lo restaura: de `none` a `full` sin construir, y busca igual', async () => {
+    const idx = memoryIndex();
+    const caches = new MemoryCacheStorage();
+    const { built } = await firstVisit(idx, caches);
+
+    const again = setup({ caches, searchIndex: idx, indexBuild: 'build-a' });
+    again.server.serve(await publish('20261028.1'));
+    again.server.state.offline = true;
+    again.send(init);
+    await again.reach('full', '20261028.1');
+    expect(again.statuses().map((s) => s.state)).toEqual(['none', 'full']);
+    expect(again.messages().find((m) => m.type === 'restored')).toMatchObject({
+      ms: expect.any(Number),
+    });
+    expect(again.lastStatus()).toMatchObject({ count: ROWS.length - ADULTS, error: null });
+    expect(answers(again, 2000)).toEqual(built);
+    // El Catálogo y la ficha también, y no lo vuelve a guardar.
+    expect(again.request('browse', { viewId: 'v', q: 'hollow', filters: {} })()).toMatchObject({
+      count: 2,
+    });
+    expect(again.request('game', { appid: 1145350 })()).toMatchObject({
+      game: { appid: 1145350, name: 'Hades II' },
+    });
+    expect(idx.writes).toHaveLength(1);
+  });
+
+  it('otro código, un índice que no cuadra o IndexedDB que falla: se construye como siempre', async () => {
+    const idx = memoryIndex();
+    const caches = new MemoryCacheStorage();
+    const { built } = await firstVisit(idx, caches);
+
+    // Otro *chunk* del Worker (otra versión de la app): no vale, se construye y se guarda el nuevo.
+    const other = setup({ caches, searchIndex: idx, indexBuild: 'build-b' });
+    other.server.serve(await publish('20261028.1'));
+    other.send(init);
+    await other.reach('full');
+    expect(other.messages().some((m) => m.type === 'restored')).toBe(false);
+    await other.scheduler.runUntil(() => idx.writes.length === 2);
+    expect(idx.writes[1]).toContain('|build-b|');
+
+    // Con su clave, pero de otro formato.
+    idx.value = { format: 99 };
+    const broken = setup({ caches, searchIndex: idx, indexBuild: 'build-b' });
+    broken.server.serve(await publish('20261028.1'));
+    broken.send(init);
+    await broken.reach('full');
+    expect(broken.messages().some((m) => m.type === 'restored')).toBe(false);
+    expect(answers(broken, 3000)).toEqual(built);
+
+    idx.failReads = true;
+    const failing = setup({ caches, searchIndex: idx, indexBuild: 'build-b' });
+    failing.server.serve(await publish('20261028.1'));
+    failing.send(init);
+    await failing.reach('full');
+    expect(failing.messages().some((m) => m.type === 'restored')).toBe(false);
+    expect(answers(failing, 4000)).toEqual(built);
+  });
+
+  it('una versión nueva del catálogo se indexa, se usa y se guarda en lugar de la anterior', async () => {
+    const idx = memoryIndex();
+    const caches = new MemoryCacheStorage();
+    await firstVisit(idx, caches);
+
+    const t = setup({ caches, searchIndex: idx, indexBuild: 'build-a' });
+    t.server.serve(await publish('20261028.1'));
+    t.server.state.offline = true;
+    t.send(init);
+    await t.reach('full', '20261028.1');
+    const newer = [{ appid: 413150, name: 'Stardew Valley', year: 2016, pop: 39 }, ...ROWS];
+    // Stardew Valley llega en `recent`: el núcleo local, de 1 día, sigue valiendo (CA2.4).
+    const v2 = await publish('20261029.1', newer, undefined, { recent: newer.slice(0, 1) });
+    t.server.serve(v2);
+    t.server.state.offline = false;
+    t.host.online();
+    await t.reach('full', '20261029.1');
+    await t.scheduler.runUntil(() => idx.writes.length === 2);
+    expect(idx.writes[1]).not.toBe(idx.writes[0]);
+    expect(idx.writes[1]).toContain(v2.manifest.files.recent?.sha256);
+
+    // Y el siguiente arranque ya restaura la nueva.
+    const next = setup({ caches, searchIndex: idx, indexBuild: 'build-a' });
+    next.server.serve(v2);
+    next.send(init);
+    await next.reach('full', '20261029.1');
+    expect(next.messages().some((m) => m.type === 'restored')).toBe(true);
+    next.send({ type: 'query', seq: 1, q: 'stardew', limit: 8 });
+    expect(next.results(1)?.items[0]?.appid).toBe(413150);
+  });
+
+  it('con el gancho `hold` de los E2E no se restaura: la construcción se para donde pide', async () => {
+    const idx = memoryIndex();
+    const caches = new MemoryCacheStorage();
+    await firstVisit(idx, caches);
+    let hold: 'none' | 'scan' | null = 'scan';
+    const t = setup({
+      caches,
+      searchIndex: idx,
+      indexBuild: 'build-a',
+      hooks: { hold: () => hold, beforeLoad: () => undefined },
+    });
+    t.server.serve(await publish('20261028.1'));
+    t.send(init);
+    await t.reach('scan');
+    expect(idx.reads).toBe(0);
+    hold = null;
+    t.host.resume();
+    await t.reach('full');
   });
 });

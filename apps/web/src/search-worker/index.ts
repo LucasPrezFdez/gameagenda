@@ -9,6 +9,7 @@ import { createIndexedDbCatalogMeta } from './catalog-meta.ts';
 import { createCatalogStore, signingKeysForMode } from './catalog-store.ts';
 import { createWorkerTestHooks } from './e2e-hooks.ts';
 import { createSearchHost } from './host.ts';
+import { createIndexedDbSearchIndex } from './search-index-store.ts';
 
 declare const self: DedicatedWorkerGlobalScope;
 
@@ -44,6 +45,14 @@ const host = createSearchHost({
   // Sin IndexedDB, el *manifest* se comprueba en cada arranque.
   catalogMeta: 'indexedDB' in self ? createIndexedDbCatalogMeta(self.indexedDB) : undefined,
   wallClock: () => Date.now(),
+  // Índice persistido (M3): la ruta de este *chunk* lleva el *hash* de su contenido, así que un
+  // índice construido por otro código no vale. Con `vite dev` la ruta no cambia: allí, apagado.
+  searchIndex:
+    'indexedDB' in self && !import.meta.env.DEV
+      ? createIndexedDbSearchIndex(self.indexedDB)
+      : undefined,
+  indexBuild: self.location.pathname,
+  loadIndexCodec: () => import('@gameagenda/core/search-persist'),
   loadFuzzy,
   testHooks,
 });

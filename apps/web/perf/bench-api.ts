@@ -23,6 +23,20 @@ export interface BenchApi {
    */
   breakdown(): Promise<{ cacheMs: number; readMs: number; recentMs: number; keysMs: number }>;
   type(options: { fuzzy: boolean }): Promise<TypingReport>;
+  /** Construye el índice sin estrangular y lo guarda en `meta.searchIndex` (M3). */
+  persist(): Promise<{ fullMs: number; persistMs: number; megabytes: number }>;
+  /**
+   * Reinicio con caché y el índice guardado (CA3.2): de `init` a la primera consulta respondida,
+   * y lo que tarda el host en restaurarlo (mensaje `restored`).
+   */
+  restoreIndex(): Promise<{ readyMs: number; restoredMs: number; firstQueryMs: number }>;
+  /** El mismo camino por fases: Cache Storage, IndexedDB, restaurar y la primera consulta. */
+  restoreBreakdown(): Promise<{
+    cacheMs: number;
+    idbMs: number;
+    restoreMs: number;
+    queryMs: number;
+  }>;
 }
 
 declare global {

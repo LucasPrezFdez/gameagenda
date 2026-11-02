@@ -49,19 +49,24 @@ export function withSuggestions(
   return [...items.slice(0, Math.max(0, limit - more.length)), ...more];
 }
 
-// Bloques de claves base por catálogo, creados la primera vez que hacen falta.
+// Bloques de claves base por catálogo, cada uno creado la primera vez que hace falta: con un
+// índice restaurado (M3), crear uno es partir 20 000 claves, y así se reparte entre los turnos.
 const blocksOf = new WeakMap<KeyData, string[][]>();
 
-function fuzzyBlocks(keys: KeyData): string[][] {
+function fuzzyBlock(keys: KeyData, block: number): string[] | undefined {
+  const from = block * FUZZY_BLOCK;
+  if (from >= keys.n) return undefined;
   let blocks = blocksOf.get(keys);
   if (!blocks) {
     blocks = [];
-    for (let i = 0; i < keys.n; i += FUZZY_BLOCK) {
-      blocks.push(keys.kBase.slice(i, Math.min(keys.n, i + FUZZY_BLOCK)) as string[]);
-    }
     blocksOf.set(keys, blocks);
   }
-  return blocks;
+  let hay = blocks[block];
+  if (!hay) {
+    hay = keys.keysOf(from, Math.min(keys.n, from + FUZZY_BLOCK));
+    blocks[block] = hay;
+  }
+  return hay;
 }
 
 export function suggestTask(
@@ -85,8 +90,7 @@ export function suggestTask(
     items,
     step(): boolean {
       if (done) return true;
-      const blocks = fuzzyBlocks(keys);
-      const hay = blocks[block];
+      const hay = fuzzyBlock(keys, block);
       if (!hay) {
         done = true;
         return true;
@@ -103,7 +107,7 @@ export function suggestTask(
         }
       }
       block++;
-      if (block >= blocks.length) done = true;
+      if (block * FUZZY_BLOCK >= keys.n) done = true;
       return done;
     },
   };

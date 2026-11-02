@@ -159,8 +159,18 @@ export interface ErrorReplyMessage {
   readonly code: string;
 }
 
+/**
+ * El índice se ha restaurado de `meta.searchIndex` (M3, CA3.2): `ms` va de empezar a leerlo a
+ * poder buscar. Lo anota la interfaz como `search:index-restored` (§12.4).
+ */
+export interface RestoredMessage {
+  readonly type: 'restored';
+  readonly ms: number;
+}
+
 export type WorkerToUiMessage =
   | StatusMessage
+  | RestoredMessage
   | ResultsMessage
   | SuggestionsMessage
   | ReplyMessage

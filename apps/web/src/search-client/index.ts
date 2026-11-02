@@ -1,4 +1,4 @@
-import { measureSinceNavigation } from '../perf/measures.ts';
+import { measureDuration, measureSinceNavigation } from '../perf/measures.ts';
 import { createSearchClient, type SearchClient } from './client.ts';
 import { withTestHooks } from './e2e-hooks.ts';
 import { workerTransport } from './protocol.ts';
@@ -7,7 +7,10 @@ export * from './client.ts';
 export type * from './protocol.ts';
 export { GAME_FLAGS, workerTransport } from './protocol.ts';
 
-/** `search:ready` (primer `status` distinto de `none`) y `search:full` (ver §12.4). */
+/**
+ * `search:ready` (primer `status` distinto de `none`), `search:full` y, si el índice se ha
+ * restaurado (M3), `search:index-restored` (ver §12.4).
+ */
 function measureAvailability(client: SearchClient): void {
   let ready = false;
   const stop = client.subscribeStatus(() => {
@@ -18,6 +21,8 @@ function measureAvailability(client: SearchClient): void {
     }
     if (state === 'full') {
       measureSinceNavigation('search:full');
+      const restored = client.getRestoredMs?.() ?? null;
+      if (restored !== null) measureDuration('search:index-restored', restored);
       stop();
     }
   });

@@ -16,6 +16,7 @@ import {
 import { createFullEngine, type IndexData, prefixRange } from './full.ts';
 import { HAYSTACK_CHUNK_ROWS, type HaystackChunk, HaystackChunkBuilder } from './haystack.ts';
 import type { KeyData } from './keys.ts';
+import type { IndexParts } from './persist.ts';
 import { aliasPrefixList, createScanEngine, ExactTable } from './scan.ts';
 import { createSearcher } from './searcher.ts';
 import type { IndexBuilder, Searcher, SearchState } from './types.ts';
@@ -185,11 +186,17 @@ class GrowableU32 {
   }
 }
 
+interface BuildOutput {
+  state: SearchState;
+  searcher: Searcher | null;
+  parts: IndexParts | null;
+}
+
 function* buildWork(
   cat: CoreCatalog,
   aliases: readonly AliasPair[],
   bitsetMin: number,
-  out: { state: SearchState; searcher: Searcher | null },
+  out: BuildOutput,
   prog: Progress,
 ): Generator<void, Searcher, void> {
   const n = cat.count;
@@ -274,6 +281,9 @@ function* buildWork(
     cat,
     n,
     kBase,
+    keyOf: (g) => kBase[g] as string,
+    keysOf: (from, to) => kBase.slice(from, to),
+    nameOf: (g) => cat.name[g] as string,
     artLen,
     kEs,
     sortedAppid,
@@ -451,6 +461,7 @@ function* buildWork(
   };
   const searcher = createSearcher(createFullEngine(keys, ix));
   out.searcher = searcher;
+  out.parts = { keys, index: ix };
   out.state = 'full';
   return searcher;
 }
@@ -466,7 +477,7 @@ export function createIndexBuilder(
   aliases: readonly AliasPair[],
   options: BuildOptions,
 ): IndexBuilder {
-  const out: { state: SearchState; searcher: Searcher | null } = { state: 'none', searcher: null };
+  const out: BuildOutput = { state: 'none', searcher: null, parts: null };
   const prog = new Progress();
   const task = cooperate(
     {
@@ -489,7 +500,15 @@ export function createIndexBuilder(
     get searcher() {
       return out.searcher;
     },
+    get parts() {
+      return out.parts;
+    },
   };
+}
+
+/** El buscador completo a partir de sus partes: las de la construcción o las restauradas (M3). */
+export function searcherFromParts(parts: IndexParts): Searcher {
+  return createSearcher(createFullEngine(parts.keys, parts.index));
 }
 
 /** Construye el índice completo de una vez (pipeline, consultas de humo y pruebas). */

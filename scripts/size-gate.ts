@@ -1,6 +1,7 @@
 // Puerta de tamaño (ver §6.2 y §12.4 de prototipe.md): comprime con brotli (calidad 11) el JS
 // inicial del *build* de producción, según `.vite/manifest.json`, y el *chunk* de entrada del
-// Worker de búsqueda, y falla si alguno pasa de su presupuesto. Comprueba también que el *build*
+// Worker de búsqueda, y falla si alguno pasa de su presupuesto. Comprueba también que los *chunks*
+// diferidos del Worker no importan otros *chunks* y que el *build*
 // de producción no lleva la página de prueba de `npm run perf` (`apps/web/perf/`).
 //
 // Uso: npm run build && npm run size  (KB = 1000 bytes, como los informes de Vite).
@@ -59,6 +60,10 @@ function initialFiles(manifest: Manifest): string[] {
 }
 
 const RE_WORKER = /new Worker\(\s*new URL\(\s*[`'"]\/?([^`'"]+\.js)[`'"]/g;
+/** `import("./x.js")` en el Worker: sus *chunks* diferidos. */
+const RE_DYNAMIC_IMPORT = /\bimport\(\s*[`'"]\.\/([^`'"]+\.js)[`'"]\s*\)/g;
+/** `import … from "./x.js"` o `import "./x.js"` (estático) en un *chunk*. */
+const RE_STATIC_IMPORT = /\bimport\s*(?:[^()`'";]*?\bfrom\s*)?[`'"]\.\.?\/[^`'"]+[`'"]/;
 
 /**
  * *Chunks* de entrada de los Workers: Vite los emite como `assets` de quien los crea y la
@@ -122,6 +127,24 @@ function main(): void {
     process.exit(1);
   }
   report('Worker de búsqueda (chunk de entrada)', workers, BUDGETS.worker);
+
+  // Sus *chunks* diferidos (uFuzzy y el índice persistido) no pueden importar otros *chunks*: el
+  // de entrada, importado desde uno diferido, WebKit lo vuelve a evaluar, y un segundo *host* sin
+  // catálogo contesta vacío a cada consulta (02-11-2026, en `webkit-movil`).
+  const deferred = [...read(workers[0] as string).matchAll(RE_DYNAMIC_IMPORT)].map(
+    (match) => `assets/${match[1] as string}`,
+  );
+  const importing = deferred.filter((file) => RE_STATIC_IMPORT.test(read(file)));
+  if (deferred.length === 0 || importing.length > 0) {
+    failed = true;
+    console.log(
+      deferred.length === 0
+        ? '✗ No se encuentran los chunks diferidos del Worker'
+        : `✗ Chunks diferidos del Worker que importan otros chunks: ${importing.join(', ')}`,
+    );
+  } else {
+    console.log(`✓ Los chunks diferidos del Worker no importan nada: ${deferred.join(', ')}`);
+  }
 
   // La página de prueba de `perf` va en su propio *build* (`dist-perf`), nunca en el de producción.
   const leaks = walk(DIST).filter(

@@ -9,8 +9,17 @@ import type { CatalogItem, SearchItem, Tier } from './types.ts';
 export interface KeyData {
   readonly cat: CoreCatalog;
   readonly n: number;
-  /** Clave normalizada del nombre base, por fila. */
+  /**
+   * Clave normalizada del nombre base, por fila. Solo la leen la construcción y el escaneo: un
+   * índice restaurado (M3) la deja vacía y da cada clave con `keyOf`.
+   */
   readonly kBase: readonly string[];
+  /** Clave base de la fila `g` (con el índice construido, `kBase[g]`). */
+  readonly keyOf: (g: number) => string;
+  /** Claves base de las filas `[from, to)`: los bloques del nivel 4. */
+  readonly keysOf: (from: number, to: number) => string[];
+  /** Nombre de la fila `g` (con el índice construido, `cat.name[g]`; restaurado, `cat.name` va vacío). */
+  readonly nameOf: (g: number) => string;
   /** Longitud del artículo inicial de `kBase` (con su espacio), por fila. */
   readonly artLen: Uint8Array;
   /** Clave del nombre en español, solo si difiere de la base. */
@@ -54,14 +63,14 @@ function keyEquals(k: string, al: number, qn: string, qa: string): boolean {
 
 /** Nivel 1: la clave base o la española empiezan por la consulta (con o sin artículo). */
 export function isTitleStart(keys: KeyData, g: number, qn: string, qa: string): boolean {
-  if (keyStarts(keys.kBase[g] as string, keys.artLen[g] as number, qn, qa)) return true;
+  if (keyStarts(keys.keyOf(g), keys.artLen[g] as number, qn, qa)) return true;
   const e = keys.kEs.get(g);
   return e !== undefined && keyStarts(e, articleLength(e), qn, qa);
 }
 
 /** Nivel 0 sin alias: clave base o española iguales a la consulta (con o sin artículo). */
 export function isExact(keys: KeyData, g: number, qn: string, qa: string): boolean {
-  if (keyEquals(keys.kBase[g] as string, keys.artLen[g] as number, qn, qa)) return true;
+  if (keyEquals(keys.keyOf(g), keys.artLen[g] as number, qn, qa)) return true;
   const e = keys.kEs.get(g);
   return e !== undefined && keyEquals(e, articleLength(e), qn, qa);
 }
@@ -79,7 +88,7 @@ export function catalogItem(keys: KeyData, g: number): CatalogItem {
   const c = keys.cat;
   return {
     appid: c.appid[g] as number,
-    name: c.name[g] as string,
+    name: keys.nameOf(g),
     nameEs: c.nameEs.get(g) ?? null,
     year: (c.year[g] as number) || null,
     flags: c.flags[g] as number,

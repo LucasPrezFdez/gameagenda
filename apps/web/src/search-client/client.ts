@@ -39,6 +39,8 @@ export interface SearchClient {
   init(params: InitParams): void;
   getStatus(): StatusMessage;
   subscribeStatus(listener: () => void): () => void;
+  /** Si el Worker restauró el índice guardado (M3), cuánto tardó, en ms; si no, `null`. */
+  getRestoredMs?(): number | null;
   /** Cambio del campo de la paleta; devuelve el `seq` nuevo. */
   setQuery(text: string, inputTimeStamp?: number): number;
   getQueryState(): QueryState;
@@ -114,6 +116,7 @@ export function createSearchClient(
   const suggestDelayMs = options.suggestDelayMs ?? SUGGEST_DELAY_MS;
 
   let status = INITIAL_STATUS;
+  let restoredMs: number | null = null;
   const statusListeners = new Set<() => void>();
 
   let seq = 0;
@@ -184,6 +187,9 @@ export function createSearchClient(
 
   function onMessage(message: WorkerToUiMessage): void {
     switch (message.type) {
+      case 'restored':
+        restoredMs = message.ms;
+        return;
       case 'status': {
         const wasSearchable = canSearchCatalog(status.state);
         status = message;
@@ -266,6 +272,7 @@ export function createSearchClient(
       transport.postMessage({ type: 'init', ...params });
     },
     getStatus: () => status,
+    getRestoredMs: () => restoredMs,
     subscribeStatus(listener) {
       statusListeners.add(listener);
       return () => statusListeners.delete(listener);

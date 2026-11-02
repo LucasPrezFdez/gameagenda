@@ -164,7 +164,7 @@ function mergeSorted(a: readonly number[], b: readonly number[]): number[] {
 }
 
 function matchesCompact(keys: KeyData, g: number, qc: string): boolean {
-  if (compact(keys.kBase[g] as string).includes(qc)) return true;
+  if (compact(keys.keyOf(g)).includes(qc)) return true;
   const e = keys.kEs.get(g);
   return e !== undefined && compact(e).includes(qc);
 }

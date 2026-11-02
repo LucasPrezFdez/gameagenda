@@ -1,7 +1,8 @@
 // `npm run perf`, parte 1 (§8.9, §12.4; CA1.5 y CA1.11): la búsqueda de `packages/core` en el
 // hilo principal de la página de prueba (`perf/bench/`), con CPU ×4 por CDP, sobre el catálogo
 // completo. Mide el reinicio con caché hasta `scan` y hasta `full` y teclea el conjunto realista
-// de la §8.11 (150 nombres, 2 084 pulsaciones) en `full` y en `scan`, más el nivel 4.
+// de la §8.11 (150 nombres, 2 084 pulsaciones) en `full` y en `scan`, más el nivel 4. Desde M3,
+// también el reinicio con el índice guardado en `meta.searchIndex` (CA3.2).
 import { expect, type Page, test } from '@playwright/test';
 import type { BenchApi } from './bench-api.ts';
 import { BENCH_URL } from './env.ts';
@@ -35,6 +36,8 @@ test('parte 1: búsqueda de core en el hilo principal con CPU ×4', async ({ pag
   // Primera visita sin estrangular y sin medir: deja el catálogo en Cache Storage.
   const primed = await bench(page, 'prime');
   expect(primed.count, 'el catálogo completo').toBeGreaterThan(190_000);
+  // Y el índice guardado, también sin estrangular: lo que deja la primera visita en la app.
+  const persisted = await bench(page, 'persist');
 
   const cdp = await page.context().newCDPSession(page);
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: RATE });
@@ -49,6 +52,11 @@ test('parte 1: búsqueda de core en el hilo principal con CPU ×4', async ({ pag
     expect(scan.state).toBe('scan');
     await bench(page, 'release');
     const phases = await bench(page, 'breakdown');
+    // Reinicio con el índice guardado (CA3.2): dos veces, como el de `scan`.
+    const restoredA = await bench(page, 'restoreIndex');
+    const restoredB = await bench(page, 'restoreIndex');
+    const worst = restoredA.readyMs >= restoredB.readyMs ? restoredA : restoredB;
+    const restorePhases = await bench(page, 'restoreBreakdown');
 
     rows.add({
       metric: 'Reinicio con caché → escaneo listo (scan)',
@@ -63,6 +71,28 @@ test('parte 1: búsqueda de core en el hilo principal con CPU ×4', async ({ pag
       note: `Cache Storage + sha256 ${Math.round(phases.cacheMs)} ms, lectura del TSV ${Math.round(phases.readMs)} ms, recientes ${Math.round(phases.recentMs)} ms, claves, exactos y pajar ${Math.round(phases.keysMs)} ms`,
     });
     rows.add({ metric: 'Reinicio con caché → índice completo (full)', value: restart.fullMs });
+    rows.add({
+      metric: 'Reinicio con el índice guardado → primera consulta (search:index-restored)',
+      stat: 'peor de 2',
+      value: worst.readyMs,
+      limit: 400,
+      note: `${restoredA.readyMs} y ${restoredB.readyMs} ms: el manifest de Cache Storage, leer meta.searchIndex de IndexedDB y restaurar (${worst.restoredMs} ms), y responder (${worst.firstQueryMs} ms) (CA3.2)`,
+    });
+    rows.add({
+      metric: 'Desglose de la restauración',
+      value: Math.round(
+        restorePhases.cacheMs +
+          restorePhases.idbMs +
+          restorePhases.restoreMs +
+          restorePhases.queryMs,
+      ),
+      note: `Cache Storage ${Math.round(restorePhases.cacheMs)} ms, IndexedDB ${Math.round(restorePhases.idbMs)} ms, restaurar ${Math.round(restorePhases.restoreMs)} ms, primera consulta ${Math.round(restorePhases.queryMs)} ms`,
+    });
+    rows.add({
+      metric: 'Guardar el índice tras full, sin estrangular',
+      value: persisted.persistMs,
+      note: `≈${persisted.megabytes} MB en meta.searchIndex; a trozos que ceden el turno, después de full (${persisted.fullMs} ms)`,
+    });
     rows.addStats({
       metric: `Pulsación → resultados en full`,
       stats: full.keystrokes,

@@ -7,12 +7,23 @@ export type MeasureName =
   | 'search:keystroke-to-results'
   | 'search:ready'
   | 'search:full'
+  | 'search:index-restored'
   | 'app:list-visible';
 
 /** Mide desde el inicio de la navegación hasta ahora (`search:ready`, `search:full`). */
 export function measureSinceNavigation(name: MeasureName): void {
   try {
     performance.measure(name, { start: 0, end: performance.now() });
+  } catch {
+    // Sin `performance.measure` con opciones: la medida se descarta.
+  }
+}
+
+/** Una duración medida en otro hilo (el Worker), que acaba ahora. */
+export function measureDuration(name: MeasureName, ms: number): void {
+  try {
+    const end = performance.now();
+    performance.measure(name, { start: Math.max(0, end - ms), end });
   } catch {
     // Sin `performance.measure` con opciones: la medida se descarta.
   }

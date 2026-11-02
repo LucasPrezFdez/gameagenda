@@ -11,6 +11,11 @@
 // falla, sigue el catálogo vigente: un *manifest* rechazado (firma, navegador o app) se anuncia en
 // `status.error`; un fichero que da 404 hace releer el *manifest* una vez y, si sigue igual (o
 // falla la red), se reintenta más tarde con una espera que se dobla.
+//
+// Índice persistido (M3, CA3.2; §8.8): al arrancar con la caché, si `meta.searchIndex` tiene el
+// índice de esos mismos ficheros (y del mismo código), se restaura y se pasa directamente a
+// `full`, sin leer el TSV. Cada índice que llega a `full` se guarda después, a trozos que ceden
+// el turno como la construcción; uno de otro catálogo o de otra versión de la app no vale.
 import {
   type AliasPair,
   applyRecent,
@@ -31,7 +36,10 @@ import {
   type IndexBuilder,
   type Searcher,
   type SuggestTask,
+  searcherFromParts,
 } from '@gameagenda/core/search';
+import type * as IndexCodecModule from '@gameagenda/core/search-persist';
+import type { PersistedIndex } from '@gameagenda/core/search-persist';
 import type {
   BrowseFilters,
   CatalogError,
@@ -52,6 +60,7 @@ import {
   type CoreFile,
   compareCatalogVersions,
 } from './catalog-store.ts';
+import type { SearchIndexStore } from './search-index-store.ts';
 
 /** Lo que la interfaz ve del catálogo en uso (M2): edad, *kill switches* e índice de *shards*. */
 function catalogInfo(manifest: CatalogManifest): CatalogInfo {
@@ -96,6 +105,21 @@ export interface HostDeps {
   /** Cada cuánto se comprueba el *manifest*; por defecto, `CHECK_INTERVAL_MS`. */
   readonly checkIntervalMs?: number;
   loadFuzzy(): Promise<FuzzyMatcher>;
+  /**
+   * `meta.searchIndex` (M3, CA3.2): con él, un reinicio con el mismo catálogo restaura el índice
+   * en vez de construirlo, y cada índice nuevo se guarda al terminar. Sin él, se construye siempre.
+   */
+  readonly searchIndex?: SearchIndexStore;
+  /**
+   * El formato del índice guardado (`@gameagenda/core/search-persist`), en su propio *chunk*:
+   * solo se pide con `searchIndex`, al arrancar (a la vez que se lee IndexedDB) y al guardar.
+   */
+  loadIndexCodec?(): Promise<IndexCodec>;
+  /**
+   * El código que construye el índice (en el Worker, la ruta de su *chunk*, que lleva el *hash*
+   * de su contenido): un índice guardado por otro código no vale.
+   */
+  readonly indexBuild?: string;
   /** Plazo de cada bloque de trabajo: ≈6 ms da bloques de ≤8 ms (§8.8). */
   readonly sliceMs?: number;
   /** Separación mínima entre dos `status` de progreso. */
@@ -152,6 +176,19 @@ interface BuildJob {
   adults: number;
 }
 
+/** Lo que el host usa de `@gameagenda/core/search-persist`. */
+export type IndexCodec = Pick<
+  typeof IndexCodecModule,
+  'INDEX_FORMAT' | 'createIndexPacker' | 'restoreParts'
+>;
+
+/** El índice que se está preparando para guardarlo, y su clave. */
+interface PersistJob {
+  readonly key: string;
+  readonly format: number;
+  readonly packer: CooperativeTask<PersistedIndex>;
+}
+
 interface SuggestJob {
   readonly seq: number;
   readonly q: string;
@@ -168,6 +205,11 @@ interface View {
 }
 
 type ReplyOf<T extends RequestMessage['type']> = Extract<ReplyMessage, { type: T }>;
+
+/** Juegos para adultos de un buscador restaurado (sin el núcleo a mano). */
+function adultsIn(s: Searcher): number {
+  return s.browse('', { flagsAll: CatalogFlag.adult, showAdult: true }).count;
+}
 
 function countAdults(catalog: CoreCatalog): number {
   let n = 0;
@@ -226,6 +268,11 @@ export function createSearchHost(deps: HostDeps): SearchHost {
   let searcherSource: Source | null = null;
   let searcherAdults = 0;
   let job: BuildJob | null = null;
+  /** El índice recién construido que se está guardando (`meta.searchIndex`). */
+  let persistJob: PersistJob | null = null;
+  /** Clave del índice que ya está guardado (o que se ha restaurado). */
+  let persistedKey: string | null = null;
+  let codec: Promise<IndexCodec | null> | null = null;
   /** Catálogo nuevo que espera a que acabe la construcción en curso. */
   let pendingUpdate: CatalogTexts | null = null;
   let loading = false;
@@ -310,7 +357,107 @@ export function createSearchHost(deps: HostDeps): SearchHost {
   }
 
   function needsTick(): boolean {
-    return (job !== null && !isPaused(job)) || suggestJob?.task != null;
+    return (job !== null && !isPaused(job)) || suggestJob?.task != null || persistJob !== null;
+  }
+
+  // --- Índice persistido -----------------------------------------------------
+
+  /** El formato del índice guardado, o `null` si no hay o no se ha podido cargar su *chunk*. */
+  function indexCodec(): Promise<IndexCodec | null> {
+    if (!deps.searchIndex || !deps.loadIndexCodec) return Promise.resolve(null);
+    codec ??= deps.loadIndexCodec().catch(() => {
+      codec = null;
+      return null;
+    });
+    return codec;
+  }
+
+  /** Lo que identifica a un índice: formato, código y ficheros con los que se construye. */
+  function indexKey(source: Source, format: number): string {
+    return [
+      format,
+      deps.indexBuild ?? '',
+      source.coreFile.sha256,
+      source.manifest.files.recent?.sha256 ?? '-',
+      source.manifest.files.aliases.sha256,
+    ].join('|');
+  }
+
+  /**
+   * Arranque con el índice guardado del catálogo de la caché: `full` sin leer el TSV ni construir
+   * nada. `false` si no hay o no vale: entonces se construye como siempre.
+   */
+  async function restore(): Promise<boolean> {
+    // Los E2E que paran la construcción en `none` o en `scan` necesitan construirla.
+    const store = deps.searchIndex;
+    if (!store || hooks?.hold()) return false;
+    const startedAt = deps.now();
+    const [source, format] = await Promise.all([
+      deps.store.readCachedSource().catch(() => null),
+      indexCodec(),
+    ]);
+    if (!source || !format) return false;
+    const key = indexKey(source, format.INDEX_FORMAT);
+    const stored = await store.read(key).catch(() => null);
+    if (stored === null || stored === undefined) return false;
+    let restored: Searcher;
+    try {
+      restored = searcherFromParts(format.restoreParts(stored));
+    } catch {
+      return false;
+    }
+    if (searcher || job) return false;
+    searcher = restored;
+    searcherSource = source;
+    searcherAdults = adultsIn(restored);
+    persistedKey = key;
+    downloadProgress = 1;
+    error = null;
+    // Antes que el `status`, para que la interfaz ya lo sepa al ver `full`.
+    deps.post({ type: 'restored', ms: deps.now() - startedAt });
+    emitStatus(true);
+    flushWaiting();
+    return true;
+  }
+
+  /** Tras `full`, el índice se prepara a trozos para guardarlo (si no estaba ya). */
+  function startPersist(builder: IndexBuilder, from: BuildJob): void {
+    const parts = builder.parts;
+    if (!deps.searchIndex || !parts) return;
+    const source: Source = { manifest: from.texts.manifest, coreFile: from.texts.coreFile };
+    void indexCodec().then((format) => {
+      if (!format) return;
+      const key = indexKey(source, format.INDEX_FORMAT);
+      if (key === persistedKey || key === persistJob?.key) return;
+      persistJob = {
+        key,
+        format: format.INDEX_FORMAT,
+        packer: format.createIndexPacker(parts, { now: deps.now }),
+      };
+      schedule();
+    });
+  }
+
+  function stepPersist(deadline: number): void {
+    const current = persistJob;
+    if (!current || !deps.searchIndex) return;
+    let done: boolean;
+    try {
+      done = current.packer.step(deadline);
+    } catch {
+      // Una cadena que no cabe en UTF-8: no se guarda y se construye en cada arranque.
+      persistJob = null;
+      persistedKey = current.key;
+      return;
+    }
+    if (!done) return;
+    persistJob = null;
+    // Si entretanto ha llegado otro catálogo, ya se guardará el suyo.
+    if (!searcherSource || indexKey(searcherSource, current.format) !== current.key) return;
+    persistedKey = current.key;
+    deps.searchIndex.write(current.key, current.packer.result).catch(() => {
+      if (persistedKey === current.key) persistedKey = null;
+    });
   }
 
   // --- Construcción ----------------------------------------------------------
@@ -380,6 +527,7 @@ export function createSearchHost(deps: HostDeps): SearchHost {
     if (done) {
       use(builder.result as Searcher, current);
       job = null;
+      startPersist(builder, current);
       const update = pendingUpdate;
       pendingUpdate = null;
       if (update) startJob(update, false);
@@ -399,6 +547,8 @@ export function createSearchHost(deps: HostDeps): SearchHost {
         if (current.foreground) fail(cause);
       }
     }
+    // Guardar el índice va detrás de todo: solo sin construcción en marcha y con tiempo.
+    if (!job && deps.now() < deadline) stepPersist(deadline);
     emitStatus(false);
     if (needsTick()) schedule();
   }
@@ -449,6 +599,10 @@ export function createSearchHost(deps: HostDeps): SearchHost {
 
   async function load(): Promise<void> {
     hooks?.beforeLoad();
+    if (await restore()) {
+      void checkWhenDue((searcherSource as Source).manifest.version).catch(() => undefined);
+      return;
+    }
     const cached = await deps.store.readCached().catch(() => null);
     if (cached) {
       downloadProgress = 1;

@@ -10,7 +10,7 @@
 
 /** Nombre de la base de Dexie (`DB_NAME` en `db/database.ts`, que el Worker no puede importar). */
 export const APP_DB_NAME = 'gameagenda';
-const META_STORE = 'meta';
+export const META_STORE = 'meta';
 export const CATALOG_META_KEY = 'catalog';
 
 export interface CatalogMeta {
@@ -33,7 +33,7 @@ function isCatalogMeta(value: unknown): value is CatalogMeta {
 }
 
 /** La base de la app, si ya existe y tiene `meta`; si no, `null` sin haber creado nada. */
-function openAppDb(factory: IDBFactory, name: string): Promise<IDBDatabase | null> {
+export function openAppDb(factory: IDBFactory, name: string): Promise<IDBDatabase | null> {
   return new Promise((resolve) => {
     let request: IDBOpenDBRequest;
     try {
@@ -61,7 +61,7 @@ function openAppDb(factory: IDBFactory, name: string): Promise<IDBDatabase | nul
   });
 }
 
-function done(transaction: IDBTransaction): Promise<void> {
+export function done(transaction: IDBTransaction): Promise<void> {
   return new Promise((resolve, reject) => {
     transaction.oncomplete = () => resolve();
     transaction.onabort = () => reject(transaction.error ?? new Error('Transacción abortada'));

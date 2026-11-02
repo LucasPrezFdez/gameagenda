@@ -109,9 +109,20 @@ export interface DownloadOptions {
   readonly forceCore?: boolean | undefined;
 }
 
+/** Lo que identifica al catálogo de la caché, sin leer sus ficheros. */
+export interface CachedSource {
+  readonly manifest: CatalogManifest;
+  readonly coreFile: CoreFile;
+}
+
 export interface CatalogStore {
   /** El catálogo más reciente de la caché con todos sus ficheros válidos, o `null`. */
   readCached(): Promise<CatalogTexts | null>;
+  /**
+   * El *manifest* y el núcleo del catálogo más reciente de la caché, sin leer ni comprobar sus
+   * ficheros (M3): basta para buscar su índice guardado, que se identifica por sus `sha256`.
+   */
+  readCachedSource(): Promise<CachedSource | null>;
   /** `manifest.json` de la red, revalidado (`no-cache`), con la firma verificada. */
   fetchManifest(): Promise<CatalogManifest>;
   /**
@@ -332,21 +343,40 @@ export function createCatalogStore(deps: CatalogStoreDeps): CatalogStore {
     return bytes;
   }
 
+  /** El *manifest* y el núcleo de la caché `name`, si están y son de esa versión. */
+  async function sourceIn(
+    name: string,
+  ): Promise<(CachedSource & { readonly cache: Cache }) | null> {
+    if (!deps.caches) return null;
+    const cache = await deps.caches.open(name);
+    const response = await cache.match(manifestUrl);
+    if (!response) return null;
+    const manifest = parseManifest(await response.json().catch(() => null));
+    if (!manifest || `${CACHE_PREFIX}${manifest.version}` !== name) return null;
+    // Sin `gacat-local.json` (las cachés de M1), el núcleo es el del *manifest*.
+    const local = await cache.match(localCoreUrl);
+    const coreFile = local
+      ? parseCoreFile(await local.json().catch(() => null))
+      : { ...manifest.files.core, version: manifest.version };
+    return coreFile ? { cache, manifest, coreFile } : null;
+  }
+
   return {
+    async readCachedSource() {
+      if (!deps.caches) return null;
+      for (const name of await cacheNames()) {
+        const source = await sourceIn(name);
+        if (source) return { manifest: source.manifest, coreFile: source.coreFile };
+      }
+      return null;
+    },
+
     async readCached() {
       if (!deps.caches) return null;
       for (const name of await cacheNames()) {
-        const cache = await deps.caches.open(name);
-        const response = await cache.match(manifestUrl);
-        if (!response) continue;
-        const manifest = parseManifest(await response.json().catch(() => null));
-        if (!manifest || `${CACHE_PREFIX}${manifest.version}` !== name) continue;
-        // Sin `gacat-local.json` (las cachés de M1), el núcleo es el del *manifest*.
-        const local = await cache.match(localCoreUrl);
-        const coreFile = local
-          ? parseCoreFile(await local.json().catch(() => null))
-          : { ...manifest.files.core, version: manifest.version };
-        if (!coreFile) continue;
+        const source = await sourceIn(name);
+        if (!source) continue;
+        const { cache, manifest, coreFile } = source;
         const core = await cachedFile(coreFile, cache);
         const aliases = core && (await cachedFile(manifest.files.aliases, cache));
         if (!core || !aliases) continue;

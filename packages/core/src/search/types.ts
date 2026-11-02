@@ -1,6 +1,7 @@
 // Tipos públicos de la búsqueda (§8.4 y §8.7 de prototipe.md).
 
 import type { CooperativeTask } from '../catalog-format/cooperative.ts';
+import type { IndexParts } from './persist.ts';
 
 /** Niveles de *ranking* (§8.4); `link` es un `appid:` explícito (§8.6). */
 export const Tier = {
@@ -112,4 +113,6 @@ export interface IndexBuilder extends CooperativeTask<Searcher> {
   readonly state: SearchState;
   /** Buscador vigente: `null` en `none`, el de escaneo en `scan` y el completo en `full`. */
   readonly searcher: Searcher | null;
+  /** En `full`, lo que se guarda para restaurarlo sin construir (`createIndexPacker`, M3). */
+  readonly parts: IndexParts | null;
 }
