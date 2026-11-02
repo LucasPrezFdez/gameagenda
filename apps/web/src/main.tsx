@@ -12,11 +12,13 @@ import { createDexieCopyReminderStorage } from './db/copy-reminder-storage.ts';
 import { openDatabase } from './db/database.ts';
 import { createDexieErrorLogStorage } from './db/error-log-storage.ts';
 import { type LocalState, loadLocalState } from './db/local-state.ts';
+import { createDexiePerfSamplesStorage } from './db/perf-samples-storage.ts';
 import { createDexieSettingsStorage } from './db/settings-storage.ts';
 import { connectErrorLog, installGlobalErrorHandlers, logError } from './errors/error-log.ts';
 import { es } from './i18n/es.ts';
 import { createNoticeCenter, type NoticeAction } from './notices/notice-center.ts';
 import { warmFallbackFonts } from './perf/fallback-fonts.ts';
+import { startPerfSampler } from './perf/sampler.ts';
 import { registerServiceWorker } from './pwa/register-sw.ts';
 import { startRouter } from './router/router.tsx';
 import { createAppSearchClient } from './search-client/index.ts';
@@ -107,6 +109,10 @@ async function start(): Promise<void> {
     onStorageError,
   });
   if (local) connectErrorLog(createDexieErrorLogStorage(local.db));
+  // Panel de rendimiento (M3): las muestras de este dispositivo, guardadas en segundo plano.
+  const perf = startPerfSampler(
+    local ? createDexiePerfSamplesStorage(local.db, (error) => logError('storage', error)) : null,
+  );
 
   // Aviso de copia (RNF-08): empieza a contar en cuanto hay algo en Mi lista.
   const copyStorage = local ? createDexieCopyReminderStorage(local.db, onStorageError) : null;
@@ -136,7 +142,7 @@ async function start(): Promise<void> {
     : [exportList];
   if (!local) showStorageNotice();
 
-  const services: AppServices = { agenda, search, settings, notices, copyReminder };
+  const services: AppServices = { agenda, search, settings, notices, copyReminder, perf };
   search.init({ catalogVersion: null, showAdult });
   startCatalogRefresh(search, agenda);
 

@@ -6,6 +6,7 @@ export const SETTINGS_SECTIONS = [
   'keyboard',
   'data',
   'privacy',
+  'performance',
   'about',
 ] as const;
 export type SettingsSection = (typeof SETTINGS_SECTIONS)[number];
@@ -17,6 +18,7 @@ export const SETTINGS_SLUGS: Readonly<Record<SettingsSection, string>> = {
   keyboard: 'teclado',
   data: 'datos',
   privacy: 'privacidad',
+  performance: 'rendimiento',
   about: 'acerca-de',
 };
 

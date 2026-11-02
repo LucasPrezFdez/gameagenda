@@ -2,6 +2,7 @@
 // pretérito perfecto, sin exclamaciones y teclas con su nombre español.
 import { formatCount } from '@gameagenda/core';
 import type { DateField, Flag, Platform, Status } from '../agenda/types.ts';
+import type { PanelMetric } from '../perf/samples.ts';
 import type { SettingsSection } from '../router/routes.ts';
 import type {
   ListOrder,
@@ -371,6 +372,7 @@ export const es = {
       keyboard: 'Teclado y gestos',
       data: 'Datos',
       privacy: 'Privacidad',
+      performance: 'Rendimiento',
       about: 'Acerca de',
     } satisfies Record<SettingsSection, string>,
     theme: 'Tema',
@@ -454,6 +456,61 @@ export const es = {
     moreInfo: 'Más información',
     ok: 'Entendido',
     disable: 'Desactivar portadas',
+  },
+
+  // Panel de rendimiento (Ajustes › Rendimiento, M3; §12.7).
+  perfPanel: {
+    intro:
+      'Las medidas de este dispositivo: las 500 últimas de cada una, guardadas solo aquí. No se envía nada; para compartirlas, copia el informe.',
+    since: (date: string) => `Desde el ${date}.`,
+    empty: 'Aún no hay medidas. Busca y apunta algunos juegos y vuelve aquí.',
+    table: 'Medidas de rendimiento',
+    metric: 'Medida',
+    samples: 'Muestras',
+    target: 'Objetivo',
+    result: 'Resultado',
+    pass: 'Cumple',
+    fail: 'No cumple',
+    none: '—',
+    targetText: (stat: string, limit: string) => `${stat} ≤ ${limit}`,
+    metrics: {
+      'search:keystroke-to-results': 'Tecla → resultados',
+      'ui:feedback': 'Toque o tecla → respuesta',
+      'capture:palette-to-confirm': 'Apuntar: abrir la paleta → confirmación',
+      inp: 'INP (respuesta a cada interacción)',
+      lcp: 'LCP (pintado principal al abrir)',
+      'app:list-visible': 'Abrir → Mi lista visible',
+      'search:ready': 'Abrir → se puede buscar',
+      'search:full': 'Abrir → índice completo',
+      'search:index-restored': 'Restaurar el índice guardado',
+    } satisfies Record<PanelMetric, string>,
+    noEventTiming: 'Este navegador no mide el INP (no tiene Event Timing).',
+    device: 'Este dispositivo',
+    app: 'App',
+    browser: 'Navegador',
+    catalog: 'Catálogo',
+    catalogNone: 'Aún no hay catálogo',
+    search: 'Búsqueda',
+    searchState: {
+      none: 'Preparando el catálogo',
+      boot: 'Buscando en los más populares',
+      scan: 'Buscando mientras se construye el índice',
+      full: 'Índice completo',
+    },
+    restored: (ms: string) => `restaurado del dispositivo en ${ms}`,
+    built: 'construido en este arranque',
+    persisted: 'Datos persistentes',
+    persistedYes: 'Sí: el navegador no los borrará para hacer sitio',
+    persistedNo: 'No: el navegador puede borrarlos si le falta espacio',
+    unknown: 'No se sabe',
+    storage: 'Espacio usado',
+    storageUsed: (used: string, quota: string) => `${used} de ${quota}`,
+    copy: 'Copiar informe',
+    copied: 'Hemos copiado el informe.',
+    copyFailed: 'No hemos podido copiarlo. Selecciona el texto de abajo y cópialo.',
+    report: 'Informe',
+    clear: 'Borrar las medidas',
+    cleared: 'Hemos borrado las medidas.',
   },
 
   about: {

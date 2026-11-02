@@ -31,6 +31,8 @@ export const META_KEYS = {
   backup: 'backup',
   errorLog: 'errorLog',
   copyReminder: 'copyReminder',
+  /** Muestras del panel de rendimiento (Ajustes › Rendimiento, M3). */
+  perfSamples: 'perfSamples',
 } as const;
 
 export type GameAgendaDb = Dexie & {

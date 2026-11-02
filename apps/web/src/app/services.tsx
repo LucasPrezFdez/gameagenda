@@ -4,6 +4,8 @@ import { createContext, type ReactNode, use, useMemo, useSyncExternalStore } fro
 import type { AgendaEntry, AgendaStore } from '../agenda/types.ts';
 import type { CopyReminderState, CopyReminderStore } from '../data/copy-reminder.ts';
 import type { NoticeCenter } from '../notices/notice-center.ts';
+import type { PerfSampler } from '../perf/sampler.ts';
+import type { PerfSamples } from '../perf/samples.ts';
 import type { QueryState, SearchClient, StatusMessage } from '../search-client/index.ts';
 import type { SettingsStore, UiSettings } from '../settings/settings-store.ts';
 
@@ -13,6 +15,8 @@ export interface AppServices {
   readonly settings: SettingsStore;
   readonly notices: NoticeCenter;
   readonly copyReminder: CopyReminderStore;
+  /** Muestras del panel de rendimiento (M3). */
+  readonly perf?: PerfSampler;
 }
 
 const ServicesContext = createContext<AppServices | null>(null);
@@ -67,4 +71,13 @@ export function useQueryState(): QueryState {
 export function useCanUndo(): boolean {
   const { notices } = useServices();
   return useSyncExternalStore(notices.undoStack.subscribe, () => notices.undoStack.size > 0);
+}
+
+const noSamples = () => () => {};
+const emptySamples = (): PerfSamples => ({ since: null, values: {} });
+
+/** Las muestras del panel de rendimiento (vacías si no hay muestreo). */
+export function usePerfSamples(): PerfSamples {
+  const { perf } = useServices();
+  return useSyncExternalStore(perf?.subscribe ?? noSamples, perf?.getSnapshot ?? emptySamples);
 }

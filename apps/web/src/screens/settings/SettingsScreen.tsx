@@ -1,6 +1,7 @@
 // Ajustes (ver §9.1): Apariencia, Contenido (+18), Teclado (solo el atajo `/`), Datos (con la
 // edad del catálogo y «Actualizar catálogo», M2), Privacidad («Cargar portadas» y «Datos de Steam
-// que guardamos», M2) y Acerca de (con el aviso de marca, ver §11.1). En escritorio, menú y
+// que guardamos», M2), Rendimiento (el panel de la §12.7, M3) y Acerca de (con el aviso de
+// marca, ver §11.1). En escritorio, menú y
 // sección a la vez; en móvil, primero la lista de secciones y después cada una.
 import { type JSX, useId, useRef, useState } from 'react';
 import { useCatalogStatus, useServices, useSettings } from '../../app/services.tsx';
@@ -14,6 +15,7 @@ import { Link } from '../../router/router.tsx';
 import { SETTINGS_SECTIONS, type SettingsSection, settingsPath } from '../../router/routes.ts';
 import type { ThemePreference } from '../../settings/settings-store.ts';
 import { useOpenShortcutHelp } from '../../shortcuts/ShortcutHelp.tsx';
+import { PerformancePanel } from './PerformancePanel.tsx';
 import './settings.css';
 
 const THEMES: readonly ThemePreference[] = ['system', 'light', 'dark'];
@@ -485,6 +487,7 @@ const SECTIONS: Readonly<Record<SettingsSection, () => JSX.Element>> = {
   keyboard: Keyboard,
   data: Data,
   privacy: Privacy,
+  performance: PerformancePanel,
   about: About,
 };
 

@@ -183,3 +183,76 @@
     align-self: flex-start;
   }
 }
+
+/* Panel de rendimiento (M3): la tabla se desplaza sola en una pantalla estrecha, no la página. */
+.settings__perf {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.settings__perf-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.settings__perf-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.settings__perf-table th,
+.settings__perf-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--surface-2);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.settings__perf-table th[scope="row"],
+.settings__perf-table thead th:first-child {
+  text-align: left;
+  white-space: normal;
+}
+
+.settings__perf-table td[data-passes="true"] {
+  color: var(--playing);
+  font-weight: 600;
+}
+
+.settings__perf-table td[data-passes="false"] {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.settings__perf-info {
+  display: grid;
+  gap: 6px;
+}
+
+.settings__perf-info > div {
+  display: grid;
+  grid-template-columns: minmax(8rem, max-content) minmax(0, 1fr);
+  gap: 12px;
+}
+
+.settings__perf-info dt {
+  color: var(--text-muted);
+}
+
+.settings__perf-info dd {
+  overflow-wrap: anywhere;
+}
+
+.settings__perf-report {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settings__perf-report textarea {
+  font-family: ui-monospace, monospace;
+  font-size: 0.8125rem;
+}
