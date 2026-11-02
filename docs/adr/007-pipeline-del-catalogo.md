@@ -165,7 +165,7 @@ Los pasos 0–5 de la §4.5 y la firma del paso 6 (`pipeline/build.ts` y `pipeli
 **Prueba de humo** (`scripts/catalog-smoke.ts`), contra la URL que devuelve `wrangler`:
 
 - `manifest.json`: el mismo texto que el montado (espera ≤2 min al CDN), con una firma `prod` válida, `no-cache` y CORS para `WEB_ORIGIN`;
-- **cada fichero de `pipeline/dist`**, los de la versión nueva y los de la anterior: 200, el mismo SHA-256, CORS e `immutable`. Los TSV, además, con `text/plain; charset=utf-8`; si el núcleo llega sin `Content-Encoding`, avisa (R-16);
+- **cada fichero de `pipeline/dist`**, los de la versión nueva y los de la anterior: 200, el mismo SHA-256, CORS e `immutable`. Los TSV, además, con `text/plain; charset=utf-8`; si el núcleo llega sin `Content-Encoding`, avisa (R-16). Un 404 se reintenta hasta 90 s y, si el fichero aparece, queda como aviso: el CDN puede tardar en servir algún fichero nuevo aunque ya sirva el *manifest* nuevo. El 02-11-2026, sin esa espera, la ejecución programada salió en rojo con 4 de 1 030 ficheros en 404 justo después de desplegar, y unos minutos después estaban todos (ejecución 41444097606, *issue* #2);
 - un fichero con *hash* que no existe: 404 con CORS (§5.4);
 - que `wrangler` ha publicado en `CATALOG_ORIGIN`; si no, falla y pide cambiar la variable, o la siguiente ejecución no conservaría esta versión;
 - la tabla de cabeceras que hacía `deploy-catalog.yml` en M0 queda en el resumen.

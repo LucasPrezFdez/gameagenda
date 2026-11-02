@@ -124,7 +124,7 @@ No toca el pipeline (§8.8; DECISIONES §10.25).
 
 | CA | Estado | Evidencia |
 |---|---|---|
-| CA2.1 Pipeline diario | Pendiente (1 de 3) | La primera publicación, lanzada a mano, salió en verde: 218 llamadas, 4 con clave, 0,334/s y 12 min 7 s. Ejecuciones programadas: la del 01-11-2026 (41301033690), en verde en 12 min 10 s, con `20261101.1`, 93 recientes y todas las puertas, también las de variación (+0,044 % de juegos). GitHub la arrancó a las 11:15 UTC, no a las 04:17. Faltan la del 02-11 y la del 03-11 |
+| CA2.1 Pipeline diario | Pendiente (0 de 3; vuelve a empezar el 03-11) | La primera publicación, lanzada a mano, salió en verde: 218 llamadas, 4 con clave, 0,334/s y 12 min 7 s. Ejecuciones programadas: la del 01-11-2026 (41301033690), en verde en 12 min 10 s, con `20261101.1`, 93 recientes y todas las puertas, también las de variación (+0,044 % de juegos). GitHub la arrancó a las 11:15 UTC, no a las 04:17. La del 02-11 (41444097606) publicó bien `20261102.1`, pero salió en rojo: justo después de desplegar, la prueba de humo vio 4 de ≈1 030 ficheros en 404 (ver «Corregido»). Hacen falta tres seguidas desde el 03-11 |
 | CA2.2 Puertas | Cumplido con *fixtures*; falta un fallo real | `publish.test.ts` fuerza cada puerta y el «solo falla el enriquecimiento». El *issue* y el aviso del trabajo `report` no se han visto en un fallo real |
 | CA2.3 Firma y *kill switch* | Cumplido en Chromium | `catalog-update.spec` (*manifest* manipulado), `covers.spec` (*kill switch* `covers`) y `host.test`. El WebKit de Playwright para Windows no trae Ed25519 |
 | CA2.4 Actualización ligera | Cumplido | En producción (`docs/medidas/ca2.4-20261102.md`), un cliente con el catálogo `20261031.1` pasa a `20261101.1` bajando 34,5 KB en 4 ficheros (*manifest*, recientes, alias e índice de *shards*), sin núcleo y sin tareas largas en el hilo principal. En pruebas, `catalog-update.spec` y `host.test` (solo el *manifest* y los recientes); `assemble-catalog` y la prueba de humo del pipeline (versión anterior) |
@@ -152,6 +152,7 @@ No toca el pipeline (§8.8; DECISIONES §10.25).
 
 ### Corregido
 
+- **La prueba de humo de `catalog.yml` daba por fallida una publicación correcta** (02-11-2026, ejecución 41444097606). Justo después de desplegar, el CDN ya servía el *manifest* nuevo, pero aún daba 404 en 4 de los ≈1 030 ficheros; minutos después estaban todos. Ahora reintenta un 404 hasta 90 s y, si el fichero aparece, lo deja como aviso. La de `deploy-web` tenía la misma carrera con el `index.html` y también espera.
 - **`ga-web` no volvía a abrir tras la primera visita** (desde el despliegue del 30-10-2026). Workers Static Assets redirige `/index.html` a `/`, y el Service Worker guardaba esa respuesta redirigida, que Chrome no acepta para una navegación: cada visita siguiente fallaba con `net::ERR_FAILED`, también sin red. Ahora guarda una copia sin la redirección, y quien tenía la versión rota se recupera solo en la siguiente visita (comprobado en producción). `vite preview` no redirige, así que hay un E2E nuevo que reproduce el 307.
 - **Clave de Steam:** el cliente HTTP la mandaba a todas las peticiones, unas 220 con clave al día frente a las ≤10 del CA2.1. Ahora solo la lleva `GetAppList`.
 - **`--from-raw`** vuelve a derivar con clave si las páginas crudas traen `GetAppList`, aunque no haya clave en el entorno.

@@ -7,7 +7,8 @@
 
 Todo está en `main` y subido, con el CI y el despliegue en verde y sin agentes en marcha. Por orden:
 
-1. **Mirar las ejecuciones programadas del catálogo:** 01-11, 02-11 y 03-11 a las 04:17 UTC (05:17 en Madrid). Con `gh run list --workflow catalog.yml --limit 5`, o en la web de Actions.
+1. **Mirar las ejecuciones programadas del catálogo:** del 03-11 al 05-11 a las 04:17 UTC (05:17 en Madrid); GitHub las arranca hasta 8 h tarde. Con `gh run list --workflow catalog.yml --limit 5`, o en la web de Actions.
+   - **La del 02-11 (41444097606): en rojo**, aunque publicó bien `20261102.1`. Justo después de desplegar, la prueba de humo vio 4 de ≈1 030 ficheros en 404; unos minutos después estaban todos. No se guardó el estado del día ni se avisó a healthchecks.io, y se abrió el *issue* #2. El usuario decidió arreglarlo aunque sea el pipeline: `catalog-smoke.ts` reintenta los 404 hasta 90 s. **CA2.1 vuelve a empezar:** hacen falta las del 03-11, el 04-11 y el 05-11.
    - **La del 01-11 (41301033690): en verde** en 12 min 10 s. Versión `20261101.1`: 197 874 juegos (+0,044 %), 3 563 alias y 93 recientes, los primeros. Todas las puertas en verde, también las de variación, y conserva la versión `20261031.1`.
    - **GitHub la arrancó a las 11:15 UTC, no a las 04:17:** casi 7 h tarde, algo normal en los *cron* de Actions con carga. El *check* de healthchecks.io (1 día + 12 h) lo aguanta. Las del 02-11 y el 03-11 pueden llegar igual de tarde.
    - Si alguna falla, se abre el *issue* `catalogo`; se sigue el *runbook* del ADR-007.
@@ -196,7 +197,7 @@ Todo está en `main` y subido, con el CI y el despliegue en verde y sin agentes 
 - **Ritmo:** se pueden usar subagentes para trabajos independientes, pero hay que avisar al usuario al acabar cada parte y preguntar si sigue.
 - **No borrar** ramas, *worktrees* ni borradores sin que el usuario lo pida (31-10-2026: «no borres nada por si acaso»).
 - **Lo que el modo automático no deja hacer al asistente:** escribir secretos de GitHub, lanzar `catalog.yml` (despliega en producción) y cambiar `CATALOG_SCHEDULE`. Se le dan al usuario los pasos en la web de GitHub. Las variables normales, como `CATALOG_ORIGIN`, sí se pueden poner.
-- **Hasta cerrar M2, no tocar el pipeline** (`pipeline/`, `scripts/catalog-*`, `catalog.yml`): las ejecuciones programadas usan `main`.
+- **Hasta cerrar M2, no tocar el pipeline** (`pipeline/`, `scripts/catalog-*`, `catalog.yml`): las ejecuciones programadas usan `main`. Excepción del 02-11-2026, decidida por el usuario: el reintento de los 404 en `catalog-smoke.ts`.
 - **Después de cada despliegue de `ga-web`, `npm run smoke:web`.** `vite preview` esconde diferencias con Workers Static Assets: el 31-10, el Service Worker roto desde el 30-10.
 - **`npm run perf` en local** necesita antes `npm run catalog:frozen` (catálogo firmado con `dev-1`). Con procesos pesados en marcha (Discord, `cargo`), `perf` y los E2E de WebKit sensibles al tiempo fallan sueltos: se repiten antes de culpar al código.
 - **Los informes de los subagentes** llegan por `SubagentHandback`; los antiguos están en `~/.claude/projects/<proyecto>/<sesión>/subagents/agent-*.jsonl`.
