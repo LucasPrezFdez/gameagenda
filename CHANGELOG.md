@@ -107,6 +107,14 @@ El resto de CA3.4 (§9.4; DECISIONES §10.24). Cada gesto tiene su botón y ning
 - **«Gestos táctiles»** en Ajustes › Teclado y gestos, activado por defecto. El asa `::` no depende de él.
 - **Pruebas:** `gesture-model.test.ts` (umbrales, zonas muertas, volver atrás, a qué estado avanza y dónde cae lo arrastrado), `agenda.test.ts` (mover antes o después de otra entrada) y `gestures.spec.ts`, con toques de verdad por CDP en Chromium y el arrastre con el ratón.
 
+#### Adelantado de M3: auditoría WCAG 2.2 AA (CA3.5, parte automática)
+
+§9.7; DECISIONES §10.28. Falta la pasada con lectores de pantalla, que hace el usuario.
+- **Contraste en los dos temas:** `scripts/tokens-contrast.test.ts` comprueba en los tokens 32 pares por tema, de texto (≥4,5:1) y de componentes (≥3:1). Pasan todos.
+- **axe** también en lo que se abre encima: la ayuda de atajos, «Apuntar como…», el alta a mano, Próximos y Ajustes › Rendimiento, en los dos temas.
+- **`wcag.spec.ts`:** sin desplazamiento horizontal a 320 px en ninguna pantalla (el zoom al 400 %), el foco no queda tapado por las barras fijas, el anillo de foco de 2 px y el movimiento reducido, y los nombres accesibles empiezan por el texto visible.
+- **Guía de la pasada con NVDA, Narrador, TalkBack y VoiceOver:** `docs/medidas/guia-lectores-pantalla-m3.md`.
+
 #### Adelantado de M3: panel de rendimiento
 
 §12.7; DECISIONES §10.27.

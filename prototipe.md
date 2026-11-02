@@ -1545,6 +1545,13 @@ Base desde M1; auditoría en M3 (teclado, zoom al 400 %, NVDA, Narrador, VoiceOv
 - **2.5.1 · 2.5.7 · 2.5.8:** botón para cada gesto y arrastre; objetivos ≥24 × 24 px (44 × 44 px los principales en táctil, como en RNF-09).
 - **2.5.3 · 3.3.1 · 3.3.7 · 3.3.8:** nombre accesible que empieza por el texto visible («Jugando: cambiar estado de…»); errores que dicen qué hacer; lo buscado rellena el título manual; emparejar (M4) con QR o pegando el código.
 - **4.1.2 · 4.1.3:** paleta como *combobox* del APG (`(i)` fuera de la `option`); `aria-pressed` en las marcas; *tabindex* itinerante; en la lista virtual, `aria-setsize`/`aria-posinset` y la fila enfocada nunca se desmonta; avisos en `role="status"`.
+- **Auditoría de M3 tal como se ha hecho (02-11-2026; `DECISIONES.md` §10.28):**
+  - **axe** (WCAG 2.0–2.2, A y AA) en cada pantalla y en los dos temas, y también en lo que se abre encima: menús, la ayuda de atajos, «Apuntar como…», el alta a mano, la bandeja de marcas, Próximos y Ajustes › Rendimiento (`a11y.spec.ts` y `wcag.spec.ts`). Sin violaciones graves ni críticas.
+  - **Contraste:** `scripts/tokens-contrast.test.ts` comprueba en los tokens de los dos temas el texto (≥4,5:1) y los componentes (foco, bordes e iconos, ≥3:1), también lo que axe no ve en las pruebas: cada estado y cada marca sobre su chip, y el fondo de los gestos. Pasan los 32 pares de cada tema, y el tema oscuro es el mismo con el sistema y elegido en Ajustes.
+  - **Zoom al 400 %:** a 320 px, ninguna pantalla se desplaza en horizontal, ni con la paleta abierta ni con un título larguísimo.
+  - **Foco:** anillo de 2 px separado 2 px; al bajar con `↓` por Mi lista en una pantalla baja, ninguna fila enfocada queda debajo de la cabecera ni de las barras de abajo.
+  - **2.5.3:** la regla experimental de axe `label-content-name-mismatch` no encuentra ningún nombre accesible que no empiece por el texto visible.
+  - **Lectores de pantalla:** la pasada de NVDA, Narrador, TalkBack y VoiceOver la hace el usuario, con `docs/medidas/guia-lectores-pantalla-m3.md`. Hasta entonces, CA3.5 sigue abierto.
 
 Fuentes: https://www.w3.org/TR/WCAG22/ · https://www.w3.org/WAI/ARIA/apg/patterns/combobox/
 

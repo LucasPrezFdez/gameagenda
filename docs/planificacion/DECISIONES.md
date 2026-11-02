@@ -351,3 +351,9 @@ Resueltos a partir de las mediciones y de los conflictos detectados entre seccio
     - **El LCP es el último antes de la primera tecla o toque,** una muestra por carga, también en los reinicios.
     - **«Copiar informe»** copia texto plano. Si no se puede escribir en el portapapeles, el informe sale en un campo para copiarlo a mano. No se envía nada.
     - **La tabla se desplaza sola** a 320 px: su zona desplazable se puede enfocar con el teclado (axe: `scrollable-region-focusable`).
+28. **Auditoría WCAG 2.2 AA de M3 tal como se ha hecho (02-11-2026; cambia §9.7; CA3.5):** lo que la §9.7 no decía.
+    - **El contraste se comprueba en los tokens, no solo en pantalla.** axe solo mide el texto que ve en cada prueba, y no mide el anillo de foco ni los bordes (1.4.11). `scripts/tokens-contrast.test.ts` lee `tokens.css` y comprueba 32 pares en cada tema: el texto y el secundario sobre los tres fondos (≥4,5:1); el acento, el borde de los controles y los iconos (≥3:1); cada estado y cada marca sobre su chip y sobre la superficie; y el texto de los gestos armados. Pasan todos sin tocar ningún color. Va en `scripts/` porque necesita leer el fichero desde Node.
+    - **El zoom al 400 % se prueba a 320 px de ancho,** que es a lo que equivale en un PC de 1 280 px, en cada pantalla y con la paleta abierta.
+    - **2.4.11 se prueba con el teclado,** en una ventana de 390 × 480: cada fila enfocada al bajar con `↓` queda entre la cabecera y las barras de abajo, gracias al `scroll-padding` de la §9.7.
+    - **2.5.3 con la regla experimental de axe** `label-content-name-mismatch`, en Mi lista con juegos: sin hallazgos. No se activa en el resto de pruebas, por si da falsos positivos.
+    - **Los lectores de pantalla no se pueden automatizar aquí:** la pasada de apuntar → cambiar estado → Deshacer con NVDA, Narrador, TalkBack y VoiceOver la hace el usuario, con `docs/medidas/guia-lectores-pantalla-m3.md`. La de NVDA es la misma de CA1.10 (*issue* #1).
