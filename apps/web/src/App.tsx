@@ -22,10 +22,12 @@ import { DetailsProvider } from './details/details-context.tsx';
 import { ErrorBoundary } from './errors/ErrorBoundary.tsx';
 import { es } from './i18n/es.ts';
 import { useMediaQuery, useOnline } from './lib/hooks.ts';
+import { sharedText, useLinkCapture } from './links/link-capture.ts';
 import type { NoticeCenter } from './notices/notice-center.ts';
 import { Toaster } from './notices/Toaster.tsx';
 import { Palette, type PaletteActions, type PaletteHandle } from './palette/Palette.tsx';
 import { PaletteProvider } from './palette/palette-context.tsx';
+import { linkInText } from './palette/palette-model.ts';
 import { endFirstCommit } from './perf/measures.ts';
 import { Link, navigate, useLocation } from './router/router.tsx';
 import { gamePath, parseRoute, type Route, settingsPath, withSearch } from './router/routes.ts';
@@ -192,7 +194,11 @@ function ScreenFallback() {
 }
 
 function Screens({ route, wide }: { route: Route; wide: boolean }) {
-  const withList = route.name === 'list' || route.name === 'capture' || route.name === 'game';
+  const withList =
+    route.name === 'list' ||
+    route.name === 'capture' ||
+    route.name === 'share' ||
+    route.name === 'game';
   return (
     <>
       {withList && (
@@ -240,6 +246,39 @@ function AppShell() {
     if (route.name === 'capture') paletteRef.current?.open(performance.now());
   }, [route.name]);
 
+  const captureLink = useLinkCapture();
+
+  // «Compartir» en Android (`/share`, M3; RF-07): con un enlace de Steam, lo apunta (con su aviso
+  // y Deshacer) y deja `/` en el historial; sin enlace, abre la paleta con el texto. Una sola vez
+  // por navegación (en desarrollo, `StrictMode` repite los efectos).
+  const sharedOnce = useRef<string | null>(null);
+  useEffect(() => {
+    if (route.name !== 'share') return;
+    const key = window.location.href;
+    if (sharedOnce.current === key) return;
+    sharedOnce.current = key;
+    const text = sharedText(new URLSearchParams(window.location.search));
+    const startedAt = performance.now();
+    navigate('/', { replace: true });
+    void captureLink(text, { feedbackStart: startedAt }).then((captured) => {
+      if (!captured && text !== '') paletteRef.current?.open(performance.now(), text);
+    });
+  }, [route.name, captureLink]);
+
+  // `Ctrl+V` con un enlace de Steam en cualquier pantalla (M3; RF-07): fuera de los campos de
+  // texto, los menús y los diálogos, lo apunta sin abrir la paleta. Otro texto no se toca.
+  useEffect(() => {
+    const onPaste = (event: ClipboardEvent) => {
+      if (!isShortcutTarget(event.target)) return;
+      const text = event.clipboardData?.getData('text/plain') ?? '';
+      if (!linkInText(text)) return;
+      event.preventDefault();
+      void captureLink(text, { feedbackStart: event.timeStamp });
+    };
+    document.addEventListener('paste', onPaste);
+    return () => document.removeEventListener('paste', onPaste);
+  }, [captureLink]);
+
   // `Ctrl+Mayús+Espacio` en la app de escritorio (§17.3): lo mismo que `/apuntar`, sin recargar.
   // Desde otra pantalla, la navegación a `/apuntar` la abre con el efecto de arriba.
   useLayoutEffect(
@@ -265,11 +304,16 @@ function AppShell() {
         if (text !== '') params.set('q', text);
         navigate(withSearch('/catalogo', params));
       },
+      captureLink,
     }),
-    [commands],
+    [commands, captureLink],
   );
 
-  const onList = route.name === 'list' || route.name === 'capture' || route.name === 'game';
+  const onList =
+    route.name === 'list' ||
+    route.name === 'capture' ||
+    route.name === 'share' ||
+    route.name === 'game';
   const group = onList ? 'agenda' : route.name;
 
   return (
@@ -287,7 +331,7 @@ function AppShell() {
             <Palette
               ref={paletteRef}
               actions={paletteActions}
-              showBar={route.name === 'list' || route.name === 'capture'}
+              showBar={route.name === 'list' || route.name === 'capture' || route.name === 'share'}
               onClose={() => {
                 if (window.location.pathname === '/apuntar') navigate('/', { replace: true });
               }}

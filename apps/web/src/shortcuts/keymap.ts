@@ -156,6 +156,7 @@ export function shortcutGroups(labels: {
       rows: [
         { combos: [one('Ctrl', 'K'), one('/')], label: t.palette },
         { combos: [one('Ctrl', 'Z')], label: t.undo },
+        { combos: [one('Ctrl', 'V')], label: t.pasteLink },
         { combos: [one('Esc')], label: t.close },
         { combos: [one('?')], label: t.help },
         { combos: [{ keys: ['G', 'L'], sequence: true }], label: t.goList },
@@ -219,7 +220,8 @@ export type ShortcutText =
   | 'note'
   | 'remove'
   | 'priority'
-  | 'steam';
+  | 'steam'
+  | 'pasteLink';
 
 /** La tecla de cada marca, para la ayuda y las pruebas. */
 export const FLAG_SHORTCUTS: Readonly<Record<Flag, string>> = Object.fromEntries(

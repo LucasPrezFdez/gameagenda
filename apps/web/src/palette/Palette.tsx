@@ -49,6 +49,10 @@ import {
 
 type LinkOption = Extract<PaletteOption, { kind: 'link' }>;
 
+/** ¿Se puede leer el portapapeles con un toque (chip «Pegar enlace»)? */
+const canPaste =
+  typeof navigator !== 'undefined' && typeof navigator.clipboard?.readText === 'function';
+
 /** En el móvil, la paleta abierta es una hoja a pantalla completa (ver `palette.css`). */
 const SHEET_MEDIA = '(max-width: 767px)';
 
@@ -64,11 +68,19 @@ export interface PaletteActions {
   openGame(id: string): void;
   /** «Ver más resultados en el Catálogo». */
   openCatalog(text: string): void;
+  /**
+   * Apunta el enlace de Steam de `text` sin pasar por los resultados (chip «Pegar enlace», M3):
+   * `false` si no trae ninguno.
+   */
+  captureLink?(text: string, timing: FeedbackTiming): Promise<boolean>;
 }
 
 export interface PaletteHandle {
-  /** Abre la paleta y enfoca el campo en la misma tarea del evento (`timeStamp` del evento). */
-  open(timeStamp: number): void;
+  /**
+   * Abre la paleta y enfoca el campo en la misma tarea del evento (`timeStamp` del evento). Con
+   * `text`, lo escribe en el campo y lo busca (`/share` sin enlace, M3).
+   */
+  open(timeStamp: number, text?: string): void;
   close(): void;
 }
 
@@ -225,9 +237,13 @@ export function Palette({ actions, showBar, onClose, ref }: PaletteProps) {
   }
 
   useImperativeHandle(ref, () => ({
-    open(timeStamp) {
+    open(timeStamp, initial) {
       openPalette(timeStamp, document.activeElement);
       inputRef.current?.focus({ preventScroll: true });
+      if (initial) {
+        setText(initial);
+        search.setQuery(initial, timeStamp);
+      }
     },
     close: () => close(),
   }));
@@ -314,6 +330,30 @@ export function Palette({ actions, showBar, onClose, ref }: PaletteProps) {
       return;
     }
     capture(target, undefined, timeStamp);
+  }
+
+  /**
+   * Chip «Pegar enlace» (M3; RF-07): lee el portapapeles (en iOS, con el «Pegar» del sistema) y
+   * apunta el enlace de Steam que traiga, como `Ctrl+V` fuera de la paleta.
+   */
+  async function pasteLink(timeStamp: number): Promise<void> {
+    const captureLink = latest.current.actions.captureLink;
+    if (!captureLink) return;
+    let pasted: string;
+    try {
+      pasted = await navigator.clipboard.readText();
+    } catch {
+      setHint(es.palette.clipboardDenied);
+      inputRef.current?.focus();
+      return;
+    }
+    const timing = { feedbackStart: timeStamp, captureStart: openedAt.current };
+    if (await captureLink(pasted, timing)) {
+      close();
+    } else {
+      setHint(es.palette.noLinkInClipboard);
+      inputRef.current?.focus();
+    }
   }
 
   function hintFor(current: PaletteModel): string {
@@ -686,6 +726,18 @@ export function Palette({ actions, showBar, onClose, ref }: PaletteProps) {
           )}
           {open && mode.kind === 'results' && trimmed === '' && (
             <p className="palette__empty">{es.palette.emptyHint}</p>
+          )}
+          {open && mode.kind === 'results' && trimmed === '' && canPaste && actions.captureLink && (
+            <div className="palette__paste">
+              <button
+                type="button"
+                className="chip-button"
+                onClick={(event) => void pasteLink(event.timeStamp)}
+              >
+                <Icon name="clipboard" />
+                {es.palette.pasteLink}
+              </button>
+            </div>
           )}
 
           <div className="palette__scroll" hidden={!showList} style={gridStyle}>

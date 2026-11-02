@@ -76,6 +76,7 @@ export const es = {
       remove: 'Quitar de mi lista (con Deshacer)',
       priority: 'Subir o bajar la prioridad',
       steam: 'Ver en Steam',
+      pasteLink: 'Apuntar el enlace de Steam copiado (fuera de los campos de texto)',
     } satisfies Record<ShortcutText, string>,
   },
 
@@ -119,6 +120,11 @@ export const es = {
     openSheet: (title: string) => `Ficha de ${title}`,
     noResults: (text: string) => `No hemos encontrado «${text}» en Steam.`,
     emptyHint: 'Escribe el nombre de un juego y pulsa Intro.',
+    // Chip «Pegar enlace» (M3; RF-07).
+    pasteLink: 'Pegar enlace',
+    noLinkInClipboard: 'No hay ningún enlace de Steam en el portapapeles.',
+    clipboardDenied:
+      'No hemos podido leer el portapapeles. Mantén pulsado el campo, elige Pegar y pulsa Intro.',
     keysHint:
       'Intro: apuntar · Ctrl+Intro: apuntar y seguir · Alt+Intro: otro estado o marcas · Mayús+Intro: ficha',
     alreadyInList: (title: string, status: Status) =>

@@ -69,6 +69,12 @@ export default defineConfig(({ mode }) => ({
           },
           { src: '/icons/icon.svg', sizes: 'any', type: 'image/svg+xml' },
         ],
+        // «Compartir» en Android (M3; RF-07): GET a `/share`, que apunta el enlace y vuelve a `/`.
+        share_target: {
+          action: '/share',
+          method: 'GET',
+          params: { title: 'title', text: 'text', url: 'url' },
+        },
         shortcuts: [
           {
             name: 'Apuntar juego',

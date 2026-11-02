@@ -5,6 +5,7 @@ describe('parseRoute', () => {
   it('reconoce las rutas de la §9.1', () => {
     expect(parseRoute('/')).toEqual({ name: 'list' });
     expect(parseRoute('/apuntar')).toEqual({ name: 'capture' });
+    expect(parseRoute('/share')).toEqual({ name: 'share' });
     expect(parseRoute('/catalogo/')).toEqual({ name: 'catalog' });
     expect(parseRoute('/juego/steam:1145350')).toEqual({ name: 'game', id: 'steam:1145350' });
     expect(parseRoute('/juego/steam%3A730')).toEqual({ name: 'game', id: 'steam:730' });
@@ -17,7 +18,7 @@ describe('parseRoute', () => {
     expect(parseRoute('/juego/steam:730.0')).toEqual({ name: 'notFound' });
     expect(parseRoute('/juego/%E0%A4%A')).toEqual({ name: 'notFound' });
     expect(parseRoute('/ajustes/nada')).toEqual({ name: 'notFound' });
-    expect(parseRoute('/share')).toEqual({ name: 'notFound' });
+    expect(parseRoute('/share/otra')).toEqual({ name: 'notFound' });
   });
 
   it('acepta juegos manuales con uuid', () => {

@@ -175,6 +175,23 @@
   padding: 6px 12px;
 }
 
+/* Chip «Pegar enlace» (M3): para el dedo. Con teclado está Ctrl+V, y en el PC leer el
+   portapapeles pediría permiso. */
+.palette__paste {
+  display: none;
+  padding: 2px 12px 8px;
+}
+
+@media (pointer: coarse) {
+  .palette__paste {
+    display: flex;
+  }
+
+  .palette__paste .chip-button {
+    min-height: var(--target-touch);
+  }
+}
+
 .palette__subtitle {
   font-weight: 600;
 }

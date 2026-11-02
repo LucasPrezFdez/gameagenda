@@ -23,6 +23,8 @@ export const SETTINGS_SLUGS: Readonly<Record<SettingsSection, string>> = {
 export type Route =
   | { readonly name: 'list' }
   | { readonly name: 'capture' }
+  /** Destino de «Compartir» en Android (`share_target`, M3): apunta y vuelve a `/`. */
+  | { readonly name: 'share' }
   | { readonly name: 'catalog' }
   | { readonly name: 'game'; readonly id: string }
   | { readonly name: 'settings'; readonly section: SettingsSection | null }
@@ -47,6 +49,7 @@ export function parseRoute(pathname: string): Route {
   const path = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
   if (path === '/' || path === '') return { name: 'list' };
   if (path === '/apuntar') return { name: 'capture' };
+  if (path === '/share') return { name: 'share' };
   if (path === '/catalogo') return { name: 'catalog' };
   if (path === '/ajustes') return { name: 'settings', section: null };
 
