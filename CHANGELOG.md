@@ -80,6 +80,10 @@ Entra en `main` antes de la etiqueta, así que va en esta versión. Sus criterio
 - **CA3.7 con producción, el 02-11-2026**, en la app que instaló el usuario. Lo hizo el asistente, a petición suya, con tecleo simulado a 100 ms por carácter (`docs/medidas/ca3.7-20261102.md`):
   - 10 altas con el atajo desde otra ventana, con un p50 de 1,24 s y un máximo de 1,98 s del atajo a «Apuntado»;
   - todas sin recargar, y la segunda pulsación oculta la ventana.
+- **CA3.8 con producción, el 02-11-2026**, también por el asistente y en la segunda pantalla (`docs/medidas/ca3.8-20261102.md`). Con ellos, el ADR-010 pasa a «aceptada»:
+  - sin red (cortada solo a la app), abre, busca, apunta y lo conserva al reiniciar;
+  - la página de producción no logra ninguna de 6 llamadas a Tauri;
+  - con el atajo cogido por otra aplicación, el menú de la bandeja lo dice, y «Reintentar» lo recupera cuando se libera.
 
 #### Adelantado de M3: atajos de teclado
 

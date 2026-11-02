@@ -6,7 +6,7 @@ Agenda personal de videojuegos: apuntar en segundos los juegos que quieres jugar
 
 - Planificación terminada el 28-10-2026. **M0 y M1 cerrados** (30-10-2026; M1 con `v0.1.0`; las medidas en el dispositivo pasan a M3, [issue #1](https://github.com/LucasPrezFdez/gameagenda/issues/1)).
 - **M2 en producción desde el 31-10-2026, a falta de CA2.1** (tres ejecuciones programadas de `catalog.yml` en verde, del 1 al 3 de noviembre) para la etiqueta `v0.2.0`. Catálogo firmado en https://ga-catalog.gameagenda-cat.workers.dev, en su propia cuenta de Cloudflare; app 0.2.0 en https://ga-web.gameagenda.workers.dev (ADR-003 y ADR-007). Hasta cerrar M2 no se toca el pipeline.
-- **M3 empezado:** la app de escritorio para Windows (`apps/desktop`, Tauri; ADR-010), a falta de que el usuario la pruebe (CA3.7 y CA3.8).
+- **M3 empezado:** la app de escritorio para Windows (`apps/desktop`, Tauri; ADR-010) está cerrada, con CA3.7 y CA3.8 el 02-11-2026. Lo demás de M3 que puede hacer el asistente también está hecho; quedan las pruebas del usuario y el núcleo de arranque, que espera a cerrar M2.
 - Repositorio: https://github.com/LucasPrezFdez/gameagenda.
 - Para retomar el trabajo, lee primero `docs/planificacion/ESTADO-SESION.md`.
 

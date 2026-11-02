@@ -1,6 +1,6 @@
 # ADR-010 · App de escritorio: envoltorio Tauri de `ga-web` con atajo global
 
-- **Estado:** propuesta (pasa a aceptada cuando el usuario cierre a mano CA3.7 y CA3.8)
+- **Estado:** aceptada el 02-11-2026, con CA3.7 y CA3.8 cumplidos en la app instalada (los midió el asistente, a petición del usuario)
 - **Fecha:** 31-10-2026
 - **Deciden:** el usuario y el asistente
 
@@ -119,6 +119,11 @@ Opción elegida: **1**, porque es la única en la que el propio Tauri trata `ga-
   - 10 altas a 100 ms por carácter, con 300 ms de reacción antes de Intro;
   - del atajo a «Apuntado», p50 de 1,24 s y máximo de 1,98 s; ventana delante en 28 ms (p50) y paleta con el foco en 37 ms;
   - 10 de 10 sin recargar, y la segunda pulsación oculta la ventana y devuelve el foco 10 de 10.
+- **CA3.8 con producción (02-11-2026)**, en la misma app y en la segunda pantalla (`docs/medidas/ca3.8-20261102.md`):
+  - **sin red** (un *proxy* muerto en WebView2 y la página «sin conexión» por CDP; la red del PC no se toca): abre, el catálogo llega a `full` en 118 ms, busca «celeste» en 4 ms, apunta y lo conserva al reiniciar;
+  - **órdenes:** 6 `invoke` desde la página de producción, todas `not allowed by ACL`;
+  - **atajo ocupado** por otra aplicación antes de arrancar: el menú dice «Ctrl+Mayús+Espacio lo usa otra aplicación · Reintentar»; cuando se libera, «Reintentar» lo recupera, el menú pasa a «Atajo: Ctrl+Mayús+Espacio» y el atajo pone la paleta con el foco en 40 ms.
+  - **Hallazgo:** la ventana vive en la bandeja, así que una versión nueva de `ga-web` solo entra tras «Salir» o al reiniciar Windows (el Service Worker no usa `skipWaiting`). Queda para decidir.
 
 ## Pros y contras de las opciones
 
