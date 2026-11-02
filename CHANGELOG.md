@@ -107,6 +107,15 @@ El resto de CA3.4 (§9.4; DECISIONES §10.24). Cada gesto tiene su botón y ning
 - **«Gestos táctiles»** en Ajustes › Teclado y gestos, activado por defecto. El asa `::` no depende de él.
 - **Pruebas:** `gesture-model.test.ts` (umbrales, zonas muertas, volver atrás, a qué estado avanza y dónde cae lo arrastrado), `agenda.test.ts` (mover antes o después de otra entrada) y `gestures.spec.ts`, con toques de verdad por CDP en Chromium y el arrastre con el ratón.
 
+#### Adelantado de M3: más vías de captura (CA3.3)
+
+RF-07 (§9.2; DECISIONES §10.26).
+- **«Compartir» en Android:** con la PWA instalada, GameAgenda sale en la hoja de «Compartir» (`share_target`). Un enlace de Steam se apunta al momento con Deshacer, también si viene dentro del texto, como lo manda la app de Steam. Sin enlace, se abre la paleta con el texto.
+- **`Ctrl+V` con un enlace de Steam en cualquier pantalla** lo apunta, fuera de los campos de texto. Un `appid` que no está en el catálogo queda provisional, con el título del enlace.
+- **Chip «Pegar enlace»** en la paleta vacía, con el dedo: lee el portapapeles y apunta el enlace (en iOS, con el «Pegar» del sistema).
+- El acceso directo «Apuntar juego» ya estaba. La ayuda de atajos lleva `Ctrl+V`.
+- **Pruebas:** `share.spec.ts`, con `/share`, `Ctrl+V` en varias pantallas y en un campo, un `Ctrl+V` de verdad en Chromium, el chip y el *manifest*.
+
 #### Adelantado de M3: índice persistido (CA3.2)
 
 No toca el pipeline (§8.8; DECISIONES §10.25).
