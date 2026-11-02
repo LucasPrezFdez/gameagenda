@@ -1475,6 +1475,15 @@ Leyenda: `[img]` portada, `[HK ]` generada, `(+)` apuntar, `(i)` ficha, `::` asa
 | Filas y ficha | `J` `K` · `1`–`5`: estado · `C` `P` `A`: Comprado, Platinado, Próximo · `N`: nota · `Supr`: quitar · `Alt+↑/↓`: prioridad · `V`: Ver en Steam · `F`: filtrar | M3 |
 
 - Nada de `Ctrl+Alt` (es AltGr), de teclas con AltGr (`@ # [ ] { } \ | ~`), de `Alt+Inicio` ni de `Alt+Mayús` (idioma de entrada en Windows); del navegador solo se intercepta `Ctrl+K`. Letras y signos por `event.key` (sin distinguir mayúsculas) y dígitos por `event.code`. Las teclas sueltas no actúan con Ctrl, Alt ni Win/Cmd, en campos de texto ni con `isComposing`; con Mayús sí, porque en el teclado español `/` es `Mayús+7` y `?`, `Mayús+'` (lo prueba un E2E con `key` `/`, `code` `Digit7` y Mayús). Se pueden desactivar (WCAG 2.1.4).
+- **Atajos de M3 tal como se han construido (02-11-2026; `DECISIONES.md` §10.23):**
+  - **Un solo mapa:** `apps/web/src/shortcuts/keymap.ts` traduce cada pulsación y pinta la ayuda. Lo usan la carcasa (`?`, `G` + letra y `F`), las filas de Mi lista y del Catálogo, y la ficha.
+  - **Ayuda:** `?`, o «Atajos de teclado» en el menú «Más opciones» y en Ajustes › Teclado y gestos. Va en un `<dialog>` modal; Esc lo cierra sin cerrar la ficha.
+  - **`G`** espera 1,5 s a la segunda tecla. Las filas reciben la tecla antes que la carcasa, así que la secuencia es un estado compartido: `G` y luego `C` va al Catálogo y no marca Comprado en la fila con el foco.
+  - **Filas:** actúan con el foco en el título o en uno de sus botones, nunca con un menú abierto. Si la fila sale de la vista, el foco pasa a la siguiente, como con los botones.
+  - **Ficha:** `J` y `K` van al juego siguiente o al anterior de Mi lista tal como se ve, sustituyendo la entrada del historial. `N` lleva el foco a la nota; desde una fila, abre la ficha con el foco en la nota.
+  - **Juegos que no están en la lista** (Catálogo o ficha): `1`–`5` los apuntan en ese estado. `C`, `P`, `A`, `N` y `Supr` solo actúan sobre juegos de la lista, y `Alt+↑/↓`, solo donde hay prioridad.
+  - **`F`** va al filtro de Mi lista o del Catálogo, si está a la vista.
+  - **«Atajos de una tecla»** (Ajustes › Teclado y gestos, activado por defecto) apaga todas las teclas sueltas, también el `+` del Catálogo. `Ctrl+K`, `Ctrl+Z`, `Esc` y `Alt+↑/↓` siguen funcionando.
 - **Gestos (M3)**, con alternativa en el icono de estado, `[...]` o la ficha: deslizar → avanza el estado; ← muestra las marcas; pulsación larga, selector; arrastrar `::`, reordenar; ↓ cierra la hoja. Se activan al 40 % del ancho, se cancelan volviendo atrás, vibran 10 ms en Android y respetan zonas muertas de ≥24 px en ambos bordes; ninguno borra.
 
 ### 9.5 Reglas de respuesta inmediata (M1; portadas desde M2)

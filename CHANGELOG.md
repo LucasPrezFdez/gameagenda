@@ -81,6 +81,18 @@ Entra en `main` antes de la etiqueta, así que va en esta versión. Sus criterio
   - 10 altas con el atajo desde otra ventana, con un p50 de 1,24 s y un máximo de 1,98 s del atajo a «Apuntado»;
   - todas sin recargar, y la segunda pulsación oculta la ventana.
 
+#### Adelantado de M3: atajos de teclado
+
+Entran en `main` antes de la etiqueta, como la app de escritorio. Es la parte de teclado de CA3.4: faltan los gestos y reordenar arrastrando (§9.4; DECISIONES §10.23).
+- **Atajos de una tecla:**
+  - `?` abre la ayuda, y `G` y luego `L`, `C` o `A` llevan a Mi lista, al Catálogo o a Ajustes;
+  - en las filas y en la ficha: `J` y `K`, `1`–`5` (estado), `C`, `P` y `A` (Comprado, Platinado y Próximo), `N` (nota), `Supr` (quitar, con Deshacer), `Alt+↑/↓` (prioridad), `V` (Ver en Steam) y `F` (filtrar).
+- **Ayuda de atajos:** con `?`, en el menú «Más opciones» y en Ajustes › Teclado y gestos.
+- **«Atajos de una tecla»** en Ajustes › Teclado y gestos, activado por defecto: apaga todas las teclas sueltas (WCAG 2.1.4).
+- **Pruebas:**
+  - `keymap.test.ts` comprueba el mapa: ninguno usa `Ctrl+Alt`, `Alt+Mayús` ni teclas con AltGr, y cada tecla de la ayuda es un atajo de verdad;
+  - `shortcuts.spec.ts` lo recorre solo con teclado (con axe sobre la ayuda) y prueba el ajuste apagado.
+
 #### Estado de los criterios de aceptación
 
 | CA | Estado | Evidencia |

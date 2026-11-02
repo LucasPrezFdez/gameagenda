@@ -34,7 +34,7 @@ Todo está en `main` y subido, con el CI y el despliegue en verde y sin agentes 
    - **Falta CA3.8,** que le toca al usuario: el modo avión de verdad y el menú de la bandeja con el atajo cogido por otra aplicación. El asistente no apaga la red del PC.
    - Con CA3.7 y CA3.8, el ADR-010 pasa a «aceptada». El instalador está en `apps/desktop/src-tauri/target/release/bundle/nsis/GameAgenda_0.2.0_x64-setup.exe`; si no está, `npm run desktop:build`.
 5. **Seguir con M3**, por este orden si el usuario no dice otra cosa:
-   1. atajos de una tecla, gestos y reordenar arrastrando (CA3.4);
+   1. atajos de una tecla, gestos y reordenar arrastrando (CA3.4). **Los atajos de teclado están hechos** (02-11-2026; §9.4 y DECISIONES §10.23): `shortcuts/keymap.ts`, la ayuda con `?`, el ajuste «Atajos de una tecla» y `shortcuts.spec.ts`. Faltan los gestos (deslizar, pulsación larga, ↓ cierra la hoja) y reordenar arrastrando `::`, con su botón equivalente;
    2. índice persistido (CA3.2): no necesita el pipeline;
    3. «Compartir» en Android, `Ctrl+V` en cualquier pantalla y chip «Pegar enlace»;
    4. panel de rendimiento;
