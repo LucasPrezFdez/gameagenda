@@ -23,13 +23,17 @@ import {
   createIndexPacker,
   IndexFormatError,
   type IndexParts,
-  type PersistedIndex,
+  type PackedIndex,
   packIndex,
+  restoreHaystack,
   restoreParts,
 } from '../src/search/persist.ts';
 
-/** Lo que hace el Worker: las partes del *chunk* diferido y el buscador del de entrada. */
-const restoreSearcher = (value: unknown): Searcher => searcherFromParts(restoreParts(value));
+/** Lo que hace el Worker: lo principal, el pajar después, y el buscador del *chunk* de entrada. */
+function restoreSearcher(value: unknown): Searcher {
+  const { main, haystack } = (value ?? {}) as Partial<PackedIndex>;
+  return searcherFromParts(restoreHaystack(haystack, restoreParts(main)));
+}
 
 import { readFrozen, readGolden, realisticFinals, typedSequences } from './helpers/frozen.ts';
 
@@ -49,7 +53,7 @@ function build(
 }
 
 /** Lo que guardaría y leería IndexedDB. */
-function throughIndexedDb(data: PersistedIndex): unknown {
+function throughIndexedDb(data: unknown): unknown {
   return v8.deserialize(v8.serialize(data));
 }
 
@@ -89,8 +93,10 @@ describe('índice persistido sobre el catálogo congelado', () => {
     }
     times.packMs = performance.now() - t;
     times.maxPackBlockMs = maxBlock;
-    const bytes = v8.serialize(packer.result as PersistedIndex);
+    const packed = packer.result as PackedIndex;
+    const bytes = v8.serialize(packed);
     times.megabytes = bytes.length / 1e6;
+    times.mainMegabytes = v8.serialize(packed.main).length / 1e6;
 
     t = performance.now();
     const stored = v8.deserialize(bytes);
@@ -114,6 +120,19 @@ describe('índice persistido sobre el catálogo congelado', () => {
 
   it('empaqueta a trozos que no bloquean más que un bloque de construcción', () => {
     expect(times.maxPackBlockMs).toBeLessThan(50);
+  });
+
+  it('sin el pajar, lo principal ya responde a los niveles 0–2; el 3 llega con él', () => {
+    expect(times.mainMegabytes).toBeLessThan((times.megabytes ?? 0) - 4);
+    const stored = throughIndexedDb(packIndex(parts)) as PackedIndex;
+    const first = searcherFromParts(restoreParts(stored.main));
+    // «hollow knight»: niveles 0–2, igual que lo construido.
+    expect(first.query('hollow knight')).toEqual(built.query('hollow knight'));
+    // «ollow knigh» solo sale por subcadena (nivel 3).
+    expect(built.query('ollow knigh').items.some((i) => i.tier === 3)).toBe(true);
+    expect(first.query('ollow knigh').items.some((i) => i.tier === 3)).toBe(false);
+    const full = searcherFromParts(restoreHaystack(stored.haystack, restoreParts(stored.main)));
+    expect(full.query('ollow knigh')).toEqual(built.query('ollow knigh'));
   });
 
   it('da las mismas listas en el dorado y en 600 pulsaciones del conjunto realista', SLOW, () => {
@@ -167,7 +186,7 @@ describe('índice persistido: casos pequeños', () => {
     ['mafia', 2],
   ];
 
-  function round(): { built: Searcher; restored: Searcher; data: PersistedIndex } {
+  function round(): { built: Searcher; restored: Searcher; data: PackedIndex } {
     const { searcher, parts } = build(coreFromRows(ROWS, { version: '20261102.1' }), ALIASES);
     const data = packIndex(parts);
     return { built: searcher, restored: restoreSearcher(throughIndexedDb(data)), data };
@@ -181,23 +200,32 @@ describe('índice persistido: casos pequeños', () => {
 
   it('rechaza lo que no es un índice de este formato', () => {
     const { data } = round();
-    const broken: unknown[] = [
+    const { main, haystack } = data;
+    const brokenMain: unknown[] = [
       null,
       'texto',
-      { ...data, format: 2 },
-      { ...data, count: data.count + 1 },
-      { ...data, appid: data.appid.subarray(1) },
-      { ...data, names: { ...data.names, count: 2 } },
-      { ...data, tokens: { count: 1, bytes: 'tokens' } },
-      { ...data, fwdStart: data.fwdStart.subarray(0, 2) },
-      { ...data, haystack: [{ narrow: null }] },
-      { ...data, bsAll: new Uint32Array(3) },
-      { ...data, kind: 'otro' },
+      { ...main, format: 1 },
+      { ...main, count: main.count + 1 },
+      { ...main, appid: main.appid.subarray(1) },
+      { ...main, names: { ...main.names, count: 2 } },
+      { ...main, tokens: { count: 1, bytes: 'tokens' } },
+      { ...main, fwdStart: main.fwdStart.subarray(0, 2) },
+      { ...main, bsAll: new Uint32Array(3) },
+      { ...main, kind: 'otro' },
     ];
-    for (const value of broken) {
-      expect(() => restoreSearcher(throughIndexedDb(value as PersistedIndex))).toThrow(
-        IndexFormatError,
-      );
+    for (const value of brokenMain) {
+      expect(() => restoreParts(throughIndexedDb(value))).toThrow(IndexFormatError);
+    }
+    const parts = restoreParts(throughIndexedDb(main));
+    const brokenHaystack: unknown[] = [
+      null,
+      { ...haystack, format: 1 },
+      // El de otro núcleo.
+      { ...haystack, count: haystack.count + 1 },
+      { ...haystack, chunks: [{ narrow: null }] },
+    ];
+    for (const value of brokenHaystack) {
+      expect(() => restoreHaystack(throughIndexedDb(value), parts)).toThrow(IndexFormatError);
     }
   });
 

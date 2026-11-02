@@ -14,7 +14,7 @@ test('el reinicio con el mismo catálogo restaura el índice guardado y busca ig
   // Se guarda después de `full`, a trozos: la clave identifica el núcleo, los recientes y los alias.
   await expect
     .poll(() => storedMeta(page, 'searchIndexKey'), { timeout: 15_000 })
-    .toMatch(/^1\|\/assets\/[^|]+\|[0-9a-f]{64}\|[0-9a-f]{64}\|[0-9a-f]{64}$/);
+    .toMatch(/^\d+\|\/assets\/[^|]+\|[0-9a-f]{64}\|[0-9a-f]{64}\|[0-9a-f]{64}$/);
   expect(await measures(page, 'search:index-restored')).toEqual([]);
 
   await page.reload();

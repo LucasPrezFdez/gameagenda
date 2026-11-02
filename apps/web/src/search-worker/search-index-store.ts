@@ -4,19 +4,54 @@
 // los alias: otro catálogo o otra versión de la app lo invalidan.
 //
 // Como `meta.catalog`, sin Dexie (§5.2): IndexedDB nativo sobre la base de la app, sin pedir
-// versión y cerrando la conexión al acabar. Son dos filas: `searchIndexKey`, con la clave, y
-// `searchIndex`, con el índice (≈25 MB). Al arrancar se lee primero la pequeña, y la grande solo
-// si es la que hace falta. Las dos se escriben en la misma transacción.
+// versión y cerrando la conexión al acabar. Son tres filas: `searchIndexKey`, con la clave;
+// `searchIndex`, con lo principal (≈22 MB), y `searchIndexHaystack`, con el pajar del nivel 3
+// (≈5 MB), que se lee después (§8.8). Al arrancar se lee primero la clave, y lo demás solo si es
+// la que hace falta. Las tres se escriben en la misma transacción.
 import { APP_DB_NAME, done, META_STORE, openAppDb } from './catalog-meta.ts';
 
 export const SEARCH_INDEX_KEY = 'searchIndexKey';
 export const SEARCH_INDEX = 'searchIndex';
+export const SEARCH_INDEX_HAYSTACK = 'searchIndexHaystack';
 
 export interface SearchIndexStore {
-  /** El índice guardado con la clave `key`, o `null` (sin base, sin índice o de otra clave). */
+  /** Lo principal del índice guardado con la clave `key`, o `null` (sin base, sin índice o de otra clave). */
   read(key: string): Promise<unknown>;
-  /** Guarda `index` con su clave, en lugar del anterior. */
-  write(key: string, index: unknown): Promise<void>;
+  /** Su pajar, o `null`. */
+  readHaystack(key: string): Promise<unknown>;
+  /** Guarda el índice (`main` y `haystack`) con su clave, en lugar del anterior. */
+  write(key: string, main: unknown, haystack: unknown): Promise<void>;
+}
+
+/** La fila `row` si la clave guardada es `key`, en una sola transacción. */
+async function readRow(
+  factory: IDBFactory,
+  name: string,
+  key: string,
+  row: string,
+): Promise<unknown> {
+  const db = await openAppDb(factory, name);
+  if (!db) return null;
+  try {
+    const transaction = db.transaction(META_STORE, 'readonly');
+    const store = transaction.objectStore(META_STORE);
+    let value: unknown = null;
+    const stored = store.get(SEARCH_INDEX_KEY);
+    stored.onsuccess = () => {
+      if ((stored.result as { value?: unknown } | undefined)?.value !== key) return;
+      // En la misma transacción: no se lee la grande si no es la de esta clave.
+      const request = store.get(row);
+      request.onsuccess = () => {
+        value = (request.result as { value?: unknown } | undefined)?.value ?? null;
+      };
+    };
+    await done(transaction);
+    return value;
+  } catch {
+    return null;
+  } finally {
+    db.close();
+  }
 }
 
 export function createIndexedDbSearchIndex(
@@ -24,31 +59,9 @@ export function createIndexedDbSearchIndex(
   name: string = APP_DB_NAME,
 ): SearchIndexStore {
   return {
-    async read(key) {
-      const db = await openAppDb(factory, name);
-      if (!db) return null;
-      try {
-        const transaction = db.transaction(META_STORE, 'readonly');
-        const store = transaction.objectStore(META_STORE);
-        let index: unknown = null;
-        const stored = store.get(SEARCH_INDEX_KEY);
-        stored.onsuccess = () => {
-          if ((stored.result as { value?: unknown } | undefined)?.value !== key) return;
-          // En la misma transacción: no se lee el grande si no es el de esta clave.
-          const row = store.get(SEARCH_INDEX);
-          row.onsuccess = () => {
-            index = (row.result as { value?: unknown } | undefined)?.value ?? null;
-          };
-        };
-        await done(transaction);
-        return index;
-      } catch {
-        return null;
-      } finally {
-        db.close();
-      }
-    },
-    async write(key, index) {
+    read: (key) => readRow(factory, name, key, SEARCH_INDEX),
+    readHaystack: (key) => readRow(factory, name, key, SEARCH_INDEX_HAYSTACK),
+    async write(key, main, haystack) {
       const db = await openAppDb(factory, name);
       if (!db) return;
       try {
@@ -56,7 +69,8 @@ export function createIndexedDbSearchIndex(
         const store = transaction.objectStore(META_STORE);
         // Misma forma que las filas de Dexie (`MetaRow`: `{key, value}`).
         store.put({ key: SEARCH_INDEX_KEY, value: key });
-        store.put({ key: SEARCH_INDEX, value: index });
+        store.put({ key: SEARCH_INDEX, value: main });
+        store.put({ key: SEARCH_INDEX_HAYSTACK, value: haystack });
         await done(transaction);
       } finally {
         db.close();

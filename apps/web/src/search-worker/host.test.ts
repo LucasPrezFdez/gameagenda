@@ -743,6 +743,7 @@ function memoryIndex() {
   const store = {
     key: null as string | null,
     value: null as unknown,
+    haystack: null as unknown,
     reads: 0,
     writes: [] as string[],
     failReads: false,
@@ -751,9 +752,13 @@ function memoryIndex() {
       if (store.failReads) throw new Error('IndexedDB no responde');
       return store.key === key ? structuredClone(store.value) : null;
     },
-    async write(key: string, value: unknown): Promise<void> {
+    async readHaystack(key: string): Promise<unknown> {
+      return store.key === key ? structuredClone(store.haystack) : null;
+    },
+    async write(key: string, main: unknown, haystack: unknown): Promise<void> {
       store.key = key;
-      store.value = structuredClone(value);
+      store.value = structuredClone(main);
+      store.haystack = structuredClone(haystack);
       store.writes.push(key);
     },
   };
@@ -787,7 +792,7 @@ describe('createSearchHost · índice persistido (meta.searchIndex, CA3.2)', () 
     const { t, published } = await firstVisit(idx, new MemoryCacheStorage());
     const files = published.manifest.files;
     expect(idx.writes[0]).toBe(
-      `1|build-a|${files.core.sha256}|${files.recent?.sha256}|${files.aliases.sha256}`,
+      `2|build-a|${files.core.sha256}|${files.recent?.sha256}|${files.aliases.sha256}`,
     );
     expect(t.messages().some((m) => m.type === 'restored')).toBe(false);
   });
@@ -807,6 +812,11 @@ describe('createSearchHost · índice persistido (meta.searchIndex, CA3.2)', () 
       ms: expect.any(Number),
     });
     expect(again.lastStatus()).toMatchObject({ count: ROWS.length - ADULTS, error: null });
+    // Con el pajar (la segunda fase), también el nivel 3.
+    await again.scheduler.runUntil(() => {
+      again.send({ type: 'query', seq: 1999, q: 'ollow kni', limit: 8 });
+      return (again.results(1999)?.items.length ?? 0) > 0;
+    });
     expect(answers(again, 2000)).toEqual(built);
     // El Catálogo y la ficha también, y no lo vuelve a guardar.
     expect(again.request('browse', { viewId: 'v', q: 'hollow', filters: {} })()).toMatchObject({
@@ -848,6 +858,24 @@ describe('createSearchHost · índice persistido (meta.searchIndex, CA3.2)', () 
     await failing.reach('full');
     expect(failing.messages().some((m) => m.type === 'restored')).toBe(false);
     expect(answers(failing, 4000)).toEqual(built);
+  });
+
+  it('sin el pajar guardado, busca con los niveles 0–2 y lo reconstruye en segundo plano', async () => {
+    const idx = memoryIndex();
+    const caches = new MemoryCacheStorage();
+    const { built } = await firstVisit(idx, caches);
+    idx.haystack = { format: 2, count: 0, chunks: [] };
+
+    const t = setup({ caches, searchIndex: idx, indexBuild: 'build-a' });
+    t.server.serve(await publish('20261028.1'));
+    t.server.state.offline = true;
+    t.send(init);
+    await t.reach('full', '20261028.1');
+    expect(t.messages().some((m) => m.type === 'restored')).toBe(true);
+    // Se reconstruye desde la caché (sin red) y se guarda otra vez, entero.
+    await t.scheduler.runUntil(() => idx.writes.length === 2);
+    expect(idx.writes[1]).toBe(idx.writes[0]);
+    expect(answers(t, 5000)).toEqual(built);
   });
 
   it('una versión nueva del catálogo se indexa, se usa y se guarda en lugar de la anterior', async () => {

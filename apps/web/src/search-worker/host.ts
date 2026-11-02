@@ -14,8 +14,10 @@
 //
 // Índice persistido (M3, CA3.2; §8.8): al arrancar con la caché, si `meta.searchIndex` tiene el
 // índice de esos mismos ficheros (y del mismo código), se restaura y se pasa directamente a
-// `full`, sin leer el TSV. Cada índice que llega a `full` se guarda después, a trozos que ceden
-// el turno como la construcción; uno de otro catálogo o de otra versión de la app no vale.
+// `full`, sin leer el TSV. Va en dos fases (§8.8): con lo principal ya responden los niveles
+// 0–2, y el pajar del nivel 3 llega justo después; si no se puede leer, el índice se construye en
+// segundo plano. Cada índice que llega a `full` se guarda después, a trozos que ceden el turno
+// como la construcción; uno de otro catálogo o de otra versión de la app no vale.
 import {
   type AliasPair,
   applyRecent,
@@ -39,7 +41,7 @@ import {
   searcherFromParts,
 } from '@gameagenda/core/search';
 import type * as IndexCodecModule from '@gameagenda/core/search-persist';
-import type { PersistedIndex } from '@gameagenda/core/search-persist';
+import type { IndexParts, PackedIndex } from '@gameagenda/core/search-persist';
 import type {
   BrowseFilters,
   CatalogError,
@@ -179,14 +181,14 @@ interface BuildJob {
 /** Lo que el host usa de `@gameagenda/core/search-persist`. */
 export type IndexCodec = Pick<
   typeof IndexCodecModule,
-  'INDEX_FORMAT' | 'createIndexPacker' | 'restoreParts'
+  'INDEX_FORMAT' | 'createIndexPacker' | 'restoreParts' | 'restoreHaystack'
 >;
 
 /** El índice que se está preparando para guardarlo, y su clave. */
 interface PersistJob {
   readonly key: string;
   readonly format: number;
-  readonly packer: CooperativeTask<PersistedIndex>;
+  readonly packer: CooperativeTask<PackedIndex>;
 }
 
 interface SuggestJob {
@@ -400,9 +402,11 @@ export function createSearchHost(deps: HostDeps): SearchHost {
     const key = indexKey(source, format.INDEX_FORMAT);
     const stored = await store.read(key).catch(() => null);
     if (stored === null || stored === undefined) return false;
+    let parts: IndexParts;
     let restored: Searcher;
     try {
-      restored = searcherFromParts(format.restoreParts(stored));
+      parts = format.restoreParts(stored);
+      restored = searcherFromParts(parts);
     } catch {
       return false;
     }
@@ -417,7 +421,39 @@ export function createSearchHost(deps: HostDeps): SearchHost {
     deps.post({ type: 'restored', ms: deps.now() - startedAt });
     emitStatus(true);
     flushWaiting();
+    void restoreHaystack(key, parts, format, restored);
     return true;
+  }
+
+  /**
+   * Segunda fase: el pajar del nivel 3. Si no se puede leer o no cuadra, el índice se construye en
+   * segundo plano desde la caché, como en M1, y se vuelve a guardar entero.
+   */
+  async function restoreHaystack(
+    key: string,
+    parts: IndexParts,
+    format: IndexCodec,
+    restored: Searcher,
+  ): Promise<void> {
+    const stored = await deps.searchIndex?.readHaystack(key).catch(() => null);
+    if (searcher !== restored) return; // ya hay otro (una versión nueva)
+    let complete: Searcher | null = null;
+    try {
+      if (stored !== null && stored !== undefined) {
+        complete = searcherFromParts(format.restoreHaystack(stored, parts));
+      }
+    } catch {
+      complete = null;
+    }
+    if (complete) {
+      searcher = complete;
+      for (const view of views.values()) refreshView(view);
+      return;
+    }
+    persistedKey = null;
+    if (job) return;
+    const cached = await deps.store.readCached().catch(() => null);
+    if (cached && searcher === restored && !job) startJob(cached, false);
   }
 
   /** Tras `full`, el índice se prepara a trozos para guardarlo (si no estaba ya). */
@@ -455,7 +491,8 @@ export function createSearchHost(deps: HostDeps): SearchHost {
     // Si entretanto ha llegado otro catálogo, ya se guardará el suyo.
     if (!searcherSource || indexKey(searcherSource, current.format) !== current.key) return;
     persistedKey = current.key;
-    deps.searchIndex.write(current.key, current.packer.result).catch(() => {
+    const packed = current.packer.result as PackedIndex;
+    deps.searchIndex.write(current.key, packed.main, packed.haystack).catch(() => {
       if (persistedKey === current.key) persistedKey = null;
     });
   }

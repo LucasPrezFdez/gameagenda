@@ -5,9 +5,18 @@ import { isExact, isTitleStart, type KeyData } from './keys.ts';
 import type { Collector, LevelEngine, QueryContext } from './searcher.ts';
 import { Tier } from './types.ts';
 
+/**
+ * El diccionario: un `string[]` al construir, o una columna que recorta cada token al pedirlo en
+ * un índice restaurado (M3; partir 93 000 tokens era lo que más costaba al restaurar).
+ */
+export interface TokenList {
+  readonly length: number;
+  at(index: number): string | undefined;
+}
+
 export interface IndexData {
   /** Tokens ordenados por unidades UTF-16 (el orden de `<`). */
-  readonly tokens: readonly string[];
+  readonly tokens: TokenList;
   /** Postings: filas de cada token, ascendentes. */
   readonly post: Uint32Array;
   readonly postStart: Uint32Array;
@@ -23,27 +32,27 @@ export interface IndexData {
 }
 
 /** Rango `[lo, hi)` de tokens que empiezan por `p`. */
-export function prefixRange(tokens: readonly string[], p: string): [number, number] {
+export function prefixRange(tokens: TokenList, p: string): [number, number] {
   let lo = 0;
   let hi = tokens.length;
   while (lo < hi) {
     const m = (lo + hi) >>> 1;
-    if ((tokens[m] as string) < p) lo = m + 1;
+    if ((tokens.at(m) as string) < p) lo = m + 1;
     else hi = m;
   }
   const a = lo;
   hi = tokens.length;
   while (lo < hi) {
     const m = (lo + hi) >>> 1;
-    if ((tokens[m] as string).startsWith(p)) lo = m + 1;
+    if ((tokens.at(m) as string).startsWith(p)) lo = m + 1;
     else hi = m;
   }
   return [a, lo];
 }
 
-function exactToken(tokens: readonly string[], t: string): number {
+function exactToken(tokens: TokenList, t: string): number {
   const [lo, hi] = prefixRange(tokens, t);
-  return lo < hi && tokens[lo] === t ? lo : -1;
+  return lo < hi && tokens.at(lo) === t ? lo : -1;
 }
 
 interface Scratch {

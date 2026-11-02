@@ -7,6 +7,11 @@
 // `indexOf` la recorre ≈20 % más deprisa, medido en Node). El resto son *typed arrays*. Así, al
 // restaurar no se normaliza ni se construye nada, y se pasa directamente a `full`.
 //
+// Dos partes, que se leen por separado (§8.8: «Restaurado → Completo: pajar listo»): lo
+// principal, con lo que ya responden los niveles 0–2, y el pajar del nivel 3 (≈5 MB de ≈27). En el
+// runner del CI, leer los 27 MB de IndexedDB tardaba el doble que en el PC: así la primera consulta
+// no espera al pajar, que llega justo después (`restoreHaystack`).
+//
 // UTF-8 no puede llevar surrogados sueltos: con una cadena así no se guarda nada
 // (`IndexFormatError` al empaquetar) y el índice se sigue construyendo en cada arranque.
 //
@@ -28,7 +33,7 @@ import type { HaystackChunk, HaystackPart } from './haystack.ts';
 import type { KeyData } from './keys.ts';
 
 /** Sube cuando cambia esta forma o lo que la construcción guarda en ella. */
-export const INDEX_FORMAT = 1;
+export const INDEX_FORMAT = 2;
 
 /** Lo que el buscador completo necesita: claves por fila e índice (lo da `IndexBuilder.parts`). */
 export interface IndexParts {
@@ -90,8 +95,7 @@ export interface PersistedIndex {
   readonly rowOfSorted: Uint32Array;
   /** Alias compacto → filas: cada alias, repetido una vez por cada fila. */
   readonly aliases: PackedRows;
-  readonly haystack: readonly PackedHaystackChunk[];
-  readonly tokens: PackedStrings;
+  readonly tokens: PackedColumn;
   readonly post: Uint32Array;
   readonly postStart: Uint32Array;
   readonly fwd: Uint32Array;
@@ -103,6 +107,20 @@ export interface PersistedIndex {
   readonly bsAll: Uint32Array;
   readonly bsFirstKeys: readonly string[];
   readonly bsFirst: Uint32Array;
+}
+
+/** El pajar del nivel 3, aparte: se lee después de lo principal. */
+export interface PersistedHaystack {
+  readonly format: typeof INDEX_FORMAT;
+  /** Filas del núcleo al que pertenece. */
+  readonly count: number;
+  readonly chunks: readonly PackedHaystackChunk[];
+}
+
+/** Lo que se guarda: lo principal y el pajar, en dos filas de `meta`. */
+export interface PackedIndex {
+  readonly main: PersistedIndex;
+  readonly haystack: PersistedHaystack;
 }
 
 /** El índice guardado no sirve (otro formato, datos truncados o de otra forma). */
@@ -197,7 +215,7 @@ function packBitsets(map: ReadonlyMap<string, Uint32Array>, words: number) {
   return { keys, all };
 }
 
-function* packWork(parts: IndexParts, done: { n: number }): Generator<void, PersistedIndex> {
+function* packWork(parts: IndexParts, done: { n: number }): Generator<void, PackedIndex> {
   const { keys, index } = parts;
   const cat = keys.cat;
   const names = yield* packColumn(cat.name, done);
@@ -216,11 +234,20 @@ function* packWork(parts: IndexParts, done: { n: number }): Generator<void, Pers
     rows: Uint32Array.from(aliasRows),
     values: yield* packStrings(aliasKeys, done),
   };
-  const tokens = yield* packStrings(index.tokens, done);
+  // Al construir, el diccionario es un `string[]`; restaurado (no se vuelve a guardar), una columna.
+  const tokenArray = Array.isArray(index.tokens)
+    ? (index.tokens as readonly string[])
+    : Array.from({ length: index.tokens.length }, (_, i) => index.tokens.at(i) as string);
+  const tokens = yield* packColumn(tokenArray, done);
   const words = (keys.n + 31) >>> 5;
   const bsAll = packBitsets(index.bsAll, words);
   const bsFirst = packBitsets(index.bsFirst, words);
-  return {
+  const haystack: PersistedHaystack = {
+    format: INDEX_FORMAT,
+    count: keys.n,
+    chunks: yield* packHaystack(keys.haystack),
+  };
+  const main: PersistedIndex = {
     format: INDEX_FORMAT,
     kind: cat.kind,
     version: cat.version,
@@ -237,7 +264,6 @@ function* packWork(parts: IndexParts, done: { n: number }): Generator<void, Pers
     sortedAppid: keys.sortedAppid,
     rowOfSorted: keys.rowOfSorted,
     aliases,
-    haystack: yield* packHaystack(keys.haystack),
     tokens,
     post: index.post,
     postStart: index.postStart,
@@ -250,6 +276,7 @@ function* packWork(parts: IndexParts, done: { n: number }): Generator<void, Pers
     bsFirstKeys: bsFirst.keys,
     bsFirst: bsFirst.all,
   };
+  return { main, haystack };
 }
 
 /**
@@ -259,7 +286,7 @@ function* packWork(parts: IndexParts, done: { n: number }): Generator<void, Pers
 export function createIndexPacker(
   parts: IndexParts,
   options: { readonly now: Clock },
-): CooperativeTask<PersistedIndex> {
+): CooperativeTask<PackedIndex> {
   const done = { n: 0 };
   const total = Math.max(
     1,
@@ -267,7 +294,7 @@ export function createIndexPacker(
   );
   // Como `cooperate` de `catalog-format`, aquí mismo: este módulo no importa nada.
   const gen = packWork(parts, done);
-  let result: PersistedIndex | null = null;
+  let result: PackedIndex | null = null;
   return {
     step(deadline) {
       while (result === null) {
@@ -290,12 +317,12 @@ export function createIndexPacker(
 }
 
 /** Empaqueta de una vez (pruebas y banco de pruebas). */
-export function packIndex(parts: IndexParts): PersistedIndex {
+export function packIndex(parts: IndexParts): PackedIndex {
   const task = createIndexPacker(parts, { now: () => 0 });
   while (!task.step(Number.POSITIVE_INFINITY)) {
     // sin plazo
   }
-  return task.result as PersistedIndex;
+  return task.result as PackedIndex;
 }
 
 // --- Restaurar ---------------------------------------------------------------
@@ -328,18 +355,23 @@ function unpackStrings(value: unknown, count: number | null, what: string): stri
   return list;
 }
 
-/** Una columna: la fila `g` y las filas `[from, to)`, recortadas del texto decodificado. */
+/**
+ * Una columna: la fila `g` y las filas `[from, to)`, recortadas del texto decodificado. Con `n`
+ * `null`, vale el recuento guardado (el del diccionario).
+ */
 function unpackColumn(
   value: unknown,
-  n: number,
+  n: number | null,
   what: string,
-): { at(g: number): string; range(from: number, to: number): string[] } {
+): { count: number; at(g: number): string; range(from: number, to: number): string[] } {
   const packed = value as PackedColumn | undefined;
-  if (packed?.count !== n) fail(what);
+  if (typeof packed?.count !== 'number' || (n !== null && packed.count !== n)) fail(what);
+  const count = packed.count;
   const text = decoder.decode(typed(packed.bytes, Uint8Array, null, what));
-  const starts = typed(packed.starts, Uint32Array, n + 1, what);
-  if (starts[0] !== 0 || starts[n] !== (n === 0 ? 0 : text.length + 1)) fail(what);
+  const starts = typed(packed.starts, Uint32Array, count + 1, what);
+  if (starts[0] !== 0 || starts[count] !== (count === 0 ? 0 : text.length + 1)) fail(what);
   return {
+    count,
     at: (g) => text.slice(starts[g], (starts[g + 1] as number) - 1),
     range: (from, to) =>
       from >= to ? [] : text.slice(starts[from], (starts[to] as number) - 1).split('\n'),
@@ -373,7 +405,7 @@ function bitsets(keys: unknown, all: unknown, words: number, what: string) {
   return map;
 }
 
-function haystackOf(value: unknown): HaystackChunk[] {
+function haystackOf(value: unknown, n: number): HaystackChunk[] {
   if (!Array.isArray(value)) fail('haystack');
   const part = (p: unknown): HaystackPart => {
     const { bytes, length, offs, rows } = (p ?? {}) as Partial<PackedHaystackPart>;
@@ -382,6 +414,7 @@ function haystackOf(value: unknown): HaystackChunk[] {
     const records = typed(rows, Uint32Array, null, 'haystack');
     const starts = typed(offs, Uint32Array, records.length + 1, 'haystack');
     if (starts[records.length] !== text.length) fail('haystack');
+    for (const g of records) if (g >= n) fail('haystack');
     return { text, offs: starts, rows: records };
   };
   return value.map((chunk: Partial<PackedHaystackChunk> | null) => ({
@@ -391,9 +424,9 @@ function haystackOf(value: unknown): HaystackChunk[] {
 }
 
 /**
- * Las partes del buscador completo (`full`) a partir de lo guardado, sin normalizar ni construir
- * nada (el buscador lo monta `searcherFromParts`). Lanza
- * `IndexFormatError` si no es un índice de este formato.
+ * Las partes del buscador completo (`full`) a partir de lo principal, sin normalizar ni construir
+ * nada (el buscador lo monta `searcherFromParts`). Sin el pajar: los niveles 0–2 ya responden y el
+ * 3 espera a `restoreHaystack`. Lanza `IndexFormatError` si no es un índice de este formato.
  */
 export function restoreParts(value: unknown): IndexParts {
   const data = (value ?? {}) as Partial<PersistedIndex>;
@@ -445,10 +478,15 @@ export function restoreParts(value: unknown): IndexParts {
     rowOfSorted: typed(data.rowOfSorted, Uint32Array, n, 'rowOfSorted'),
     aliasExact,
     aliasOf,
-    haystack: haystackOf(data.haystack),
+    // El nivel 3 no responde hasta `restoreHaystack`.
+    haystack: [],
   };
-  const tokens = unpackStrings(data.tokens, null, 'tokens');
-  const t = tokens.length;
+  const dictionary = unpackColumn(data.tokens, null, 'tokens');
+  const t = dictionary.count;
+  const tokens = {
+    length: t,
+    at: (i: number) => (i >= 0 && i < t ? dictionary.at(i) : undefined),
+  };
   const words = (n + 31) >>> 5;
   const index: IndexData = {
     tokens,
@@ -466,4 +504,16 @@ export function restoreParts(value: unknown): IndexParts {
   }
   if (index.fwdStart[n] !== index.fwd.length) fail('fwd');
   return { keys, index };
+}
+
+/**
+ * Las partes de `parts` con el pajar guardado: el buscador que se monta con ellas ya responde
+ * también al nivel 3. Lanza `IndexFormatError` si no es el pajar de ese índice.
+ */
+export function restoreHaystack(value: unknown, parts: IndexParts): IndexParts {
+  const data = (value ?? {}) as Partial<PersistedHaystack>;
+  if (data.format !== INDEX_FORMAT) fail('format');
+  if (data.count !== parts.keys.n) fail('count');
+  const haystack = haystackOf(data.chunks, parts.keys.n);
+  return { keys: { ...parts.keys, haystack }, index: parts.index };
 }

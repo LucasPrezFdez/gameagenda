@@ -355,9 +355,10 @@ const api: BenchApi = {
     const written = new Promise<number>((resolve, reject) => {
       const index: SearchIndexStore = {
         read: () => Promise.resolve(null),
-        async write(key, value) {
-          megabytes = sizeOf(value) / 1e6;
-          await inner.write(key, value);
+        readHaystack: () => Promise.resolve(null),
+        async write(key, main, haystack) {
+          megabytes = (sizeOf(main) + sizeOf(haystack)) / 1e6;
+          await inner.write(key, main, haystack);
           resolve(performance.now());
         },
       };
@@ -435,6 +436,8 @@ const api: BenchApi = {
       firstQueryMs: round(answeredAt - askedAt),
     };
     log(`índice restaurado: ${JSON.stringify(report)}`);
+    // La segunda fase (el pajar) sigue en segundo plano: que acabe antes de la siguiente medida.
+    await new Promise((resolve) => setTimeout(resolve, 1500));
     return report;
   },
 };
