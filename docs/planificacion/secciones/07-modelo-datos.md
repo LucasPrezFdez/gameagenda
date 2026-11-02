@@ -194,7 +194,7 @@ El `recent` en régimen se estima con las 3 696 filas de `appid` más alto de la
 - Al cambiar de versión solo se borran las cachés `gacat-AAAAMMDD.N`; `gacat-details` se conserva y limpia lo que ya no está en el índice nuevo.
 - La caché solo se escribe después de verificar la firma y los `sha256`: al arrancar no se vuelve a verificar la firma, y sin Ed25519 se puede seguir usando (RNF-12).
 
-IndexedDB guarda `meta.catalog` (`{version, checkedAt}`: la versión cuyo *manifest* se comprobó y cuándo; con un catálogo en la caché, el arranque solo lo vuelve a pedir pasadas 12 h, y una comprobación fallida no se apunta) y, desde M3, el índice construido en `meta.searchIndex` (ver §8). El Worker de búsqueda no importa Dexie (ver §5.2): abre la base con la API de IndexedDB, solo toca esas dos claves y la cierra ante `versionchange` para no bloquear migraciones; así, la copia del índice (19,2 MB) no ocupa el hilo principal.
+IndexedDB guarda `meta.catalog` (`{version, checkedAt}`: la versión cuyo *manifest* se comprobó y cuándo; con un catálogo en la caché, el arranque solo lo vuelve a pedir pasadas 12 h, y una comprobación fallida no se apunta) y, desde M3, el índice construido en `meta.searchIndex`, con su clave aparte en `meta.searchIndexKey` para no leer el índice si no es el que toca (ver §8.8). El Worker de búsqueda no importa Dexie (ver §5.2): abre la base con la API de IndexedDB, solo toca esas claves y la cierra ante `versionchange` para no bloquear migraciones; así, la copia del índice (≈27 MB) no ocupa el hilo principal. «Borrar todos mis datos» la borra con el resto de `meta`, y el siguiente arranque la vuelve a construir.
 
 ### 7.7 Esquema de D1 (M4)
 
@@ -249,7 +249,7 @@ ON CONFLICT (agenda_id, entry_id, field) DO UPDATE
 | Dato | Volumen estimado |
 |---|---|
 | Entrada en Dexie | ≈0,8–1,1 KB con sus HLC |
-| Catálogo en el cliente | ≈7,2 MB sin comprimir (≈8 MB con el núcleo de arranque) y ≈31 KB por *shard*; índice persistido (M3): 19,2 MB (18,3 MiB), y ≈40 MiB en memoria (ver §8.11) |
+| Catálogo en el cliente | ≈7,2 MB sin comprimir (≈8 MB con el núcleo de arranque) y ≈31 KB por *shard*; índice persistido (M3): ≈27 MB medidos el 02-11-2026 (19,2 MB en el prototipo, que no guardaba el pajar ni los *bitsets*), y ≈40 MiB en memoria (ver §8.11) |
 | Red | *manifest*, `recent` (≈52 KB al día con brotli) y el índice de *shards* (≈9 KB, si cambió); núcleo, como mucho semanal |
 | D1 (M4) | ≈2–3 KB por entrada (9–13 filas): ≈2–3 MB por agenda de 1 000 juegos (500 MB por base gratuita) |
 

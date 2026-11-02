@@ -107,6 +107,19 @@ El resto de CA3.4 (§9.4; DECISIONES §10.24). Cada gesto tiene su botón y ning
 - **«Gestos táctiles»** en Ajustes › Teclado y gestos, activado por defecto. El asa `::` no depende de él.
 - **Pruebas:** `gesture-model.test.ts` (umbrales, zonas muertas, volver atrás, a qué estado avanza y dónde cae lo arrastrado), `agenda.test.ts` (mover antes o después de otra entrada) y `gestures.spec.ts`, con toques de verdad por CDP en Chromium y el arrastre con el ratón.
 
+#### Adelantado de M3: índice persistido (CA3.2)
+
+No toca el pipeline (§8.8; DECISIONES §10.25).
+- **El reinicio con el mismo catálogo restaura el índice de búsqueda** de `meta.searchIndex` en vez de reconstruirlo: pasa de `none` a `full` sin leer el TSV ni normalizar nada. Con CPU ×4 y el catálogo completo, del arranque a la primera consulta: 275 ms (peor de 2), frente a ≈1,9 s hasta `scan` y ≈4 s hasta `full` sin él (`docs/medidas/ca3.2-20261102.md`).
+- **Cada índice que llega a `full` se guarda después,** a trozos que no quitan turno a las consultas (≈27 MB). Lo invalidan otra versión del catálogo (sus `sha256`) o de la app (el *hash* del *chunk* del Worker).
+- **El formato va en un *chunk* diferido del Worker,** como uFuzzy: el de entrada queda en 38,1 KB de 40. `npm run size` comprueba que ningún *chunk* diferido del Worker importa otro: en WebKit, eso hacía volver a evaluar el Worker, y la búsqueda contestaba vacío.
+- **Marca `search:index-restored`** (§12.4) en la interfaz cuando el índice se ha restaurado.
+- **Pruebas:**
+  - `search.persist.test.ts`, sobre el catálogo congelado: lo restaurado da las mismas listas que lo construido (el dorado, 600 pulsaciones, el nivel 4, el Catálogo y Vincular) y rechaza los formatos rotos;
+  - `host.test.ts` y `search-index-store.test.ts`, para la clave, la invalidación y los fallos;
+  - `search-index.spec.ts`, el reinicio en la app;
+  - `npm run perf`, la cifra de CA3.2.
+
 #### Estado de los criterios de aceptación
 
 | CA | Estado | Evidencia |
