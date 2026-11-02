@@ -45,11 +45,10 @@ describe('createDetailsSource', () => {
     server.serve(published);
     const { outcome, results, merged } = await loadAll(source, published.index, [36, 100, 730, 36]);
     expect(outcome.failed).toEqual([]);
-    // Un aviso por *shard*: 36 y 100 llegan juntos.
-    expect(results.map((result) => [...result.keys()].sort((a, b) => a - b))).toEqual([
-      [36, 100],
-      [730],
-    ]);
+    // Un aviso por *shard*: 36 y 100 llegan juntos. Los dos *shards* se piden a la vez, así que
+    // el orden de los avisos es el de llegada (en el CI, el 02-11-2026, llegó antes el de 730).
+    const groups = results.map((result) => [...result.keys()].sort((a, b) => a - b));
+    expect(groups.sort((a, b) => (a[0] ?? 0) - (b[0] ?? 0))).toEqual([[36, 100], [730]]);
     expect(merged.get(730)).toMatchObject({
       assetUrlFormat: `steam/apps/730/\${FILENAME}?t=1700000000`,
       capsule: 'library_600x900.jpg',
