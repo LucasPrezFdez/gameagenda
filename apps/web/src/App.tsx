@@ -1,6 +1,16 @@
 // Carcasa de la app (ver §9.1): barra lateral y cabecera con la paleta en escritorio; en móvil,
 // la barra «Apunta un juego…» fija abajo, encima de tres pestañas.
-import { lazy, type RefObject, Suspense, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import {
+  lazy,
+  type RefObject,
+  Suspense,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useCommands } from './agenda/commands.ts';
 import { useCanUndo, useServices, useSettings } from './app/services.tsx';
 import { CoverNotice } from './components/CoverNotice.tsx';
@@ -11,7 +21,7 @@ import { desktopCaptureTarget, onDesktopCapture } from './desktop/desktop-captur
 import { DetailsProvider } from './details/details-context.tsx';
 import { ErrorBoundary } from './errors/ErrorBoundary.tsx';
 import { es } from './i18n/es.ts';
-import { isEditableTarget, useMediaQuery, useOnline } from './lib/hooks.ts';
+import { useMediaQuery, useOnline } from './lib/hooks.ts';
 import type { NoticeCenter } from './notices/notice-center.ts';
 import { Toaster } from './notices/Toaster.tsx';
 import { Palette, type PaletteActions, type PaletteHandle } from './palette/Palette.tsx';
@@ -22,6 +32,9 @@ import { gamePath, parseRoute, type Route, settingsPath, withSearch } from './ro
 import { GameScreen } from './screens/game/GameScreen.tsx';
 import { MyListScreen } from './screens/my-list/MyListScreen.tsx';
 import type { ThemePreference } from './settings/settings-store.ts';
+import { filterField, isShortcutTarget } from './shortcuts/dom.ts';
+import { shortcutFor, trackGoSequence } from './shortcuts/keymap.ts';
+import { ShortcutHelp, ShortcutHelpProvider } from './shortcuts/ShortcutHelp.tsx';
 
 // Catálogo y Ajustes van en *chunks* diferidos (ver §6.2).
 const loadCatalog = () => import('./screens/catalog/CatalogScreen.tsx');
@@ -38,27 +51,37 @@ function useTheme(theme: ThemePreference): void {
 }
 
 /**
- * Atajos globales de M1 (ver §9.4): `Ctrl+K` (el único del navegador que se intercepta) y `/`
- * abren la paleta; `Ctrl+Z` deshace fuera de los campos de texto. Letras por `event.key`, sin
- * distinguir mayúsculas; `/` vale también con Mayús (en el teclado español es Mayús+7).
+ * Atajos globales (ver §9.4): `Ctrl+K` (el único del navegador que se intercepta) y `/` abren la
+ * paleta; `Ctrl+Z` deshace fuera de los campos de texto; desde M3, `?` (ayuda), `G` y luego `L`,
+ * `C` o `A` (ir a) y `F` (filtro). Letras por `event.key`, sin distinguir mayúsculas; `/` vale
+ * también con Mayús (en el teclado español es Mayús+7). Lo de las filas y la ficha lo atienden
+ * sus pantallas (`shortcuts/keymap.ts`), que reciben la tecla antes.
  */
 function useGlobalShortcuts(
   palette: RefObject<PaletteHandle | null>,
-  slashOpensPalette: boolean,
+  settings: { readonly slashOpensPalette: boolean; readonly singleKeyShortcuts: boolean },
   notices: NoticeCenter,
+  openHelp: () => void,
+  /** Mi lista con su última vista, filtros y orden (como el enlace de la barra lateral). */
+  listHref: string,
 ): void {
+  const { slashOpensPalette, singleKeyShortcuts } = settings;
   // De *layout*: los atajos funcionan desde el primer pintado, no después de `load`.
   useLayoutEffect(() => {
     function onKeyDown(event: KeyboardEvent): void {
-      if (event.defaultPrevented || event.isComposing) return;
+      if (event.isComposing) return;
       const key = event.key.toLowerCase();
       const mod = event.ctrlKey || event.metaKey;
-      if (mod && !event.altKey && !event.shiftKey && key === 'k') {
+      if (!event.defaultPrevented && mod && !event.altKey && !event.shiftKey && key === 'k') {
         event.preventDefault();
         palette.current?.open(event.timeStamp);
         return;
       }
-      if (isEditableTarget(event.target)) return;
+      if (!isShortcutTarget(event.target)) return;
+      // Antes de mirar si otra pantalla la ha atendido: cualquier tecla cierra la secuencia «G».
+      const action = shortcutFor(event, singleKeyShortcuts);
+      trackGoSequence(event, event.defaultPrevented ? null : action);
+      if (event.defaultPrevented) return;
       if (mod && !event.altKey && !event.shiftKey && key === 'z') {
         event.preventDefault();
         notices.undoLast({ feedbackStart: event.timeStamp });
@@ -67,11 +90,40 @@ function useGlobalShortcuts(
       if (slashOpensPalette && event.key === '/' && !mod && !event.altKey) {
         event.preventDefault();
         palette.current?.open(event.timeStamp);
+        return;
+      }
+      switch (action?.kind) {
+        case 'help':
+          event.preventDefault();
+          openHelp();
+          break;
+        case 'goStart':
+          event.preventDefault();
+          break;
+        case 'go':
+          event.preventDefault();
+          navigate(
+            action.to === 'list'
+              ? listHref
+              : action.to === 'catalog'
+                ? '/catalogo'
+                : settingsPath(null),
+          );
+          break;
+        case 'filter': {
+          const field = filterField();
+          if (field) {
+            event.preventDefault();
+            field.focus();
+            field.select();
+          }
+          break;
+        }
       }
     }
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [palette, slashOpensPalette, notices]);
+  }, [palette, slashOpensPalette, singleKeyShortcuts, notices, openHelp, listHref]);
 }
 
 function LogoMark() {
@@ -174,9 +226,12 @@ function AppShell() {
   const online = useOnline();
   const wide = useMediaQuery('(min-width: 1280px)');
   const paletteRef = useRef<PaletteHandle>(null);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const openHelp = useCallback(() => setHelpOpen(true), []);
 
   useTheme(settings.theme);
-  useGlobalShortcuts(paletteRef, settings.slashOpensPalette, notices);
+  const listHref = withSearch('/', new URLSearchParams(settings.listSearch));
+  useGlobalShortcuts(paletteRef, settings, notices, openHelp, listHref);
   // Después de los efectos de los hijos: `app:list-visible` solo cuenta en el primer *commit*.
   useLayoutEffect(() => endFirstCommit(), []);
 
@@ -214,94 +269,102 @@ function AppShell() {
     [commands],
   );
 
-  const listHref = withSearch('/', new URLSearchParams(settings.listSearch));
   const onList = route.name === 'list' || route.name === 'capture' || route.name === 'game';
   const group = onList ? 'agenda' : route.name;
 
   return (
     <PaletteProvider handle={paletteRef}>
-      <div className="app" data-route={route.name}>
-        <a className="skip-link" href="#main">
-          {es.shell.skipToContent}
-        </a>
-        <header className="app-header">
-          <Link to={listHref} className="brand">
-            <LogoMark />
-            <span>{es.appName}</span>
-          </Link>
-          <Palette
-            ref={paletteRef}
-            actions={paletteActions}
-            showBar={route.name === 'list' || route.name === 'capture'}
-            onClose={() => {
-              if (window.location.pathname === '/apuntar') navigate('/', { replace: true });
-            }}
-          />
-          <MenuButton
-            label={es.shell.more}
-            className="app-header__menu"
-            items={[
-              {
-                key: 'undo',
-                label: es.shell.undoLast,
-                icon: 'undo',
-                disabled: !canUndo,
-                onSelect: (event) => notices.undoLast({ feedbackStart: event.timeStamp }),
-              },
-              {
-                key: 'settings',
-                label: es.nav.settings,
-                icon: 'settings',
-                onSelect: () => navigate(settingsPath(null)),
-              },
-              {
-                key: 'about',
-                label: es.settings.section.about,
-                icon: 'info',
-                onSelect: () => navigate(settingsPath('about')),
-              },
-            ]}
-          />
-        </header>
-
-        <nav className="app-nav" aria-label={es.shell.mainNav}>
-          <ul>
-            <NavItem to={listHref} icon="list" label={es.nav.list} current={onList} />
-            <NavItem
-              to="/catalogo"
-              icon="catalog"
-              label={es.nav.catalog}
-              current={route.name === 'catalog'}
-              onIntent={() => void loadCatalog()}
+      <ShortcutHelpProvider value={openHelp}>
+        <div className="app" data-route={route.name}>
+          <a className="skip-link" href="#main">
+            {es.shell.skipToContent}
+          </a>
+          <header className="app-header">
+            <Link to={listHref} className="brand">
+              <LogoMark />
+              <span>{es.appName}</span>
+            </Link>
+            <Palette
+              ref={paletteRef}
+              actions={paletteActions}
+              showBar={route.name === 'list' || route.name === 'capture'}
+              onClose={() => {
+                if (window.location.pathname === '/apuntar') navigate('/', { replace: true });
+              }}
             />
-            <NavItem
-              to={settingsPath(null)}
-              icon="settings"
-              label={es.nav.settings}
-              current={route.name === 'settings'}
-              onIntent={() => void loadSettings()}
+            <MenuButton
+              label={es.shell.more}
+              className="app-header__menu"
+              items={[
+                {
+                  key: 'undo',
+                  label: es.shell.undoLast,
+                  icon: 'undo',
+                  disabled: !canUndo,
+                  onSelect: (event) => notices.undoLast({ feedbackStart: event.timeStamp }),
+                },
+                {
+                  key: 'shortcuts',
+                  label: es.shell.shortcuts,
+                  icon: 'keyboard',
+                  onSelect: openHelp,
+                },
+                {
+                  key: 'settings',
+                  label: es.nav.settings,
+                  icon: 'settings',
+                  onSelect: () => navigate(settingsPath(null)),
+                },
+                {
+                  key: 'about',
+                  label: es.settings.section.about,
+                  icon: 'info',
+                  onSelect: () => navigate(settingsPath('about')),
+                },
+              ]}
             />
-          </ul>
-        </nav>
+          </header>
 
-        {!online && (
-          <div className="app-banner notice" role="status">
-            <Icon name="offline" />
-            <p>{es.notices.offline}</p>
-          </div>
-        )}
+          <nav className="app-nav" aria-label={es.shell.mainNav}>
+            <ul>
+              <NavItem to={listHref} icon="list" label={es.nav.list} current={onList} />
+              <NavItem
+                to="/catalogo"
+                icon="catalog"
+                label={es.nav.catalog}
+                current={route.name === 'catalog'}
+                onIntent={() => void loadCatalog()}
+              />
+              <NavItem
+                to={settingsPath(null)}
+                icon="settings"
+                label={es.nav.settings}
+                current={route.name === 'settings'}
+                onIntent={() => void loadSettings()}
+              />
+            </ul>
+          </nav>
 
-        <main id="main" tabIndex={-1} className="app-main">
-          <ErrorBoundary key={group}>
-            <Suspense fallback={<ScreenFallback />}>
-              <Screens route={route} wide={wide} />
-            </Suspense>
-          </ErrorBoundary>
-        </main>
+          {!online && (
+            <div className="app-banner notice" role="status">
+              <Icon name="offline" />
+              <p>{es.notices.offline}</p>
+            </div>
+          )}
 
-        <Toaster />
-        <CoverNotice hidden={route.name === 'settings' && route.section === 'privacy'} />
-      </div>
+          <main id="main" tabIndex={-1} className="app-main">
+            <ErrorBoundary key={group}>
+              <Suspense fallback={<ScreenFallback />}>
+                <Screens route={route} wide={wide} />
+              </Suspense>
+            </ErrorBoundary>
+          </main>
+
+          <Toaster />
+          <CoverNotice hidden={route.name === 'settings' && route.section === 'privacy'} />
+          <ShortcutHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
+        </div>
+      </ShortcutHelpProvider>
     </PaletteProvider>
   );
 }

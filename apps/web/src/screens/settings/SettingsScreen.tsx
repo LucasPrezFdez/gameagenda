@@ -13,6 +13,7 @@ import { CaptureButton } from '../../palette/palette-context.tsx';
 import { Link } from '../../router/router.tsx';
 import { SETTINGS_SECTIONS, type SettingsSection, settingsPath } from '../../router/routes.ts';
 import type { ThemePreference } from '../../settings/settings-store.ts';
+import { useOpenShortcutHelp } from '../../shortcuts/ShortcutHelp.tsx';
 import './settings.css';
 
 const THEMES: readonly ThemePreference[] = ['system', 'light', 'dark'];
@@ -66,23 +67,46 @@ function Content() {
 
 function Keyboard() {
   const { settings } = useServices();
-  const { slashOpensPalette } = useSettings();
+  const { slashOpensPalette, singleKeyShortcuts } = useSettings();
+  const openHelp = useOpenShortcutHelp();
   const id = useId();
   return (
-    <div className="settings__choice-block">
-      <label className="settings__choice">
-        <input
-          type="checkbox"
-          checked={slashOpensPalette}
-          aria-describedby={id}
-          onChange={(event) => settings.update({ slashOpensPalette: event.target.checked })}
-        />
-        {es.settings.slash}
-      </label>
-      <p id={id} className="muted">
-        {es.settings.slashHint}
-      </p>
-    </div>
+    <>
+      <div className="settings__choice-block">
+        <label className="settings__choice">
+          <input
+            type="checkbox"
+            checked={singleKeyShortcuts}
+            aria-describedby={`${id}-single`}
+            onChange={(event) => settings.update({ singleKeyShortcuts: event.target.checked })}
+          />
+          {es.settings.singleKeys}
+        </label>
+        <p id={`${id}-single`} className="muted">
+          {es.settings.singleKeysHint}
+        </p>
+      </div>
+      <div className="settings__choice-block">
+        <label className="settings__choice">
+          <input
+            type="checkbox"
+            checked={slashOpensPalette}
+            aria-describedby={id}
+            onChange={(event) => settings.update({ slashOpensPalette: event.target.checked })}
+          />
+          {es.settings.slash}
+        </label>
+        <p id={id} className="muted">
+          {es.settings.slashHint}
+        </p>
+      </div>
+      <div>
+        <button type="button" className="btn" onClick={openHelp}>
+          <Icon name="keyboard" />
+          {es.settings.showShortcuts}
+        </button>
+      </div>
+    </>
   );
 }
 

@@ -10,7 +10,13 @@ import {
   useState,
 } from 'react';
 import { useCommands } from '../../agenda/commands.ts';
-import { useAgendaEntries, useCopyReminder, useServices } from '../../app/services.tsx';
+import { appidOf } from '../../agenda/types.ts';
+import {
+  useAgendaEntries,
+  useCopyReminder,
+  useServices,
+  useSettings,
+} from '../../app/services.tsx';
 import { ChoiceMenu } from '../../components/ChoiceMenu.tsx';
 import { Icon } from '../../components/icons.tsx';
 import { ScreenHeading } from '../../components/ScreenHeading.tsx';
@@ -21,7 +27,9 @@ import { es } from '../../i18n/es.ts';
 import { isIosBrowserTab } from '../../lib/hooks.ts';
 import { measureListVisible } from '../../perf/measures.ts';
 import { Link, navigate, useLocation } from '../../router/router.tsx';
-import { settingsPath, withSearch } from '../../router/routes.ts';
+import { gamePath, settingsPath, withSearch } from '../../router/routes.ts';
+import { isShortcutTarget, openSteam, requestNoteFocus } from '../../shortcuts/dom.ts';
+import { shortcutFor } from '../../shortcuts/keymap.ts';
 import { EntryRow, type RowActions, rowTitleId } from './EntryRow.tsx';
 import {
   buildSections,
@@ -62,6 +70,15 @@ function ListSkeleton({ label }: { label: string }) {
   );
 }
 
+/** ¿Se reordena esta sección? Solo Quiero jugar y A continuación, por prioridad (§9.1). */
+function isMovable(section: ListSection, params: ListParams): boolean {
+  return (
+    params.order === 'priority' &&
+    params.view !== 'upcoming' &&
+    (section.id === 'want_to_play' || section.id === 'next')
+  );
+}
+
 /** Si una acción saca la fila enfocada de la vista, el foco pasa a la siguiente (ver §9.5). */
 function keepFocusNear(container: HTMLElement | null, id: string): () => void {
   const titles = container
@@ -89,6 +106,7 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
   const entries = useAgendaEntries();
   const commands = useCommands();
   const { agenda, settings, notices, copyReminder } = useServices();
+  const { singleKeyShortcuts } = useSettings();
   const copyState = useCopyReminder();
   // La hora de cuando se abre Mi lista: el aviso no cambia mientras se mira.
   const [openedAt] = useState(Date.now);
@@ -154,21 +172,90 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
 
   const onActivate = useCallback((id: string) => setActiveId(id), []);
 
-  /** ↑ y ↓ entre filas; Inicio y Fin; Intro abre la ficha (es un enlace). */
+  /**
+   * ↑ y ↓ entre filas; Inicio y Fin; Intro abre la ficha (es un enlace). Desde M3, los atajos de
+   * la §9.4 sobre la fila con el foco (en su título o en uno de sus botones): `J` y `K`, `1`–`5`,
+   * `C`/`P`/`A`, `N`, `Supr`, `Alt+↑/↓` y `V`. Si la fila sale de la vista, el foco pasa a la
+   * siguiente, como con los botones.
+   */
   function onListKeyDown(event: KeyboardEvent<HTMLDivElement>): void {
     const target = event.target as HTMLElement;
-    if (!target.matches('[data-row-title]')) return;
+    const row = target.closest<HTMLElement>('.entry-row');
+    const title = row?.querySelector<HTMLElement>('[data-row-title]');
+    const id = row?.dataset.entryId;
+    if (!row || !title || id === undefined) return;
     const titles = [...(listRef.current?.querySelectorAll<HTMLElement>('[data-row-title]') ?? [])];
-    const index = titles.indexOf(target);
+    const index = titles.indexOf(title);
     const go = (next: number) => {
       const element = titles[Math.max(0, Math.min(titles.length - 1, next))];
       element?.focus();
       event.preventDefault();
     };
-    if (event.key === 'ArrowDown') go(index + 1);
-    else if (event.key === 'ArrowUp') go(index - 1);
-    else if (event.key === 'Home') go(0);
-    else if (event.key === 'End') go(titles.length - 1);
+    // Con Alt, las flechas son la prioridad (más abajo).
+    if (target === title && !event.altKey) {
+      if (event.key === 'ArrowDown') {
+        go(index + 1);
+        return;
+      }
+      if (event.key === 'ArrowUp') {
+        go(index - 1);
+        return;
+      }
+      if (event.key === 'Home') {
+        go(0);
+        return;
+      }
+      if (event.key === 'End') {
+        go(titles.length - 1);
+        return;
+      }
+    }
+    if (event.defaultPrevented || !isShortcutTarget(target)) return;
+    const action = shortcutFor(event, singleKeyShortcuts);
+    const entry = entries.find((candidate) => candidate.id === id);
+    if (!action || !entry) return;
+    const timing = { feedbackStart: event.timeStamp };
+    switch (action.kind) {
+      case 'next':
+        go(index + 1);
+        return;
+      case 'previous':
+        go(index - 1);
+        return;
+      case 'status':
+        event.preventDefault();
+        actions.setStatus(id, action.status, timing);
+        return;
+      case 'flag':
+        event.preventDefault();
+        actions.setFlag(id, action.flag, entry.flags[action.flag] !== true, timing);
+        return;
+      case 'remove':
+        event.preventDefault();
+        actions.remove(id, timing);
+        return;
+      case 'priority': {
+        const section = sections.find((s) => s.entries.some((e) => e.id === id));
+        if (!section || !isMovable(section, params)) return;
+        event.preventDefault();
+        commands.move(id, action.to, timing);
+        // React puede mover el nodo de la fila al reordenar, y el foco se perdería.
+        requestAnimationFrame(() => document.getElementById(rowTitleId(id))?.focus());
+        return;
+      }
+      case 'note':
+        event.preventDefault();
+        requestNoteFocus(id);
+        navigate(gamePath(id));
+        return;
+      case 'steam': {
+        const appid = appidOf(id);
+        if (appid === null) return;
+        event.preventDefault();
+        openSteam(appid);
+        return;
+      }
+    }
   }
 
   const total = entries.length;
@@ -306,6 +393,7 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
                 type="text"
                 value={params.q}
                 placeholder={es.list.filterPlaceholder}
+                data-filter-field=""
                 autoComplete="off"
                 spellCheck={false}
                 onChange={(event) => update({ q: event.target.value })}
@@ -346,10 +434,7 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
             const label = sectionLabel(section);
             const headingId = `${filterId}-${section.key}`;
             const collapsed = section.collapsible && !showOnHold;
-            const movable =
-              params.order === 'priority' &&
-              params.view !== 'upcoming' &&
-              (section.id === 'want_to_play' || section.id === 'next');
+            const movable = isMovable(section, params);
             return (
               <section key={section.key} className="list-section" aria-labelledby={headingId}>
                 <div className="list-section__header">

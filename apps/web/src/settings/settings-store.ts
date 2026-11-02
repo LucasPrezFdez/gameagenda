@@ -7,6 +7,11 @@ export interface UiSettings {
   readonly theme: ThemePreference;
   /** `/` abre la paleta (WCAG 2.1.4: las teclas sueltas se pueden desactivar). */
   readonly slashOpensPalette: boolean;
+  /**
+   * «Atajos de una tecla» de la §9.4 (`?`, `G` + letra, `J`/`K`, `1`–`5`, `C`/`P`/`A`, `N`, `Supr`,
+   * `V`, `F` y `+`): se pueden apagar todos (WCAG 2.1.4). `Alt+↑/↓` sigue siempre.
+   */
+  readonly singleKeyShortcuts: boolean;
   /** Contenido para adultos en el Catálogo y la búsqueda (RF-18). */
   readonly showAdult: boolean;
   /** Última vista, filtros y orden de Mi lista (la parte `?…` de su URL). */
@@ -29,6 +34,7 @@ export type CoverNoticeState = 'unseen' | 'shown' | 'done';
 export const DEFAULT_SETTINGS: UiSettings = {
   theme: 'system',
   slashOpensPalette: true,
+  singleKeyShortcuts: true,
   showAdult: false,
   listSearch: '',
   loadCovers: true,
@@ -47,6 +53,7 @@ function validValue(key: SettingKey, value: unknown): UiSettings[SettingKey] | u
     case 'theme':
       return THEMES.find((theme) => theme === value);
     case 'slashOpensPalette':
+    case 'singleKeyShortcuts':
     case 'showAdult':
     case 'loadCovers':
       return typeof value === 'boolean' ? value : undefined;

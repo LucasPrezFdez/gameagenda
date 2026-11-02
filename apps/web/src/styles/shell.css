@@ -421,3 +421,72 @@
     bottom: calc(var(--notices-bottom) + var(--cover-notice-space, 0px));
   }
 }
+
+/* Ayuda de atajos (§9.4): `<dialog>` modal, en la capa superior del navegador (sin z-index). */
+.shortcut-help {
+  width: min(40rem, calc(100vw - 2 * var(--gutter)));
+  max-height: calc(100dvh - 2 * var(--gutter));
+  padding: 0;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+/* Sin variables: en algunos navegadores `::backdrop` no hereda las de la raíz. */
+.shortcut-help::backdrop {
+  background: rgb(0 0 0 / 0.45);
+}
+
+.shortcut-help__header {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px var(--gutter);
+  border-bottom: 1px solid var(--surface-2);
+  background: var(--surface);
+}
+
+.shortcut-help__header h2 {
+  font-size: 1.125rem;
+}
+
+.shortcut-help__body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px var(--gutter) var(--gutter);
+}
+
+.shortcut-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.shortcut-table caption {
+  padding: 4px 0;
+  font-weight: 600;
+  text-align: left;
+}
+
+.shortcut-table th,
+.shortcut-table td {
+  padding: 6px 0;
+  border-top: 1px solid var(--surface-2);
+  vertical-align: top;
+  text-align: left;
+}
+
+.shortcut-table th {
+  width: 45%;
+  padding-right: 16px;
+  font-weight: 400;
+}
+
+.shortcut-combo {
+  white-space: nowrap;
+}

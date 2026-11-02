@@ -3,7 +3,7 @@
 // pantalla completa en móvil (ver §9.3).
 import type { GameDetailsView } from '@gameagenda/core/catalog-format';
 import { isValidDay, linkCandidate } from '@gameagenda/core/entries';
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useCommands } from '../../agenda/commands.ts';
 import {
   type AgendaEntry,
@@ -22,6 +22,7 @@ import {
   useCatalogStatus,
   useEntriesById,
   useServices,
+  useSettings,
 } from '../../app/services.tsx';
 import { Cover } from '../../components/bits.tsx';
 import { CatalogNotice } from '../../components/CatalogNotice.tsx';
@@ -40,6 +41,14 @@ import { displayName } from '../../palette/palette-model.ts';
 import { goBack, navigate } from '../../router/router.tsx';
 import { gamePath } from '../../router/routes.ts';
 import { type CoreGame, GAME_FLAGS } from '../../search-client/index.ts';
+import {
+  isShortcutTarget,
+  openSteam,
+  steamUrl,
+  takeNoteFocus,
+  visibleEntryIds,
+} from '../../shortcuts/dom.ts';
+import { shortcutFor } from '../../shortcuts/keymap.ts';
 import { priorityOf } from '../my-list/list-model.ts';
 
 type CoreState =
@@ -67,10 +76,6 @@ function useCoreGame(appid: number | null): CoreState {
     };
   }, [appid, search, state]);
   return core.kind === 'ready' && core.appid === appid ? core : { kind: 'loading' };
-}
-
-function steamUrl(appid: number): string {
-  return `https://store.steampowered.com/app/${appid}/`;
 }
 
 const PLATFORM_BITS = [
@@ -395,23 +400,94 @@ export function GameScreen({ id }: { id: string }) {
   const title = entry?.title ?? (game ? displayName(game) : '');
   const missing = !loading && !entry && !game;
   const close = () => goBack('/');
+  const { singleKeyShortcuts } = useSettings();
+  const entryId = entry?.id ?? null;
+
+  // `N` desde una fila: la nota, cuando la ficha ya no está cargando. El foco de la navegación va
+  // al título al montarse (en un *layout effect* del mismo pintado), y este efecto va después.
+  useEffect(() => {
+    if (loading || entryId === null || !takeNoteFocus(entryId)) return;
+    document.querySelector<HTMLTextAreaElement>('.sheet__note')?.focus();
+  }, [loading, entryId]);
+  // Lo último de cada render, para el oyente de `document` (que no se vuelve a registrar).
+  const latest = useRef({ entry, game, appid, singleKeyShortcuts, commands });
+  latest.current = { entry, game, appid, singleKeyShortcuts, commands };
 
   // Esc cierra la ficha desde cualquier sitio (en Safari, un clic no enfoca los botones); la
-  // paleta y los menús lo paran antes si están abiertos.
+  // paleta y los menús lo paran antes si están abiertos. Desde M3, los atajos de la §9.4 sobre
+  // este juego; una fila de Mi lista con el foco (a ≥1 280 px, al lado) atiende los suyos antes.
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent): void {
-      if (event.key !== 'Escape' || event.defaultPrevented) return;
-      // En un campo, Esc primero lo guarda (al perder el foco); el segundo Esc cierra.
-      if (isEditableTarget(event.target)) {
-        (event.target as HTMLElement).blur();
+      if (event.defaultPrevented) return;
+      // La ayuda de atajos (`<dialog>`) se cierra sola con Esc: la ficha sigue abierta.
+      if (event.target instanceof Element && event.target.closest('dialog')) return;
+      if (event.key === 'Escape') {
+        // En un campo, Esc primero lo guarda (al perder el foco); el segundo Esc cierra.
+        if (isEditableTarget(event.target)) {
+          (event.target as HTMLElement).blur();
+          return;
+        }
+        event.preventDefault();
+        goBack('/');
         return;
       }
-      event.preventDefault();
-      goBack('/');
+      if (!isShortcutTarget(event.target)) return;
+      if (event.target instanceof Element && event.target.closest('.entry-row')) return;
+      const { entry, game, appid, singleKeyShortcuts, commands } = latest.current;
+      const action = shortcutFor(event, singleKeyShortcuts);
+      if (!action) return;
+      const timing = { feedbackStart: event.timeStamp };
+      switch (action.kind) {
+        case 'next':
+        case 'previous': {
+          // El juego de al lado en Mi lista, tal como se ve (con su vista, filtros y orden).
+          const ids = visibleEntryIds();
+          const index = ids.indexOf(id);
+          const next = index < 0 ? undefined : ids[index + (action.kind === 'next' ? 1 : -1)];
+          if (next === undefined) return;
+          event.preventDefault();
+          navigate(gamePath(next), { replace: true });
+          return;
+        }
+        case 'status':
+          event.preventDefault();
+          if (entry) commands.setStatus(entry.id, action.status, timing);
+          else if (game) {
+            commands.capture({ id, title: displayName(game) }, { status: action.status }, timing);
+          }
+          return;
+        case 'flag':
+          if (!entry) return;
+          event.preventDefault();
+          commands.setFlag(entry.id, action.flag, entry.flags[action.flag] !== true, timing);
+          return;
+        case 'remove':
+          if (!entry) return;
+          event.preventDefault();
+          commands.remove(entry.id, timing);
+          return;
+        case 'priority':
+          if (!entry || !(entry.status === 'want_to_play' || entry.flags.next === true)) return;
+          event.preventDefault();
+          commands.move(entry.id, action.to, timing);
+          return;
+        case 'note': {
+          const note = document.querySelector<HTMLTextAreaElement>('.sheet__note');
+          if (!note) return;
+          event.preventDefault();
+          note.focus();
+          return;
+        }
+        case 'steam':
+          if (appid === null) return;
+          event.preventDefault();
+          openSteam(appid);
+          return;
+      }
     }
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, []);
+  }, [id]);
 
   const timing = (event: { timeStamp: number }) => ({ feedbackStart: event.timeStamp });
 

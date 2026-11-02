@@ -9,6 +9,7 @@ import type {
   PurchaseFilter,
   SectionId,
 } from '../screens/my-list/list-model.ts';
+import type { ShortcutText } from '../shortcuts/keymap.ts';
 
 const percent = new Intl.NumberFormat('es-ES', { style: 'percent', maximumFractionDigits: 0 });
 
@@ -35,10 +36,48 @@ export const es = {
     mainNav: 'Principal',
     more: 'Más opciones',
     undoLast: 'Deshacer último cambio',
+    shortcuts: 'Atajos de teclado',
     capture: 'Apuntar un juego',
   },
 
   nav: { list: 'Mi lista', catalog: 'Catálogo', settings: 'Ajustes' },
+
+  /** Ayuda de atajos (`?`; §9.4). */
+  shortcuts: {
+    title: 'Atajos de teclado',
+    close: 'Cerrar',
+    intro: 'Las teclas sueltas no actúan mientras escribes en un campo ni con un menú abierto.',
+    off: 'Los atajos de una tecla están desactivados: solo funcionan los que llevan Ctrl o Alt.',
+    settings: 'Cambiarlo en Ajustes',
+    sequence: 'luego',
+    or: 'o',
+    statusTo: (status: Status) => `Pasar a ${statusLabels[status]}`,
+    flagToggle: (flag: Flag) => `Marcar o desmarcar ${flagLabels[flag]}`,
+    text: {
+      global: 'En toda la app',
+      palette: 'Abrir la paleta',
+      paletteGroup: 'En la paleta',
+      undo: 'Deshacer el último cambio',
+      close: 'Cerrar la paleta, un menú o la ficha',
+      help: 'Ver estos atajos',
+      goList: 'Ir a Mi lista',
+      goCatalog: 'Ir al Catálogo',
+      goSettings: 'Ir a Ajustes',
+      filter: 'Filtrar Mi lista o el Catálogo',
+      choose: 'Elegir un resultado',
+      capture: 'Apuntar en Quiero jugar',
+      captureAndStay: 'Apuntar y seguir buscando',
+      captureAs: 'Apuntar con estado y marcas',
+      openSheet: 'Abrir la ficha',
+      rows: 'En las filas y en la ficha',
+      move: 'Fila siguiente o anterior (en la ficha, el juego siguiente o el anterior)',
+      captureRow: 'Apuntar la fila (Catálogo)',
+      note: 'Escribir una nota',
+      remove: 'Quitar de mi lista (con Deshacer)',
+      priority: 'Subir o bajar la prioridad',
+      steam: 'Ver en Steam',
+    } satisfies Record<ShortcutText, string>,
+  },
 
   status: statusLabels,
   flag: flagLabels,
@@ -322,6 +361,10 @@ export const es = {
     adultHint: 'Están ocultos por defecto.',
     slash: 'Abrir la paleta con /',
     slashHint: 'Ctrl+K funciona siempre. Desactívalo si / te molesta al escribir.',
+    singleKeys: 'Atajos de una tecla',
+    singleKeysHint:
+      '?, G luego L, C o A, J, K, 1–5, C, P, A, N, Supr, V, F y +. Desactívalos si los pulsas sin querer o usas el dictado o un programa de voz. Ctrl+K, Ctrl+Z, Esc y Alt+↑/↓ siguen funcionando.',
+    showShortcuts: 'Ver los atajos de teclado',
     dataStored: 'Guardado en este dispositivo',
     exportJson: 'Exportar JSON',
     exportCsv: 'Exportar CSV',

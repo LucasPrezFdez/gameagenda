@@ -18,7 +18,8 @@ export type IconName =
   | 'settings'
   | 'undo'
   | 'offline'
-  | 'pencil';
+  | 'pencil'
+  | 'keyboard';
 
 const PATHS: Readonly<Record<IconName, ReactNode>> = {
   // Marcapáginas
@@ -127,6 +128,13 @@ const PATHS: Readonly<Record<IconName, ReactNode>> = {
   ),
   pencil: (
     <path d="M21.2 6.8a1 1 0 0 0-4-4L3.8 16.2a2 2 0 0 0-.5.8l-1.3 4.4a.5.5 0 0 0 .6.6l4.4-1.3a2 2 0 0 0 .8-.5z" />
+  ),
+  // Teclado (ayuda de atajos)
+  keyboard: (
+    <>
+      <rect x="2" y="5" width="20" height="14" rx="2" />
+      <path d="M6 9h.01M10 9h.01M14 9h.01M18 9h.01M6 13h.01M18 13h.01M10 13h4M8 16h8" />
+    </>
   ),
 };
 

@@ -13,7 +13,7 @@ import {
   useState,
 } from 'react';
 import { useCommands } from '../../agenda/commands.ts';
-import { steamId } from '../../agenda/types.ts';
+import { type Status, steamId } from '../../agenda/types.ts';
 import { useCatalogStatus, useEntriesById, useServices, useSettings } from '../../app/services.tsx';
 import { Cover, StatusText } from '../../components/bits.tsx';
 import { CatalogNotice } from '../../components/CatalogNotice.tsx';
@@ -29,6 +29,8 @@ import {
   canSearchCatalog,
   GAME_FLAGS,
 } from '../../search-client/index.ts';
+import { isShortcutTarget, openSteam, requestNoteFocus } from '../../shortcuts/dom.ts';
+import { shortcutFor } from '../../shortcuts/keymap.ts';
 import './catalog.css';
 
 const VIEW_ID = 'catalog';
@@ -92,7 +94,7 @@ function GameMeta({ game, showAdult }: { game: CoreGame; showAdult: boolean }) {
 export default function CatalogScreen() {
   const { search } = useServices();
   const status = useCatalogStatus();
-  const { showAdult } = useSettings();
+  const { showAdult, singleKeyShortcuts } = useSettings();
   const entriesById = useEntriesById();
   const commands = useCommands();
   const { search: query } = useLocation();
@@ -270,13 +272,19 @@ export default function CatalogScreen() {
     updateUrl(text, next);
   }
 
-  function capture(game: CoreGame, timeStamp: number): void {
-    commands.capture({ id: steamId(game.appid), title: displayName(game) }, undefined, {
-      feedbackStart: timeStamp,
-    });
+  function capture(game: CoreGame, timeStamp: number, status?: Status): void {
+    commands.capture(
+      { id: steamId(game.appid), title: displayName(game) },
+      status ? { status } : undefined,
+      { feedbackStart: timeStamp },
+    );
   }
 
-  /** ↑ ↓ Inicio Fin RePág AvPág entre filas, Intro abre la ficha (enlace) y `+` apunta (§9.4). */
+  /**
+   * ↑ ↓ Inicio Fin RePág AvPág entre filas, Intro abre la ficha (enlace) y `+` apunta (§9.4).
+   * Desde M3, `J` y `K` como ↓ y ↑, `V` (Ver en Steam) y, sobre un juego de la lista, `1`–`5`,
+   * `C`/`P`/`A`, `N` y `Supr`; si aún no está, `1`–`5` lo apuntan en ese estado.
+   */
   function onListKeyDown(event: KeyboardEvent<HTMLOListElement>): void {
     const target = event.target as HTMLElement;
     if (!target.matches('[data-row-title]')) return;
@@ -285,16 +293,73 @@ export default function CatalogScreen() {
       event.preventDefault();
       goTo(next);
     };
-    if (event.key === 'ArrowDown') move(index + 1);
-    else if (event.key === 'ArrowUp') move(index - 1);
-    else if (event.key === 'PageDown') move(index + PAGE_KEYS_STEP);
-    else if (event.key === 'PageUp') move(index - PAGE_KEYS_STEP);
-    else if (event.key === 'Home') move(0);
-    else if (event.key === 'End') move(count - 1);
-    else if (event.key === '+' && !event.ctrlKey && !event.altKey && !event.metaKey) {
-      event.preventDefault();
-      const game = gameAt(index);
-      if (game && !entriesById.has(steamId(game.appid))) capture(game, event.timeStamp);
+    if (event.key === 'ArrowDown') {
+      move(index + 1);
+      return;
+    }
+    if (event.key === 'ArrowUp') {
+      move(index - 1);
+      return;
+    }
+    if (event.key === 'PageDown') {
+      move(index + PAGE_KEYS_STEP);
+      return;
+    }
+    if (event.key === 'PageUp') {
+      move(index - PAGE_KEYS_STEP);
+      return;
+    }
+    if (event.key === 'Home') {
+      move(0);
+      return;
+    }
+    if (event.key === 'End') {
+      move(count - 1);
+      return;
+    }
+    if (event.defaultPrevented || !isShortcutTarget(target)) return;
+    const action = shortcutFor(event, singleKeyShortcuts);
+    const game = gameAt(index);
+    if (!action || !game) return;
+    const id = steamId(game.appid);
+    const entry = entriesById.get(id);
+    const timing = { feedbackStart: event.timeStamp };
+    switch (action.kind) {
+      case 'next':
+        move(index + 1);
+        return;
+      case 'previous':
+        move(index - 1);
+        return;
+      case 'capture':
+        event.preventDefault();
+        if (!entry) capture(game, event.timeStamp);
+        return;
+      case 'status':
+        event.preventDefault();
+        if (entry) commands.setStatus(id, action.status, timing);
+        else capture(game, event.timeStamp, action.status);
+        return;
+      case 'flag':
+        if (!entry) return;
+        event.preventDefault();
+        commands.setFlag(id, action.flag, entry.flags[action.flag] !== true, timing);
+        return;
+      case 'remove':
+        if (!entry) return;
+        event.preventDefault();
+        commands.remove(id, timing);
+        return;
+      case 'note':
+        if (!entry) return;
+        event.preventDefault();
+        requestNoteFocus(id);
+        navigate(gamePath(id));
+        return;
+      case 'steam':
+        event.preventDefault();
+        openSteam(game.appid);
+        return;
     }
   }
 
@@ -330,6 +395,7 @@ export default function CatalogScreen() {
           type="text"
           value={text}
           placeholder={es.catalog.filterPlaceholder}
+          data-filter-field=""
           autoComplete="off"
           autoCorrect="off"
           autoCapitalize="off"

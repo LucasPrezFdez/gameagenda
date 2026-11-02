@@ -186,6 +186,7 @@ describe('ajustes y registro de errores en Dexie', () => {
       theme: 'system',
       showAdult: false,
       slashOpensPalette: false,
+      singleKeyShortcuts: true,
       listSearch: '',
       loadCovers: true,
       coverNotice: 'unseen',

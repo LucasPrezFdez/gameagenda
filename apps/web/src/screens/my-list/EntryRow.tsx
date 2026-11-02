@@ -104,6 +104,7 @@ function EntryRowView({
     <li
       className="entry-row"
       data-status={entry.status}
+      data-entry-id={entry.id}
       onFocusCapture={() => onActivate(entry.id)}
     >
       {position !== null && (
