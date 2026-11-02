@@ -134,7 +134,7 @@ sequenceDiagram
 
 **Arranque y actualización del catálogo en el cliente.** El *shell* sale de la caché del Service Worker y la comprobación del *manifest* nunca retrasa Mi lista ni la búsqueda (firma y *kill switches*, desde M2). Los tiempos con CPU ×4 son los medidos en la §8.11.
 
-**Actualización de la app.** Una versión nueva del *shell* se instala sola y espera. Entra con una recarga cuando la página lleva 1 minuto oculta, sin nada a medias y sin otra ventana de la app a la vista. La página mira cada hora si hay versión nueva (DECISIONES §10.29). En la app de escritorio, «oculta» es con la ventana en la bandeja (§17.3).
+**Actualización de la app.** Una versión nueva del *shell* se instala sola y espera. Entra con una recarga cuando la página lleva 1 minuto oculta, sin nada a medias y sin otra ventana de la app a la vista. La página mira si hay versión nueva a los 10 s de arrancar y luego cada hora (DECISIONES §10.29). En la app de escritorio, «oculta» es con la ventana en la bandeja (§17.3).
 
 ```mermaid
 sequenceDiagram
