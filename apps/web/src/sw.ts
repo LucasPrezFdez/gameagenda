@@ -78,6 +78,25 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+/**
+ * La página pide el relevo cuando lleva un rato oculta y sin nada a medias (`pwa/update-policy.ts`;
+ * §5.2). Solo si ninguna otra ventana de la app está a la vista: esa seguiría con el código
+ * anterior, y su precaché se borra al activar esta versión.
+ */
+self.addEventListener('message', (event) => {
+  if ((event.data as { type?: unknown } | null)?.type !== 'SKIP_WAITING') return;
+  const { source } = event;
+  const asker = source && 'id' in source ? source.id : null;
+  event.waitUntil(
+    (async () => {
+      const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      if (windows.every((client) => client.id === asker || client.visibilityState === 'hidden')) {
+        await self.skipWaiting();
+      }
+    })(),
+  );
+});
+
 async function fromCache(url: string, request: Request): Promise<Response> {
   const cached = await (await caches.open(CACHE)).match(url);
   return cached ?? fetch(request);

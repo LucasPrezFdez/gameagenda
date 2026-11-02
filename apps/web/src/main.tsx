@@ -20,6 +20,7 @@ import { createNoticeCenter, type NoticeAction } from './notices/notice-center.t
 import { warmFallbackFonts } from './perf/fallback-fonts.ts';
 import { startPerfSampler } from './perf/sampler.ts';
 import { registerServiceWorker } from './pwa/register-sw.ts';
+import { catalogIsLoading, hasWorkInProgress } from './pwa/work-in-progress.ts';
 import { startRouter } from './router/router.tsx';
 import { createAppSearchClient } from './search-client/index.ts';
 import { createSettingsStore, parseSettings } from './settings/settings-store.ts';
@@ -37,11 +38,18 @@ const STORAGE_NOTICE_MS = 30_000;
 
 installGlobalErrorHandlers();
 startRouter();
-// Antes de esperar a Dexie: registra el Service Worker en `load`, que puede llegar antes.
-registerServiceWorker();
 
 const notices = createNoticeCenter();
 const search = createAppSearchClient();
+
+// Antes de esperar a Dexie: registra el Service Worker en `load`, que puede llegar antes. Una
+// versión nueva entra al recargar con la página oculta, si no hay nada a medias (§5.2).
+registerServiceWorker({
+  isBusy: () =>
+    notices.getSnapshot() !== null ||
+    catalogIsLoading(search.getStatus()) ||
+    hasWorkInProgress(document),
+});
 
 /** Aleatorio criptográfico en [0, 1) para el nodo de la HLC (uno por pestaña, §7.4). */
 function secureRandom(): number {

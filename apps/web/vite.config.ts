@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { catalogDevPlugin } from './catalog-dev-plugin.ts';
+import { e2eServiceWorkerPlugin } from './e2e-sw-plugin.ts';
 import pkg from './package.json' with { type: 'json' };
 
 function gitSha(): string {
@@ -34,6 +35,7 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     catalogDevPlugin(repoRoot),
+    e2eServiceWorkerPlugin(),
     VitePWA({
       // Service Worker propio con la precaché del *build*, registrado desde la app (ver §6.1).
       strategies: 'injectManifest',

@@ -9,6 +9,7 @@
   "include": [
     "vite.config.ts",
     "catalog-dev-plugin.ts",
+    "e2e-sw-plugin.ts",
     "playwright.config.ts",
     "playwright.perf.config.ts",
     "e2e",
