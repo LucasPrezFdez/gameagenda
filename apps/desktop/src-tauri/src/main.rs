@@ -8,6 +8,10 @@
 //! - el icono de la bandeja («Abrir», el estado del atajo, «Iniciar con Windows» y «Salir»);
 //! - una sola instancia y el arranque con Windows (desactivado por defecto).
 //!
+//! Al ocultar la ventana en la bandeja también se oculta su WebView: la página pasa a «oculta»
+//! (`visibilitychange`), como una pestaña en segundo plano, y deja de pintar. Ahí entra sola una
+//! versión nueva de `ga-web` (§5.2); sin esto, la página se creía a la vista y no la ponía nunca.
+//!
 //! La página no recibe ninguna orden de Tauri (CA3.8): no hay `capabilities/` ni comandos propios,
 //! y `ga-web` se carga como origen remoto, así que Tauri rechaza cualquier `invoke` que intente.
 //! Para abrir la paleta, esta parte ejecuta en la página un evento fijo (`CAPTURE_SCRIPT`) que el
@@ -15,7 +19,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use tauri::{
-    AppHandle, Manager, Runtime, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent,
+    AppHandle, Manager, Runtime, Url, Webview, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
+    WindowEvent,
     menu::{CheckMenuItem, Menu, MenuEvent, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     webview::NewWindowResponse,
@@ -108,7 +113,10 @@ fn main() {
             let window = create_main_window(app.handle())?;
             let status = register_shortcut(app.handle());
             create_tray(app.handle(), status)?;
-            if !launched_by_autostart() {
+            if launched_by_autostart() {
+                // La ventana ya nace oculta; la página, también.
+                let _ = page(&window).hide();
+            } else {
                 show(&window);
             }
             Ok(())
@@ -119,7 +127,12 @@ fn main() {
                 && window.label() == MAIN_WINDOW
             {
                 api.prevent_close();
-                let _ = window.hide();
+                match window.app_handle().get_webview_window(MAIN_WINDOW) {
+                    Some(main) => hide(&main),
+                    None => {
+                        let _ = window.hide();
+                    }
+                }
             }
         })
         .run(tauri::generate_context!())
@@ -222,7 +235,7 @@ fn toggle_capture<R: Runtime>(app: &AppHandle<R>) {
         return;
     };
     if is_in_front(&window) {
-        let _ = window.hide();
+        hide(&window);
     } else {
         show(&window);
         // Sin recargar: la página abre la paleta con el foco (§17.3).
@@ -236,12 +249,25 @@ fn show_main_window<R: Runtime>(app: &AppHandle<R>) {
     }
 }
 
+/// El WebView de la ventana: mostrarlo u ocultarlo cambia `document.visibilityState` en la página.
+fn page<R: Runtime>(window: &WebviewWindow<R>) -> &Webview<R> {
+    window.as_ref()
+}
+
 fn show<R: Runtime>(window: &WebviewWindow<R>) {
     if window.is_minimized().unwrap_or(false) {
         let _ = window.unminimize();
     }
+    // La página primero, para que la ventana no aparezca un instante en blanco.
+    let _ = page(window).show();
     let _ = window.show();
     let _ = window.set_focus();
+}
+
+/// A la bandeja: la ventana y la página.
+fn hide<R: Runtime>(window: &WebviewWindow<R>) {
+    let _ = window.hide();
+    let _ = page(window).hide();
 }
 
 fn is_in_front<R: Runtime>(window: &WebviewWindow<R>) -> bool {
