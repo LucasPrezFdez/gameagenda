@@ -155,6 +155,42 @@ describe('agenda sobre Dexie', () => {
     expect(order.indexOf('steam:20')).toBe(order.indexOf('steam:19') - 1);
   });
 
+  it('arrastrar `::` deja la entrada antes o después de otra de su vista, con Deshacer', async () => {
+    const t = await tab();
+    for (const n of [1, 2, 3, 4, 5]) t.agenda.capture({ id: `steam:${n}`, title: `J${n}` });
+    t.agenda.setStatus('steam:3', 'playing');
+    // Otra vista: no se mueve nada.
+    expect(t.agenda.move('steam:5', { before: 'steam:3' }).effect.kind).toBe('noop');
+    // Junto a sí misma o donde ya está: tampoco.
+    expect(t.agenda.move('steam:2', { after: 'steam:1' }).effect.kind).toBe('noop');
+    expect(t.agenda.move('steam:2', { before: 'steam:4' }).effect.kind).toBe('noop');
+
+    const down = t.agenda.move('steam:1', { after: 'steam:4' });
+    expect(down.effect).toMatchObject({ kind: 'moved', position: 3, total: 4 });
+    expect(ordered(t).filter((id) => id !== 'steam:3')).toEqual([
+      'steam:2',
+      'steam:4',
+      'steam:1',
+      'steam:5',
+    ]);
+    const up = t.agenda.move('steam:5', { before: 'steam:2' });
+    expect(up.effect).toMatchObject({ kind: 'moved', position: 1, total: 4 });
+    expect(ordered(t).filter((id) => id !== 'steam:3')).toEqual([
+      'steam:5',
+      'steam:2',
+      'steam:4',
+      'steam:1',
+    ]);
+    up.undo?.();
+    down.undo?.();
+    expect(ordered(t).filter((id) => id !== 'steam:3')).toEqual([
+      'steam:1',
+      'steam:2',
+      'steam:4',
+      'steam:5',
+    ]);
+  });
+
   it('vincula un juego manual con Steam y Deshacer lo separa', async () => {
     const t = await tab();
     const manual = manualEntryId(uuidv7());

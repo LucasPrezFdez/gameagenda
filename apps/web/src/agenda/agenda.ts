@@ -43,6 +43,33 @@ import {
 
 const NOOP: AgendaResult = { effect: { kind: 'noop' }, undo: null };
 
+/**
+ * Puesto final de la entrada `from` en `siblings` (su vista, por `rank`), o -1 si `to` nombra
+ * una entrada que no está en esa vista. «Antes de» y «después de» cuentan el puesto ya sin la
+ * entrada que se mueve, como `moveNeighbors`.
+ */
+export function moveIndex(
+  siblings: readonly { readonly id: string }[],
+  from: number,
+  to: MoveTarget,
+): number {
+  switch (to) {
+    case 'top':
+      return 0;
+    case 'bottom':
+      return siblings.length - 1;
+    case 'up':
+      return from - 1;
+    case 'down':
+      return from + 1;
+  }
+  const before = 'before' in to;
+  const at = siblings.findIndex((entry) => entry.id === (before ? to.before : to.after));
+  if (at < 0) return -1;
+  const index = before ? at : at + 1;
+  return index > from ? index - 1 : index;
+}
+
 /** Fecha local de hoy, `AAAA-MM-DD` (las fechas automáticas de la §3.3 son locales). */
 export function localDay(date: Date): string {
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -396,7 +423,7 @@ export function createAgenda(options: AgendaOptions): AgendaStore {
     const siblings = snapshot.filter((entry) => coreViewOf(entry) === view).sort(compareRank);
     const from = siblings.findIndex((entry) => entry.id === id);
     const last = siblings.length - 1;
-    const target = to === 'top' ? 0 : to === 'bottom' ? last : to === 'up' ? from - 1 : from + 1;
+    const target = moveIndex(siblings, from, to);
     if (from < 0 || target < 0 || target > last || target === from) return NOOP;
     const { above, below } = moveNeighbors(
       siblings.map((entry) => entry.rank),

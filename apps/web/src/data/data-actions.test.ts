@@ -187,6 +187,7 @@ describe('ajustes y registro de errores en Dexie', () => {
       showAdult: false,
       slashOpensPalette: false,
       singleKeyShortcuts: true,
+      touchGestures: true,
       listSearch: '',
       loadCovers: true,
       coverNotice: 'unseen',

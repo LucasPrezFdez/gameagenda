@@ -12,6 +12,12 @@ export interface UiSettings {
    * `V`, `F` y `+`): se pueden apagar todos (WCAG 2.1.4). `Alt+↑/↓` sigue siempre.
    */
   readonly singleKeyShortcuts: boolean;
+  /**
+   * «Gestos táctiles» de la §9.4: deslizar una fila (→ avanza el estado, ← las marcas), mantenerla
+   * pulsada (selector de estado), mantener pulsado un resultado de la paleta y ↓ en la hoja.
+   * Arrastrar el asa `::` no depende de esto: es un control a la vista.
+   */
+  readonly touchGestures: boolean;
   /** Contenido para adultos en el Catálogo y la búsqueda (RF-18). */
   readonly showAdult: boolean;
   /** Última vista, filtros y orden de Mi lista (la parte `?…` de su URL). */
@@ -35,6 +41,7 @@ export const DEFAULT_SETTINGS: UiSettings = {
   theme: 'system',
   slashOpensPalette: true,
   singleKeyShortcuts: true,
+  touchGestures: true,
   showAdult: false,
   listSearch: '',
   loadCovers: true,
@@ -54,6 +61,7 @@ function validValue(key: SettingKey, value: unknown): UiSettings[SettingKey] | u
       return THEMES.find((theme) => theme === value);
     case 'slashOpensPalette':
     case 'singleKeyShortcuts':
+    case 'touchGestures':
     case 'showAdult':
     case 'loadCovers':
       return typeof value === 'boolean' ? value : undefined;

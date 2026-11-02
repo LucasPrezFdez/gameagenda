@@ -126,9 +126,32 @@
 
 .list-section__header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
+  gap: 4px 12px;
   min-height: 32px;
+}
+
+/* «Arrastra :: o usa Alt+↑/↓» (§9.3); con el dedo, sin las teclas. */
+.list-section__hint {
+  margin-inline-end: auto;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+}
+
+.list-section__hint-touch {
+  display: none;
+}
+
+@media (pointer: coarse) {
+  .list-section__hint-fine {
+    display: none;
+  }
+
+  .list-section__hint-touch {
+    display: inline;
+  }
 }
 
 .entry-list {
@@ -137,7 +160,13 @@
   gap: 2px;
 }
 
+/* La fila (`li`) es el fondo que asoma al deslizar; lo que se ve y se desliza es su cuerpo. */
 .entry-row {
+  position: relative;
+  border-radius: var(--radius);
+}
+
+.entry-row__body {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -146,6 +175,7 @@
   border: 1px solid transparent;
   border-radius: var(--radius);
   background: var(--surface);
+  transition: transform var(--motion) ease-out;
 }
 
 /* Con cientos de entradas, las filas fuera de la pantalla no se maquetan ni se pintan (RNF-03):
@@ -161,9 +191,153 @@
   content-visibility: visible;
 }
 
-.entry-row:hover,
-.entry-row:focus-within {
+.entry-row:hover .entry-row__body,
+.entry-row:focus-within .entry-row__body {
   border-color: var(--control-border);
+}
+
+/* Gestos (§9.4). Con el dedo, la página sigue desplazándose en vertical y con dos dedos se
+   amplía; lo horizontal es del gesto. Sin menú de enlace (iOS) ni selección de texto al mantener
+   pulsado. */
+@media (pointer: coarse) {
+  .entry-row {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  .list-sections[data-gestures="on"] .entry-row__body {
+    touch-action: pan-y pinch-zoom;
+  }
+}
+
+/* Mientras se desliza o con la bandeja abierta, la fila recorta lo que se sale y apila lo suyo
+   aparte (su fondo va por debajo del cuerpo). */
+.entry-row.is-swiping,
+.entry-row.is-tray-open,
+.entry-row[data-swipe] {
+  isolation: isolate;
+  overflow: clip;
+}
+
+.entry-row.is-swiping .entry-row__body {
+  transition: none;
+}
+
+/* Lo que va a pasar, detrás de la fila: a la izquierda al deslizarla a la derecha, y al revés.
+   Llega a su color al pasar el 40 % (`data-armed`). */
+.entry-row[data-swipe]::before {
+  content: attr(data-swipe-label);
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.entry-row[data-swipe="flags"]::before {
+  justify-content: flex-end;
+}
+
+.entry-row[data-swipe][data-armed]::before {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+/* Al estado al que va: Jugando o Completado. */
+.entry-row[data-swipe="advance"][data-armed][data-status="want_to_play"]::before,
+.entry-row[data-swipe="advance"][data-armed][data-status="on_hold"]::before {
+  background: var(--playing);
+  color: var(--surface);
+}
+
+.entry-row[data-swipe="advance"][data-armed][data-status="playing"]::before {
+  background: var(--completed);
+  color: var(--surface);
+}
+
+/* Bandeja de marcas: el cuerpo se aparta y las deja a la vista (`--tray-w`, tres botones). */
+.entry-row {
+  --tray-w: calc(3 * 64px);
+}
+
+.entry-row.is-tray-open .entry-row__body {
+  transform: translateX(calc(-1 * var(--tray-w)));
+}
+
+.entry-row__tray {
+  position: absolute;
+  inset-block: 0;
+  right: 0;
+  z-index: -1;
+  display: flex;
+  width: var(--tray-w);
+}
+
+.entry-row__tray-button {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: var(--target-touch);
+  padding: 4px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Asa `::` (arrastrar para ordenar): con el dedo, la página no se desplaza desde ella. */
+.entry-row__handle {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  align-self: stretch;
+  width: 24px;
+  margin: -6px 0 -6px -4px;
+  color: var(--text-muted);
+  cursor: grab;
+  touch-action: none;
+}
+
+.entry-row__handle .icon {
+  width: 18px;
+  height: 18px;
+}
+
+@media (pointer: coarse) {
+  .entry-row__handle {
+    width: var(--target-touch);
+    margin-inline-end: -10px;
+  }
+}
+
+/* Mientras se arrastra: la fila va por encima con sombra y las demás le hacen hueco. */
+.entry-list.is-reordering {
+  cursor: grabbing;
+}
+
+.entry-list.is-reordering > .entry-row {
+  transition: transform var(--motion) ease-out;
+}
+
+.entry-list.is-reordering > .entry-row.is-dragging {
+  z-index: 1;
+  transition: none;
+}
+
+.entry-row.is-dragging .entry-row__body {
+  border-color: var(--control-border);
+  box-shadow: var(--shadow);
 }
 
 .entry-row__rank {

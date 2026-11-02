@@ -320,6 +320,23 @@
     padding: 8px 0;
     border: 0;
     box-shadow: none;
+    /* Al bajar la hoja con el dedo (↓ la cierra, §9.4), la lista no tira de la página. */
+    overscroll-behavior: contain;
+  }
+
+  .app-header > .palette.is-open {
+    transition: transform var(--motion) ease-out;
+  }
+
+  .app-header > .palette.is-pulling {
+    transition: none;
+  }
+
+  /* Mantener pulsado un resultado es «Apuntar como…»: sin menú del sistema ni selección. */
+  .palette__option {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
   }
 
   .palette__backdrop {

@@ -178,6 +178,14 @@ export const es = {
     exported: (file: string) => `Hemos exportado ${file}.`,
   },
 
+  // Gestos de M3 (§9.4): lo que se lee detrás de la fila al deslizarla.
+  gestures: {
+    advance: (from: Status) =>
+      from === 'playing' ? 'Completar' : from === 'on_hold' ? 'Retomar' : 'Empezar',
+    flags: 'Marcas',
+    tray: (title: string) => `Marcas: ${title}`,
+  },
+
   list: {
     title: 'Mi lista',
     views: 'Vistas',
@@ -230,6 +238,10 @@ export const es = {
     moveDown: 'Bajar',
     moveTop: 'Al principio',
     moveBottom: 'Al final',
+    // Asa `::` (M3; ver §9.4): solo para el ratón y el dedo; el teclado tiene Alt+↑/↓.
+    dragHandle: 'Arrastra para cambiar la prioridad',
+    reorderHint: 'Arrastra :: o usa Alt+↑/↓',
+    reorderHintTouch: 'Arrastra :: para ordenar',
     openSheet: 'Ver ficha',
     remove: 'Quitar de mi lista',
     loading: 'Cargando tu lista…',
@@ -365,6 +377,9 @@ export const es = {
     singleKeysHint:
       '?, G luego L, C o A, J, K, 1–5, C, P, A, N, Supr, V, F y +. Desactívalos si los pulsas sin querer o usas el dictado o un programa de voz. Ctrl+K, Ctrl+Z, Esc y Alt+↑/↓ siguen funcionando.',
     showShortcuts: 'Ver los atajos de teclado',
+    touchGestures: 'Gestos táctiles',
+    touchGesturesHint:
+      'En Mi lista, desliza un juego a la derecha para avanzar su estado y a la izquierda para ver sus marcas, o mantenlo pulsado para cambiar el estado. En la paleta, mantén pulsado un resultado para apuntarlo con otro estado, y desliza hacia abajo para cerrarla. Cada gesto tiene su botón; arrastrar :: funciona siempre.',
     dataStored: 'Guardado en este dispositivo',
     exportJson: 'Exportar JSON',
     exportCsv: 'Exportar CSV',

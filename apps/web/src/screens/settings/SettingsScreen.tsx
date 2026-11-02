@@ -67,7 +67,7 @@ function Content() {
 
 function Keyboard() {
   const { settings } = useServices();
-  const { slashOpensPalette, singleKeyShortcuts } = useSettings();
+  const { slashOpensPalette, singleKeyShortcuts, touchGestures } = useSettings();
   const openHelp = useOpenShortcutHelp();
   const id = useId();
   return (
@@ -98,6 +98,20 @@ function Keyboard() {
         </label>
         <p id={id} className="muted">
           {es.settings.slashHint}
+        </p>
+      </div>
+      <div className="settings__choice-block">
+        <label className="settings__choice">
+          <input
+            type="checkbox"
+            checked={touchGestures}
+            aria-describedby={`${id}-gestures`}
+            onChange={(event) => settings.update({ touchGestures: event.target.checked })}
+          />
+          {es.settings.touchGestures}
+        </label>
+        <p id={`${id}-gestures`} className="muted">
+          {es.settings.touchGesturesHint}
         </p>
       </div>
       <div>

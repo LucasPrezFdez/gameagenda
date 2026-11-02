@@ -73,7 +73,17 @@ export interface CaptureOptions {
   readonly flags?: Flags;
 }
 
-export type MoveTarget = 'up' | 'down' | 'top' | 'bottom';
+/**
+ * Adónde va una entrada en su vista: un puesto más arriba o más abajo, al principio, al final o
+ * junto a otra de la misma vista (al soltarla tras arrastrar `::`, que ve la lista filtrada).
+ */
+export type MoveTarget =
+  | 'up'
+  | 'down'
+  | 'top'
+  | 'bottom'
+  | { readonly before: string }
+  | { readonly after: string };
 export type EditableField = 'note' | 'platform' | DateField;
 export type EntryPatch = Partial<Pick<AgendaEntry, EditableField>>;
 

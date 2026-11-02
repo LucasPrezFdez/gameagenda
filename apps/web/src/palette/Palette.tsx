@@ -1,6 +1,7 @@
 // Paleta de captura (RF-01–RF-03, RF-06; ver §9.2–§9.5): *combobox* + *listbox* del APG.
 // El campo está siempre montado: en móvil, el toque en la barra lo enfoca sin esperar a React
-// (si no, iOS no abre el teclado).
+// (si no, iOS no abre el teclado). Gestos de M3 (§9.4): mantener pulsado un resultado es
+// Alt+Intro («Apuntar como…») y, en el móvil, deslizar la hoja hacia abajo la cierra.
 import { manualEntryId } from '@gameagenda/core/entries';
 import {
   type ChangeEvent,
@@ -20,9 +21,17 @@ import {
 import { v7 as uuidv7 } from 'uuid';
 import type { AgendaEntry, CaptureOptions, CaptureTarget } from '../agenda/types.ts';
 import { appidOf, steamId } from '../agenda/types.ts';
-import { useCatalogStatus, useEntriesById, useQueryState, useServices } from '../app/services.tsx';
+import {
+  useCatalogStatus,
+  useEntriesById,
+  useQueryState,
+  useServices,
+  useSettings,
+} from '../app/services.tsx';
 import { Cover } from '../components/bits.tsx';
 import { Icon } from '../components/icons.tsx';
+import { attachLongPress } from '../gestures/long-press.ts';
+import { attachSheetDismiss } from '../gestures/sheet-dismiss.ts';
 import { es } from '../i18n/es.ts';
 import { isEditableTarget } from '../lib/hooks.ts';
 import { type FeedbackTiming, measureToNextFrame } from '../perf/measures.ts';
@@ -39,6 +48,9 @@ import {
 } from './palette-model.ts';
 
 type LinkOption = Extract<PaletteOption, { kind: 'link' }>;
+
+/** En el móvil, la paleta abierta es una hoja a pantalla completa (ver `palette.css`). */
+const SHEET_MEDIA = '(max-width: 767px)';
 
 /** Intro espera como mucho esto a los resultados del texto escrito (ver §8.7). */
 export const ENTER_WAIT_MS = 500;
@@ -120,6 +132,7 @@ export function Palette({ actions, showBar, onClose, ref }: PaletteProps) {
   const status = useCatalogStatus();
   const query = useQueryState();
   const entriesById = useEntriesById();
+  const { touchGestures } = useSettings();
 
   const [open, setOpen] = useState(false);
   const [text, setText] = useState('');
@@ -172,9 +185,9 @@ export function Palette({ actions, showBar, onClose, ref }: PaletteProps) {
   const activeIndex = chosenIndex >= 0 ? chosenIndex : model.defaultIndex;
   const activeOption = model.options[activeIndex];
 
-  // Los últimos valores, para la espera de Intro (que termina en otra tarea).
-  const latest = useRef({ actions, entriesById, status, keepOpen, pasted });
-  latest.current = { actions, entriesById, status, keepOpen, pasted };
+  // Los últimos valores, para la espera de Intro (que termina en otra tarea) y los gestos.
+  const latest = useRef({ actions, entriesById, status, keepOpen, pasted, touchGestures });
+  latest.current = { actions, entriesById, status, keepOpen, pasted, touchGestures };
 
   function openPalette(timeStamp: number, from: Element | null): void {
     if (openRef.current) return;
@@ -423,6 +436,38 @@ export function Palette({ actions, showBar, onClose, ref }: PaletteProps) {
     popupScrolled.current = event.currentTarget.scrollTop > 0;
   }
 
+  // Gestos (§9.4): lo de este pintado, para las escuchas que se ponen una sola vez.
+  const gesture = useRef({ activate, close, model, seq: query.seq });
+  gesture.current = { activate, close, model, seq: query.seq };
+  useEffect(() => {
+    const root = rootRef.current;
+    const popup = popupRef.current;
+    if (!root || !popup) return;
+    const enabled = () => openRef.current && latest.current.touchGestures;
+    // Mantener pulsado un resultado: como Alt+Intro (RF-06).
+    const longPress = attachLongPress(popup, {
+      selector: '[role="option"][data-long-press]',
+      enabled,
+      onLongPress(target, timeStamp) {
+        const { model: current, seq } = gesture.current;
+        const option = current.options.find((candidate) => candidate.key === target.dataset.key);
+        if (!option) return;
+        setChoice({ seq, key: option.key });
+        gesture.current.activate(option, 'other', timeStamp);
+      },
+    });
+    // ↓ cierra la hoja, solo donde la paleta abierta es una hoja.
+    const detachSheet = attachSheetDismiss(root, {
+      enabled: () => enabled() && window.matchMedia(SHEET_MEDIA).matches,
+      scroller: () => popupRef.current,
+      onDismiss: () => gesture.current.close(),
+    });
+    return () => {
+      longPress.dispose();
+      detachSheet();
+    };
+  }, []);
+
   const trimmed = text.trim();
   const leading = model.options.filter(isGameRow);
   const suggestionOptions = model.options.filter((option) => option.kind === 'suggestion');
@@ -488,7 +533,13 @@ export function Palette({ actions, showBar, onClose, ref }: PaletteProps) {
           ? option.appid
           : option.game.appid;
     return (
-      <div key={option.key} {...common} data-kind={option.kind}>
+      <div
+        key={option.key}
+        {...common}
+        data-kind={option.kind}
+        data-key={option.key}
+        data-long-press=""
+      >
         <Cover title={name} appid={appid} size="palette" load={loadCovers} notice={false} />
         <span className="palette__name">{name}</span>
         <span className="palette__meta">

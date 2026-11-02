@@ -19,7 +19,8 @@ export type IconName =
   | 'undo'
   | 'offline'
   | 'pencil'
-  | 'keyboard';
+  | 'keyboard'
+  | 'grip';
 
 const PATHS: Readonly<Record<IconName, ReactNode>> = {
   // Marcapáginas
@@ -134,6 +135,17 @@ const PATHS: Readonly<Record<IconName, ReactNode>> = {
     <>
       <rect x="2" y="5" width="20" height="14" rx="2" />
       <path d="M6 9h.01M10 9h.01M14 9h.01M18 9h.01M6 13h.01M18 13h.01M10 13h4M8 16h8" />
+    </>
+  ),
+  // Asa `::` para arrastrar (seis puntos)
+  grip: (
+    <>
+      <circle cx="9" cy="6" r="1" />
+      <circle cx="9" cy="12" r="1" />
+      <circle cx="9" cy="18" r="1" />
+      <circle cx="15" cy="6" r="1" />
+      <circle cx="15" cy="12" r="1" />
+      <circle cx="15" cy="18" r="1" />
     </>
   ),
 };

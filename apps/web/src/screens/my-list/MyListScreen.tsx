@@ -1,8 +1,10 @@
 // Mi lista (RF-09–RF-14; ver §9.1 y §9.3): vista «Pendientes» con secciones, filtros y orden en
-// la URL, filas con estado y marcas a un toque y orden manual desde el menú de la fila.
+// la URL, filas con estado y marcas a un toque y orden manual desde el menú de la fila. Desde M3,
+// gestos (RF-15 y RF-16; §9.4): deslizar una fila, mantenerla pulsada y arrastrar su asa `::`.
 import {
   type KeyboardEvent,
   useCallback,
+  useEffect,
   useId,
   useLayoutEffect,
   useMemo,
@@ -23,6 +25,8 @@ import { ScreenHeading } from '../../components/ScreenHeading.tsx';
 import { copyReminderDue } from '../../data/copy-reminder.ts';
 import { groupLabel, releaseText } from '../../details/release-text.ts';
 import { logError } from '../../errors/error-log.ts';
+import { attachDragReorder } from '../../gestures/drag-reorder.ts';
+import { attachRowGestures } from '../../gestures/row-gestures.ts';
 import { es } from '../../i18n/es.ts';
 import { isIosBrowserTab } from '../../lib/hooks.ts';
 import { measureListVisible } from '../../perf/measures.ts';
@@ -61,8 +65,10 @@ function ListSkeleton({ label }: { label: string }) {
       <ol className="entry-list">
         {[0, 1, 2].map((index) => (
           <li key={index} className="entry-row entry-row--skeleton">
-            <span className="cover cover--row skeleton" />
-            <span className="skeleton skeleton--line" />
+            <div className="entry-row__body">
+              <span className="cover cover--row skeleton" />
+              <span className="skeleton skeleton--line" />
+            </div>
           </li>
         ))}
       </ol>
@@ -79,11 +85,16 @@ function isMovable(section: ListSection, params: ListParams): boolean {
   );
 }
 
-/** Si una acción saca la fila enfocada de la vista, el foco pasa a la siguiente (ver §9.5). */
+/**
+ * Si una acción saca la fila enfocada de la vista, el foco pasa a la siguiente (ver §9.5). Solo si
+ * el foco estaba en la fila: con un gesto, suele estar en la página, y moverlo la desplazaría.
+ */
 function keepFocusNear(container: HTMLElement | null, id: string): () => void {
-  const titles = container
-    ? [...container.querySelectorAll<HTMLElement>('[data-row-title]')].map((el) => el.id)
-    : [];
+  const row = document.getElementById(rowTitleId(id))?.closest('.entry-row');
+  if (!container || !row?.contains(document.activeElement)) return () => {};
+  const titles = [...container.querySelectorAll<HTMLElement>('[data-row-title]')].map(
+    (el) => el.id,
+  );
   const index = titles.indexOf(rowTitleId(id));
   return () => {
     requestAnimationFrame(() => {
@@ -106,7 +117,7 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
   const entries = useAgendaEntries();
   const commands = useCommands();
   const { agenda, settings, notices, copyReminder } = useServices();
-  const { singleKeyShortcuts } = useSettings();
+  const { singleKeyShortcuts, touchGestures } = useSettings();
   const copyState = useCopyReminder();
   // La hora de cuando se abre Mi lista: el aviso no cambia mientras se mira.
   const [openedAt] = useState(Date.now);
@@ -116,6 +127,8 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
   const filterId = useId();
   const [showOnHold, setShowOnHold] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
+  /** Fila deslizada a la izquierda, con la bandeja de marcas a la vista (§9.4). */
+  const [trayId, setTrayId] = useState<string | null>(null);
   const [iosNotice, setIosNotice] = useState(isIosBrowserTab);
   const [iosHelp, setIosHelp] = useState(false);
 
@@ -146,22 +159,27 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
     navigate(withSearch('/', next), { replace: true });
   }
 
+  // Cualquier cambio cierra la bandeja de marcas.
   const actions = useMemo<RowActions>(
     () => ({
       setStatus(id, status, timing) {
+        setTrayId(null);
         const restore = keepFocusNear(listRef.current, id);
         commands.setStatus(id, status, timing);
         restore();
       },
       setFlag(id, flag, value, timing) {
+        setTrayId(null);
         const restore = keepFocusNear(listRef.current, id);
         commands.setFlag(id, flag, value, timing);
         restore();
       },
       move(id, to, timing) {
+        setTrayId(null);
         commands.move(id, to, timing);
       },
       remove(id, timing) {
+        setTrayId(null);
         const restore = keepFocusNear(listRef.current, id);
         commands.remove(id, timing);
         restore();
@@ -169,6 +187,64 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
     }),
     [commands],
   );
+
+  const hasRows = entries.length > 0 && !releasesPending && sections.length > 0;
+  const gesturesOn = useRef(touchGestures);
+  gesturesOn.current = touchGestures;
+
+  // Gestos de las filas y asa `::`: un juego de escuchas para toda la lista (§9.4).
+  useEffect(() => {
+    const container = listRef.current;
+    if (!hasRows || !container) return;
+    const detachGestures = attachRowGestures(container, {
+      enabled: () => gesturesOn.current,
+      advanceLabel: es.gestures.advance,
+      flagsLabel: es.gestures.flags,
+      onAdvance: (id, status, timing) => actions.setStatus(id, status, timing),
+      onRevealFlags: (id) => setTrayId(id),
+      // El selector de estado: el menú del botón de estado de la fila.
+      onLongPress: (_id, row) => row.querySelector<HTMLButtonElement>('.status-button')?.click(),
+    });
+    const detachDrag = attachDragReorder(container, {
+      onDrop: (id, to, timing) => actions.move(id, to, timing),
+    });
+    return () => {
+      detachGestures();
+      detachDrag();
+    };
+  }, [hasRows, actions]);
+
+  // La bandeja se cierra al tocar fuera de ella, al desplazar la página y con Esc. Tocar la fila
+  // abierta solo la cierra: no abre la ficha.
+  useEffect(() => {
+    if (trayId === null) return;
+    const swallowClick = (event: MouseEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+    };
+    const close = () => setTrayId(null);
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as Element;
+      if (target.closest('.entry-row__tray')) return;
+      const row = target.closest<HTMLElement>('.entry-row.is-tray-open');
+      if (row) {
+        row.addEventListener('click', swallowClick, { capture: true, once: true });
+        setTimeout(() => row.removeEventListener('click', swallowClick, true), 600);
+      }
+      close();
+    };
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') close();
+    };
+    document.addEventListener('pointerdown', onPointerDown, true);
+    document.addEventListener('keydown', onKeyDown);
+    window.addEventListener('scroll', close, { passive: true });
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown, true);
+      document.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('scroll', close);
+    };
+  }, [trayId]);
 
   const onActivate = useCallback((id: string) => setActiveId(id), []);
 
@@ -429,7 +505,12 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
         </div>
       ) : (
         // biome-ignore lint/a11y/noStaticElementInteractions: ↑ y ↓ de las filas (tabindex itinerante).
-        <div ref={listRef} className="list-sections" onKeyDown={onListKeyDown}>
+        <div
+          ref={listRef}
+          className="list-sections"
+          data-gestures={touchGestures ? 'on' : 'off'}
+          onKeyDown={onListKeyDown}
+        >
           {sections.map((section) => {
             const label = sectionLabel(section);
             const headingId = `${filterId}-${section.key}`;
@@ -439,6 +520,12 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
               <section key={section.key} className="list-section" aria-labelledby={headingId}>
                 <div className="list-section__header">
                   <h2 id={headingId}>{es.list.sectionCount(label, section.entries.length)}</h2>
+                  {movable && section.entries.length > 1 && (
+                    <span className="list-section__hint" aria-hidden="true">
+                      <span className="list-section__hint-fine">{es.list.reorderHint}</span>
+                      <span className="list-section__hint-touch">{es.list.reorderHintTouch}</span>
+                    </span>
+                  )}
                   {section.collapsible && (
                     <button
                       type="button"
@@ -466,6 +553,7 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
                           isFirst={index === 0}
                           isLast={index === section.entries.length - 1}
                           active={entry.id === rovingId}
+                          trayOpen={entry.id === trayId}
                           actions={actions}
                           onActivate={onActivate}
                         />
