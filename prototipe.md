@@ -1485,6 +1485,14 @@ Leyenda: `[img]` portada, `[HK ]` generada, `(+)` apuntar, `(i)` ficha, `::` asa
   - **`F`** va al filtro de Mi lista o del Catálogo, si está a la vista.
   - **«Atajos de una tecla»** (Ajustes › Teclado y gestos, activado por defecto) apaga todas las teclas sueltas, también el `+` del Catálogo. `Ctrl+K`, `Ctrl+Z`, `Esc` y `Alt+↑/↓` siguen funcionando.
 - **Gestos (M3)**, con alternativa en el icono de estado, `[...]` o la ficha: deslizar → avanza el estado; ← muestra las marcas; pulsación larga, selector; arrastrar `::`, reordenar; ↓ cierra la hoja. Se activan al 40 % del ancho, se cancelan volviendo atrás, vibran 10 ms en Android y respetan zonas muertas de ≥24 px en ambos bordes; ninguno borra.
+- **Gestos de M3 tal como se han construido (02-11-2026; `DECISIONES.md` §10.24):**
+  - **→ avanza el estado:** Quiero jugar → Jugando («Empezar»), En pausa → Jugando («Retomar») y Jugando → Completado («Completar»). Detrás de la fila se lee lo que va a pasar, que toma el color del estado nuevo al llegar al 40 %. Completado y Abandonado no avanzan.
+  - **← abre la bandeja de marcas** (Comprado, Platinado y Próximo) detrás de la fila. Un toque cambia la marca y la cierra; tocar fuera, desplazar la página o `Esc` la cierran sin cambiar nada.
+  - **Pulsación larga** (500 ms): en Mi lista, el menú de estado de la fila; en la paleta, «Apuntar como…», como `Alt+Intro` (RF-06).
+  - **Deslizar y mantener pulsado son solo del dedo y del lápiz**; con el ratón están los botones de la fila.
+  - **Asa `::`** en Quiero jugar y A continuación con orden por prioridad: con el ratón, el dedo o el lápiz, desplazando la página cerca de los bordes; `Esc` cancela. Al soltar, la entrada queda antes o después de la fila sobre la que cae, también con la lista filtrada. La cabecera de la sección dice «Arrastra :: o usa Alt+↑/↓» («Arrastra :: para ordenar» con el dedo).
+  - **↓ cierra la hoja de la paleta** en el móvil, con su lista arriba del todo.
+  - **«Gestos táctiles»** (Ajustes › Teclado y gestos, activado por defecto) apaga deslizar, la pulsación larga y ↓. El asa `::` sigue, porque es un control a la vista.
 
 ### 9.5 Reglas de respuesta inmediata (M1; portadas desde M2)
 

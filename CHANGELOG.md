@@ -83,7 +83,7 @@ Entra en `main` antes de la etiqueta, así que va en esta versión. Sus criterio
 
 #### Adelantado de M3: atajos de teclado
 
-Entran en `main` antes de la etiqueta, como la app de escritorio. Es la parte de teclado de CA3.4: faltan los gestos y reordenar arrastrando (§9.4; DECISIONES §10.23).
+Entran en `main` antes de la etiqueta, como la app de escritorio. Es la parte de teclado de CA3.4; los gestos van en el apartado siguiente (§9.4; DECISIONES §10.23).
 - **Atajos de una tecla:**
   - `?` abre la ayuda, y `G` y luego `L`, `C` o `A` llevan a Mi lista, al Catálogo o a Ajustes;
   - en las filas y en la ficha: `J` y `K`, `1`–`5` (estado), `C`, `P` y `A` (Comprado, Platinado y Próximo), `N` (nota), `Supr` (quitar, con Deshacer), `Alt+↑/↓` (prioridad), `V` (Ver en Steam) y `F` (filtrar).
@@ -92,6 +92,20 @@ Entran en `main` antes de la etiqueta, como la app de escritorio. Es la parte de
 - **Pruebas:**
   - `keymap.test.ts` comprueba el mapa: ninguno usa `Ctrl+Alt`, `Alt+Mayús` ni teclas con AltGr, y cada tecla de la ayuda es un atajo de verdad;
   - `shortcuts.spec.ts` lo recorre solo con teclado (con axe sobre la ayuda) y prueba el ajuste apagado.
+
+#### Adelantado de M3: gestos y reordenar arrastrando
+
+El resto de CA3.4 (§9.4; DECISIONES §10.24). Cada gesto tiene su botón y ninguno borra.
+- **Deslizar una fila de Mi lista con el dedo:**
+  - a la derecha avanza el estado: Quiero jugar → Jugando, En pausa → Jugando y Jugando → Completado. Detrás de la fila se lee lo que va a pasar;
+  - a la izquierda abre una bandeja con Comprado, Platinado y Próximo.
+
+  Se activa al 40 % del ancho, se cancela volviendo atrás, vibra 10 ms en Android y no empieza a menos de 24 px de los bordes, para no chocar con el gesto «atrás».
+- **Mantener pulsado:** en Mi lista abre el menú de estado; en la paleta, «Apuntar como…», como `Alt+Intro`.
+- **↓ cierra la hoja de la paleta** en el móvil.
+- **Asa `::` para ordenar** Quiero jugar y A continuación con el ratón, el dedo o el lápiz. La página se desplaza sola cerca de los bordes, `Esc` cancela y Deshacer lo devuelve.
+- **«Gestos táctiles»** en Ajustes › Teclado y gestos, activado por defecto. El asa `::` no depende de él.
+- **Pruebas:** `gesture-model.test.ts` (umbrales, zonas muertas, volver atrás, a qué estado avanza y dónde cae lo arrastrado), `agenda.test.ts` (mover antes o después de otra entrada) y `gestures.spec.ts`, con toques de verdad por CDP en Chromium y el arrastre con el ratón.
 
 #### Estado de los criterios de aceptación
 

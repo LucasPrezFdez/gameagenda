@@ -1,6 +1,6 @@
 # Estado del proyecto — punto de partida de la próxima sesión
 
-**Actualizado:** 02-11-2026, en la sesión 6 (CA2.1 va 1 de 3 y CA2.4 está medido). Antes, el 31-10-2026, al cerrar la sesión 5.
+**Actualizado:** 02-11-2026, en la sesión 7 (gestos y reordenar arrastrando: CA3.4 completo). Antes, en la sesión 6 del mismo día (CA2.1 va 1 de 3 y CA2.4 está medido).
 **Cómo retomar:** escribe *«Retoma GameAgenda desde docs/planificacion/ESTADO-SESION.md»*.
 
 ## 0. Lo primero en la próxima sesión
@@ -34,7 +34,10 @@ Todo está en `main` y subido, con el CI y el despliegue en verde y sin agentes 
    - **Falta CA3.8,** que le toca al usuario: el modo avión de verdad y el menú de la bandeja con el atajo cogido por otra aplicación. El asistente no apaga la red del PC.
    - Con CA3.7 y CA3.8, el ADR-010 pasa a «aceptada». El instalador está en `apps/desktop/src-tauri/target/release/bundle/nsis/GameAgenda_0.2.0_x64-setup.exe`; si no está, `npm run desktop:build`.
 5. **Seguir con M3**, por este orden si el usuario no dice otra cosa:
-   1. atajos de una tecla, gestos y reordenar arrastrando (CA3.4). **Los atajos de teclado están hechos** (02-11-2026; §9.4 y DECISIONES §10.23): `shortcuts/keymap.ts`, la ayuda con `?`, el ajuste «Atajos de una tecla» y `shortcuts.spec.ts`. Faltan los gestos (deslizar, pulsación larga, ↓ cierra la hoja) y reordenar arrastrando `::`, con su botón equivalente;
+   1. ~~atajos de una tecla, gestos y reordenar arrastrando (CA3.4)~~ **Hecho el 02-11-2026:**
+      - los atajos de teclado (§9.4 y DECISIONES §10.23): `shortcuts/keymap.ts`, la ayuda con `?`, el ajuste «Atajos de una tecla» y `shortcuts.spec.ts`;
+      - los gestos (§9.4 y DECISIONES §10.24), en `apps/web/src/gestures/`: deslizar una fila (→ avanza el estado, ← bandeja de marcas), mantener pulsado (menú de estado; en la paleta, «Apuntar como…»), ↓ cierra la hoja de la paleta y el asa `::` para ordenar con el ratón, el dedo o el lápiz. Ajuste «Gestos táctiles» y `gestures.spec.ts`, con toques de verdad por CDP en Chromium;
+      - **falta probarlos en un móvil de verdad** (el Android de referencia y un iPhone, con el *issue* #1): en particular, que el toque en la bandeja llegue a la primera tras un deslizamiento rápido;
    2. índice persistido (CA3.2): no necesita el pipeline;
    3. «Compartir» en Android, `Ctrl+V` en cualquier pantalla y chip «Pegar enlace»;
    4. panel de rendimiento;
@@ -229,3 +232,5 @@ Todo está en `main` y subido, con el CI y el despliegue en verde y sin agentes 
 | 3 | 29-10-2026 | App de escritorio (Tauri) adelantada de Fase 2 a M3 y plan 0.2. M0, pasos 1–3 (repositorio, *workspaces* y herramientas). M1 casi completo con agentes en paralelo: búsqueda, Worker y Catálogo virtual; agenda en Dexie con exportar/importar y enlaces; pipeline sin clave con el catálogo real (CA1.1); `npm run perf` y la puerta de tamaño; ADR-001, 002, 004, 005 y 006 |
 | 4 | 30-10-2026 | Pendiente de M1, puntos 1–5: presupuesto de la pulsación según la frecuencia (§10.17); *builder* y lector del TSV más rápidos (CA1.11, 1,64 s); fuentes de reserva CJK y emoji calentadas; `npm run perf` entero en verde; aviso de copia a los 30 días (RNF-08); arreglos del plan, retirada de `dexie-react-hooks` y reglas de Biome de la §14.3. `CHANGELOG.md`, versión 0.1.0 y guía de medidas en el dispositivo |
 | 5 | 31-10-2026 | M2, puesta en marcha: secretos, segunda cuenta de Cloudflare (`gameagenda-cat.workers.dev`) y healthchecks.io; primera publicación firmada con `prod-1` (`20261031.1`, 197 786 juegos, 12 min 7 s); cliente de M2 (B) integrado en `main` y `ga-web` apuntando al catálogo nuevo; la app pasa a la versión 0.2.0 (la que pide el catálogo firmado); fuera los `:has()` de `.app`, que daban 40 tareas largas con ×4 (`perf` entero en verde); ADR-007 fundido, CHANGELOG de la 0.2.0 y el plan al día con lo construido (DECISIONES §10.19–10.21); `meta.catalog` y la comprobación cada 12 h; arreglado el Service Worker de `ga-web`, que no volvía a abrir tras la primera visita desde el 30-10; M3 empezado con la app de escritorio (Tauri) |
+| 6 | 01/02-11-2026 (noche) | Primera ejecución programada de `catalog.yml` en verde (CA2.1, 1 de 3); CA2.4 medido en producción (34,5 KB) y `smoke:web` al día; los dos hallazgos del usuario en la app de escritorio, arreglados (menú de «Orden» y portadas en el Catálogo, §10.22); CA3.7 medido en la app instalada (p50 de 1,24 s); atajos de una tecla de la §9.4 (§10.23) |
+| 7 | 02-11-2026 | Gestos de la §9.4 y reordenar arrastrando `::` (§10.24), con el ajuste «Gestos táctiles» y E2E con toques de verdad por CDP: CA3.4 completo |
