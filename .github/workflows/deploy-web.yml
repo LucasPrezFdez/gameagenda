@@ -89,24 +89,27 @@ jobs:
           expected=$(sed -n 's/^  Content-Security-Policy: //p' apps/web/dist/_headers)
           # Un Worker recién creado puede tardar unos segundos en responder.
           curl -sS --fail --retry 10 --retry-all-errors --retry-delay 3 -o /dev/null "$URL/"
-          # Y la versión nueva, en llegar al borde: el 02-11-2026, 3 s después de subirla, `/`
-          # aún servía el `index.html` anterior. Se espera hasta 60 s a que sirva el de este *build*.
-          for attempt in $(seq 1 20); do
-            curl -sS -o body.html "$URL/"
-            cmp -s body.html apps/web/dist/index.html && break
-            echo "Intento $attempt: el borde aún sirve el index.html anterior"
-            sleep 3
-          done
+          # Y la versión nueva, en llegar a todo el borde: el 02-11-2026, `/` dio el `index.html`
+          # anterior 3 s después de subirlo y, en otro despliegue, el nuevo y luego otra vez el
+          # anterior. Cada ruta repite su comprobación entera hasta 60 s.
           # `/juego/steam:730` es un enlace profundo: el *fallback* de la SPA da `index.html`
           # (antes, Workers Static Assets redirige con 307 a `/juego/steam%3A730`).
           for path in / /juego/steam:730; do
-            code=$(curl -sS -L -D raw.txt -o body.html -w '%{http_code}' "$URL$path")
-            tr -d '\r' < raw.txt > headers.txt
-            csp=$(header content-security-policy headers.txt)
+            problem="sin comprobar"
+            for attempt in $(seq 1 20); do
+              code=$(curl -sS -L -D raw.txt -o body.html -w '%{http_code}' "$URL$path")
+              tr -d '\r' < raw.txt > headers.txt
+              csp=$(header content-security-policy headers.txt)
+              if [ "$code" != 200 ]; then problem="$path responde $code"
+              elif [ "$csp" != "$expected" ]; then problem="$path no envía la CSP de _headers"
+              elif ! cmp -s body.html apps/web/dist/index.html; then problem="$path no sirve el index.html de este build"
+              else problem=""; break
+              fi
+              echo "Intento $attempt: $problem"
+              sleep 3
+            done
             echo "$path → $code"
             echo "  Content-Security-Policy: $csp"
-            if [ "$code" != 200 ]; then echo "::error::$path responde $code"; exit 1; fi
-            if [ "$csp" != "$expected" ]; then echo "::error::$path no envía la CSP de _headers"; exit 1; fi
-            if ! cmp -s body.html apps/web/dist/index.html; then echo "::error::$path no sirve index.html"; exit 1; fi
+            if [ -n "$problem" ]; then echo "::error::$problem"; exit 1; fi
           done
           echo "✓ $URL responde con la CSP de _headers" >> "$GITHUB_STEP_SUMMARY"
