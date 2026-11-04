@@ -1,6 +1,7 @@
 // Núcleo de arranque (M3, ADR-009; §8.8): en la primera visita, la búsqueda funciona con los más
 // populares antes de que llegue el núcleo (`none` → `boot` → `scan` → `full`). El mini-catálogo de
-// `fixtures/catalog` no lo trae (o, si lo trae, con todas sus filas): la prueba «publica» con
+// `fixtures/catalog` lo trae con todas sus filas (298), así que no distingue lo que está en él de
+// lo que no: la última prueba lo usa tal cual (también en WebKit) y las demás «publican» con
 // `context.route` el mismo catálogo con un núcleo de arranque de sus 100 primeras filas, firmado
 // con la clave de desarrollo como `catalog-update.spec.ts`. Hollow Knight y Hades están en él;
 // Celeste (fila 165), no. `context.route` solo ve las peticiones del Worker en Chromium.
@@ -266,5 +267,31 @@ test('sin `files.boot` (el catálogo de hoy en producción), la primera visita e
   expect(await catalogStates(page)).toEqual(['none', 'scan', 'full']);
   expect(await measures(page, 'search:boot')).toHaveLength(0);
   expect(served.requests.some((path) => path.startsWith('boot.'))).toBe(false);
+  await checks.expectClean();
+});
+
+test('con el núcleo de arranque del mini-catálogo, sin `context.route` (también en WebKit): de `boot` a `full`', async ({
+  page,
+}) => {
+  test.skip(current.files.boot === undefined, 'El mini-catálogo no trae núcleo de arranque');
+  const checks = await setup(page, { hold: 'boot' });
+  await page.goto('/catalogo');
+  await waitForState(page, 'boot');
+  // El de `fixtures/catalog`: todas sus filas, con los +18 ocultos como en el núcleo.
+  const inBoot = await catalogStatus(page);
+  expect(inBoot?.version).toBe(CURRENT);
+  expect(inBoot?.count).toBeLessThan(current.counts.boot as number);
+  await expect(page.getByText(/Preparando el catálogo de Steam… \d+\s%/)).toBeVisible();
+  await search(page, 'hollow', /^Hollow Knight 2017/);
+  await expect(page.getByText(BOOT_HINT)).toBeVisible();
+  await page.keyboard.press('Escape');
+
+  await releaseCatalog(page);
+  await waitForSearch(page, 'full');
+  expect(await catalogStates(page)).toEqual(['none', 'boot', 'scan', 'full']);
+  expect(await measures(page, 'search:boot')).toHaveLength(1);
+  expect((await catalogStatus(page))?.count).toBe(inBoot?.count);
+  await expect(page.getByText(/Preparando el catálogo/)).toHaveCount(0);
+  await expect(page.getByText('Sin DLC · +18 oculto')).toBeVisible();
   await checks.expectClean();
 });
