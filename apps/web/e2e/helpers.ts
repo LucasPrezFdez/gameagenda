@@ -5,8 +5,11 @@ import { expect, type Page } from '@playwright/test';
 export interface SearchTestOptions {
   /** Retraso de cada respuesta del Worker, en ms. */
   readonly latencyMs?: number;
-  /** El Worker se queda en `none` o en `scan` hasta `releaseCatalog(page)`. */
-  readonly hold?: 'none' | 'scan';
+  /**
+   * El Worker se queda en `none` (también sin núcleo de arranque), en `boot` (con él, y el núcleo
+   * en `none`) o en `scan` hasta `releaseCatalog(page)`.
+   */
+  readonly hold?: 'none' | 'boot' | 'scan';
   /** La primera carga del catálogo falla como sin red. */
   readonly failFirstLoad?: boolean;
   /**
@@ -23,9 +26,11 @@ export interface SearchTestOptions {
   readonly checkEveryStart?: boolean;
 }
 
+export type CatalogState = 'none' | 'boot' | 'scan' | 'full';
+
 /** El `status` del Worker que guardan los ganchos (`StatusMessage` de `protocol.ts`). */
 export interface CatalogStatus {
-  readonly state: 'none' | 'boot' | 'scan' | 'full';
+  readonly state: CatalogState;
   readonly version: string | null;
   readonly count: number;
   readonly error: { readonly code: string; readonly retryable: boolean } | null;
@@ -35,7 +40,13 @@ export interface CatalogStatus {
 declare global {
   var __GA_SEARCH_TEST__: SearchTestOptions | undefined;
   var __gaSearchTest:
-    | { release(): void; readonly workerMs: number[]; readonly status: CatalogStatus | null }
+    | {
+        release(): void;
+        readonly workerMs: number[];
+        readonly status: CatalogStatus | null;
+        /** Los estados por los que ha pasado el Worker, sin repetir el anterior. */
+        readonly states: CatalogState[];
+      }
     | undefined;
   var __cspViolations: string[];
 }
@@ -91,6 +102,19 @@ export async function setup(page: Page, search: SearchTestOptions = {}) {
 /** El último `status` del Worker, o `null` si aún no ha llegado ninguno. */
 export async function catalogStatus(page: Page): Promise<CatalogStatus | null> {
   return page.evaluate(() => globalThis.__gaSearchTest?.status ?? null);
+}
+
+/** Los estados por los que ha pasado el Worker (`none`, `boot`, `scan`, `full`). */
+export async function catalogStates(page: Page): Promise<CatalogState[]> {
+  return page.evaluate(() => [...(globalThis.__gaSearchTest?.states ?? [])]);
+}
+
+/**
+ * Espera a que el Worker esté en `state`. Con núcleo de arranque, `search:ready` llega en `boot`:
+ * quien necesite el catálogo entero espera a `scan`.
+ */
+export async function waitForState(page: Page, state: CatalogState) {
+  await expect.poll(async () => (await catalogStatus(page))?.state).toBe(state);
 }
 
 /** Suelta el Worker parado con `hold`: sigue construyendo el índice. */
