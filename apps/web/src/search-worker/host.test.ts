@@ -1,3 +1,4 @@
+import { serializeCore } from '@gameagenda/core/catalog-format';
 import { loadFuzzy } from '@gameagenda/core/search';
 import { describe, expect, it } from 'vitest';
 import type {
@@ -929,3 +930,403 @@ describe('createSearchHost · índice persistido (meta.searchIndex, CA3.2)', () 
     await t.reach('full');
   });
 });
+
+/** Los estados de los `status`, sin repetir el anterior. */
+function statesOf(t: ReturnType<typeof setup>): CatalogState[] {
+  const states: CatalogState[] = [];
+  for (const { state } of t.statuses()) if (states.at(-1) !== state) states.push(state);
+  return states;
+}
+
+/** Peticiones al catálogo desde el último `server.reset()`, sin la base. */
+const pathsOf = (t: ReturnType<typeof setup>) =>
+  t.server.state.requests.map((url) => url.slice(BASE.length));
+
+/** Una puerta que la prueba abre cuando quiere. */
+function gate() {
+  let open = () => {};
+  const opened = new Promise<void>((resolve) => {
+    open = resolve;
+  });
+  return { opened, open };
+}
+
+/** `fetch` que retiene (y, con `fail`, hace fallar como sin red) la descarga del núcleo. */
+function holdCore(until: Promise<void>, fail: () => boolean) {
+  return (inner: typeof fetch) =>
+    (async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).includes('/core.')) {
+        await until;
+        if (fail()) throw new TypeError('Failed to fetch');
+      }
+      return inner(input, init);
+    }) as typeof fetch;
+}
+
+/** Unas cuantas vueltas de las promesas (red, WebCrypto, caché) sin ejecutar bloques. */
+const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
+
+describe('createSearchHost · núcleo de arranque (M3, ADR-009)', () => {
+  /** Con un reloj que avanza en cada lectura: así se ve `scan` también con el mini-catálogo. */
+  const setupBoot = (options: SetupOptions = {}) => setup({ now: steppingClock(), ...options });
+
+  /** Las 4 primeras filas: Counter-Strike 2, ELDEN RING, Baldur's Gate 3 y Hollow Knight. */
+  const BOOT = 4;
+  const withBoot = (boot: number | string = BOOT) =>
+    publish('20261028.1', ROWS, undefined, { boot });
+
+  it('la primera visita pasa por `boot`: busca en los más populares hasta que el núcleo llega a `scan`', async () => {
+    let hold: 'boot' | null = 'boot';
+    const t = setupBoot({ hooks: { hold: () => hold, beforeLoad() {} } });
+    const published = await withBoot();
+    t.server.serve(published);
+    t.send(init);
+    await t.reach('boot');
+    expect(t.lastStatus()).toMatchObject({
+      version: '20261028.1',
+      count: BOOT,
+      error: null,
+      catalog: { version: '20261028.1', detailsIndex: published.manifest.files.details },
+    });
+    // Los alias y las filas del núcleo de arranque responden; Celeste aún no está.
+    const found = (
+      [
+        ['cs2', 730],
+        ['bg3', 1086940],
+        ['hollow', 367520],
+      ] as const
+    ).map(([q], i) => {
+      t.send({ type: 'query', seq: i + 1, q, limit: 8 });
+      return t.results(i + 1)?.items[0]?.appid;
+    });
+    expect(found).toEqual([730, 1086940, 367520]);
+    t.send({ type: 'query', seq: 4, q: 'celeste', limit: 8 });
+    expect(t.results(4)?.items).toEqual([]);
+
+    hold = null;
+    t.host.resume();
+    await t.reach('full');
+    expect(statesOf(t)).toEqual(['none', 'boot', 'scan', 'full']);
+    t.send({ type: 'query', seq: 5, q: 'celeste', limit: 8 });
+    expect(t.results(5)?.items[0]?.appid).toBe(504230);
+    expect(t.lastStatus()?.count).toBe(ROWS.length - ADULTS);
+  });
+
+  it('en `boot` cuenta los juegos del núcleo de arranque sin +18, salvo que se muestren', async () => {
+    const t = setupBoot({ hooks: { hold: () => 'boot', beforeLoad() {} } });
+    // Las 9 primeras filas, con Celeste & Luna (+18).
+    t.server.serve(await withBoot(9));
+    t.send(init);
+    await t.reach('boot');
+    expect(t.lastStatus()?.count).toBe(8);
+    t.request('options', { showAdult: true });
+    expect(t.lastStatus()?.count).toBe(9);
+  });
+
+  it('el avance no retrocede ni en `none` ni en `boot`, y `boot` va siempre antes que `scan`', async () => {
+    const t = setupBoot({ now: steppingClock() });
+    t.server.serve(await withBoot());
+    t.send(init);
+    await t.reach('full');
+    expect(statesOf(t)).toEqual(['none', 'boot', 'scan', 'full']);
+    for (const state of ['none', 'boot'] as const) {
+      const progress = t
+        .statuses()
+        .filter((s) => s.state === state)
+        .map((s) => s.progress);
+      expect(progress.length).toBeGreaterThan(0);
+      expect(progress).toEqual([...progress].sort((a, b) => a - b));
+    }
+  });
+
+  it('sin `files.boot`, la primera visita es la de M2: las mismas peticiones y sin `boot`', async () => {
+    const t = setupBoot();
+    const { manifest } = await publish('20261028.1');
+    t.server.serve(await publish('20261028.1'));
+    t.send(init);
+    await t.reach('full');
+    const { files } = manifest;
+    expect(pathsOf(t)).toEqual([
+      'manifest.json',
+      files.core.path,
+      files.aliases.path,
+      files.recent?.path,
+      files.details?.path,
+    ]);
+    expect(statesOf(t)).toEqual(['none', 'scan', 'full']);
+  });
+
+  it('baja el núcleo de arranque y los alias a la vez y después el resto, cada fichero una vez', async () => {
+    const caches = new MemoryCacheStorage();
+    const t = setupBoot({ caches });
+    const { manifest } = await withBoot();
+    t.server.serve(await withBoot());
+    t.send(init);
+    await t.reach('full');
+    const { files } = manifest;
+    const requests = pathsOf(t);
+    expect(requests[0]).toBe('manifest.json');
+    expect(new Set(requests.slice(1, 3))).toEqual(new Set([files.boot?.path, files.aliases.path]));
+    expect(requests.slice(3)).toEqual([files.core.path, files.recent?.path, files.details?.path]);
+    const stored = caches.stores.get('gacat-20261028.1');
+    expect(new Set(stored?.keys())).toEqual(
+      new Set(
+        [
+          files.boot?.path,
+          files.core.path,
+          files.aliases.path,
+          files.recent?.path,
+          files.details?.path,
+          'gacat-local.json',
+          'manifest.json',
+        ].map((path) => `${BASE}${path}`),
+      ),
+    );
+    // El núcleo en uso es el núcleo, nunca el de arranque.
+    const local = stored?.get(`${BASE}gacat-local.json`)?.body as ArrayBuffer;
+    expect(JSON.parse(new TextDecoder().decode(local))).toMatchObject({ path: files.core.path });
+  });
+
+  it('un núcleo de arranque que no vale (sha256, 404 o cabecera) se ignora: de `none` a `scan` sin error', async () => {
+    // Con la cabecera del núcleo (`#gacat-core v1`), el lector del de arranque lo rechaza.
+    const otherHeader = serializeCore(ROWS.slice(0, BOOT), { version: '20261028.1' });
+    const cases = [
+      { boot: BOOT, spoil: (s: SpoilTarget, path: string) => s.corrupted.add(path) },
+      { boot: BOOT, spoil: (s: SpoilTarget, path: string) => s.missing.add(path) },
+      { boot: otherHeader, spoil: () => undefined },
+    ];
+    for (const { boot, spoil } of cases) {
+      const caches = new MemoryCacheStorage();
+      const t = setupBoot({ caches });
+      const published = await withBoot(boot);
+      const path = published.manifest.files.boot?.path as string;
+      t.server.serve(published);
+      spoil(t.server.state, path);
+      t.send(init);
+      await t.reach('full');
+      expect(statesOf(t)).toEqual(['none', 'scan', 'full']);
+      expect(t.statuses().every((s) => s.error === null)).toBe(true);
+      // Uno que no se ha podido comprobar no se guarda.
+      if (boot === BOOT) {
+        expect(caches.stores.get('gacat-20261028.1')?.has(`${BASE}${path}`)).toBe(false);
+      }
+    }
+  });
+
+  it('en `boot`, la ficha y `lookup` responden si está en él; el Catálogo y `matchExact`, en `scan`', async () => {
+    let hold: 'boot' | null = 'boot';
+    const t = setupBoot({ hooks: { hold: () => hold, beforeLoad() {} } });
+    t.server.serve(await withBoot());
+    t.send(init);
+    await t.reach('boot');
+    expect(t.request('game', { appid: 730 })()).toMatchObject({ game: { appid: 730 } });
+    expect(t.request('lookup', { appids: [730, 367520] })()).toMatchObject({ missing: [] });
+    const game = t.request('game', { appid: 504230 });
+    const lookup = t.request('lookup', { appids: [730, 504230] });
+    const browse = t.request('browse', { viewId: 'v', q: '', filters: {} });
+    const exact = t.request('matchExact', { title: 'hades ii' });
+    await settle();
+    expect([game(), lookup(), browse(), exact()]).toEqual([
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+    ]);
+
+    hold = null;
+    t.host.resume();
+    await t.scheduler.runUntil(() => exact() !== undefined);
+    expect(t.lastStatus()?.state).not.toBe('boot');
+    expect(game()).toMatchObject({ game: { appid: 504230, name: 'Celeste' } });
+    expect(lookup()).toMatchObject({ missing: [] });
+    expect(browse()).toMatchObject({ count: ROWS.length - ADULTS });
+    expect(exact()).toMatchObject({ appids: [1145350] });
+  });
+
+  it('si el núcleo no llega en `boot`, sigue buscando en él, lo dice y repite la carga con espera', async () => {
+    const cut = gate();
+    let offline = true;
+    const t = setupBoot({ wrapFetch: holdCore(cut.opened, () => offline) });
+    const published = await withBoot();
+    t.server.serve(published);
+    t.send(init);
+    await t.reach('boot');
+    const exact = t.request('matchExact', { title: 'hades ii' });
+    const game = t.request('game', { appid: 504230 });
+    expect(exact()).toBeUndefined();
+    cut.open();
+    await t.scheduler.runUntil(() => t.lastStatus()?.error != null);
+    expect(t.lastStatus()).toMatchObject({
+      state: 'boot',
+      version: '20261028.1',
+      error: { code: 'network', retryable: true },
+    });
+    // Lo que esperaba se responde con lo que hay, y se sigue buscando en los más populares.
+    expect(exact()).toMatchObject({ appids: [] });
+    expect(game()).toMatchObject({ game: null });
+    t.send({ type: 'query', seq: 1, q: 'elden', limit: 8 });
+    expect(t.results(1)?.items[0]?.appid).toBe(1245620);
+    expect(t.timers.pending).toEqual([RETRY_MIN_MS]);
+
+    // El reintento carga el núcleo sin volver a bajar el de arranque ni los alias.
+    offline = false;
+    t.server.reset();
+    t.timers.fire();
+    await t.reach('full');
+    const { files } = published.manifest;
+    expect(pathsOf(t)).toEqual([
+      'manifest.json',
+      files.core.path,
+      files.recent?.path,
+      files.details?.path,
+    ]);
+    expect(t.lastStatus()?.error).toBeNull();
+    expect(statesOf(t).slice(-3)).toEqual(['boot', 'scan', 'full']);
+  });
+
+  it('si la primera visita se corta tras el núcleo de arranque, la siguiente lo lee de la caché', async () => {
+    const caches = new MemoryCacheStorage();
+    const published = await withBoot();
+    const first = setupBoot({ caches, wrapFetch: holdCore(Promise.resolve(), () => true) });
+    first.server.serve(published);
+    first.send(init);
+    await first.scheduler.runUntil(
+      () => first.lastStatus()?.state === 'boot' && first.lastStatus()?.error != null,
+    );
+
+    const again = setupBoot({ caches });
+    again.server.serve(published);
+    again.send(init);
+    await again.reach('full');
+    const { files } = published.manifest;
+    expect(pathsOf(again)).toEqual([
+      'manifest.json',
+      files.core.path,
+      files.recent?.path,
+      files.details?.path,
+    ]);
+    expect(statesOf(again)).toEqual(['none', 'boot', 'scan', 'full']);
+  });
+
+  it('con el catálogo en la caché no se pide: ni al arrancar ni al actualizar (CA2.4)', async () => {
+    const caches = new MemoryCacheStorage();
+    const first = setupBoot({ caches });
+    first.server.serve(await withBoot());
+    first.send(init);
+    await first.reach('full');
+
+    // Al día siguiente, otro núcleo de arranque: no se baja.
+    const t = setupBoot({ caches });
+    const v2 = await publish('20261029.1', NEWER_ROWS, undefined, {
+      recent: [BALATRO],
+      fileVersion: '20261028.1',
+      boot: BOOT,
+    });
+    t.server.serve(v2);
+    t.server.reset();
+    t.send(init);
+    await t.reach('full', '20261029.1');
+    expect(pathsOf(t)).toEqual(['manifest.json', v2.manifest.files.recent?.path]);
+    expect(statesOf(t)).toEqual(['none', 'scan', 'full']);
+  });
+
+  it('el índice que se guarda y se restaura es el del núcleo, nunca el de arranque', async () => {
+    const idx = memoryIndex();
+    const caches = new MemoryCacheStorage();
+    const first = setupBoot({ caches, searchIndex: idx, indexBuild: 'build-a' });
+    const published = await withBoot();
+    first.server.serve(published);
+    first.send(init);
+    await first.reach('full');
+    await first.scheduler.runUntil(() => idx.writes.length === 1);
+    const { files } = published.manifest;
+    expect(idx.writes[0]).toBe(
+      `2|build-a|${files.core.sha256}|${files.recent?.sha256}|${files.aliases.sha256}`,
+    );
+
+    const again = setupBoot({ caches, searchIndex: idx, indexBuild: 'build-a' });
+    again.server.serve(published);
+    again.send(init);
+    await again.reach('full');
+    await again.scheduler.runUntil(() => manifestRequests(again) === 1);
+    await settle();
+    expect(statesOf(again)).toEqual(['none', 'full']);
+    expect(again.lastStatus()?.count).toBe(ROWS.length - ADULTS);
+    expect(pathsOf(again)).toEqual(['manifest.json']);
+  });
+
+  it('«Actualizar catálogo» y la vuelta de la red en `boot` esperan a la carga: un solo núcleo', async () => {
+    const slow = gate();
+    const t = setupBoot({ wrapFetch: holdCore(slow.opened, () => false) });
+    const published = await withBoot();
+    t.server.serve(published);
+    t.send(init);
+    await t.reach('boot');
+    const refresh = t.request('refresh', {});
+    t.host.online();
+    await settle();
+    expect(refresh()).toBeUndefined();
+    slow.open();
+    await t.scheduler.runUntil(() => refresh() !== undefined && t.lastStatus()?.state === 'full');
+    expect(refresh()).toMatchObject({ type: 'refresh' });
+    const core = `${BASE}${published.manifest.files.core.path}`;
+    expect(t.server.state.requests.filter((url) => url === core)).toHaveLength(1);
+  });
+
+  it('un 404 del núcleo en `boot` relee el manifest y sigue con la versión nueva (§5.4)', async () => {
+    const caches = new MemoryCacheStorage();
+    const v1 = await withBoot();
+    const v2 = await publish('20261029.1', NEWER_ROWS, undefined, { boot: BOOT });
+    let manifests = 0;
+    // El primer *manifest* es el de antes del despliegue: su núcleo ya no está.
+    const t = setupBoot({
+      caches,
+      wrapFetch: (inner) =>
+        (async (input: RequestInfo | URL, init?: RequestInit) => {
+          if (String(input).endsWith('manifest.json') && manifests++ === 0) {
+            return Response.json(v1.manifest);
+          }
+          return inner(input, init);
+        }) as typeof fetch,
+    });
+    t.server.serve(v1);
+    t.server.serve(v2);
+    t.server.drop(v1.manifest.files.core.path);
+    t.send(init);
+    await t.reach('full', '20261029.1');
+    const seen: string[] = [];
+    for (const { state, version } of t.statuses()) {
+      const step = `${state} ${version}`;
+      if (state !== 'none' && seen.at(-1) !== step) seen.push(step);
+    }
+    expect(seen).toEqual(['boot 20261028.1', 'scan 20261029.1', 'full 20261029.1']);
+    expect(t.lastStatus()?.error).toBeNull();
+    // La caché a medias de la versión anterior (el núcleo de arranque y los alias) se borra.
+    expect(await caches.keys()).toEqual(['gacat-20261029.1']);
+  });
+
+  it('ganchos: con `none` no hay `boot`; con `boot`, el núcleo no se lee; con `scan`, se pasa por `boot`', async () => {
+    for (const held of ['none', 'boot', 'scan'] as const) {
+      let hold: typeof held | null = held;
+      const t = setupBoot({ hooks: { hold: () => hold, beforeLoad() {} } });
+      t.server.serve(await withBoot());
+      t.send(init);
+      // Descargado todo: el núcleo, en su sitio (`progress` ≥ 0,5 en `none` y en `boot`).
+      await t.scheduler.runUntil(() => {
+        const s = t.lastStatus();
+        return s?.state === held && (held === 'scan' || s.progress >= 0.5);
+      });
+      await settle();
+      expect(t.lastStatus()?.state).toBe(held);
+      expect(statesOf(t)).toEqual(
+        { none: ['none'], boot: ['none', 'boot'], scan: ['none', 'boot', 'scan'] }[held],
+      );
+      hold = null;
+      t.host.resume();
+      await t.reach('full');
+      expect(statesOf(t)).toEqual(['none', 'boot', 'scan', 'full']);
+    }
+  });
+});
+
+type SpoilTarget = ReturnType<typeof catalogServer>['state'];
