@@ -1,7 +1,7 @@
 // Protocolo entre la interfaz y el Worker de búsqueda (ver §8.7 de prototipe.md).
 // Lo implementa el Worker de búsqueda (`src/search-worker/`).
 
-/** Estados del catálogo en el Worker (ver §8.8). `boot` llega en M3. */
+/** Estados del catálogo en el Worker (ver §8.8); `boot`, el núcleo de arranque, desde M3 (ADR-009). */
 export type CatalogState = 'none' | 'boot' | 'scan' | 'full';
 
 /** Bits de la columna `flags` del núcleo (ver §7.6). */
@@ -178,14 +178,16 @@ export type WorkerToUiMessage =
 
 /**
  * Control de los E2E: solo lo atiende el *build* del modo `e2e` (ver §12.3), nunca el de
- * producción. `hold` deja la construcción quieta en ese estado hasta recibir `hold: null`;
+ * producción. `hold` deja la construcción quieta en ese estado hasta recibir `hold: null` (con
+ * `none` tampoco avanza el núcleo de arranque; con `boot`, el núcleo espera en `none` mientras
+ * busca el de arranque);
  * `failFirstLoad` hace que la próxima carga del catálogo falle como sin red;
  * `unverifiedDevSignature`, que en un navegador sin Ed25519 (el WebKit de Playwright en Windows)
  * se acepte sin verificar un *manifest* firmado con la clave de desarrollo (§11.3).
  */
 export interface TestControlMessage {
   readonly type: 'test';
-  readonly hold?: 'none' | 'scan' | null;
+  readonly hold?: 'none' | 'boot' | 'scan' | null;
   readonly failFirstLoad?: boolean;
   readonly unverifiedDevSignature?: boolean;
   readonly checkEveryStart?: boolean;

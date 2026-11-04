@@ -18,6 +18,13 @@
 // 0–2, y el pajar del nivel 3 llega justo después; si no se puede leer, el índice se construye en
 // segundo plano. Cada índice que llega a `full` se guarda después, a trozos que ceden el turno
 // como la construcción; uno de otro catálogo o de otra versión de la app no vale.
+//
+// Núcleo de arranque (M3, ADR-009): en la primera visita, si el *manifest* trae `files.boot`, se
+// baja antes que el resto (con los alias) y se indexa solo hasta `scan`: es el estado `boot`, que
+// busca en los 20 000 más populares mientras llega el núcleo. Cuando este llega a `scan`, lo
+// sustituye. Nunca es el catálogo en uso (`Source`): ni se guarda su índice ni lo mira una
+// actualización. Si falla, se sigue como sin él. En `boot`, la ficha y `lookup` responden si el
+// juego está en él; el Catálogo y `matchExact` esperan a `scan` (`canAnswer`).
 import {
   type AliasPair,
   applyRecent,
@@ -55,6 +62,7 @@ import type {
 } from '../search-client/protocol.ts';
 import type { CatalogMetaStore } from './catalog-meta.ts';
 import {
+  type BootTexts,
   type CatalogErrorCode,
   CatalogLoadError,
   type CatalogStore,
@@ -77,8 +85,11 @@ function catalogInfo(manifest: CatalogManifest): CatalogInfo {
 
 /** Ganchos de los E2E (solo en el *build* del modo `e2e`; ver `e2e-hooks.ts`). */
 export interface HostTestHooks {
-  /** Estado en el que la construcción debe quedarse quieta, o `null`. */
-  hold(): 'none' | 'scan' | null;
+  /**
+   * Estado en el que la construcción debe quedarse quieta, o `null`. `none` para también el núcleo
+   * de arranque; `boot`, el núcleo en `none` (con el de arranque buscando).
+   */
+  hold(): 'none' | 'boot' | 'scan' | null;
   /** Antes de cada carga del catálogo; puede lanzar un error de red simulado. */
   beforeLoad(): void;
   /** ¿Se comprueba el *manifest* en cada arranque, sin esperar las 12 h? */
@@ -165,17 +176,26 @@ interface Source {
   readonly coreFile: CoreFile;
 }
 
-interface BuildJob {
-  /** El *manifest* puede cambiar a mitad (otra versión con el mismo índice; ver `adopt`). */
-  texts: CatalogTexts;
-  /** El primer catálogo publica `scan`; una actualización solo sustituye al anterior en `full`. */
-  readonly foreground: boolean;
+/** Lectura del TSV y construcción del índice: del núcleo o del núcleo de arranque. */
+interface Build {
   readonly aliases: readonly AliasPair[];
-  /** `recent` leído, que se aplica al núcleo antes del índice; `null` si no hay. */
+  /** `recent` leído, que se aplica al núcleo antes del índice; `null` si no hay (o en `boot`). */
   readonly recent: CoreCatalog | null;
   reader: CooperativeTask<CoreCatalog> | null;
   builder: IndexBuilder | null;
   adults: number;
+}
+
+interface BuildJob extends Build {
+  /** El *manifest* puede cambiar a mitad (otra versión con el mismo índice; ver `adopt`). */
+  texts: CatalogTexts;
+  /** El primer catálogo publica `scan`; una actualización solo sustituye al anterior en `full`. */
+  readonly foreground: boolean;
+}
+
+/** El núcleo de arranque (M3): solo hasta `scan`, y sin `recent`. */
+interface BootJob extends Build {
+  readonly manifest: CatalogManifest;
 }
 
 /** Lo que el host usa de `@gameagenda/core/search-persist`. */
@@ -265,11 +285,15 @@ export function createSearchHost(deps: HostDeps): SearchHost {
 
   let started = false;
   let showAdult = false;
-  /** El buscador que responde: el de escaneo en `scan` y el índice en `full`. */
+  /** El buscador que responde: el de arranque en `boot`, el de escaneo en `scan` y el índice en `full`. */
   let searcher: Searcher | null = null;
   let searcherSource: Source | null = null;
   let searcherAdults = 0;
   let job: BuildJob | null = null;
+  /** El núcleo de arranque mientras se indexa hasta `scan`. */
+  let bootJob: BootJob | null = null;
+  /** Su *manifest* mientras su buscador responde (estado `boot`; `searcherSource` sigue a `null`). */
+  let bootManifest: CatalogManifest | null = null;
   /** El índice recién construido que se está guardando (`meta.searchIndex`). */
   let persistJob: PersistJob | null = null;
   /** Clave del índice que ya está guardado (o que se ha restaurado). */
@@ -277,9 +301,10 @@ export function createSearchHost(deps: HostDeps): SearchHost {
   let codec: Promise<IndexCodec | null> | null = null;
   /** Catálogo nuevo que espera a que acabe la construcción en curso. */
   let pendingUpdate: CatalogTexts | null = null;
-  let loading = false;
+  /** La carga del primer catálogo en curso: lo que se pida mientras tanto va detrás. */
+  let loadPromise: Promise<void> | null = null;
   let downloadProgress = 0;
-  /** Error de la carga del primer catálogo (sin catálogo, en `none`). */
+  /** Error de la carga del primer catálogo (sin catálogo, en `none` o en `boot`). */
   let error: CatalogError | null = null;
   /** Error de la última comprobación, si hay que anunciarlo con el catálogo vigente. */
   let updateError: CatalogError | null = null;
@@ -303,7 +328,12 @@ export function createSearchHost(deps: HostDeps): SearchHost {
   let lastStatusAt = Number.NEGATIVE_INFINITY;
 
   function state(): CatalogState {
-    return searcher?.state ?? 'none';
+    return bootManifest ? 'boot' : (searcher?.state ?? 'none');
+  }
+
+  /** ¿Aún no hay catálogo completo? Sin buscador o con el del núcleo de arranque. */
+  function partial(): boolean {
+    return !searcher || bootManifest !== null;
   }
 
   /** El catálogo más nuevo que ya responde, se está indexando o espera su turno. */
@@ -311,28 +341,30 @@ export function createSearchHost(deps: HostDeps): SearchHost {
     return pendingUpdate ?? job?.texts ?? searcherSource;
   }
 
+  /** En `none` y en `boot`, el avance hacia el `scan` del núcleo. */
   function progress(): number {
-    if (!searcher) {
+    if (partial()) {
       if (!job?.foreground) return DOWNLOAD_SHARE * downloadProgress;
       if (job.reader) return DOWNLOAD_SHARE + READ_SHARE * job.reader.progress;
       const built = Math.min(1, (job.builder?.progress ?? 0) / BUILDER_SCAN_AT);
       return DOWNLOAD_SHARE + READ_SHARE + (1 - DOWNLOAD_SHARE - READ_SHARE) * built;
     }
-    if (searcher.state === 'scan' && job?.foreground && job.builder) return job.builder.progress;
+    if (searcher?.state === 'scan' && job?.foreground && job.builder) return job.builder.progress;
     return 1;
   }
 
   function emitStatus(force: boolean): void {
     const visible = searcher ? searcher.count - (showAdult ? 0 : searcherAdults) : 0;
+    const manifest = bootManifest ?? searcherSource?.manifest;
     const message: StatusMessage = {
       type: 'status',
       state: state(),
-      version: searcher ? (searcherSource?.manifest.version ?? searcher.version) : null,
+      version: searcher ? (manifest?.version ?? searcher.version) : null,
       count: visible,
       progress: Math.round(progress() * 100) / 100,
       // El de la actualización solo con catálogo: sin él, la interfaz aún dice «Preparando…».
       error: error ?? (searcher ? updateError : null),
-      catalog: searcher && searcherSource ? catalogInfo(searcherSource.manifest) : null,
+      catalog: searcher && manifest ? catalogInfo(manifest) : null,
     };
     const key = JSON.stringify(message);
     if (key === lastStatus) return;
@@ -349,17 +381,31 @@ export function createSearchHost(deps: HostDeps): SearchHost {
     deps.schedule(tick);
   }
 
-  function holdOf(current: BuildJob): 'none' | 'scan' | null {
+  function holdOf(current: BuildJob): 'none' | 'boot' | 'scan' | null {
     return hooks && current.foreground ? hooks.hold() : null;
   }
 
   function isPaused(current: BuildJob): boolean {
     const hold = holdOf(current);
-    return hold !== null && hold === (current.builder ? current.builder.state : 'none');
+    // Con `boot`, el núcleo se queda en `none` mientras busca el de arranque.
+    return (
+      hold !== null &&
+      (hold === 'boot' ? 'none' : hold) === (current.builder ? current.builder.state : 'none')
+    );
+  }
+
+  /** ¿Avanza el núcleo de arranque? No con el gancho en `none`. */
+  function bootRuns(): boolean {
+    return bootJob !== null && hooks?.hold() !== 'none';
   }
 
   function needsTick(): boolean {
-    return (job !== null && !isPaused(job)) || suggestJob?.task != null || persistJob !== null;
+    return (
+      (job !== null && !isPaused(job)) ||
+      bootRuns() ||
+      suggestJob?.task != null ||
+      persistJob !== null
+    );
   }
 
   // --- Índice persistido -----------------------------------------------------
@@ -523,12 +569,32 @@ export function createSearchHost(deps: HostDeps): SearchHost {
     schedule();
   }
 
+  /** El núcleo de arranque, que se lee e indexa antes que el núcleo (y con prioridad). */
+  function startBoot(boot: BootTexts): void {
+    try {
+      bootJob = {
+        manifest: boot.manifest,
+        aliases: parseAliases(boot.aliases).pairs,
+        recent: null,
+        reader: createCoreReader(boot.boot, { kind: 'boot', now: deps.now }),
+        builder: null,
+        adults: 0,
+      };
+      schedule();
+    } catch {
+      // Unos alias que no se leen: se sigue sin él (el núcleo dirá si están mal).
+    }
+  }
+
   function use(next: Searcher, from: BuildJob): void {
     const changed = searcher !== next;
     searcher = next;
     searcherSource = { manifest: from.texts.manifest, coreFile: from.texts.coreFile };
     searcherAdults = from.adults;
     error = null;
+    // El núcleo ya busca: el de arranque sobra.
+    bootManifest = null;
+    bootJob = null;
     if (changed) {
       // Las vistas del Catálogo pasan al buscador nuevo: así se suelta el de escaneo.
       for (const view of views.values()) refreshView(view);
@@ -537,29 +603,51 @@ export function createSearchHost(deps: HostDeps): SearchHost {
     }
   }
 
-  /** Avanza la lectura y el índice hasta `deadline`. */
-  function advance(current: BuildJob, deadline: number): void {
-    if (isPaused(current)) return;
+  /** Lee el TSV hasta `deadline` y prepara el constructor; `null` mientras no ha acabado. */
+  function builderOf(current: Build, deadline: number): IndexBuilder | null {
     if (current.reader) {
-      if (!current.reader.step(deadline)) return;
+      if (!current.reader.step(deadline)) return null;
       const base = current.reader.result as CoreCatalog;
       current.reader = null;
       // Los recientes, de una vez (≈16 ms con el catálogo completo, sin estrangular).
       const catalog = current.recent ? applyRecent(base, current.recent) : base;
       current.adults = countAdults(catalog);
       current.builder = createIndexBuilder(catalog, current.aliases, { now: deps.now });
-      if (isPaused(current)) return;
     }
-    const builder = current.builder as IndexBuilder;
+    return current.builder;
+  }
+
+  /** Trozo a trozo, para pararse justo en `scan`: con el mini-catálogo, un bloque llega a `full`. */
+  function stepToScan(builder: IndexBuilder, deadline: number): boolean {
     let done = false;
-    if (holdOf(current) === 'scan') {
-      // Trozo a trozo, para pararse justo en `scan`: con el mini-catálogo, un bloque llega a `full`.
-      while (!done && builder.state !== 'scan' && deps.now() < deadline) {
-        done = builder.step(deps.now());
-      }
-    } else {
-      done = builder.step(deadline);
+    while (!done && builder.state !== 'scan' && deps.now() < deadline) {
+      done = builder.step(deps.now());
     }
+    return done;
+  }
+
+  /** El núcleo de arranque hasta `scan`: entonces responde (`boot`) si aún no lo hace el núcleo. */
+  function advanceBoot(current: BootJob, deadline: number): void {
+    const builder = builderOf(current, deadline);
+    if (!builder) return;
+    stepToScan(builder, deadline);
+    if (builder.state !== 'scan') return;
+    bootJob = null;
+    if (searcher) return;
+    searcher = builder.searcher;
+    bootManifest = current.manifest;
+    searcherAdults = current.adults;
+    emitStatus(true);
+    flushWaiting();
+  }
+
+  /** Avanza la lectura y el índice hasta `deadline`. */
+  function advance(current: BuildJob, deadline: number): void {
+    if (isPaused(current)) return;
+    if (current.reader && (!builderOf(current, deadline) || isPaused(current))) return;
+    const builder = current.builder as IndexBuilder;
+    const done =
+      holdOf(current) === 'scan' ? stepToScan(builder, deadline) : builder.step(deadline);
     if (current.foreground && builder.searcher) use(builder.searcher, current);
     if (done) {
       use(builder.result as Searcher, current);
@@ -576,7 +664,14 @@ export function createSearchHost(deps: HostDeps): SearchHost {
     const deadline = deps.now() + sliceMs;
     stepSuggest();
     const current = job;
-    if (current) {
+    if (bootRuns()) {
+      // El núcleo de arranque va primero, hasta su `scan`. Si no se lee, se sigue sin él.
+      try {
+        advanceBoot(bootJob as BootJob, deadline);
+      } catch {
+        bootJob = null;
+      }
+    } else if (current) {
       try {
         advance(current, deadline);
       } catch (cause) {
@@ -593,12 +688,14 @@ export function createSearchHost(deps: HostDeps): SearchHost {
   // --- Carga del catálogo ----------------------------------------------------
 
   function fail(cause: unknown): void {
-    if (searcher) return; // ya hay catálogo: una actualización fallida no lo quita
+    if (!partial()) return; // ya hay catálogo: una actualización fallida no lo quita
     const loadError = asLoadError(cause);
     error = { code: loadError.code, retryable: loadError.retryable };
     job = null;
     emitStatus(true);
+    // En `boot` se responde con lo que hay, y la carga se repite sola con espera creciente.
     flushWaiting();
+    if ((bootManifest || bootJob) && loadError.retryable) scheduleRetry();
   }
 
   /**
@@ -649,6 +746,12 @@ export function createSearchHost(deps: HostDeps): SearchHost {
       return;
     }
     const manifest = await deps.store.fetchManifest();
+    // Primera visita (M3): el núcleo de arranque antes que el resto, salvo en un reintento. Si
+    // falla, se sigue sin él.
+    if (!searcher && !bootJob) {
+      const boot = await deps.store.downloadBoot(manifest).catch(() => null);
+      if (boot) startBoot(boot);
+    }
     const texts = await downloadNewest(manifest, false, (fraction) => {
       downloadProgress = fraction;
       emitStatus(false);
@@ -661,15 +764,15 @@ export function createSearchHost(deps: HostDeps): SearchHost {
   }
 
   function startLoad(): void {
-    if (loading || job || searcher) return;
-    loading = true;
+    // Con el núcleo de arranque aún no hay catálogo; con una comprobación en curso, la hace ella.
+    if (loadPromise || checking || job || !partial()) return;
     error = null;
     downloadProgress = 0;
     emitStatus(true);
-    load()
+    loadPromise = load()
       .catch(fail)
       .finally(() => {
-        loading = false;
+        loadPromise = null;
       });
   }
 
@@ -679,7 +782,10 @@ export function createSearchHost(deps: HostDeps): SearchHost {
     emitStatus(true);
   }
 
-  /** Reintento de una actualización fallida, con una espera que se dobla (1 min … 1 h). */
+  /**
+   * Reintento de una actualización fallida, con una espera que se dobla (1 min … 1 h). En `boot`
+   * (falló el núcleo de la primera visita), se repite la carga.
+   */
   function scheduleRetry(): void {
     if (retryPending || !deps.setTimer) return;
     const delay = Math.min(RETRY_MAX_MS, RETRY_MIN_MS * 2 ** retryAttempts);
@@ -687,7 +793,8 @@ export function createSearchHost(deps: HostDeps): SearchHost {
     retryPending = true;
     deps.setTimer(() => {
       retryPending = false;
-      void checkForUpdate().catch(() => undefined);
+      if (bootManifest) startLoad();
+      else void checkForUpdate().catch(() => undefined);
     }, delay);
   }
 
@@ -712,7 +819,6 @@ export function createSearchHost(deps: HostDeps): SearchHost {
       if (texts) version = texts.manifest.version;
       if (texts && isUpdate(texts.manifest, activeSource(), force)) adopt(texts);
     }
-    retryAttempts = 0;
     checked(version);
   }
 
@@ -722,6 +828,7 @@ export function createSearchHost(deps: HostDeps): SearchHost {
 
   /** Una comprobación correcta: se apunta en `meta.catalog` y se programa la siguiente. */
   function checked(version: string): void {
+    retryAttempts = 0;
     const meta = deps.catalogMeta;
     if (!meta) return;
     void meta.write({ version, checkedAt: wallClock() }).catch(() => undefined);
@@ -764,7 +871,7 @@ export function createSearchHost(deps: HostDeps): SearchHost {
       emitStatus(true);
       return;
     }
-    if (!searcher) startJob(texts, true);
+    if (partial()) startJob(texts, true);
     else if (job) pendingUpdate = texts;
     else startJob(texts, false);
   }
@@ -774,6 +881,8 @@ export function createSearchHost(deps: HostDeps): SearchHost {
    * `force` («Actualizar catálogo») baja también el núcleo nuevo aunque el local tenga ≤7 días.
    */
   function checkForUpdate(force = false): Promise<void> {
+    // Durante la primera carga (también en `boot`), después de ella: nunca dos descargas a la vez.
+    if (loadPromise) return loadPromise.then(() => checkForUpdate(force));
     if (checking) {
       return force ? checking.catch(() => undefined).then(() => checkForUpdate(true)) : checking;
     }
@@ -857,8 +966,24 @@ export function createSearchHost(deps: HostDeps): SearchHost {
     if (message) deps.post(message);
   }
 
+  /**
+   * ¿Se responde ya? Sin catálogo, solo tras un error (vacío). En `boot` (sin error), la ficha y
+   * `lookup` si todo lo pedido está en el núcleo de arranque; el Catálogo y `matchExact`, en `scan`.
+   */
+  function canAnswer(m: RequestMessage): boolean {
+    if (error || !partial()) return true;
+    if (!searcher) return false;
+    if (m.type === 'game') return searcher.game(m.appid) !== null;
+    return m.type === 'lookup' && searcher.lookup(m.appids).missing.length === 0;
+  }
+
+  function dispatch(m: RequestMessage): void {
+    if (canAnswer(m)) answer(m);
+    else waiting.push(m);
+  }
+
   function flushWaiting(): void {
-    for (const m of waiting.splice(0)) answer(m);
+    for (const m of waiting.splice(0)) dispatch(m);
   }
 
   function handleRequest(m: RequestMessage): void {
@@ -881,10 +1006,8 @@ export function createSearchHost(deps: HostDeps): SearchHost {
         );
         return;
       default:
-        break;
+        dispatch(m);
     }
-    if (searcher || error) answer(m);
-    else waiting.push(m);
   }
 
   // --- Consultas y nivel 4 ---------------------------------------------------
@@ -968,8 +1091,9 @@ export function createSearchHost(deps: HostDeps): SearchHost {
     },
     online() {
       if (!started) return;
-      if (!searcher && error) startLoad();
-      else if (searcher) void checkForUpdate().catch(() => undefined);
+      // Sin catálogo (o en `boot`), solo si la carga ha fallado: si no, ya está en curso.
+      if (!partial()) void checkForUpdate().catch(() => undefined);
+      else if (error) startLoad();
     },
     resume() {
       if (needsTick()) schedule();

@@ -2,6 +2,7 @@
 // en el de producción, `import.meta.env.MODE` no es `e2e` y este módulo queda fuera del *bundle*.
 // Las pruebas los fijan con `page.addInitScript` en `globalThis.__GA_SEARCH_TEST__`.
 import type {
+  CatalogState,
   SearchTransport,
   StatusMessage,
   TestControlMessage,
@@ -12,8 +13,11 @@ import type {
 export interface SearchTestOptions {
   /** Retraso de cada respuesta del Worker (salvo `status`), en ms: la carrera de Intro. */
   readonly latencyMs?: number;
-  /** El Worker se queda en `none` o en `scan` hasta `__gaSearchTest.release()`. */
-  readonly hold?: 'none' | 'scan';
+  /**
+   * El Worker se queda en `none`, en `boot` (el núcleo, en `none`) o en `scan` hasta
+   * `__gaSearchTest.release()`.
+   */
+  readonly hold?: 'none' | 'boot' | 'scan';
   /** La primera carga del catálogo falla como sin red; «Reintentar» la repite. */
   readonly failFirstLoad?: boolean;
   /**
@@ -37,6 +41,8 @@ export interface SearchTestHandle {
   readonly workerMs: number[];
   /** El último `status` del Worker (estado, versión y `error` del catálogo). */
   readonly status: StatusMessage | null;
+  /** Los estados por los que ha pasado el Worker, sin repetir el anterior (`none`, `boot`…). */
+  readonly states: CatalogState[];
 }
 
 declare global {
@@ -62,6 +68,7 @@ export function withTestHooks(worker: Worker, transport: SearchTransport): Searc
     get status() {
       return status;
     },
+    states: [],
   };
   globalThis.__gaSearchTest = handle;
   const latencyMs = options.latencyMs ?? 0;
@@ -70,7 +77,10 @@ export function withTestHooks(worker: Worker, transport: SearchTransport): Searc
     listen(listener: (message: WorkerToUiMessage) => void) {
       return transport.listen((message) => {
         if (message.type === 'results') handle.workerMs.push(message.ms);
-        if (message.type === 'status') status = message;
+        if (message.type === 'status') {
+          status = message;
+          if (handle.states.at(-1) !== message.state) handle.states.push(message.state);
+        }
         if (message.type === 'status' || latencyMs <= 0) listener(message);
         else setTimeout(() => listener(message), latencyMs);
       });

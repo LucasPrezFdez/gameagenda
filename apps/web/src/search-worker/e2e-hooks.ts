@@ -14,7 +14,7 @@ export interface WorkerTestHooks extends HostTestHooks {
 }
 
 export function createWorkerTestHooks(): WorkerTestHooks {
-  let hold: 'none' | 'scan' | null = null;
+  let hold: 'none' | 'boot' | 'scan' | null = null;
   let failNext = false;
   let unverifiedDev = false;
   let everyStart = false;

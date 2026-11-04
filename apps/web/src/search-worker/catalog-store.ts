@@ -8,7 +8,11 @@
 // - regla de los 7 días (CA2.4): con un núcleo local de ≤7 días, una versión nueva no lo vuelve a
 //   bajar: bastan `recent` y, si han cambiado, los alias y el índice de *shards*. El núcleo que
 //   se usa se apunta en la caché (`gacat-local.json`), porque ya no es el del *manifest*;
-// - sin red, el último catálogo válido de la caché.
+// - sin red, el último catálogo válido de la caché;
+// - en la primera visita (M3, ADR-009), el núcleo de arranque (`files.boot`, los 20 000 más
+//   populares) y los alias, a la vez y antes que el resto: se guardan en `gacat-<versión>` sin el
+//   *manifest*, así que la versión sigue incompleta (no se lee al arrancar) y `download()` los
+//   encuentra ya bajados; si se corta la visita, la siguiente los reutiliza.
 //
 // La caché es de confianza: solo se escribe tras verificar la firma y los `sha256`, así que al
 // arrancar no se vuelve a verificar la firma (tampoco hace falta Ed25519 para usarla: RNF-12).
@@ -81,6 +85,13 @@ export interface CatalogTexts {
   readonly aliases: string;
 }
 
+/** El núcleo de arranque de la primera visita (M3): nunca es un `CatalogTexts`. */
+export interface BootTexts {
+  readonly manifest: CatalogManifest;
+  readonly boot: string;
+  readonly aliases: string;
+}
+
 export interface CatalogStoreDeps {
   readonly fetch: typeof fetch;
   /** `null` donde no hay Cache Storage: se descarga en cada arranque. */
@@ -131,6 +142,11 @@ export interface CatalogStore {
    * *manifest* y borra las versiones anteriores.
    */
   download(manifest: CatalogManifest, options?: DownloadOptions): Promise<CatalogTexts>;
+  /**
+   * El núcleo de arranque y los alias (M3), de la caché o de la red, comprobados con su `sha256`
+   * y guardados sin el *manifest*; `null` si el *manifest* no lo trae.
+   */
+  downloadBoot(manifest: CatalogManifest): Promise<BootTexts | null>;
 }
 
 /** Antigüedad máxima del núcleo local para no bajar el nuevo (§5.4, §7.6; CA2.4). */
@@ -343,6 +359,29 @@ export function createCatalogStore(deps: CatalogStoreDeps): CatalogStore {
     return bytes;
   }
 
+  /**
+   * El texto de `spec`: `known` (ya buscado en la caché) o, sin él, el de cualquier caché; si no
+   * está, de la red. Se guarda en `cache`.
+   */
+  async function obtain(
+    spec: FileSpec,
+    cache: Cache | null,
+    onBytes: (received: number) => void,
+    known?: Uint8Array<ArrayBuffer> | null,
+  ): Promise<string> {
+    let bytes = known;
+    if (bytes === undefined) {
+      bytes = deps.caches && (await cachedFile(spec, deps.caches));
+      if (bytes) onBytes(bytes.byteLength);
+    }
+    bytes ||= await fetchFile(spec, onBytes);
+    await cache?.put(
+      fileUrl(spec.path),
+      new Response(bytes, { headers: { 'Content-Type': contentType(spec.path) } }),
+    );
+    return decoder.decode(bytes);
+  }
+
   /** El *manifest* y el núcleo de la caché `name`, si están y son de esa versión. */
   async function sourceIn(
     name: string,
@@ -450,12 +489,7 @@ export function createCatalogStore(deps: CatalogStoreDeps): CatalogStore {
       const cache = deps.caches ? await deps.caches.open(name) : null;
       const texts: string[] = [];
       for (const [i, spec] of specs.entries()) {
-        const bytes = found[i] ?? (await fetchFile(spec, progress));
-        await cache?.put(
-          fileUrl(spec.path),
-          new Response(bytes, { headers: { 'Content-Type': contentType(spec.path) } }),
-        );
-        texts.push(decoder.decode(bytes));
+        texts.push(await obtain(spec, cache, progress, found[i] ?? null));
       }
       if (cache && deps.caches) {
         await cache.put(localCoreUrl, Response.json(coreFile));
@@ -477,6 +511,17 @@ export function createCatalogStore(deps: CatalogStoreDeps): CatalogStore {
         recent: files.recent ? (texts[2] as string) : null,
         aliases: texts[1] as string,
       };
+    },
+
+    async downloadBoot(manifest) {
+      const { boot, aliases } = manifest.files;
+      if (!boot) return null;
+      const cache = deps.caches && (await deps.caches.open(`${CACHE_PREFIX}${manifest.version}`));
+      const pending = [boot, aliases].map((spec) => obtain(spec, cache, () => undefined));
+      // Los dos acaban antes de seguir: si falla el núcleo de arranque, los alias ya están guardados.
+      await Promise.allSettled(pending);
+      const [bootText, aliasText] = (await Promise.all(pending)) as [string, string];
+      return { manifest, boot: bootText, aliases: aliasText };
     },
   };
 }
