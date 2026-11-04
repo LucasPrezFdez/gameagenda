@@ -92,8 +92,9 @@ interface Bench {
   dispose(): void;
   status: StatusMessage | null;
   hold: 'scan' | null;
-  /** Momento de `init` y de los primeros `status` en `scan` y en `full`. */
+  /** Momento de `init` y de los primeros `status` en `boot` (M3), en `scan` y en `full`. */
   readonly startedAt: number;
+  bootAt: number | null;
   scanAt: number | null;
   fullAt: number | null;
   /** Lo que tardó el host en restaurar el índice guardado, si lo hizo. */
@@ -123,6 +124,7 @@ function createBench(hold: 'scan' | null, index?: SearchIndexStore): Bench {
         if (message.type === 'status') {
           bench.status = message;
           const now = performance.now();
+          if (message.state === 'boot' && bench.bootAt === null) bench.bootAt = now;
           if (message.state === 'scan' && bench.scanAt === null) bench.scanAt = now;
           if (message.state === 'full' && bench.fullAt === null) {
             bench.fullAt = now;
@@ -151,6 +153,7 @@ function createBench(hold: 'scan' | null, index?: SearchIndexStore): Bench {
     status: null,
     hold,
     startedAt: performance.now(),
+    bootAt: null,
     scanAt: null,
     fullAt: null,
     restoredMs: null,
@@ -198,6 +201,35 @@ const round = (ms: number) => Math.round(ms * 100) / 100;
 
 const api: BenchApi = {
   marker: BENCH_MARKER,
+
+  /**
+   * Primera visita con Cache Storage vacío (RNF-05, M3), con el estrangulamiento que haya: de
+   * `init` a `boot` (si el catálogo trae núcleo de arranque), a `scan` y a `full`. Deja el
+   * catálogo en Cache Storage, como `prime`.
+   */
+  async firstVisit() {
+    current?.dispose();
+    current = null;
+    for (const name of 'caches' in globalThis ? await caches.keys() : []) {
+      if (name.startsWith('gacat-')) await caches.delete(name);
+    }
+    await yieldTask();
+    const bench = createBench(null);
+    current = bench;
+    const full = waitFor(bench, isState('full'));
+    bench.host.handle({ type: 'init', catalogVersion: null, showAdult: false });
+    await full;
+    const since = (at: number | null) => (at === null ? null : round(at - bench.startedAt));
+    const report = {
+      // Después de medir: ¿lo trae el catálogo servido? (sin él, `bootMs` es `null`).
+      hasBoot: (await store.fetchManifest()).files.boot !== undefined,
+      bootMs: since(bench.bootAt),
+      scanMs: since(bench.scanAt) as number,
+      fullMs: since(bench.fullAt) as number,
+    };
+    log(`primera visita: ${JSON.stringify(report)}`);
+    return report;
+  },
 
   /** Primera visita, sin medir: guarda el catálogo en Cache Storage (`gacat-<versión>`). */
   async prime(): Promise<{ version: string; count: number }> {

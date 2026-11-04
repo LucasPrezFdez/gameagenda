@@ -2,7 +2,8 @@
 // hilo principal de la página de prueba (`perf/bench/`), con CPU ×4 por CDP, sobre el catálogo
 // completo. Mide el reinicio con caché hasta `scan` y hasta `full` y teclea el conjunto realista
 // de la §8.11 (150 nombres, 2 084 pulsaciones) en `full` y en `scan`, más el nivel 4. Desde M3,
-// también el reinicio con el índice guardado en `meta.searchIndex` (CA3.2).
+// también el reinicio con el índice guardado en `meta.searchIndex` (CA3.2) y la primera visita
+// con la caché vacía hasta el núcleo de arranque (`boot`, RNF-05).
 import { expect, type Page, test } from '@playwright/test';
 import type { BenchApi } from './bench-api.ts';
 import { BENCH_URL } from './env.ts';
@@ -33,15 +34,37 @@ test('parte 1: búsqueda de core en el hilo principal con CPU ×4', async ({ pag
   await page.goto(BENCH_URL);
   await page.waitForFunction(() => globalThis.gaPerfBench?.marker === 'gameagenda-perf-bench');
 
-  // Primera visita sin estrangular y sin medir: deja el catálogo en Cache Storage.
-  const primed = await bench(page, 'prime');
-  expect(primed.count, 'el catálogo completo').toBeGreaterThan(190_000);
-  // Y el índice guardado, también sin estrangular: lo que deja la primera visita en la app.
-  const persisted = await bench(page, 'persist');
-
   const cdp = await page.context().newCDPSession(page);
-  await cdp.send('Emulation.setCPUThrottlingRate', { rate: RATE });
+  const throttle = (rate: number) => cdp.send('Emulation.setCPUThrottlingRate', { rate });
   try {
+    // Primera visita con ×4 y la caché vacía (RNF-05, M3): hasta `boot`, si el catálogo trae núcleo
+    // de arranque, y hasta `full`. La red es la local, sin estrangular.
+    await throttle(RATE);
+    const first = await bench(page, 'firstVisit');
+    await throttle(1);
+    rows.add({
+      metric: `Primera visita → boot (×${RATE})`,
+      value: first.bootMs,
+      ...(first.hasBoot
+        ? {
+            limit: 1500,
+            note: `de la caché vacía a buscar en el núcleo de arranque: manifest y Ed25519, núcleo de arranque y alias, lectura y claves hasta su scan (RNF-05); scan ${first.scanMs} ms`,
+          }
+        : { note: 'el catálogo servido no trae núcleo de arranque (files.boot): solo informa' }),
+    });
+    rows.add({
+      metric: `Primera visita → índice completo (full, ×${RATE})`,
+      value: first.fullMs,
+      note: `scan del núcleo en ${first.scanMs} ms`,
+    });
+
+    // El catálogo ya está en Cache Storage; `prime` lo lee sin estrangular.
+    const primed = await bench(page, 'prime');
+    expect(primed.count, 'el catálogo completo').toBeGreaterThan(190_000);
+    // Y el índice guardado, también sin estrangular: lo que deja la primera visita en la app.
+    const persisted = await bench(page, 'persist');
+
+    await throttle(RATE);
     // Reinicio con caché hasta el índice completo, y tecleo en `full` con el nivel 4.
     const restart = await bench(page, 'restart', null);
     const full = await bench(page, 'type', { fuzzy: true });
@@ -112,7 +135,7 @@ test('parte 1: búsqueda de core en el hilo principal con CPU ×4', async ({ pag
       note: 'conjunto dorado + 150 nombres finales; la tarea entera, cediendo el turno entre bloques',
     });
   } finally {
-    await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 }).catch(() => undefined);
+    await throttle(1).catch(() => undefined);
     await rows.attach(testInfo);
   }
 });

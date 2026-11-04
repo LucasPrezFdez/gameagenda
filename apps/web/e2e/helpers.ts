@@ -113,8 +113,12 @@ export async function catalogStates(page: Page): Promise<CatalogState[]> {
  * Espera a que el Worker esté en `state`. Con núcleo de arranque, `search:ready` llega en `boot`:
  * quien necesite el catálogo entero espera a `scan`.
  */
-export async function waitForState(page: Page, state: CatalogState) {
-  await expect.poll(async () => (await catalogStatus(page))?.state).toBe(state);
+export async function waitForState(
+  page: Page,
+  state: CatalogState,
+  options: { readonly timeout?: number } = {},
+) {
+  await expect.poll(async () => (await catalogStatus(page))?.state, options).toBe(state);
 }
 
 /** Suelta el Worker parado con `hold`: sigue construyendo el índice. */

@@ -7,7 +7,14 @@
 //   $env:CATALOG_DIR='pipeline/out'; $env:GA_FULL_CATALOG='1'; $env:E2E_PORT='4184'
 //   npx playwright test full-catalog --project=chromium
 import { type Browser, expect, type Page, test } from '@playwright/test';
-import { measures, openPalette, paletteInput, releaseCatalog, setup } from './helpers.ts';
+import {
+  measures,
+  openPalette,
+  paletteInput,
+  releaseCatalog,
+  setup,
+  waitForState,
+} from './helpers.ts';
 
 test.skip(!process.env.GA_FULL_CATALOG, 'Solo a mano, con CATALOG_DIR=pipeline/out');
 
@@ -106,8 +113,12 @@ test('catálogo completo: arranque, pulsación en `scan` y en `full` y última f
   const { context, page } = await freshPage(browser);
   const { names, manifest } = await realisticNames(page);
   await page.goto('/');
+  const firstReady = await waitMeasure(page, 'search:ready');
+  const firstFull = await waitMeasure(page, 'search:full');
+  // Con núcleo de arranque (M3), `search:ready` llega en `boot` (y se anota `search:boot`).
+  const boot = (await measures(page, 'search:boot')).length > 0;
   log(
-    `primera visita: search:ready ${await waitMeasure(page, 'search:ready')} ms, search:full ${await waitMeasure(page, 'search:full')} ms`,
+    `primera visita: search:ready ${firstReady} ms (${boot ? 'en boot' : 'sin núcleo de arranque'}), search:full ${firstFull} ms`,
   );
   for (let i = 1; i <= 3; i++) {
     await page.reload();
@@ -162,6 +173,8 @@ test('catálogo completo: arranque, pulsación en `scan` y en `full` y última f
   // 4. Pulsación en `scan` (puente de escaneo), con el Worker parado antes del índice.
   const scan = await freshPage(browser, 'scan');
   await scan.page.goto('/');
+  // `scan` del núcleo: con núcleo de arranque, `search:ready` llega antes, en `boot`.
+  await waitForState(scan.page, 'scan', SLOW);
   log(`scan (primera visita): search:ready ${await waitMeasure(scan.page, 'search:ready')} ms`);
   const inScan = await typeNames(scan.page, names);
   log(`pulsación en scan: ${JSON.stringify(inScan)} ms`);
