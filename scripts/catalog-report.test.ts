@@ -19,7 +19,7 @@ const build = {
   version: '20261031.1',
   mode: 'con clave',
   skipDeltaGates: false,
-  counts: { core: 196_900, aliases: 3_563 },
+  counts: { core: 196_900, boot: 20_000, aliases: 3_563 },
   requests: {
     getapplist: { network: 4, statuses: { 200: 4 } },
     query: { network: 208, statuses: { 200: 208 } },
@@ -43,6 +43,7 @@ describe('catalog-report: resumen e issue de catalog.yml', () => {
     const md = renderBuild(build, canary);
     expect(md).toContain('### Catálogo 20261031.1 (con clave)');
     expect(md).toContain('196.900 juegos');
+    expect(md).toContain('196.900 juegos · 20.000 en el núcleo de arranque · 3563 alias');
     expect(md).toContain('getapplist 4 + 1 del canario');
     expect(md).toContain('✓ Llamadas a Steam');
     expect(md).toContain('220 en total (≤230), 5 con clave (≤10; CA2.1)');

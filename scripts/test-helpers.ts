@@ -1,5 +1,6 @@
-// Catálogos de prueba para los *scripts* de publicación: núcleo, alias, recientes, índice de
-// *shards* y *shards* con su *hash* en el nombre, y el *manifest*, sin firma o firmado.
+// Catálogos de prueba para los *scripts* de publicación: núcleo, núcleo de arranque (opcional),
+// alias, recientes, índice de *shards* y *shards* con su *hash* en el nombre, y el *manifest*, sin
+// firma o firmado.
 import { createHash, createPrivateKey, type KeyObject, sign } from 'node:crypto';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -49,6 +50,11 @@ export interface TestCatalogOptions {
   /** Texto que cambia el contenido sin cambiar los `appid` (otra versión del núcleo). */
   readonly salt?: string;
   readonly sign?: { readonly kid: string; readonly key: KeyObject } | null;
+  /**
+   * Núcleo de arranque (`#gacat-boot v1`, prefijo del núcleo): `true`, con todas las filas; un
+   * número, con esas primeras filas. Sin él, el *manifest* no cita `boot` (como antes de M3).
+   */
+  readonly boot?: boolean | number;
 }
 
 export interface TestCatalog {
@@ -79,12 +85,15 @@ export function writeTestCatalog(dir: string, options: TestCatalogOptions): Test
     files.set(path, text);
     return { path, sha256: hash, bytes: Buffer.byteLength(text) };
   };
-  const coreRows = appids.map((a) => `${a}\tJuego ${a}${salt}\t\t\t2020\t10`).join('\n');
-  const core = spec(
-    'core',
-    'tsv',
-    `#gacat-core v1\t${version}\tappid\tname\tnameEs\tflags\tyear\tpop\n${coreRows}\n`,
-  );
+  const rows = appids.map((a) => `${a}\tJuego ${a}${salt}\t\t\t2020\t10\n`);
+  const tsv = (kind: string, lines: readonly string[]) =>
+    `#gacat-${kind} v1\t${version}\tappid\tname\tnameEs\tflags\tyear\tpop\n${lines.join('')}`;
+  const core = spec('core', 'tsv', tsv('core', rows));
+  const bootRows =
+    options.boot === undefined || options.boot === false
+      ? null
+      : rows.slice(0, options.boot === true ? rows.length : options.boot);
+  const boot = bootRows ? spec('boot', 'tsv', tsv('boot', bootRows)) : null;
   const aliases = spec('aliases', 'tsv', `#gacat-aliases v1\t${version}\talias\tappid\ncs\t730\n`);
   const recent = spec(
     'recent',
@@ -115,8 +124,13 @@ export function writeTestCatalog(dir: string, options: TestCatalogOptions): Test
     v: 1,
     version,
     generatedAt: '2026-10-31T04:20:00Z',
-    counts: { core: appids.length, aliases: 1, recent: 0 },
-    files: { core, aliases, recent, details: index },
+    counts: {
+      core: appids.length,
+      ...(bootRows ? { boot: bootRows.length } : {}),
+      aliases: 1,
+      recent: 0,
+    },
+    files: { core, ...(boot ? { boot } : {}), aliases, recent, details: index },
     enrichmentAgeDays: 0,
     minClientVersion: '0.2.0',
     killSwitches: { covers: false, details: false },

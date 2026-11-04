@@ -112,12 +112,57 @@ describe('assemble-catalog: carpeta de ga-catalog con la versión anterior (CA2.
     ]) {
       expect(listed).toContain(name);
     }
-    // Desde M2, con recientes y *shards* de detalles sintéticos (`npm run catalog:frozen`).
+    // Desde M2, con recientes y *shards* de detalles sintéticos (`npm run catalog:frozen`); desde
+    // M3, con el núcleo de arranque (todas sus filas: el mini tiene menos de 20 000).
     expect(listed.some((f) => f.startsWith('recent.'))).toBe(true);
     expect(listed.some((f) => f.startsWith('details/index.'))).toBe(true);
+    expect(listed.filter((f) => /^boot\.[0-9a-f]{16}\.tsv$/.test(f))).toHaveLength(1);
     expect(readFileSync(join(out, '_headers'), 'utf8')).toBe(
       readFileSync(join(root, 'pipeline/catalog.headers'), 'utf8'),
     );
+  });
+
+  it('el día que llega el núcleo de arranque: la anterior sin boot, la nueva con él', async () => {
+    const origin = 'https://ga-catalog.example.workers.dev';
+    const prev = writeTestCatalog(tempDir('prev-', dirs), { version: '20261104.1' });
+    const next = writeTestCatalog(tempDir('next-', dirs), {
+      version: '20261105.1',
+      appids: [730, 570, 367520, 10],
+      salt: '!',
+      boot: 2,
+    });
+    expect(Object.keys(prev.manifest.files as object)).not.toContain('boot');
+    const out = join(tempDir('out-', dirs), 'dist');
+    const r = await assemble({
+      source: next.dir,
+      previous: origin,
+      out,
+      fetchImpl: serveDir(origin, prev.dir),
+    });
+    expect(r.previousVersion).toBe('20261104.1');
+    const published = files(out);
+    const boots = published.filter((p) => p.startsWith('boot.'));
+    expect(boots).toEqual([bootPath(next.manifest)]);
+    expect(readFileSync(join(out, boots[0] as string), 'utf8')).toBe(
+      '#gacat-boot v1\t20261105.1\tappid\tname\tnameEs\tflags\tyear\tpop\n730\tJuego 730!\t\t\t2020\t10\n570\tJuego 570!\t\t\t2020\t10\n',
+    );
+    expect(r.files).toBe(new Set([...next.paths, ...prev.paths]).size + 2);
+    expect(r.previousOnly).toBe(prev.paths.filter((p) => !next.paths.includes(p)).length);
+  });
+
+  it('con boot en las dos versiones, conserva los dos', async () => {
+    const prev = writeTestCatalog(tempDir('prev-', dirs), { version: '20261105.1', boot: true });
+    const next = writeTestCatalog(tempDir('next-', dirs), {
+      version: '20261106.1',
+      salt: 'b',
+      boot: true,
+    });
+    const out = join(tempDir('out-', dirs), 'dist');
+    const r = await assemble({ source: next.dir, previous: prev.dir, out });
+    const boots = files(out).filter((p) => p.startsWith('boot.'));
+    expect(boots.sort()).toEqual([bootPath(prev.manifest), bootPath(next.manifest)].sort());
+    expect(boots).toHaveLength(2);
+    expect(r.previousOnly).toBe(prev.paths.filter((p) => !next.paths.includes(p)).length);
   });
 
   it('avisa de lo que el manifest no cita y no lo publica', async () => {
@@ -135,7 +180,7 @@ describe('assemble-catalog: lo que no se publica', () => {
     mutate: (dir: string, manifest: Record<string, unknown>) => void,
     message: RegExp,
   ): Promise<void> {
-    const next = writeTestCatalog(tempDir('next-', dirs), { version: '20261031.1' });
+    const next = writeTestCatalog(tempDir('next-', dirs), { version: '20261031.1', boot: true });
     mutate(next.dir, next.manifest);
     const outParent = tempDir('out-', dirs);
     const out = join(outParent, 'dist');
@@ -192,6 +237,51 @@ describe('assemble-catalog: lo que no se publica', () => {
     ] as const) {
       await rejects((dir, m) => replaceShard(dir, m, 730, content), message);
     }
+  });
+
+  it('un núcleo de arranque cuyo SHA-256 no es el del manifest, o sin el prefijo de su hash', async () => {
+    await rejects((dir, m) => {
+      // Mismos bytes, otro contenido.
+      const boot = manifestFiles(m).boot as { path: string };
+      const text = readFileSync(join(dir, boot.path), 'utf8').replace('Juego', 'Juega');
+      writeFileSync(join(dir, boot.path), text);
+    }, /boot\..*SHA-256 no coincide/);
+    await rejects((dir, m) => {
+      const boot = manifestFiles(m).boot as { path: string };
+      const renamed = boot.path.replace(/\.[0-9a-f]{16}\./, '.0000000000000000.');
+      writeFileSync(join(dir, renamed), readFileSync(join(dir, boot.path)));
+      boot.path = renamed;
+      rewrite(dir, m);
+    }, /boot\.0{16}\.tsv: el nombre no lleva el prefijo de su hash/);
+  });
+
+  it('un núcleo de arranque con la cabecera de otra versión o de otro tipo', async () => {
+    for (const [from, to] of [
+      ['20261031.1', '20261030.1'],
+      ['#gacat-boot', '#gacat-core'],
+    ] as const) {
+      await rejects((dir, m) => {
+        const boot = manifestFiles(m).boot as { path: string };
+        const text = readFileSync(join(dir, boot.path), 'utf8').replace(from, to);
+        writeReplaced(dir, m, 'boot', text, 'boot', 'tsv');
+      }, /no empieza por la cabecera «#gacat-boot v1» de la versión 20261031\.1/);
+    }
+  });
+
+  it('una versión anterior con un boot que no es de su versión', async () => {
+    const prev = writeTestCatalog(tempDir('prev-', dirs), { version: '20261030.1', boot: true });
+    const boot = manifestFiles(prev.manifest).boot as { path: string };
+    const text = readFileSync(join(prev.dir, boot.path), 'utf8').replace(
+      '20261030.1',
+      '20261029.1',
+    );
+    writeReplaced(prev.dir, prev.manifest, 'boot', text, 'boot', 'tsv');
+    const next = writeTestCatalog(tempDir('next-', dirs), { version: '20261031.1', boot: true });
+    const out = join(tempDir('out-', dirs), 'dist');
+    await expect(assemble({ source: next.dir, previous: prev.dir, out })).rejects.toThrow(
+      /de la versión 20261030\.1/,
+    );
+    expect(existsSync(out)).toBe(false);
   });
 
   it('un índice de shards de otra versión', async () => {
@@ -293,6 +383,10 @@ describe('assemble-catalog: firma del manifest', () => {
 });
 
 // --- Ayudas para estropear catálogos ---------------------------------------------------------
+
+function bootPath(manifest: Record<string, unknown>): string {
+  return ((manifest.files as Record<string, { path: string }>).boot as { path: string }).path;
+}
 
 function rmFile(path: string): void {
   rmSync(path);
