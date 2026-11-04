@@ -1,8 +1,14 @@
 // Lógica de cada puerta de publicación (§4.6) con entradas pequeñas.
 
-import { serializeCore } from '@gameagenda/core/catalog-format';
+import { parseCore, serializeCore } from '@gameagenda/core/catalog-format';
 import { describe, expect, it } from 'vitest';
-import { buildCatalogFiles, type CatalogFiles } from '../src/catalog-files.ts';
+import {
+  BOOT_ROWS,
+  buildCatalogFiles,
+  type CatalogFiles,
+  hashedName,
+  sha256,
+} from '../src/catalog-files.ts';
 import type { Game } from '../src/derive.ts';
 import {
   countGate,
@@ -54,12 +60,27 @@ const GAMES: Game[] = [
   game(1145360, 'Hades', 300_000),
 ];
 
-function files(games: readonly Game[] = GAMES): CatalogFiles {
+function files(games: readonly Game[] = GAMES, bootRows?: number): CatalogFiles {
   return buildCatalogFiles(games, [['cs2', 730]], {
     version: '20261029.1',
     generatedAt: '2026-10-29T10:00:00Z',
+    ...(bootRows === undefined ? {} : { bootRows }),
   });
 }
+
+/** Los mismos ficheros con otro núcleo de arranque, citado bien en el *manifest* (solo cambia él). */
+function withBoot(f: CatalogFiles, bootText: string): CatalogFiles {
+  const path = hashedName('boot', bootText);
+  const json = JSON.parse(f.manifestText) as { files: Record<string, unknown> };
+  json.files.boot = { path, sha256: sha256(bootText), bytes: Buffer.byteLength(bootText) };
+  const map = new Map(f.files);
+  map.delete(f.manifest.files.boot?.path as string);
+  map.set(path, bootText);
+  return { ...f, bootText, manifestText: `${JSON.stringify(json, null, 2)}\n`, files: map };
+}
+
+const bootRowsOf = (f: CatalogFiles): string[] => f.bootText.split('\n').slice(1, -1);
+const coreRowsOf = (f: CatalogFiles): string[] => f.coreText.split('\n').slice(1, -1);
 
 describe('recuento', () => {
   it('mínimo de 190 000 y, con versión anterior, entre −2 % y +5 %', () => {
@@ -124,8 +145,8 @@ describe('centinelas, integridad y tamaño', () => {
     const f = files();
     const r = sizeGate(f, cfg);
     expect(r.status).toBe('pass');
-    // manifest, núcleo, recent, alias, índice y los shards, dos veces, y `_headers`.
-    const deployFiles = (5 + f.details.shards.size) * 2 + 1;
+    // manifest, núcleo, boot, recent, alias, índice y los shards, dos veces, y `_headers`.
+    const deployFiles = (6 + f.details.shards.size) * 2 + 1;
     expect(r.data).toMatchObject({ deployFiles, shards: { games: 7 } });
     expect(sizeGate(f, { ...cfg, maxCoreBrotliBytes: 10 }).detail).toContain('núcleo con');
     expect(sizeGate(f, { ...cfg, maxFileBytes: 100 }).status).toBe('fail');
@@ -135,6 +156,98 @@ describe('centinelas, integridad y tamaño', () => {
     expect(deployProblems([{ path: 'core.x.tsv', bytes: 26 * 1024 * 1024 }], cfg)[0]).toContain(
       'core.x.tsv',
     );
+  });
+
+  it('tamaño: mide el núcleo de arranque y falla por encima de su máximo con brotli 11', () => {
+    expect(cfg.maxBootBrotliBytes).toBe(512 * 1024);
+    const f = files(GAMES, 3);
+    const r = sizeGate(f, cfg);
+    expect(r.status).toBe('pass');
+    expect(r.data).toMatchObject({
+      boot: { rows: 3, raw: Buffer.byteLength(f.bootText) },
+    });
+    const boot = (r.data as { boot: { brotli11: number; gzip6: number } }).boot;
+    expect(boot.brotli11).toBeGreaterThan(0);
+    expect(boot.gzip6).toBeGreaterThan(0);
+    expect(r.detail).toContain('boot 3 filas');
+    const small = sizeGate(f, { ...cfg, maxBootBrotliBytes: 10 });
+    expect(small.status).toBe('fail');
+    expect(small.detail).toMatch(/^boot con brotli 11 .* > 0\.0 KB/);
+  });
+});
+
+describe('núcleo de arranque (boot) en la integridad', () => {
+  it('por defecto, las BOOT_ROWS primeras filas; con un núcleo más corto, todas', () => {
+    expect(BOOT_ROWS).toBe(20_000);
+    const f = files();
+    expect(f.bootRows).toBe(BOOT_ROWS);
+    expect(f.manifest.counts.boot).toBe(GAMES.length);
+    expect(bootRowsOf(f)).toEqual(coreRowsOf(f));
+    expect(f.bootText.startsWith('#gacat-boot v1\t20261029.1\t')).toBe(true);
+    expect(f.manifest.files.boot?.path).toMatch(/^boot\.[0-9a-f]{16}\.tsv$/);
+    expect(f.files.get(f.manifest.files.boot?.path as string)).toBe(f.bootText);
+    // Solo cambia la cabecera: mismo tamaño que el núcleo, otro hash.
+    expect(f.manifest.files.boot?.bytes).toBe(f.manifest.files.core.bytes);
+    expect(f.manifest.files.boot?.sha256).not.toBe(f.manifest.files.core.sha256);
+    expect(integrityGate(f)).toMatchObject({ status: 'pass' });
+    expect(integrityGate(f).detail).toContain('boot (7 filas, prefijo del núcleo)');
+    expect(integrityGate(files(GAMES, 100)).status).toBe('pass');
+    expect(files(GAMES, 100).manifest.counts.boot).toBe(7);
+  });
+
+  it('con un corte menor, exactamente las primeras filas del núcleo, en su orden', () => {
+    const f = files(GAMES, 3);
+    expect(f.manifest.counts.boot).toBe(3);
+    expect(bootRowsOf(f)).toEqual(coreRowsOf(f).slice(0, 3));
+    const boot = parseCore(f.bootText, 'boot');
+    expect([...boot.appid]).toEqual([730, 570, 1245620]);
+    expect(integrityGate(f).status).toBe('pass');
+    expect(() => files(GAMES, 0)).toThrow(/bootRows/);
+  });
+
+  it('un boot alterado, que no es el prefijo del núcleo o de otra versión, no pasa', () => {
+    const f = files(GAMES, 3);
+    const tampered = {
+      ...f,
+      manifestText: f.manifestText.replace(f.manifest.files.boot?.sha256 as string, '0'.repeat(64)),
+    };
+    expect(integrityGate(tampered).detail).toContain('sha256 de boot');
+    // Una fila cambiada (bien citada en el manifest): no es el prefijo.
+    const [head, a, b, c] = f.bootText.split('\n') as [string, string, string, string];
+    const changed = withBoot(f, [head, a.replace('Counter-Strike 2', 'CS2'), b, c, ''].join('\n'));
+    expect(integrityGate(changed).detail).toContain('la fila 1 de boot no es la del núcleo');
+    const swapped = withBoot(f, [head, b, a, c, ''].join('\n'));
+    expect(integrityGate(swapped).detail).toContain('la fila 1 de boot no es la del núcleo');
+    // Otra versión en la cabecera.
+    const other = withBoot(f, f.bootText.replace('20261029.1', '20261028.1'));
+    expect(integrityGate(other).detail).toContain('versión de boot ≠ núcleo');
+    // Una fila de menos (y counts.boot sin tocar).
+    const short = withBoot(f, [head, a, b, ''].join('\n'));
+    expect(integrityGate(short).detail).toContain('boot con 2 filas, no 3');
+    // Con la cabecera del núcleo no se lee como boot.
+    const asCore = withBoot(f, f.bootText.replace('#gacat-boot', '#gacat-core'));
+    expect(integrityGate(asCore).detail).toContain('boot: ');
+    // El fichero citado no está entre los publicados.
+    const missingFile = new Map(f.files);
+    missingFile.delete(f.manifest.files.boot?.path as string);
+    expect(integrityGate({ ...f, files: missingFile }).detail).toContain('fichero de boot');
+  });
+
+  it('counts.boot distinto de las filas y un manifest sin files.boot o sin counts.boot no pasan', () => {
+    const f = files(GAMES, 3);
+    const wrongCount = { ...f, manifestText: f.manifestText.replace('"boot": 3,', '"boot": 4,') };
+    expect(wrongCount.manifestText).not.toBe(f.manifestText);
+    expect(integrityGate(wrongCount).detail).toContain('counts.boot ≠ filas de boot');
+    const json = JSON.parse(f.manifestText) as {
+      counts: Record<string, unknown>;
+      files: Record<string, unknown>;
+    };
+    const { boot: _file, ...filesNoBoot } = json.files;
+    const noFile = { ...f, manifestText: JSON.stringify({ ...json, files: filesNoBoot }) };
+    expect(integrityGate(noFile).detail).toContain('falta files.boot');
+    const { boot: _count, ...countsNoBoot } = json.counts;
+    const noCount = { ...f, manifestText: JSON.stringify({ ...json, counts: countsNoBoot }) };
+    expect(integrityGate(noCount).detail).toContain('falta counts.boot');
   });
 });
 
@@ -178,8 +291,15 @@ describe('búsqueda', () => {
     const smoke = searchGates(files(), fuzzy, [], { ...cfg, quality: 'smoke' });
     expect(smoke[0]).toMatchObject({ id: 'smoke', status: 'pass' });
     expect(smoke.slice(1).every((g) => g.status === 'skip')).toBe(true);
+    expect(smoke[0]?.detail).toContain('en boot (7 filas): las 4 también ✓');
+    expect(smoke[0]?.data).toMatchObject({ core: { length: 4 }, boot: { length: 4 } });
     const sinHollow = files(GAMES.filter((g) => g.appid !== 367520));
     expect(searchGates(sinHollow, fuzzy, [], { ...cfg, quality: 'smoke' })[0]?.status).toBe('fail');
+    // En el núcleo están los cuatro, pero el boot de 3 filas no tiene Hollow Knight ni BG3.
+    const shortBoot = searchGates(files(GAMES, 3), fuzzy, [], { ...cfg, quality: 'smoke' })[0];
+    expect(shortBoot?.status).toBe('fail');
+    expect(shortBoot?.detail).toMatch(/^«hollow knight» → 367520 ✓/);
+    expect(shortBoot?.detail).toMatch(/en boot \(3 filas\): «hollow knight» → 367520 ✗/);
     // Con todas las puertas, un catálogo de 7 juegos no pasa el dorado (60 consultas como mínimo).
     const full = searchGates(
       files(),

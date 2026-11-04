@@ -1,7 +1,8 @@
 // `npm run catalog:build` (§13.3): pasos 0–5 de la §4.5 y la firma del paso 6. Escribe en
-// `pipeline/out/` el núcleo, `recent`, los alias, los *shards* de detalles con su índice y el
-// *manifest* (firmado si hay clave de firma), conservando los ficheros de la versión anterior, y el
-// estado nuevo. Desplegar `ga-catalog` y subir el estado son de `catalog.yml`.
+// `pipeline/out/` el núcleo, el núcleo de arranque (`boot`, sus 20 000 primeras filas; ADR-009),
+// `recent`, los alias, los *shards* de detalles con su índice y el *manifest* (firmado si hay
+// clave de firma), conservando los ficheros de la versión anterior, y el estado nuevo. Desplegar
+// `ga-catalog` y subir el estado son de `catalog.yml`.
 //
 //   npm run catalog:build                                  con STEAM_WEB_API_KEY, con clave;
 //                                                          sin ella, plan B (§4.8)
@@ -177,8 +178,9 @@ async function main(): Promise<number> {
     log(`✗ No se publica: el catálogo queda en ${rejectedDir}`);
     return code;
   }
+  const { manifest } = result.files;
   log(
-    `✓ ${outDir}: ${result.games.length} juegos (${result.files.manifest.files.core.path}), ${result.recent.length} recientes, enrichmentAgeDays ${result.enrichmentAgeDays}`,
+    `✓ ${outDir}: ${result.games.length} juegos (${manifest.files.core.path}), ${manifest.counts.boot} en boot (${manifest.files.boot?.path}), ${result.recent.length} recientes, enrichmentAgeDays ${result.enrichmentAgeDays}`,
   );
   if (reportDir) log(`  Informes en ${join(reportDir, result.version)}`);
   return EXIT.ok;

@@ -1,7 +1,8 @@
 // Etapa 5 · Puertas de publicación (§4.6): recuento, renombrados, centinelas, integridad,
 // tamaño, consultas de humo y calidad de búsqueda (§8.10). Las de calidad y humo se ejecutan con
 // `@gameagenda/core/search-quality` sobre el índice construido con `packages/core` a partir de los
-// ficheros ya serializados, como lo hará la app. Si una falla, no se publica.
+// ficheros ya serializados, como lo hará la app; las de humo, también sobre el núcleo de arranque
+// (`boot`, ADR-009), con el que busca la app en la primera visita. Si una falla, no se publica.
 
 import { brotliCompressSync, constants, gzipSync } from 'node:zlib';
 import {
@@ -61,6 +62,11 @@ export interface GateConfig {
   readonly sentinels: readonly number[];
   /** Núcleo con brotli 11 (≤3 MiB, §7.6). */
   readonly maxCoreBrotliBytes: number;
+  /**
+   * Núcleo de arranque con brotli 11 (≤512 KiB; ≈269 KB con 20 000 filas): solo salta si algo
+   * va mal, porque de él depende la primera búsqueda (RNF-05).
+   */
+  readonly maxBootBrotliBytes: number;
   /** Por despliegue (§7.6, plan gratuito de Workers): ficheros de ≤25 MiB… */
   readonly maxFileBytes: number;
   /** …y ≤20 000 ficheros, con los de la versión anterior. */
@@ -76,6 +82,7 @@ export const PUBLISH_GATES: GateConfig = {
   maxRenamedPct: 1,
   sentinels: SENTINELS,
   maxCoreBrotliBytes: 3 * 1024 * 1024,
+  maxBootBrotliBytes: 512 * 1024,
   maxFileBytes: 25 * 1024 * 1024,
   maxDeployFiles: 20_000,
   quality: 'full',
@@ -90,6 +97,8 @@ export interface PreviousVersion {
 
 const pct = (k: number, n: number): number => (n === 0 ? 0 : +((100 * k) / n).toFixed(3));
 const fmt = (n: number): string => n.toLocaleString('es-ES');
+/** Filas de un TSV del núcleo (`core`, `boot` o `recent`): sin la cabecera ni el salto final. */
+const rowsOf = (text: string): number => text.split('\n').length - 2;
 
 function deltaSkipped(prev: PreviousVersion | null, skipDelta: boolean): string | null {
   if (skipDelta) return 'saltada con --skip-delta-gates';
@@ -161,10 +170,9 @@ export function sentinelsGate(appids: ReadonlySet<number>, cfg: GateConfig): Gat
   };
 }
 
-/** `true` si los dos núcleos tienen las mismas filas, en el mismo orden. */
-function sameRows(a: CoreCatalog, b: CoreCatalog): boolean {
-  if (a.count !== b.count) return false;
-  for (let g = 0; g < a.count; g++) {
+/** Primera de las `n` primeras filas en la que difieren los dos núcleos (sus seis columnas), o −1. */
+function firstDifference(a: CoreCatalog, b: CoreCatalog, n: number): number {
+  for (let g = 0; g < n; g++) {
     if (
       a.appid[g] !== b.appid[g] ||
       a.name[g] !== b.name[g] ||
@@ -173,10 +181,35 @@ function sameRows(a: CoreCatalog, b: CoreCatalog): boolean {
       a.year[g] !== b.year[g] ||
       a.pop[g] !== b.pop[g]
     ) {
-      return false;
+      return g;
     }
   }
-  return true;
+  return -1;
+}
+
+/** `true` si los dos núcleos tienen las mismas filas, en el mismo orden. */
+function sameRows(a: CoreCatalog, b: CoreCatalog): boolean {
+  return a.count === b.count && firstDifference(a, b, a.count) < 0;
+}
+
+/**
+ * Núcleo de arranque (ADR-009): se lee como `boot`, es de la versión del núcleo, tiene
+ * `min(bootRows, filas del núcleo)` filas y son las primeras del núcleo, iguales en todo.
+ */
+function bootProblems(core: CoreCatalog, files: CatalogFiles): string[] {
+  let boot: CoreCatalog;
+  try {
+    boot = parseCore(files.bootText, 'boot');
+  } catch (e) {
+    return [`boot: ${(e as Error).message}`];
+  }
+  const out: string[] = [];
+  if (boot.version !== core.version) out.push('versión de boot ≠ núcleo');
+  const want = Math.min(files.bootRows, core.count);
+  if (boot.count !== want) out.push(`boot con ${fmt(boot.count)} filas, no ${fmt(want)}`);
+  const g = firstDifference(boot, core, Math.min(boot.count, core.count));
+  if (g >= 0) out.push(`la fila ${fmt(g + 1)} de boot no es la del núcleo (no es su prefijo)`);
+  return out;
 }
 
 /** Recientes: se leen, son del núcleo y aplicarlos al núcleo de hoy lo deja igual. */
@@ -247,8 +280,9 @@ function detailsProblems(
 
 /**
  * Integridad: todas las filas se leen con el lector de la app, sin `appid` repetidos ni nombres
- * vacíos; los alias apuntan a juegos del núcleo; los recientes y los *shards* son válidos; el
- * *manifest* cumple su esquema y sus `sha256`, tamaños, rutas y recuentos casan con los ficheros.
+ * vacíos; los alias apuntan a juegos del núcleo; el núcleo de arranque es su prefijo; los
+ * recientes y los *shards* son válidos; el *manifest* cumple su esquema y sus `sha256`, tamaños,
+ * rutas y recuentos casan con los ficheros (`files.boot` y `counts.boot` son obligatorios).
  */
 export function integrityGate(files: CatalogFiles): GateOutcome {
   const problems: string[] = [];
@@ -275,18 +309,24 @@ export function integrityGate(files: CatalogFiles): GateOutcome {
     const orphan = aliases.pairs.filter(([, a]) => !seen.has(a)).length;
     if (orphan > 0) problems.push(`${orphan} alias sin juego`);
     if (aliases.version !== core.version) problems.push('versiones distintas en núcleo y alias');
+    problems.push(...bootProblems(core, files));
     problems.push(...recentProblems(core, seen, files.recentText));
     problems.push(...detailsProblems(core, seen, files));
     if (manifest) {
       if (manifest.version !== core.version) problems.push('versión del manifest ≠ núcleo');
       if (manifest.counts.core !== core.count) problems.push('counts.core ≠ filas del núcleo');
+      if (manifest.counts.boot === undefined) problems.push('falta counts.boot');
+      else if (manifest.counts.boot !== Math.min(files.bootRows, core.count)) {
+        problems.push('counts.boot ≠ filas de boot');
+      }
       if (manifest.counts.aliases !== aliases.pairs.length) problems.push('counts.aliases ≠ alias');
-      if (manifest.counts.recent !== files.recentText.split('\n').length - 2) {
+      if (manifest.counts.recent !== rowsOf(files.recentText)) {
         problems.push('counts.recent ≠ filas de recent');
       }
       if (!manifest.killSwitches) problems.push('faltan los kill switches');
       const expected = [
         ['core', files.coreText, (h: string) => `core.${h}.tsv`],
+        ['boot', files.bootText, (h: string) => `boot.${h}.tsv`],
         ['recent', files.recentText, (h: string) => `recent.${h}.tsv`],
         ['aliases', files.aliasesText, (h: string) => `aliases.${h}.tsv`],
         ['details', files.details.indexText, (h: string) => `details/index.${h}.json`],
@@ -312,7 +352,7 @@ export function integrityGate(files: CatalogFiles): GateOutcome {
     status: problems.length === 0 ? 'pass' : 'fail',
     detail:
       problems.length === 0
-        ? `todas las filas se leen; recent, ${files.details.shards.size} shards, manifest y hashes correctos`
+        ? `todas las filas se leen; boot (${fmt(rowsOf(files.bootText))} filas, prefijo del núcleo), recent, ${files.details.shards.size} shards, manifest y hashes correctos`
         : problems.slice(0, 20).join('; '),
   };
 }
@@ -362,15 +402,25 @@ const kb = (n: number): string => `${(n / 1000).toFixed(1)} KB`;
 /** *Shards* en los que se mide brotli 11 (uno de cada 16): medirlos todos costaría ≈30 s. */
 const SHARD_SAMPLE_EVERY = 16;
 
+/** gzip -6, como lo sirve un CDN que no comprime con brotli. */
+const gzip6Of = (text: string): number => gzipSync(Buffer.from(text, 'utf8'), { level: 6 }).length;
+
 /**
- * Tamaño (§7.6): el núcleo con brotli 11 (puerta; el informe anota también gzip -6) y los límites
- * del despliegue, contando esta versión dos veces porque cada despliegue reincluye la anterior,
- * que tiene los mismos ficheros más o menos. Mide también `recent`, los *shards* y su índice.
+ * Tamaño (§7.6): el núcleo y el núcleo de arranque con brotli 11 (puertas; el informe anota
+ * también gzip -6) y los límites del despliegue, contando esta versión dos veces porque cada
+ * despliegue reincluye la anterior, que tiene los mismos ficheros más o menos. Mide también
+ * `recent`, los *shards* y su índice.
  */
 export function sizeGate(files: CatalogFiles, cfg: GateConfig): GateOutcome {
   const raw = Buffer.byteLength(files.coreText);
   const br11 = brotli11(files.coreText);
-  const gzip6 = gzipSync(Buffer.from(files.coreText, 'utf8'), { level: 6 }).length;
+  const gzip6 = gzip6Of(files.coreText);
+  const boot = {
+    rows: rowsOf(files.bootText),
+    raw: Buffer.byteLength(files.bootText),
+    brotli11: brotli11(files.bootText),
+    gzip6: gzip6Of(files.bootText),
+  };
   const deploy: DeployFile[] = [
     { path: 'manifest.json', bytes: Buffer.byteLength(files.manifestText) },
     ...[...files.files].map(([path, text]) => ({ path, bytes: Buffer.byteLength(text) })),
@@ -378,6 +428,9 @@ export function sizeGate(files: CatalogFiles, cfg: GateConfig): GateOutcome {
   // Esta versión, la anterior (con tantos ficheros como esta, más o menos) y `_headers`.
   const deployCount = deploy.length * 2 + 1;
   const problems = deployProblems(deploy, cfg, deployCount);
+  if (boot.brotli11 > cfg.maxBootBrotliBytes) {
+    problems.unshift(`boot con brotli 11 ${kb(boot.brotli11)} > ${kb(cfg.maxBootBrotliBytes)}`);
+  }
   if (br11 > cfg.maxCoreBrotliBytes) {
     problems.unshift(`núcleo con brotli 11 ${mib(br11)} > ${mib(cfg.maxCoreBrotliBytes)}`);
   }
@@ -398,7 +451,7 @@ export function sizeGate(files: CatalogFiles, cfg: GateConfig): GateOutcome {
     sampled: sample.length,
   };
   const recent = {
-    rows: files.recentText.split('\n').length - 2,
+    rows: rowsOf(files.recentText),
     raw: Buffer.byteLength(files.recentText),
     brotli11: brotli11(files.recentText),
   };
@@ -409,12 +462,21 @@ export function sizeGate(files: CatalogFiles, cfg: GateConfig): GateOutcome {
   return {
     id: 'size',
     status: problems.length === 0 ? 'pass' : 'fail',
-    detail: `${problems.length > 0 ? `${problems.join('; ')} · ` : ''}núcleo ${mib(raw)} · brotli 11 ${mib(br11)} (≤${mib(cfg.maxCoreBrotliBytes)}) · gzip -6 ${mib(gzip6)} · recent ${recent.rows} filas, ${kb(recent.raw)} (${kb(recent.brotli11)} brotli 11) · ${shards.count} shards, ${mib(shards.raw)} (≈${mib(shards.brotli11)} brotli 11) · ${fmt(deployCount)} ficheros por despliegue (≤${fmt(cfg.maxDeployFiles)})`,
-    data: { raw, brotli11: br11, gzip6, recent, shards, index, deployFiles: deployCount },
+    detail: `${problems.length > 0 ? `${problems.join('; ')} · ` : ''}núcleo ${mib(raw)} · brotli 11 ${mib(br11)} (≤${mib(cfg.maxCoreBrotliBytes)}) · gzip -6 ${mib(gzip6)} · boot ${fmt(boot.rows)} filas, ${kb(boot.raw)} · brotli 11 ${kb(boot.brotli11)} (≤${kb(cfg.maxBootBrotliBytes)}) · gzip -6 ${kb(boot.gzip6)} · recent ${recent.rows} filas, ${kb(recent.raw)} (${kb(recent.brotli11)} brotli 11) · ${shards.count} shards, ${mib(shards.raw)} (≈${mib(shards.brotli11)} brotli 11) · ${fmt(deployCount)} ficheros por despliegue (≤${fmt(cfg.maxDeployFiles)})`,
+    data: { raw, brotli11: br11, gzip6, boot, recent, shards, index, deployFiles: deployCount },
   };
 }
 
-/** Humo y calidad de búsqueda en el índice construido con `core` desde los ficheros. */
+type SmokeCheck = ReturnType<typeof evaluateSmoke>['checks'][number];
+
+const smokeDetail = (checks: readonly SmokeCheck[]): string =>
+  checks.map((c) => `«${c.q}» → ${c.appid} ${c.ok ? '✓' : `✗ (${c.got.join(', ')})`}`).join(' · ');
+
+/**
+ * Humo y calidad de búsqueda en el índice construido con `core` desde los ficheros. Las consultas
+ * de humo se repiten sobre el núcleo de arranque (con los mismos alias, como la app en la primera
+ * visita): la puerta `smoke` pasa solo si pasan en los dos.
+ */
 export function searchGates(
   files: CatalogFiles,
   fuzzy: FuzzyMatcher,
@@ -422,16 +484,17 @@ export function searchGates(
   cfg: GateConfig,
 ): GateOutcome[] {
   const core = parseCore(files.coreText);
-  const s = buildSearcher(core, parseAliases(files.aliasesText).pairs);
+  const pairs = parseAliases(files.aliasesText).pairs;
+  const s = buildSearcher(core, pairs);
   const out: GateOutcome[] = [];
   const smoke = evaluateSmoke(s, fuzzy);
+  const bootCore = parseCore(files.bootText, 'boot');
+  const bootSmoke = evaluateSmoke(buildSearcher(bootCore, pairs), fuzzy);
   out.push({
     id: 'smoke',
-    status: smoke.ok ? 'pass' : 'fail',
-    detail: smoke.checks
-      .map((c) => `«${c.q}» → ${c.appid} ${c.ok ? '✓' : `✗ (${c.got.join(', ')})`}`)
-      .join(' · '),
-    data: smoke.checks,
+    status: smoke.ok && bootSmoke.ok ? 'pass' : 'fail',
+    detail: `${smokeDetail(smoke.checks)} · en boot (${fmt(bootCore.count)} filas): ${bootSmoke.ok ? `las ${bootSmoke.checks.length} también ✓` : smokeDetail(bootSmoke.checks)}`,
+    data: { core: smoke.checks, boot: bootSmoke.checks },
   });
   if (cfg.quality === 'smoke') {
     for (const id of ['golden', 'exact', 'prefix', 'negatives'] as const) {

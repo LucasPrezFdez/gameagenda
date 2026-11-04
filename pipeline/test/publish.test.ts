@@ -138,6 +138,13 @@ function coreOf(dir: string): CoreCatalog {
   return parseCore(readFileSync(join(dir, m.files.core.path), 'utf8'));
 }
 
+function bootOf(dir: string): CoreCatalog {
+  const m = catalogManifestSchema.parse(
+    JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8')),
+  );
+  return parseCore(readFileSync(join(dir, m.files.boot?.path as string), 'utf8'), 'boot');
+}
+
 /** Filas de un núcleo como texto, para compararlas. */
 const rowsOf = (c: CoreCatalog): string[] =>
   Array.from(
@@ -181,7 +188,7 @@ describe('día 1: primera versión', () => {
       enrichmentAgeDays: 0,
       minClientVersion: '0.2.0',
       killSwitches: { covers: false, details: false },
-      counts: { recent: 0 },
+      counts: { recent: 0, boot: profile.bootRows },
       sig: { kid: 'dev-1' },
     });
     expect(verifyManifest(m, trustedSigningKeys({ dev: true }))).toBe(true);
@@ -191,6 +198,21 @@ describe('día 1: primera versión', () => {
     );
     expect(first.result.files.details.games).toBe(first.result.games.length);
     expect(readState(day1.state).meta).toEqual({ version: '20261102.1', enrichedOn: '2026-11-02' });
+  });
+
+  it('el núcleo de arranque son las primeras filas del núcleo publicado, firmado con él', () => {
+    const n = profile.bootRows as number;
+    expect(n).toBeLessThan(first.result.games.length);
+    const boot = bootOf(day1.out);
+    expect(boot.version).toBe('20261102.1');
+    expect(boot.count).toBe(n);
+    expect(rowsOf(boot)).toEqual(rowsOf(coreOf(day1.out)).slice(0, n));
+    expect(first.result.gates.find((g) => g.id === 'smoke')?.detail).toContain(
+      `en boot (${n} filas): las 4 también ✓`,
+    );
+    // Con `boot`, el despliegue tiene un fichero más que en M2, en las dos versiones.
+    const size = first.result.gates.find((g) => g.id === 'size')?.data as { deployFiles: number };
+    expect(size.deployFiles).toBe((6 + first.result.files.details.shards.size) * 2 + 1);
   });
 
   it('presupuesto: la clave solo va a GetAppList (CA2.1)', () => {
@@ -243,6 +265,17 @@ describe('día 2: recientes', () => {
       const names = new Set(listing(at.out).map(([f]) => f));
       for (const [f] of listing(day1.out))
         if (f !== 'manifest.json') expect(names.has(f)).toBe(true);
+      // También el boot del día 1, y el del día 2 es el prefijo de su núcleo: el alta popular
+      // entra o no según el puesto que le da el núcleo, sin trato aparte.
+      expect([...names].filter((f) => f.startsWith('boot.'))).toHaveLength(2);
+      const n = profile.bootRows as number;
+      const boot = bootOf(at.out);
+      expect(boot.count).toBe(n);
+      expect(rowsOf(boot)).toEqual(rowsOf(after).slice(0, n));
+      const rank = [...after.appid].indexOf(4_100_001);
+      expect(rank).toBeGreaterThanOrEqual(0);
+      expect([...boot.appid].includes(4_100_001)).toBe(rank < n);
+      expect([...boot.appid].includes(4_100_002)).toBe(false);
       // Al día siguiente siguen en recent (14 días), y el estado lleva sus fechas.
       const again = await run(world, at, DAY1 + 2 * DAY);
       expect(again.result.files.manifest.counts.recent).toBe(4);
@@ -336,6 +369,12 @@ describe('CA2.2: cada puerta que falla deja --out y el estado como estaban', () 
   it('tamaño: núcleo por encima del máximo con brotli 11', SLOW, async () => {
     const r = await rejected(base, { maxCoreBrotliBytes: 16 * 1024 });
     expect(failed(r)).toEqual(['size']);
+  });
+
+  it('tamaño: núcleo de arranque por encima de su máximo con brotli 11', SLOW, async () => {
+    const r = await rejected(base, { maxBootBrotliBytes: 4 * 1024 });
+    expect(failed(r)).toEqual(['size']);
+    expect(r.gates.find((g) => g.id === 'size')?.detail).toMatch(/^boot con brotli 11/);
   });
 });
 

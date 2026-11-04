@@ -159,7 +159,8 @@ export function worldTransport(world: () => World): Transport {
 
 /**
  * Perfil del mundo: el de Steam con las páginas reales (Query de 1 000 con 50 de solape), la
- * lista en páginas de 1 000 y el mínimo de juegos a escala (≈95 % del mundo).
+ * lista en páginas de 1 000, el mínimo de juegos a escala (≈95 % del mundo) y el núcleo de
+ * arranque también a escala (un tercio, como si fuera un corte de verdad y no todo el núcleo).
  */
 export function worldProfile(world: World, gates: Partial<Profile['gates']> = {}): Profile {
   return {
@@ -171,6 +172,7 @@ export function worldProfile(world: World, gates: Partial<Profile['gates']> = {}
     minQueryCoverage: 0.95,
     maxGapIds: 4000,
     deltaGates: true,
+    bootRows: Math.floor(world.games.size / 3),
     gates: { ...PUBLISH_GATES, minGames: Math.floor(world.games.size * 0.95), ...gates },
   };
 }
