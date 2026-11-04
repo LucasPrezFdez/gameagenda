@@ -1184,6 +1184,29 @@ describe('createSearchHost · núcleo de arranque (M3, ADR-009)', () => {
     expect(statesOf(t).slice(-3)).toEqual(['boot', 'scan', 'full']);
   });
 
+  it('con el error en `boot`, la vuelta de la red y «Reintentar» repiten la carga (una sola vez)', async () => {
+    for (const how of ['online', 'retry'] as const) {
+      let offline = true;
+      const t = setupBoot({ wrapFetch: holdCore(Promise.resolve(), () => offline) });
+      const published = await withBoot();
+      t.server.serve(published);
+      t.send(init);
+      await t.scheduler.runUntil(
+        () => t.lastStatus()?.state === 'boot' && t.lastStatus()?.error != null,
+      );
+      offline = false;
+      t.server.reset();
+      if (how === 'online') t.host.online();
+      else t.request('retry', {});
+      // Mientras carga, otra vuelta de la red no empieza otra descarga.
+      t.host.online();
+      await t.reach('full');
+      const core = published.manifest.files.core.path;
+      expect(pathsOf(t).filter((path) => path === core)).toHaveLength(1);
+      expect(t.lastStatus()?.error).toBeNull();
+    }
+  });
+
   it('si la primera visita se corta tras el núcleo de arranque, la siguiente lo lee de la caché', async () => {
     const caches = new MemoryCacheStorage();
     const published = await withBoot();
