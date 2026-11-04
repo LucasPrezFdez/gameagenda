@@ -6,6 +6,7 @@ export type MeasureName =
   | 'capture:palette-to-confirm'
   | 'search:keystroke-to-results'
   | 'search:ready'
+  | 'search:boot'
   | 'search:full'
   | 'search:index-restored'
   | 'app:list-visible';

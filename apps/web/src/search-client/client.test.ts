@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSearchClient, shouldSuggest } from './client.ts';
+import { measureAvailability } from './index.ts';
 import type {
   SearchItem,
   SearchTransport,
@@ -81,6 +82,43 @@ describe('createSearchClient', () => {
     expect(w.queries()).toEqual([{ type: 'query', seq: 1, q: 'elden', limit: 8 }]);
   });
 
+  it('en `none` lanza el texto pendiente al pasar a `boot`, y lo repite una vez al pasar a `scan`', async () => {
+    const w = manualTransport();
+    const client = createSearchClient(w.transport);
+    client.setQuery('celeste');
+    w.emit({ ...full, state: 'boot' });
+    const query = { type: 'query', seq: 1, q: 'celeste', limit: 8 } as const;
+    expect(w.queries()).toEqual([query]);
+    // El núcleo de arranque no lo tiene.
+    w.emit({ type: 'results', seq: 1, items: [], strong: 0, ms: 0 });
+    expect(client.getQueryState()).toMatchObject({ fresh: true, results: { items: [] } });
+    w.emit({ ...full, state: 'boot', progress: 0.5 });
+    expect(w.queries()).toHaveLength(1);
+
+    // Con el catálogo entero se repite (el mismo `seq`), e Intro espera a la respuesta nueva.
+    w.emit({ ...full, state: 'scan' });
+    expect(w.queries()).toEqual([query, query]);
+    expect(client.getQueryState()).toMatchObject({ seq: 1, fresh: false });
+    const waiting = client.waitForFresh(500);
+    w.emit({ type: 'results', seq: 1, items: [item(504230, 'Celeste')], strong: 1, ms: 0 });
+    await expect(waiting).resolves.toMatchObject({ seq: 1, fresh: true });
+    expect(client.getQueryState().results?.items[0]?.name).toBe('Celeste');
+
+    // De `scan` a `full` no: las dos dan lo mismo (el puente de escaneo).
+    w.emit(full);
+    expect(w.queries()).toHaveLength(2);
+  });
+
+  it('de `boot` a `full` (sin `scan`) también repite la consulta', () => {
+    const w = manualTransport();
+    const client = createSearchClient(w.transport);
+    w.emit({ ...full, state: 'boot' });
+    client.setQuery('hades');
+    w.emit({ type: 'results', seq: 1, items: [], strong: 0, ms: 0 });
+    w.emit(full);
+    expect(w.queries().map((q) => q.seq)).toEqual([1, 1]);
+  });
+
   it('waitForFresh espera al seq actual y cae a `null` tras el plazo', async () => {
     const w = manualTransport();
     const client = createSearchClient(w.transport);
@@ -130,5 +168,25 @@ describe('shouldSuggest', () => {
     expect(shouldSuggest('hol', 0)).toBe(false);
     expect(shouldSuggest('hollow', 5)).toBe(false);
     expect(shouldSuggest('三国志三国', 0)).toBe(false);
+  });
+});
+
+describe('medidas de disponibilidad (§12.4)', () => {
+  it('anota `search:ready` y `search:boot` con `boot`, y solo `search:ready` sin él', () => {
+    const count = (name: string) => performance.getEntriesByName(name, 'measure').length;
+    for (const states of [
+      ['boot', 'scan', 'full'],
+      ['scan', 'full'],
+    ] as const) {
+      performance.clearMeasures();
+      const w = manualTransport();
+      measureAvailability(createSearchClient(w.transport));
+      for (const state of states) w.emit({ ...full, state });
+      expect([count('search:ready'), count('search:boot'), count('search:full')]).toEqual([
+        1,
+        states[0] === 'boot' ? 1 : 0,
+        1,
+      ]);
+    }
   });
 });

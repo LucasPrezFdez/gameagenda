@@ -70,6 +70,15 @@ describe('buildPaletteModel', () => {
     expect(fromList.defaultIndex).toBe(0);
   });
 
+  it('en `boot`, sin resultados no resalta la fila manual ni dice que no está; con ellos, como en `full`', () => {
+    const empty = buildPaletteModel(query('persona 5 royal', []), status('boot'), new Map());
+    expect(empty.options.map((o) => o.kind)).toEqual(['manual']);
+    expect(empty).toMatchObject({ defaultIndex: -1, noItems: false, hasResults: true });
+    const items = [game(1245620, 'ELDEN RING'), game(2622380, 'ELDEN RING NIGHTREIGN')];
+    const found = buildPaletteModel(query('elden', items), status('boot'), inList);
+    expect(found).toEqual(buildPaletteModel(query('elden', items), status('full'), inList));
+  });
+
   it('con 8 resultados ofrece verlos en el Catálogo', () => {
     const items = Array.from({ length: 8 }, (_, i) => game(i + 1, `Juego ${i + 1}`));
     const model = buildPaletteModel(query('juego', items), status('full'), new Map());

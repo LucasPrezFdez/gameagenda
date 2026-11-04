@@ -65,4 +65,25 @@ describe('provisionales y catálogo (RF-04, §7.3)', () => {
     expect(search.lookup).toHaveBeenCalledTimes(2);
     stop();
   });
+
+  it('en `boot` mira, y vuelve a mirar en `scan` con la misma versión (M3)', async () => {
+    const agenda = createAgenda({
+      clock: createHlcClock({ now: Date.now, node: 'abcd1234' }),
+      newId: uuidv7,
+      storage: null,
+    });
+    agenda.capture({ id: 'steam:3999990', title: 'Mi Juego Indie', provisional: true });
+    const search = fakeSearch([hades]);
+    const stop = startCatalogRefresh(search.client, agenda);
+    search.setStatus({ state: 'boot', version: '20261028.1' });
+    expect(search.lookup).toHaveBeenCalledTimes(1);
+    // Un enlace pegado en `boot` de un juego que no está entre los más populares.
+    agenda.capture({ id: 'steam:1145350', title: 'Hades 2', provisional: true });
+    search.setStatus({ state: 'scan' });
+    await vi.waitFor(() => expect(agenda.get('steam:1145350')?.title).toBe('Hades II'));
+    expect(search.lookup).toHaveBeenCalledTimes(2);
+    search.setStatus({ state: 'full' });
+    expect(search.lookup).toHaveBeenCalledTimes(2);
+    stop();
+  });
 });

@@ -9,15 +9,18 @@ export { GAME_FLAGS, workerTransport } from './protocol.ts';
 
 /**
  * `search:ready` (primer `status` distinto de `none`), `search:full` y, si el índice se ha
- * restaurado (M3), `search:index-restored` (ver §12.4).
+ * restaurado (M3), `search:index-restored` (ver §12.4). En la primera visita con núcleo de
+ * arranque (M3), `search:ready` llega con `boot` y se anota también como `search:boot` (RNF-05).
  */
-function measureAvailability(client: SearchClient): void {
+export function measureAvailability(client: SearchClient): void {
   let ready = false;
   const stop = client.subscribeStatus(() => {
     const { state } = client.getStatus();
     if (!ready && state !== 'none') {
       ready = true;
       measureSinceNavigation('search:ready');
+      // `boot` solo puede ser el primero: nunca llega después de `scan`.
+      if (state === 'boot') measureSinceNavigation('search:boot');
     }
     if (state === 'full') {
       measureSinceNavigation('search:full');

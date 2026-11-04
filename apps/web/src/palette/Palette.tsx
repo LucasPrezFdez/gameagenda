@@ -684,10 +684,15 @@ export function Palette({ actions, showBar, onClose, ref }: PaletteProps) {
             if (!isEditableTarget(event.target)) event.preventDefault();
           }}
         >
-          {open && !searchable && (
+          {/* En `boot` (M3) se busca, pero solo en los más populares: se dice junto a los resultados. */}
+          {open && (!searchable || status.state === 'boot') && (
             <div className="palette__notice">
               <p>
-                {status.error ? es.catalogState.failed : es.catalogState.preparing(status.progress)}
+                {status.error
+                  ? es.catalogState.failed
+                  : searchable
+                    ? es.catalogState.boot
+                    : es.catalogState.preparing(status.progress)}
               </p>
               {status.error?.retryable && (
                 <button type="button" className="btn" onClick={() => void search.retry()}>

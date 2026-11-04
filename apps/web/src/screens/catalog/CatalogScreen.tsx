@@ -26,7 +26,7 @@ import { gamePath, withSearch } from '../../router/routes.ts';
 import {
   type BrowseFilters,
   type CoreGame,
-  canSearchCatalog,
+  canBrowseCatalog,
   GAME_FLAGS,
 } from '../../search-client/index.ts';
 import { isShortcutTarget, openSteam, requestNoteFocus } from '../../shortcuts/dom.ts';
@@ -113,7 +113,8 @@ export default function CatalogScreen() {
   /** Ventanas que no se pueden olvidar: las visibles y la de la fila activa. */
   const keepPages = useRef(new Set<number>());
   const [scrollMargin, setScrollMargin] = useState(0);
-  const ready = canSearchCatalog(status.state);
+  // En `boot` (M3) el Worker no responde a `browse` hasta `scan`: aquí cuenta como en `none`.
+  const ready = canBrowseCatalog(status.state);
   // Sin el estado (`scan` → `full` no cambia las filas): así el foco no se pierde al pasar a `full`.
   const viewKey = `${text}\u0000${chip}\u0000${showAdult}\u0000${status.version ?? ''}`;
   const current = view !== null && view.key === viewKey ? view : null;

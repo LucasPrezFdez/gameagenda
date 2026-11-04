@@ -152,6 +152,8 @@ export const es = {
     failed: 'No hemos podido descargar el catálogo de Steam.',
     retry: 'Reintentar',
     meanwhile: 'Mientras, puedes apuntar a mano.',
+    /** Estado `boot` (M3): la paleta busca en el núcleo de arranque (§8.8). */
+    boot: `De momento buscamos en los ${formatCount(20_000)} juegos más populares; el catálogo completo está llegando.`,
     // `status.error` con o sin catálogo en uso (§8.7): si lo hay, se sigue buscando en él.
     /** `browser-too-old`: el navegador no tiene Ed25519 en WebCrypto (RNF-12). */
     browserTooOld:
@@ -481,6 +483,7 @@ export const es = {
       lcp: 'LCP (pintado principal al abrir)',
       'app:list-visible': 'Abrir → Mi lista visible',
       'search:ready': 'Abrir → se puede buscar',
+      'search:boot': 'Búsqueda lista en la primera visita',
       'search:full': 'Abrir → índice completo',
       'search:index-restored': 'Restaurar el índice guardado',
     } satisfies Record<PanelMetric, string>,

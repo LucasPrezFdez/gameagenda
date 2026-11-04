@@ -166,9 +166,12 @@ export function buildPaletteModel(
 
   const hasResults = query.results !== null;
   const onlySuggestions = items.length === 0 && suggestions.length > 0;
+  // En `boot` (M3) solo se busca en los más populares: sin resultados, el juego seguramente está
+  // entre los que aún no han llegado, así que ni se resalta la fila manual ni se dice que no está.
+  const complete = status.state !== 'boot';
   let defaultIndex = -1;
   if (items.length > 0) defaultIndex = 0;
-  else if (hasResults && !onlySuggestions) defaultIndex = options.length - 1;
-  const noItems = query.fresh && items.length === 0;
+  else if (hasResults && !onlySuggestions && complete) defaultIndex = options.length - 1;
+  const noItems = query.fresh && items.length === 0 && complete;
   return { options, defaultIndex, onlySuggestions, hasResults, noItems };
 }
