@@ -65,5 +65,8 @@ describe('catalogIsLoading', () => {
     expect(catalogIsLoading({ state: 'scan', error: null })).toBe(true);
     expect(catalogIsLoading({ state: 'none', error: null })).toBe(true);
     expect(catalogIsLoading({ state: 'none', error: { kind: 'network' } })).toBe(false);
+    // En `boot` (M3) aún llega el núcleo; si ha fallado, se reintenta solo y se deja recargar.
+    expect(catalogIsLoading({ state: 'boot', error: null })).toBe(true);
+    expect(catalogIsLoading({ state: 'boot', error: { kind: 'network' } })).toBe(false);
   });
 });
