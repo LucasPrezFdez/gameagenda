@@ -1,0 +1,157 @@
+/* Navegación · opción 1, «Pestañas arriba y barra flotante» (propuesta; se inyecta encima del build).
+   Escritorio, como GitHub o Vercel: sin barra lateral; Mi lista, Catálogo y Ajustes, en pestañas
+   de píldora en la cabecera, junto a la marca, y el contenido centrado.
+   Móvil, como las apps de iOS 26: una cápsula flotante con las tres secciones y el buscador como
+   botón redondo aparte, al alcance del pulgar, en lugar de dos barras apiladas.
+   Para la maqueta, la barra de navegación se recoloca con CSS; al construirla, iría dentro de la
+   cabecera en el DOM, para que el orden del foco siga al visual. */
+
+@media (min-width: 768px) {
+  .app {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: var(--header-h) auto 1fr;
+    grid-template-areas:
+      "header"
+      "banner"
+      "main";
+  }
+
+  /* El hueco de las pestañas, a la derecha de la marca. */
+  .brand {
+    margin-right: 340px;
+  }
+
+  .app-nav {
+    position: fixed;
+    top: 0;
+    left: 168px;
+    z-index: calc(var(--z-sticky) + 1);
+    display: flex;
+    align-items: center;
+    height: var(--header-h);
+    padding: 0;
+    background: transparent;
+  }
+
+  .app-nav ul {
+    flex-direction: row;
+    gap: 2px;
+  }
+
+  .app-nav__link,
+  .app-nav__link[aria-current="page"] {
+    gap: 8px;
+    min-height: 34px;
+    padding: 6px 14px 6px 12px;
+    border-radius: 999px;
+    box-shadow: none;
+  }
+
+  .app-nav__link .icon {
+    width: 16px;
+    height: 16px;
+  }
+
+  .app-nav__link[aria-current="page"] {
+    background: var(--surface-3);
+    color: var(--text);
+  }
+
+  .app-header > .palette {
+    flex: 0 1 24rem;
+    margin-inline: auto 4px;
+  }
+
+  .app-main {
+    padding-top: 24px;
+  }
+
+  .screen {
+    margin-inline: auto;
+  }
+}
+
+@media (max-width: 767px) {
+  .app {
+    --tabbar-h: 64px;
+    --capturebar-h: 8px;
+  }
+
+  /* La cápsula de las secciones, flotante. */
+  .app-nav {
+    inset: auto 84px calc(12px + env(safe-area-inset-bottom)) 16px;
+    height: 60px;
+    padding: 4px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+  }
+
+  .app[data-route="catalog"] .app-nav,
+  .app[data-route="settings"] .app-nav,
+  .app[data-route="game"] .app-nav {
+    right: 16px;
+  }
+
+  .app-nav ul {
+    height: 100%;
+    gap: 2px;
+  }
+
+  .app-nav__link,
+  .app-nav__link[aria-current="page"] {
+    gap: 2px;
+    border-radius: 999px;
+    font-weight: 500;
+    box-shadow: none;
+  }
+
+  .app-nav__link[aria-current="page"] {
+    background: var(--surface-3);
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  /* El buscador, un botón redondo aparte, como la búsqueda de iOS 26. El campo sigue ahí (es el
+     que recibe el toque y abre la hoja con el teclado), pero no se ve. */
+  .app-header > .palette:not(.is-open) {
+    inset: auto 16px calc(14px + env(safe-area-inset-bottom)) auto;
+    width: 56px;
+    height: 56px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: var(--shadow);
+  }
+
+  .app-header > .palette:not(.is-open) .palette__field {
+    justify-content: center;
+    min-height: 56px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+  }
+
+  .app-header > .palette:not(.is-open) .palette__search-icon {
+    width: 22px;
+    height: 22px;
+    color: var(--on-accent);
+  }
+
+  .app-header > .palette:not(.is-open) .palette__input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+  }
+
+  /* El filtro del Catálogo, arriba, en vez de en la barra de abajo. */
+  .catalog__filter {
+    position: static;
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+}

@@ -1,0 +1,171 @@
+/* Navegación · opción 2, «Barra lateral y Material 3» (propuesta; se inyecta encima del build).
+   Escritorio, como Linear o Notion: una barra lateral de altura completa con la marca, el menú y
+   el buscador arriba, y las secciones debajo; sin cabecera encima del contenido.
+   Móvil, como las apps de Material 3: barra de navegación de 80 px con la píldora de 64 × 32
+   detrás del icono activo, y el buscador como botón flotante extendido («Apunta un juego…»), como
+   el «Redactar» de Gmail. */
+
+@media (min-width: 768px) {
+  .app {
+    --header-h: 0px;
+    grid-template-columns: 248px minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+    grid-template-areas:
+      "header main"
+      "nav main";
+  }
+
+  /* Arriba de la barra lateral: marca y menú en una línea, y el buscador debajo. */
+  .app-header {
+    position: sticky;
+    top: 0;
+    flex-wrap: wrap;
+    gap: 14px 8px;
+    height: auto;
+    padding: 16px 12px 8px 16px;
+    border-right: 1px solid var(--line);
+    border-bottom: 0;
+    background: var(--surface);
+  }
+
+  .app-header__menu {
+    order: 1;
+    margin-left: auto;
+  }
+
+  /* `min-width: 0`: sin él, el ancho propio del campo de texto lo sacaba de la barra. */
+  .app-header > .palette {
+    order: 2;
+    flex: 1 1 100%;
+    min-width: 0;
+    max-width: none;
+    margin: 0;
+  }
+
+  .app-header .palette__field {
+    min-height: 36px;
+    background: var(--surface-2);
+  }
+
+  .app-header .palette__input {
+    font-size: var(--text-md);
+  }
+
+  /* La lista de resultados sale de la barra hacia el contenido. */
+  .app-header .palette__popup {
+    right: auto;
+    width: min(40rem, calc(100vw - 280px));
+  }
+
+  .app-nav {
+    position: static;
+    align-self: stretch;
+    height: auto;
+    padding: 8px 12px;
+    border-right: 1px solid var(--line);
+    background: var(--surface);
+  }
+
+  .app-nav ul {
+    position: sticky;
+    top: 112px;
+    gap: 2px;
+  }
+
+  .app-nav__link,
+  .app-nav__link[aria-current="page"] {
+    gap: 10px;
+    min-height: 34px;
+    padding: 6px 10px;
+    box-shadow: none;
+  }
+
+  .app-nav__link[aria-current="page"] {
+    background: var(--surface-2);
+    color: var(--text);
+  }
+
+  .app-main {
+    padding-top: 24px;
+  }
+}
+
+@media (max-width: 767px) {
+  .app {
+    --tabbar-h: 80px;
+    --capturebar-h: 72px;
+  }
+
+  .app-nav ul {
+    height: var(--tabbar-h);
+  }
+
+  .app-nav__link,
+  .app-nav__link[aria-current="page"] {
+    gap: 4px;
+    padding: 12px 0 16px;
+    background: transparent;
+    font-weight: 500;
+    box-shadow: none;
+  }
+
+  /* La píldora detrás del icono activo: el propio icono, con 64 × 32 y su fondo. */
+  .app-nav__link .icon {
+    box-sizing: border-box;
+    width: 64px;
+    height: 32px;
+    padding: 4px 20px;
+    border-radius: 999px;
+    transition: background-color var(--motion) var(--ease);
+  }
+
+  .app-nav__link[aria-current="page"] {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .app-nav__link[aria-current="page"] .icon {
+    background: var(--surface-3);
+    color: var(--text);
+  }
+
+  /* La barra de captura pasa a botón flotante extendido, abajo a la derecha. */
+  .app-header > .palette:not(.is-open) {
+    inset: auto 16px calc(var(--tabbar-h) + 16px + env(safe-area-inset-bottom)) auto;
+    width: auto;
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+
+  .app-header > .palette:not(.is-open) .palette__field {
+    gap: 10px;
+    min-height: 56px;
+    padding: 0 20px 0 18px;
+    border: 0;
+    border-radius: 16px;
+    background: var(--accent);
+    box-shadow: var(--shadow);
+  }
+
+  .app-header > .palette:not(.is-open) .palette__search-icon {
+    color: var(--on-accent);
+  }
+
+  .app-header > .palette:not(.is-open) .palette__input {
+    width: 8.75rem;
+    color: var(--on-accent);
+    font-weight: 500;
+  }
+
+  .app-header > .palette:not(.is-open) .palette__input::placeholder {
+    color: var(--on-accent);
+  }
+
+  .catalog__filter {
+    position: static;
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+}
