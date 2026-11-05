@@ -402,3 +402,8 @@ Resueltos a partir de las mediciones y de los conflictos detectados entre seccio
     - **Quedan:**
       - el instalador de escritorio con el icono nuevo (`npm run desktop:build`);
       - la pasada con lectores de pantalla (CA3.5) sobre la interfaz nueva, que hace el usuario.
+32. **El atajo de escritorio solo pone la app delante (06-11-2026, decisión del usuario; cambia RF-30, §9.2, §17.3 y CA3.7):** el usuario pidió que `Ctrl+Mayús+Espacio` dejara de abrir la paleta y solo pusiera la app en primer plano.
+    - **Cómo:** `App.tsx` deja de escuchar `gameagenda:capture`; `desktop/desktop-capture.ts` se conserva sin uso, por si se recupera. La parte nativa no cambia, así que no hace falta reinstalar: con la ventana detrás, la muestra, la pone delante y le da el foco, y sigue lanzando el evento, que la página ya no atiende; con la ventana delante, la oculta. Para apuntar, `Ctrl+K` o `/`.
+    - **Pruebas:** `desktop.spec.ts` comprueba ahora lo contrario: el evento no abre la paleta, no cambia de pantalla ni recarga, y con la paleta abierta no la cierra ni le borra el texto.
+    - **CA3.7:** el p50 de 1,24 s del 02-11-2026 se midió con el atajo abriendo la paleta. Ahora el recorrido es atajo, `Ctrl+K`, nombre e `Intro`.
+    - **Pendiente:** en el próximo instalador, quitar de `main.rs` el `eval` de `CAPTURE_SCRIPT` y su comentario, y la prueba que fija el evento en `desktop.test.ts`.

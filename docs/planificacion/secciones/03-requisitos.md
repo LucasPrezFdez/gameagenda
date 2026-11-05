@@ -14,7 +14,7 @@ Prioridad (MoSCoW): **Imprescindible** (sin ello el prototipo no cumple su fin),
 | RF-05 | Vincular un juego manual con Steam (ver §7): solo se propone ante una única coincidencia exacta tras normalizar | Importante | M1 |
 | RF-06 | `Alt+Intro` (M1) o pulsación larga (M3): apuntar con otro estado o con marcas | Importante | M1 · M3 |
 | RF-07 | Más vías: `Ctrl+V` con un enlace en cualquier pantalla; en Android, «Compartir» y acceso directo «Apuntar juego»; en iOS, chip «Pegar enlace» | Importante | M3 |
-| RF-30 | App de escritorio para Windows (envoltorio Tauri de la misma web): `Ctrl+Mayús+Espacio` abre la paleta desde cualquier aplicación (ver §17.3) | Importante | M3 |
+| RF-30 | App de escritorio para Windows (envoltorio Tauri de la misma web): `Ctrl+Mayús+Espacio` la pone delante desde cualquier aplicación; para apuntar, `Ctrl+K` (desde el 06-11-2026, decisión del usuario; ver §17.3 y DECISIONES §10.32) | Importante | M3 |
 | RF-08 | Atajo de iOS que envía el enlace al buzón con un *token* de solo escritura revocable | Importante | M4 |
 | | **Mi lista y estados** | | |
 | RF-09 | Estado y marcas según la §3.3; cada cambio cuesta una acción y nunca abre un diálogo | Imprescindible | M1 |

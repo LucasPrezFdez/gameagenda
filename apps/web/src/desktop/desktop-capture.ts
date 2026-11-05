@@ -1,8 +1,11 @@
 // App de escritorio para Windows (§17.3 de prototipe.md; ADR-010). La web no importa Tauri ni le
 // habla (CA3.8): al pulsar `Ctrl+Mayús+Espacio`, la parte nativa pone la ventana delante y ejecuta
 // en la página `window.dispatchEvent(new Event('gameagenda:capture'))`. Aquí se atiende ese evento
-// fijo: la paleta se abre con el foco sobre Mi lista, como `/apuntar`, sin recargar la página.
-// Cualquier *script* de la página podría lanzarlo, pero solo abre la paleta.
+// fijo: la paleta se abría con el foco sobre Mi lista, como `/apuntar`, sin recargar la página.
+// Cualquier *script* de la página podría lanzarlo, pero solo abría la paleta.
+//
+// Sin uso desde el 06-11-2026: por decisión del usuario, el atajo solo pone la ventana delante y
+// `App.tsx` ya no escucha el evento (DECISIONES §10.32). Se conserva por si se recupera.
 import type { Route } from '../router/routes.ts';
 
 /** El mismo nombre que `CAPTURE_SCRIPT` en `apps/desktop/src-tauri/src/main.rs`. */

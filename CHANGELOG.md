@@ -26,6 +26,7 @@ Cambios de GameAgenda por versión. Cada hito cierra una versión SemVer 0.x (§
 
   En el móvil, la lista empieza mucho antes: el rótulo de la primera sección sube de 436 a ≈280 px.
 - **Iconos de estado y marcas nuevos,** macizos, de Phosphor (MIT). Platinado es un trofeo de platino al estilo de PlayStation y Próximo, una chincheta roja; los dos solo van en color con la marca puesta. Los avisos de las licencias de los iconos van en `licencias.txt`.
+- **`Ctrl+Mayús+Espacio` en la app de escritorio solo la pone delante** (06-11-2026, decisión del usuario; DECISIONES §10.32): ya no abre la paleta. Para apuntar, `Ctrl+K`. Llega sin reinstalar.
 - **Logo nuevo, «Grafito»:** un marcapáginas blanco con un play hueco sobre zinc oscuro. Sale en la pestaña, en la app instalada (móvil, iPhone y escritorio) y en la cabecera. El color de tema deja el rosa.
 
 ### Corregido
