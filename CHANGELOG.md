@@ -4,7 +4,16 @@ Cambios de GameAgenda por versión. Cada hito cierra una versión SemVer 0.x (§
 
 ## [Sin publicar]
 
-Nada todavía.
+### Añadido
+
+#### Ingeniería
+
+- **Núcleo de arranque en el pipeline** (ADR-009, primera parte; 05-11-2026):
+  - cada catálogo trae `boot.<hash>.tsv` con los 20 000 juegos más populares, el principio del núcleo: 773 KB, 269 KB en brotli 11. Va en `files.boot` y `counts.boot` del *manifest* firmado;
+  - la puerta de integridad comprueba que es el principio del núcleo, y `assemble-catalog` y `catalog-smoke` lo conocen. Una versión anterior sin él sigue valiendo;
+  - `catalog:frozen` lo genera también en el mini-catálogo de `fixtures/`.
+
+  El cliente todavía no lo lee: entra en la segunda parte, cuando una ejecución programada haya publicado el primero.
 
 ## [0.2.0] · M2 Catálogo vivo · 05-11-2026
 

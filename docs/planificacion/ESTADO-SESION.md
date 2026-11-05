@@ -1,6 +1,6 @@
 # Estado del proyecto — punto de partida de la próxima sesión
 
-**Actualizado:** 05-11-2026, en la sesión 8 (CA2.1 cumplido: M2 cerrado con `v0.2.0`). Antes, el 02-11-2026, en la sesión 7 (gestos y reordenar arrastrando: CA3.4 completo).
+**Actualizado:** 05-11-2026, en la sesión 8 (CA2.1 cumplido: M2 cerrado con `v0.2.0`, y la parte del pipeline del núcleo de arranque, en `main`). Antes, el 02-11-2026, en la sesión 7 (gestos y reordenar arrastrando: CA3.4 completo).
 **Cómo retomar:** escribe *«Retoma GameAgenda desde docs/planificacion/ESTADO-SESION.md»*.
 
 ## 0. Lo primero en la próxima sesión
@@ -29,8 +29,8 @@ Todo está en `main` y subido, con el CI y el despliegue en verde y sin agentes 
      - la revisión dio 10 hallazgos; verificados uno a uno, se arreglan 3 (`ff15aae`): las sugerencias del nivel 4 al salir de `boot` y el reintento de la carga en `boot`. Los demás, con su motivo, en la §10.30;
      - `check` (905 pruebas, Worker en 38,7 KB) y los E2E de `boot.spec` y `search.spec`, en verde.
    - **Orden para pasarlo a `main`:**
-     1. Tras cerrar M2, `main` avanza hasta el último *commit* del pipeline (`e78eea2`).
-     2. Una ejecución programada publica el boot; se comprueba con `catalog-smoke`.
+     1. ~~Tras cerrar M2, `main` avanza hasta el último *commit* del pipeline (`e78eea2`).~~ **Hecho el 05-11-2026** con el *merge* `947efd4`. Antes de subirlo, `check` (879 pruebas) y los E2E de Chromium y WebKit (177), en verde. El cliente en producción ya admite `files.boot` como opcional y no lo lee.
+     2. Una ejecución programada publica el boot (la primera, la del 06-11-2026); se comprueba con `catalog-smoke`, que ya sabe del boot, y mirando que el *manifest* trae `files.boot` y `counts.boot` = 20 000.
      3. Después entra el cliente, con la documentación y los arreglos de la revisión (hasta `ff15aae`).
    - **Perf:** «Reinicio con caché → escaneo listo» da unos 2,1 s, sobre un presupuesto de ≤2 000 ms. `main` también lo supera en las mismas condiciones (2 039 y 2 543 ms), con el equipo cargado (CPU al 71 %). Hay que medirlo con el equipo en reposo. El 05-11 tampoco se pudo: había un juego abierto (Penumbra) y Discord, con la CPU al 28 %.
 4. **App de escritorio:** el usuario la instaló y la probó el 02-11-2026. Encontró dos cosas, arregladas ese día (`279c10a`):
