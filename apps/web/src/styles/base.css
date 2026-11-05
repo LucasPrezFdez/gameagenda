@@ -156,6 +156,66 @@ textarea {
   flex: none;
 }
 
+/* Iconos de Platinado (trofeo) y Próximo (chincheta), a varias tintas. Sin la marca puesta van en
+   el color del texto, como los demás, sin sombra ni brillo; con ella, en platino y con la cabeza
+   roja (ver icons.tsx). */
+.icon-trophy__body,
+.icon-trophy__shade,
+.icon-trophy__shine,
+.icon-pin__head,
+.icon-pin__shine {
+  stroke: none;
+}
+
+.icon-trophy__body {
+  fill: var(--trophy-body, currentcolor);
+}
+
+.icon-trophy__handle {
+  fill: none;
+  stroke: var(--trophy-body, currentcolor);
+  stroke-width: 1.6px;
+}
+
+.icon-trophy__shade {
+  fill: var(--trophy-shade, transparent);
+}
+
+.icon-trophy__shine {
+  fill: var(--trophy-shine, transparent);
+}
+
+.icon-pin__head {
+  fill: var(--pin-head, currentcolor);
+}
+
+.icon-pin__needle {
+  fill: none;
+  stroke: var(--pin-needle, currentcolor);
+}
+
+.icon-pin__shine {
+  fill: var(--pin-shine, transparent);
+}
+
+.chip--platinum,
+.flag-toggle--platinum[aria-pressed="true"],
+.chip-button.status-text--platinum[aria-pressed="true"],
+.capture-as__item.status-text--platinum[aria-checked="true"] {
+  --trophy-body: var(--platinum-metal);
+  --trophy-shade: var(--platinum-shade);
+  --trophy-shine: var(--platinum-shine);
+}
+
+.chip--next,
+.flag-toggle--next[aria-pressed="true"],
+.chip-button.status-text--next[aria-pressed="true"],
+.capture-as__item.status-text--next[aria-checked="true"] {
+  --pin-head: var(--next);
+  --pin-needle: var(--text-muted);
+  --pin-shine: var(--icon-shine);
+}
+
 .field {
   width: 100%;
   min-height: 40px;

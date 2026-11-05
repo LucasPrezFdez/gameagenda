@@ -59,6 +59,8 @@ const PAIRS: readonly Pair[] = [
     ['text-muted', s, 4.5, 'texto secundario e iconos'],
     ['accent', s, 3, 'anillo de foco y borde de la paleta'],
     ['control-border', s, 3, 'borde de los controles'],
+    ['platinum-metal', s, 3, 'cuerpo del trofeo de Platinado (icono)'],
+    ['next', s, 3, 'cabeza de la chincheta de Próximo (icono)'],
   ]),
   ['accent', 'surface', 4.5, 'texto en color de acento (botones sin fondo, «No cumple»)'],
   ['on-accent', 'accent', 4.5, 'botón principal y gesto ← armado'],

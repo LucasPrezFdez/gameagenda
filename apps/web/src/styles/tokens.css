@@ -23,12 +23,17 @@
   --completed-chip: #ede8f8;
   --dropped: #5e6977;
   --dropped-chip: #ecedef;
-  --platinum: #7a5a00;
-  --platinum-chip: #efebe0;
+  /* Platinado en platino (trofeo a tres tintas, ver base.css) y Próximo en rojo (05-11-2026). */
+  --platinum: #56657a;
+  --platinum-chip: #eceff4;
+  --platinum-metal: #7a8ba2;
+  --platinum-shade: #56657a;
+  --platinum-shine: #eef3f9;
   --owned: #556170;
   --owned-chip: #ebecee;
-  --next: #006875;
-  --next-chip: #e0edee;
+  --next: #c4272f;
+  --next-chip: #fbe9ea;
+  --icon-shine: rgb(255 255 255 / 0.5);
 
   --font: "Segoe UI Variable Text", system-ui, sans-serif;
   --radius: 8px;
@@ -74,12 +79,15 @@
     --completed-chip: #2f2f45;
     --dropped: #9aa5b4;
     --dropped-chip: #2b3139;
-    --platinum: #e8c35a;
-    --platinum-chip: #38362b;
+    --platinum: #c9d4e2;
+    --platinum-chip: #2a2f37;
+    --platinum-metal: #b4c1d2;
+    --platinum-shade: #8494aa;
+    --platinum-shine: #f7f9fc;
     --owned: #a3adba;
     --owned-chip: #2d323a;
-    --next: #4dd0e1;
-    --next-chip: #1f3841;
+    --next: #ff6b6b;
+    --next-chip: #3a2224;
   }
 }
 
@@ -105,12 +113,15 @@
   --completed-chip: #2f2f45;
   --dropped: #9aa5b4;
   --dropped-chip: #2b3139;
-  --platinum: #e8c35a;
-  --platinum-chip: #38362b;
+  --platinum: #c9d4e2;
+  --platinum-chip: #2a2f37;
+  --platinum-metal: #b4c1d2;
+  --platinum-shade: #8494aa;
+  --platinum-shine: #f7f9fc;
   --owned: #a3adba;
   --owned-chip: #2d323a;
-  --next: #4dd0e1;
-  --next-chip: #1f3841;
+  --next: #ff6b6b;
+  --next-chip: #3a2224;
 }
 
 @media (prefers-reduced-motion: reduce) {

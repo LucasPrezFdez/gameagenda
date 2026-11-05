@@ -121,6 +121,12 @@ Contraste sobre `--surface`. Los 48 pares cumplen en los dos temas. El más just
 | Comprado | `bag-simple`: la que mejor se lee como bolsa a 18 px |
 | Próximo | `push-pin`: la inclinada (la recta parece una lámpara) |
 
+- **Cambio del usuario en dos marcas:**
+  - **Platinado,** basado en el trofeo de platino de PlayStation y en color platino. Es un trofeo propio con esa forma clásica (copa ancha, asas en bucle, tallo con collarín y peana de dos alturas), no el dibujo de Sony. Va a tres tintas: cuerpo acero-platino, sombra a la derecha y brillo a la izquierda. Tokens nuevos: `--platinum-metal`, `--platinum-shade` y `--platinum-shine`. El texto de la marca pasa del dorado al gris platino (`#56657A` / `#C9D4E2`).
+  - **Próximo,** una chincheta roja: la «push-pin» de Phosphor partida en cabeza roja, aguja gris y un brillo. `--next` pasa del verde azulado al rojo (`#C4272F` / `#FF6B6B`).
+  - **Los colores solo salen con la marca puesta:** en las insignias de la fila, en los botones de marca pulsados, en los chips de la ficha y en «Apuntar como…». Sin marcar van en el color del texto, para no parecer activos. Las reglas están en `base.css`.
+  - **Contraste:** `tokens-contrast.test.ts` comprueba también el cuerpo del trofeo y la cabeza de la chincheta sobre las tres superficies (≥3:1). Pasan las 79 pruebas.
+  - Prueba ampliada: `node docs/diseno/rediseno-visual/iconos-marcas.mjs <salida.html>`.
 - **Cómo van:** en `icons.tsx`, como trazados con su rejilla de 256 reducida a 24 (`scale(.09375)`). El componente `Icon` y los nombres no cambian, y no hay dependencias nuevas. Los ocho suman ≈2,5 KB sin comprimir.
 - **Licencias:** `apps/web/public/licencias.txt` lleva los avisos de Phosphor (MIT) y de Lucide (ISC), que la app no recogía.
 - **El resto de la interfaz sigue en Lucide** (buscar, menús, cerrar…), con el trazo a 1,75 px. Solo cambian dos: «Mi lista» y «Catálogo», con los puntos más pequeños y las esquinas más redondas.

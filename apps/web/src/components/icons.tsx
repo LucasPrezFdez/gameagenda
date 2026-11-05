@@ -3,6 +3,10 @@
 // interfaz monocroma son lo único con color, y una forma llena se lee mejor que un contorno a
 // 14–18 px. Se eligieron frente a Fluent, Tabler, Heroicons y unos propios
 // (docs/diseno/rediseno-visual/propuesta.md). Avisos de las licencias: public/licencias.txt.
+// Dos marcas van a varias tintas, a petición del usuario. Platinado es un trofeo propio con la forma
+// clásica de los de PlayStation (copa, asas en bucle, tallo y peana; no el dibujo de Sony), en
+// platino. Próximo es la «push-pin» de Phosphor partida en cabeza roja y aguja. Sin la marca puesta
+// van en el color del texto, como los demás; los colores los pone base.css con la marca puesta.
 import type { ReactNode } from 'react';
 import type { Flag, Status } from '../agenda/types.ts';
 
@@ -53,17 +57,46 @@ const PATHS: Readonly<Record<IconName, ReactNode>> = {
   dropped: phosphor(
     'M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm37.66,141.66a8,8,0,0,1-11.32,0l-64-64a8,8,0,0,1,11.32-11.32l64,64A8,8,0,0,1,165.66,165.66Z',
   ),
-  // Phosphor «trophy»
-  platinum: phosphor(
-    'M232,64H208V48a8,8,0,0,0-8-8H56a8,8,0,0,0-8,8V64H24A16,16,0,0,0,8,80V96a40,40,0,0,0,40,40h3.65A80.13,80.13,0,0,0,120,191.61V216H96a8,8,0,0,0,0,16h64a8,8,0,0,0,0-16H136V191.58c31.94-3.23,58.44-25.64,68.08-55.58H208a40,40,0,0,0,40-40V80A16,16,0,0,0,232,64ZM48,120A24,24,0,0,1,24,96V80H48v32q0,4,.39,8ZM232,96a24,24,0,0,1-24,24h-.5a81.81,81.81,0,0,0,.5-8.9V80h24Z',
+  // Trofeo propio: copa, asas, tallo con collarín y peana; sombra a la derecha y brillo a la izquierda
+  platinum: (
+    <>
+      <path
+        className="icon-trophy__body"
+        d="M5.5 3h13v3.25c0 3.7-2.6 6.75-6.1 7.2h-.8C8.1 13 5.5 9.95 5.5 6.25zM11 13.3h2l.35 3.2h-2.7zM9.75 16.4h4.5a.6.6 0 0 1 .6.6v.5h-5.7v-.5a.6.6 0 0 1 .6-.6zM6.75 17.9h10.5a.75.75 0 0 1 .75.75v1.85a.75.75 0 0 1-.75.75H6.75a.75.75 0 0 1-.75-.75v-1.85a.75.75 0 0 1 .75-.75z"
+      />
+      <path
+        className="icon-trophy__handle"
+        d="M5.6 4.6H4.25A1.75 1.75 0 0 0 2.5 6.35c0 2.6 2.1 4.6 4.6 4.9M18.4 4.6h1.35a1.75 1.75 0 0 1 1.75 1.75c0 2.6-2.1 4.6-4.6 4.9"
+      />
+      <path
+        className="icon-trophy__shade"
+        d="M15.1 3.9h2.5v2.35c0 3.05-1.95 5.6-4.8 6.45 1.45-1.65 2.3-3.95 2.3-6.45zM14.6 18.75h2.6v1.75h-2.6z"
+      />
+      <path
+        className="icon-trophy__shine"
+        d="M7.6 4.4h1.5v1.9c0 2.3.9 4.3 2.4 5.6-2.4-.5-3.9-2.9-3.9-5.6zM7.4 18.75h3.2v.7H7.4z"
+      />
+    </>
   ),
   // Phosphor «bag-simple»
   owned: phosphor(
     'M216,64H176a48,48,0,0,0-96,0H40A16,16,0,0,0,24,80V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V80A16,16,0,0,0,216,64ZM128,32a32,32,0,0,1,32,32H96A32,32,0,0,1,128,32Z',
   ),
-  // Phosphor «push-pin»
-  next: phosphor(
-    'M235.33,104l-53.47,53.65c4.56,12.67,6.45,33.89-13.19,60A15.93,15.93,0,0,1,157,224c-.38,0-.75,0-1.13,0a16,16,0,0,1-11.32-4.69L96.29,171,53.66,213.66a8,8,0,0,1-11.32-11.32L85,159.71l-48.3-48.3A16,16,0,0,1,38,87.63c25.42-20.51,49.75-16.48,60.4-13.14L152,20.7a16,16,0,0,1,22.63,0l60.69,60.68A16,16,0,0,1,235.33,104Z',
+  // Phosphor «push-pin», partida: aguja, cabeza y su brillo
+  next: (
+    <g transform="scale(.09375)">
+      <path
+        className="icon-pin__needle"
+        strokeWidth="18"
+        strokeLinecap="round"
+        d="M90.6 165.4 46 210"
+      />
+      <path
+        className="icon-pin__head"
+        d="M235.33,104l-53.47,53.65c4.56,12.67,6.45,33.89-13.19,60A15.93,15.93,0,0,1,157,224c-.38,0-.75,0-1.13,0a16,16,0,0,1-11.32-4.69L96.29,171,85,159.71l-48.3-48.3A16,16,0,0,1,38,87.63c25.42-20.51,49.75-16.48,60.4-13.14L152,20.7a16,16,0,0,1,22.63,0l60.69,60.68A16,16,0,0,1,235.33,104Z"
+      />
+      <path className="icon-pin__shine" d="M165 40a14 14 0 1 1 0 .1z" />
+    </g>
   ),
   plus: <path d="M5 12h14M12 5v14" />,
   info: (

@@ -96,13 +96,14 @@ const AGENDA: readonly [number, string, Status, Record<string, boolean>][] = [
   [1794680, 'Vampire Survivors', 'dropped', {}],
 ];
 
-type ScreenId = 'lista' | 'paleta' | 'catalogo' | 'ficha' | 'proximos' | 'ajustes';
+type ScreenId = 'lista' | 'paleta' | 'catalogo' | 'ficha' | 'proximos' | 'completado' | 'ajustes';
 const SCREENS: readonly { id: ScreenId; path: string; title: string }[] = [
   { id: 'lista', path: '/', title: 'Mi lista' },
   { id: 'paleta', path: '/', title: 'Paleta' },
   { id: 'catalogo', path: '/catalogo', title: 'Catálogo' },
   { id: 'ficha', path: '/juego/steam:367520', title: 'Ficha' },
   { id: 'proximos', path: '/?vista=proximos', title: 'Próximos' },
+  { id: 'completado', path: '/?vista=completado', title: 'Completado' },
   { id: 'ajustes', path: '/ajustes', title: 'Ajustes' },
 ];
 
