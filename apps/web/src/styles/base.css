@@ -10,6 +10,8 @@ html {
   line-height: 1.45;
   background: var(--bg);
   color: var(--text);
+  /* Casillas y botones de opción en tinta, no en el azul del sistema. */
+  accent-color: var(--accent);
   -webkit-text-size-adjust: 100%;
   /* Barras y avisos fijos no tapan el foco (WCAG 2.4.11). */
   scroll-padding-top: calc(var(--header-h) + 8px);

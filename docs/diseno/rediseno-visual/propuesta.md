@@ -161,9 +161,34 @@ El usuario descarta el rosa: el logo tiene que ir con los colores de la B. Hubo 
 
 Comportamiento, rutas, atajos, gestos, textos y nombres accesibles; la letra del sistema, sin fuentes web; y las reglas de la §9.5: huecos reservados, portada 2:3 fija, nada de `:has()` en la raíz y animaciones solo con `transform` y `opacity`. Las hojas de la propuesta solo cambian CSS. Las únicas reglas con `:has()` son las que ya existían.
 
-## 7 · Siguiente
+## 7 · Paso 3: la B en la app (05-11-2026)
 
-1. Elegir el icono de la app (Tinta, Rosa o Cinta) y generar todos sus tamaños.
-2. El paso 3: llevar la dirección B a `tokens.css` y a las hojas de la app, capa por capa, con `check`, los E2E, `perf` y `size` en verde en cada *commit*. Hasta entonces, B solo existe como hojas inyectadas encima.
+Hecho en seis capas, con un *commit* y `check` en verde en cada una:
 
-El arreglo de la paleta a 390 px (hallazgo 9) puede ir antes y aparte, directo a `main`.
+1. `38466a2`, tokens;
+2. `69b0e8e`, base y estructura;
+3. `d8decc0`, Mi lista;
+4. `98ddd6c`, paleta, con el arreglo de 390 px;
+5. `877e2d6`, Catálogo y ficha;
+6. `046486d`, Ajustes.
+
+Después, `a2898a6` arregla el hueco entre avisos y la última capa pone las casillas en tinta (`accent-color`). Las capturas del después (`--variant=despues`, el *build* de la rama sin hojas inyectadas) coinciden con «B con los iconos nuevos».
+
+| Medida (05-11-2026, CPU al 5 %) | Antes (`main`) | Después |
+|---|---|---|
+| `check` | 879 pruebas | 945 pruebas (66 de contraste nuevas) |
+| E2E Chromium + WebKit (axe, 320 px, foco) | 177 | 177 |
+| JS inicial (brotli) | 130,4 KB | 131,1 KB |
+| Pares de contraste | 79 | 133 |
+| Tareas largas al teclear o apuntar | 0 | 0 en 2 de 3 pasadas; una de 52 ms en la otra, sin fotograma largo |
+| INP (20 nombres, 10 altas) | — | 32–64 ms (≤200) |
+| Reinicio con caché → `scan` | ≈2,1 s con el equipo cargado | 1 768 ms (≤2 000) |
+| Restaurar el índice → primera consulta | 162–326 ms | 171 ms (≤400) |
+
+Criterios de aceptación del encargo:
+- Seis tamaños de letra, tres pesos, tres radios, dos sombras y un acento: cumple.
+- Ningún color fuera de `tokens.css`: cumple, salvo el `::backdrop` de la ayuda de atajos, que ya estaba así a propósito porque algunos navegadores no le pasan las variables.
+- `check`, E2E, `perf` y `size` en verde, y +0,7 KB de JS: cumple.
+- Mismas funciones, atajos y textos, y ningún selector de E2E cambiado: cumple.
+
+**Queda:** el visto bueno del usuario sobre las capturas, el instalador de escritorio con el icono nuevo y la pasada con lectores de pantalla sobre la interfaz nueva.

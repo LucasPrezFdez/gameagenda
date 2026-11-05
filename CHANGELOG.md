@@ -15,6 +15,23 @@ Cambios de GameAgenda por versión. Cada hito cierra una versión SemVer 0.x (§
 
   El cliente todavía no lo lee: entra en la segunda parte, cuando una ejecución programada haya publicado el primero.
 
+### Cambiado
+
+- **Rediseño visual, dirección «Tinta»** (05-11-2026, en la rama `rediseno-visual`; DECISIONES §10.31 y §9.8). La app es casi monocroma y más limpia:
+  - el acento es la tinta, y el color lo ponen las portadas y los iconos de estado;
+  - las filas van sin tarjeta, dentro de una superficie por sección, con líneas finas;
+  - las vistas pasan a pestañas subrayadas, en una línea que se desliza, y el estado, a un botón neutro con el color en el icono;
+  - las portadas son más grandes (40 × 60 px) y el texto va a 15 px.
+
+  En el móvil, la lista empieza mucho antes: el rótulo de la primera sección sube de 436 a ≈280 px.
+- **Iconos de estado y marcas nuevos,** macizos, de Phosphor (MIT). Platinado es un trofeo de platino al estilo de PlayStation y Próximo, una chincheta roja; los dos solo van en color con la marca puesta. Los avisos de las licencias de los iconos van en `licencias.txt`.
+- **Logo nuevo, «Grafito»:** un marcapáginas blanco con un play hueco sobre zinc oscuro. Sale en la pestaña, en la app instalada (móvil, iPhone y escritorio) y en la cabecera. El color de tema deja el rosa.
+
+### Corregido
+
+- **Paleta en el móvil:** a 390 px, cada resultado medía 395 px dentro de una lista de 358, y el año y «Intro: Apuntar» quedaban debajo del botón (i).
+- **El aviso de Deshacer** quedaba a 8,5 px del de las portadas en vez de a 8, por redondear la altura de este.
+
 ## [0.2.0] · M2 Catálogo vivo · 05-11-2026
 
 El catálogo se actualiza solo cada día, firmado, y la app muestra portadas, la ficha completa y los próximos lanzamientos. La app es la versión 0.2.0 desde el 31-10-2026, porque el catálogo firmado la pide. La etiqueta llega con CA2.1: tres ejecuciones programadas seguidas en verde, las del 03, el 04 y el 05-11-2026. Trae también lo que se adelantó de M3 antes de etiquetar: la app de escritorio, los atajos, los gestos, el índice persistido y el resto de los apartados «Adelantado de M3».

@@ -376,3 +376,28 @@ Resueltos a partir de las mediciones y de los conflictos detectados entre seccio
       - `pwa-update.spec.ts` (Chromium), con la página oculta por `visibilityState` y el reloj de Playwright: la versión entra tras el minuto y en la misma ruta; con texto en la paleta, no, y al vaciarla, sí; y no entra con otra pestaña a la vista.
       - **En la app de escritorio instalada, con producción (02-11-2026):** se abrió con `--autostart`, oculta, con `index-CYfpGTZv.js`, mientras se publicaba otra versión, y no se tocó nada más. Encontró la nueva y la dejó en espera a los 51 s; a los 112 s ya iba con ella (`index-D8AJgvtc.js`), sin mostrarse y sin «Salir».
       - Playwright no intercepta la petición de `sw.js` con la que el navegador busca versión nueva. Por eso, la vista previa `e2e` sirve un `sw.js` con otro byte cuando la prueba lleva la *cookie* `ga-e2e-sw` (`e2e-sw-plugin.ts`).
+31. **Rediseño visual, dirección «Tinta» (05-11-2026, en la rama `rediseno-visual`, decisión del usuario; cambia §9.8):** el usuario pidió un aspecto minimalista y limpio. El encargo está en `docs/planificacion/prompts/rediseno-visual.md`; la auditoría, las opciones y las medidas, en `docs/diseno/rediseno-visual/propuesta.md`. Va en una rama aparte: si no convence, no se integra. El número 30 lo tiene el núcleo de arranque, en `m3-arranque`.
+    - **Cómo se eligió:** dos direcciones, «Papel» (cálida, con el rosa) y «Tinta» (monocroma), se inyectaron como CSS encima de `ga-web` de producción con Playwright, con el catálogo y las portadas de verdad (`scripts/rediseno-capturas.ts`). El usuario eligió «Tinta».
+    - **Qué cambia:**
+      - neutros fríos y el acento en tinta, y `--danger` para lo que hacía el rosa de error y de borrar;
+      - menos cajas: filas sin tarjeta dentro de una superficie agrupada por sección, con líneas finas desde el título (`--line`);
+      - las vistas, en pestañas subrayadas, y la compra, en píldoras, cada una en una línea que se desliza. A 390 px, la primera sección sube de 436 a ≈280 px;
+      - el estado, en un botón neutro con el color solo en el icono;
+      - portadas de 40 × 60 px con filo (`--row-h` de 76 px; el Catálogo sigue en su hueco de 72 px);
+      - texto a 15 px, seis tamaños, tres pesos, tres radios y dos sombras.
+    - **Iconos de estado y marcas:** el usuario pidió mejorarlos con diseños profesionales. Se compararon Phosphor, Fluent, Tabler y Heroicons (MIT), descargados con `npm pack` y leídos como datos, y se eligieron los macizos de Phosphor: los únicos con los ocho conceptos y el mismo lenguaje.
+      - Platinado es un trofeo propio con la forma de los de PlayStation, a tres tintas de platino; Próximo, una chincheta roja. Las dos solo van en color con la marca puesta, y ambos cambios los pidió el usuario.
+      - `--platinum` y `--next` pasan a platino y rojo, y `public/licencias.txt` lleva los avisos de Phosphor y de Lucide.
+    - **Logo «Grafito»:** el usuario descartó el rosa porque tenía que ir con la B. Es el marcapáginas de Phosphor con el play hueco sobre un degradado de zinc, siguiendo las guías de iconos de Microsoft y Apple.
+      - `scripts/generar-iconos.ts` saca todos los tamaños de dos originales (`public/icons/icon.svg` y `icons/icon-sangre.svg`), con el `.ico` de escritorio vía `tauri icon`.
+      - El color de tema deja el rosa por el fondo de la B, claro y oscuro.
+    - **Arreglos que salieron por el camino:**
+      - en la paleta del móvil, la columna implícita de la lista se ensanchaba hasta el título más largo (395 px en 358) y el año quedaba bajo el botón (i): ahora es `minmax(0, 1fr)`;
+      - el hueco entre el aviso de Deshacer y el de portadas usaba `offsetHeight`, que redondea, y con medias alturas salía de 8,5 px: ahora usa `getBoundingClientRect`.
+    - **Medido (05-11-2026, CPU al 5 %):**
+      - `check` en verde (945 pruebas) y los E2E de Chromium y WebKit (177, con axe, 320 px y foco);
+      - JS inicial de 131,1 KB brotli frente a 130,4 KB en `main`, y 133 pares de contraste;
+      - `npm run perf` en verde en 2 de 3 pasadas. La otra dio una tarea larga de 52 ms, sin fotograma largo, que no se repitió. INP de 32–64 ms, reinicio con caché hasta `scan` en 1 768 ms y restaurar el índice en 171 ms.
+    - **Quedan:**
+      - el instalador de escritorio con el icono nuevo (`npm run desktop:build`);
+      - la pasada con lectores de pantalla (CA3.5) sobre la interfaz nueva, que hace el usuario.
