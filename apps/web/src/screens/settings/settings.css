@@ -18,17 +18,27 @@
   min-height: 40px;
   padding: 8px 12px;
   border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-weight: 500;
   text-decoration: none;
+  transition:
+    background-color var(--motion) var(--ease),
+    color var(--motion) var(--ease);
 }
 
 .settings__nav-link:hover {
   background: var(--surface-2);
+  color: var(--text);
 }
 
+/* Como la barra lateral: la sección actual, en una pastilla blanca con su filo. */
 .settings__nav-link[aria-current="page"] {
-  background: var(--surface-2);
+  background: var(--surface);
+  color: var(--text);
   font-weight: 600;
-  box-shadow: inset 3px 0 var(--accent);
+  box-shadow:
+    0 0 0 1px var(--line),
+    var(--shadow-sm);
 }
 
 .settings__chevron {
@@ -40,14 +50,14 @@
   flex-direction: column;
   gap: 16px;
   padding: var(--gutter);
-  border: 1px solid var(--surface-2);
-  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
   background: var(--surface);
 }
 
 .settings__section-title {
   color: var(--text);
-  font-size: 1.125rem;
+  font-size: var(--text-lg);
   letter-spacing: 0;
   text-transform: none;
 }
@@ -92,7 +102,7 @@
 
 .settings__catalog {
   padding-top: 16px;
-  border-top: 1px solid var(--surface-2);
+  border-top: 1px solid var(--line);
 }
 
 .settings__subtitle {
@@ -134,7 +144,7 @@
 
 .settings__danger {
   padding-top: 16px;
-  border-top: 1px solid var(--surface-2);
+  border-top: 1px solid var(--line);
 }
 
 .settings__confirm .field {
@@ -145,7 +155,7 @@
   padding: 12px;
   border-radius: var(--radius-sm);
   background: var(--surface-2);
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
 }
 
 @media (max-width: 767px) {
@@ -164,13 +174,14 @@
 
   .settings__nav-link {
     min-height: var(--target-touch);
-    border-bottom: 1px solid var(--surface-2);
+    border-bottom: 1px solid var(--line);
     border-radius: 0;
+    color: var(--text);
   }
 
   .settings__nav-link[aria-current="page"] {
     background: transparent;
-    font-weight: 400;
+    font-weight: 500;
     box-shadow: none;
   }
 
@@ -206,7 +217,7 @@
 .settings__perf-table th,
 .settings__perf-table td {
   padding: 6px 8px;
-  border-bottom: 1px solid var(--surface-2);
+  border-bottom: 1px solid var(--line);
   text-align: right;
   white-space: nowrap;
 }
@@ -254,5 +265,5 @@
 
 .settings__perf-report textarea {
   font-family: ui-monospace, monospace;
-  font-size: 0.8125rem;
+  font-size: var(--text-sm);
 }
