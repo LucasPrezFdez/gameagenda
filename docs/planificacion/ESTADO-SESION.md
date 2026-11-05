@@ -28,12 +28,15 @@ Todo está en `main` y subido, con el CI y el despliegue en verde y sin agentes 
 
    Después ya se puede tocar el pipeline: núcleo de arranque, abaratar `applyRecent` y ADR-009.
    - **El núcleo de arranque está hecho en la rama `m3-arranque`** (04-11-2026, subida a GitHub; `main` no lo lleva). Son los 20 000 juegos más populares, en `boot.<hash>.tsv` (773 KB, 269 KB en brotli 11). En la primera visita se puede buscar en ellos mientras llega el núcleo. Con CPU ×4, el estado `boot` llega en 613–759 ms (RNF-05: ≤1 500 ms), y la app, en `search:ready` a los 841–859 ms. `check`, los E2E de Chromium y WebKit y `size` (Worker en 38,7 KB) pasan.
-   - **Falta:** la revisión con verificación, el ADR-009 y la documentación.
+   - ~~**Falta:** la revisión con verificación, el ADR-009 y la documentación.~~ **Hecho el 05-11-2026** en la rama:
+     - ADR-009 («propuesta») y DECISIONES §10.30, con las secciones 4.6, 7.6, 8.8, 9.2, 9.6 y 12.4 al día (`e8ff675`);
+     - la revisión dio 10 hallazgos; verificados uno a uno, se arreglan 3 (`ff15aae`): las sugerencias del nivel 4 al salir de `boot` y el reintento de la carga en `boot`. Los demás, con su motivo, en la §10.30;
+     - `check` (905 pruebas, Worker en 38,7 KB) y los E2E de `boot.spec` y `search.spec`, en verde.
    - **Orden para pasarlo a `main`:**
      1. Tras cerrar M2, `main` avanza hasta el último *commit* del pipeline (`e78eea2`).
      2. Una ejecución programada publica el boot; se comprueba con `catalog-smoke`.
-     3. Después entra el cliente (`3156be2`).
-   - **Perf:** «Reinicio con caché → escaneo listo» da unos 2,1 s, sobre un presupuesto de ≤2 000 ms. `main` también lo supera en las mismas condiciones (2 039 y 2 543 ms), con el equipo cargado (CPU al 71 %). Hay que medirlo con el equipo en reposo.
+     3. Después entra el cliente, con la documentación y los arreglos de la revisión (hasta `ff15aae`).
+   - **Perf:** «Reinicio con caché → escaneo listo» da unos 2,1 s, sobre un presupuesto de ≤2 000 ms. `main` también lo supera en las mismas condiciones (2 039 y 2 543 ms), con el equipo cargado (CPU al 71 %). Hay que medirlo con el equipo en reposo. El 05-11 tampoco se pudo: había un juego abierto (Penumbra) y Discord, con la CPU al 28 %.
 4. **App de escritorio:** el usuario la instaló y la probó el 02-11-2026. Encontró dos cosas, arregladas ese día (`279c10a`):
    - **el menú de «Orden» de Mi lista sacaba una barra horizontal**, porque a 1 100 px se salía 48 px. Ahora se abre hacia la izquierda, y cualquier menú que no quepa se da la vuelta;
    - **el Catálogo no tenía portadas.** Las quiere siempre: ahora las lleva, pedidas con el desplazamiento parado (DECISIONES §10.22).
