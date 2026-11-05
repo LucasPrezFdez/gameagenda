@@ -19,6 +19,7 @@
   border: 1px solid var(--control-border);
   border-radius: var(--radius);
   background: var(--surface);
+  transition: border-color var(--motion) var(--ease);
 }
 
 .palette__field:focus-within {
@@ -74,8 +75,8 @@
   max-height: min(70vh, 36rem);
   padding: 6px;
   overflow: auto;
-  border: 1px solid var(--control-border);
-  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
   background: var(--surface);
   box-shadow: var(--shadow);
 }
@@ -124,14 +125,14 @@
 
 .palette__option.is-active {
   background: var(--surface-2);
-  box-shadow: inset 3px 0 var(--accent);
+  box-shadow: inset 2px 0 var(--accent);
 }
 
 .palette__name {
   flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
-  font-weight: 600;
+  font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -147,7 +148,7 @@
   align-items: center;
   gap: 10px;
   color: var(--text-muted);
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
 }
 
 .palette__enter {
@@ -157,13 +158,13 @@
 .palette__group {
   margin-top: 4px;
   padding-top: 4px;
-  border-top: 1px solid var(--surface-2);
+  border-top: 1px solid var(--line);
 }
 
 .palette__group-title {
   padding: 4px 12px;
   color: var(--text-muted);
-  font-size: 0.8125rem;
+  font-size: var(--text-sm);
 }
 
 .palette__aside {
@@ -187,8 +188,11 @@
     display: flex;
   }
 
+  /* Con fondo: sin él, el chip parecería texto suelto. */
   .palette__paste .chip-button {
     min-height: var(--target-touch);
+    background: var(--surface-2);
+    color: var(--text);
   }
 }
 
@@ -207,7 +211,8 @@
 
 .palette__keys {
   padding: 4px 12px;
-  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
 }
 
 /* Alt+Intro */
@@ -292,8 +297,8 @@
     max-width: none;
     margin: 0;
     padding: 8px var(--gutter);
-    border-top: 1px solid var(--surface-2);
-    background: var(--surface);
+    border-top: 1px solid var(--line);
+    background: var(--bg);
   }
 
   .palette__field {
@@ -385,6 +390,32 @@
     display: grid;
     grid-template-rows: subgrid;
     grid-row: span var(--palette-group-rows, 1);
+  }
+
+  /* Sin esto, la columna implícita (`auto`) se ensancha hasta el título más largo: cada opción
+     medía 395 px en una lista de 358 a 390 px, y el año quedaba debajo de (i). */
+  .palette__listbox,
+  .palette__aside,
+  .palette__group {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .palette__option {
+    min-width: 0;
+  }
+
+  /* El nombre manda: «En tu lista: …» baja a dos líneas antes de dejarlo en «H…». */
+  .palette__name {
+    flex: 1 1 45%;
+  }
+
+  .palette__meta {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+
+  .palette__meta .status-text {
+    line-height: 1.25;
   }
 
   .palette__aside {
