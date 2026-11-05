@@ -97,10 +97,55 @@ Contraste sobre `--surface`. Los 48 pares cumplen en los dos temas. El más just
 
 Contraste sobre `--surface`. Los 48 pares cumplen en los dos temas. El más justo es `--control-border` sobre `--surface-2`: 3,25:1 en claro y 3,26:1 en oscuro.
 
-## 5 · Lo que no cambia
+## 5 · Elección e iconos (05-11-2026)
+
+**El usuario elige la dirección B, «Tinta».** Pide además mejorar los iconos de estado («el marcapáginas, el play y tal son bastante feos») y un icono nuevo para la app, basándose en el trabajo de diseñadores profesionales.
+
+### Iconos de estado y marcas: Phosphor, macizos
+
+- **Comparadas:** cuatro colecciones profesionales con licencia MIT (Phosphor 2.1.1, Fluent UI System Icons 1.1.345, Tabler 3.50.0 y Heroicons 2.2.0), los de ahora (Lucide, de trazo) y unos propios macizos. Las colecciones se descargaron con `npm pack`, sin ejecutar nada, y sus SVG se leyeron como datos. Hoja: `node scripts/rediseno-iconos.ts <descargas>` → `.cache/rediseno/iconos.html`.
+- **Elegidos: los macizos («fill») de Phosphor.**
+  - Es la única colección con los ocho conceptos y el mismo lenguaje en todos.
+  - Sus esquinas suaves casan con los iconos de trazo de Lucide de la interfaz.
+  - A 18 px se leen mejor que un contorno, y en la dirección B son lo único con color.
+  - Fluent queda muy de Windows, pero su «Abandonado» es casi de contorno y su bolsa se lee mal. A Tabler le falta la bolsa y a Heroicons la chincheta. Los propios estaban bien, pero quedaban por debajo en la bolsa y la chincheta.
+
+| Estado o marca | Phosphor |
+|---|---|
+| Quiero jugar | `bookmark-simple` |
+| Jugando | `play` |
+| En pausa | `pause` |
+| Completado | `check-circle` |
+| Abandonado | `prohibit-inset`: el disco con la barra en hueco, a juego con Completado |
+| Platinado | `trophy` |
+| Comprado | `bag-simple`: la que mejor se lee como bolsa a 18 px |
+| Próximo | `push-pin`: la inclinada (la recta parece una lámpara) |
+
+- **Cómo van:** en `icons.tsx`, como trazados con su rejilla de 256 reducida a 24 (`scale(.09375)`). El componente `Icon` y los nombres no cambian, y no hay dependencias nuevas. Los ocho suman ≈2,5 KB sin comprimir.
+- **Licencias:** `apps/web/public/licencias.txt` lleva los avisos de Phosphor (MIT) y de Lucide (ISC), que la app no recogía.
+- **El resto de la interfaz sigue en Lucide** (buscar, menús, cerrar…), con el trazo a 1,75 px. Solo cambian dos: «Mi lista» y «Catálogo», con los puntos más pequeños y las esquinas más redondas.
+
+### Icono de la app: tres opciones
+
+`node docs/diseno/rediseno-visual/icono-app.mjs <carpeta>` escribe los tres SVG y una página que los enseña a 160, 64, 32 y 16 px, sobre fondo claro y oscuro, en una pestaña y en una barra de tareas.
+
+Siguen los principios de Apple y Fluent para iconos de app: un solo motivo, sin texto, legible a 16 px y sobre una base de esquinas redondeadas. El marcapáginas y el play son las formas de Phosphor.
+
+1. **Tinta:** cuadrado negro y marcapáginas blanco con un play recortado. Es la dirección B pura. Necesita un filo claro sutil, porque en una barra de tareas oscura el cuadrado desaparece.
+2. **Rosa:** el mismo motivo sobre el rosa de siempre, algo más hondo (`#B3255D`). Conserva la identidad fuera de la app y se ve igual sobre fondo claro y oscuro.
+3. **Cinta:** cuadrado negro, play blanco y una cinta rosa que cuelga del borde, como el marcapáginas de un libro. A 16 px puede leerse como un reproductor de vídeo.
+
+**Recomendación: la 2, Rosa.** Una interfaz monocroma con un icono de color es lo habitual. El icono es lo único que se ve fuera de la app (pantalla de inicio, barra de tareas, pestaña), y ahí el rosa la distingue.
+
+Cuando se elija, `icono-app.mjs` saca de ese SVG el favicon (`icon.svg`), las PNG de la PWA (192, 512 y la *maskable* con margen de seguridad), la de iOS (180, sin esquinas, porque iOS pone las suyas) y las de la app de escritorio (`icon.ico` y las PNG de `src-tauri/icons`). El logotipo de la cabecera pasa a ser el mismo motivo.
+
+## 6 · Lo que no cambia
 
 Comportamiento, rutas, atajos, gestos, textos y nombres accesibles; la letra del sistema, sin fuentes web; y las reglas de la §9.5: huecos reservados, portada 2:3 fija, nada de `:has()` en la raíz y animaciones solo con `transform` y `opacity`. Las hojas de la propuesta solo cambian CSS. Las únicas reglas con `:has()` son las que ya existían.
 
-## 6 · Qué falta para decidir
+## 7 · Siguiente
 
-Elegir A, B o una mezcla. Por ejemplo, A con las pestañas subrayadas de B, o B con el rosa de A como acento. Después viene el paso 3: llevarlo a `tokens.css` y a las hojas de la app, capa por capa, con `check`, los E2E, `perf` y `size` en verde en cada *commit*. El arreglo de la paleta a 390 px (hallazgo 9) puede ir antes y aparte, directo a `main`.
+1. Elegir el icono de la app (Tinta, Rosa o Cinta) y generar todos sus tamaños.
+2. El paso 3: llevar la dirección B a `tokens.css` y a las hojas de la app, capa por capa, con `check`, los E2E, `perf` y `size` en verde en cada *commit*. Hasta entonces, B solo existe como hojas inyectadas encima.
+
+El arreglo de la paleta a 390 px (hallazgo 9) puede ir antes y aparte, directo a `main`.

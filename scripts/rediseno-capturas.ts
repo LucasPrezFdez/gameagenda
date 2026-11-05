@@ -30,8 +30,26 @@ const { values } = parseArgs({
     widths: { type: 'string', default: '390,1100,1440' },
     themes: { type: 'string', default: 'light,dark' },
     screens: { type: 'string' },
+    // El *build* de la rama (p. ej. `apps/web/dist`) en lugar del de producción: las peticiones a
+    // `--url` se sirven desde esa carpeta y el Service Worker no se registra. El origen sigue siendo
+    // el de producción, así que el catálogo real (su CORS solo admite `ga-web`) y las portadas
+    // funcionan igual. Usa su propio perfil.
+    dist: { type: 'string' },
+    // Solo rehace `comparar.html` con las capturas que ya hay, sin abrir el navegador.
+    'solo-comparar': { type: 'boolean', default: false },
   },
 });
+
+const MIME: Record<string, string> = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.json': 'application/json',
+  '.webmanifest': 'application/manifest+json',
+  '.txt': 'text/plain; charset=utf-8',
+};
 
 /** La raíz del repositorio principal: el perfil y las capturas van en una ruta corta (en Windows,
  * un perfil de Chromium en una ruta larga falla con `net::ERR_FAILED`). */
@@ -43,7 +61,8 @@ function mainRoot(): string {
 }
 
 const ROOT = values.out ? resolve(values.out) : join(mainRoot(), '.cache', 'rediseno');
-const PROFILE = join(ROOT, 'perfil');
+const DIST = values.dist ? resolve(values.dist) : null;
+const PROFILE = join(ROOT, DIST ? 'perfil-local' : 'perfil');
 const OUT = join(ROOT, values.variant ?? 'antes');
 const BASE = (values.url ?? '').replace(/\/$/, '');
 // Varias hojas separadas por comas, en ese orden (la base común y luego la dirección).
@@ -175,6 +194,10 @@ async function settleImages(page: Page, timeoutMs = 4000): Promise<void> {
   await page.waitForTimeout(250);
 }
 
+if (values['solo-comparar']) {
+  writeComparison();
+  process.exit(0);
+}
 mkdirSync(OUT, { recursive: true });
 const context = await chromium.launchPersistentContext(PROFILE, {
   bypassCSP: true,
@@ -182,7 +205,25 @@ const context = await chromium.launchPersistentContext(PROFILE, {
   deviceScaleFactor: 1,
   locale: 'es-ES',
   timezoneId: 'Europe/Madrid',
+  ...(DIST ? { serviceWorkers: 'block' as const } : {}),
 });
+if (DIST) {
+  const root = DIST;
+  await context.route(`${BASE}/**`, async (route) => {
+    const { pathname } = new URL(route.request().url());
+    const file = join(root, decodeURIComponent(pathname));
+    const found =
+      file.startsWith(root) && existsSync(file) && !file.endsWith('\\') && pathname !== '/';
+    // Rutas de la app (`/catalogo`, `/juego/…`): la SPA, como en Workers Static Assets.
+    const path = found && /\.[a-z0-9]+$/i.test(pathname) ? file : join(root, 'index.html');
+    const ext = /\.[a-z0-9]+$/i.exec(path)?.[0]?.toLowerCase() ?? '.html';
+    await route.fulfill({
+      status: 200,
+      contentType: MIME[ext] ?? 'application/octet-stream',
+      body: readFileSync(path),
+    });
+  });
+}
 await context.addInitScript(WATCH_STATUS);
 if (css) await context.addInitScript(injectCss(css));
 const page = context.pages()[0] ?? (await context.newPage());
@@ -244,24 +285,33 @@ for (const theme of themes) {
 }
 await context.close();
 console.log(`${shots} capturas en ${OUT}`);
+writeComparison();
 
-// La página de comparación: una fila por pantalla, tema y ancho; una columna por variante.
-const ORDER = ['antes', 'a', 'b', 'despues'];
-const variants = readdirSync(ROOT, { withFileTypes: true })
-  .filter((d) => d.isDirectory() && d.name !== 'perfil')
-  .map((d) => d.name)
-  .sort(
-    (x, y) => ((ORDER.indexOf(x) + 99) % 99) - ((ORDER.indexOf(y) + 99) % 99) || x.localeCompare(y),
-  );
-const label: Record<string, string> = { antes: 'Ahora', a: 'Dirección A', b: 'Dirección B' };
-const rows: string[] = [];
-for (const screen of SCREENS) {
-  for (const width of [390, 1100, 1440]) {
-    for (const theme of ['light', 'dark']) {
-      const file = `${theme}-${width}-${screen.id}.png`;
-      const cells = variants.filter((v) => existsSync(join(ROOT, v, file)));
-      if (cells.length === 0) continue;
-      rows.push(`<section data-screen="${screen.id}" data-theme="${theme}" data-width="${width}">
+/** La página de comparación: una fila por pantalla, tema y ancho; una columna por variante. */
+function writeComparison(): void {
+  const ORDER = ['antes', 'a', 'b', 'b-iconos', 'despues'];
+  const variants = readdirSync(ROOT, { withFileTypes: true })
+    .filter((d) => d.isDirectory() && !/^(perfil|icono)/.test(d.name))
+    .map((d) => d.name)
+    .sort(
+      (x, y) =>
+        ((ORDER.indexOf(x) + 99) % 99) - ((ORDER.indexOf(y) + 99) % 99) || x.localeCompare(y),
+    );
+  const label: Record<string, string> = {
+    antes: 'Ahora',
+    a: 'Dirección A',
+    b: 'Dirección B',
+    'b-iconos': 'B con los iconos nuevos',
+    despues: 'Después',
+  };
+  const rows: string[] = [];
+  for (const screen of SCREENS) {
+    for (const width of [390, 1100, 1440]) {
+      for (const theme of ['light', 'dark']) {
+        const file = `${theme}-${width}-${screen.id}.png`;
+        const cells = variants.filter((v) => existsSync(join(ROOT, v, file)));
+        if (cells.length === 0) continue;
+        rows.push(`<section data-screen="${screen.id}" data-theme="${theme}" data-width="${width}">
   <h2>${screen.title} · ${width} px · ${theme === 'light' ? 'claro' : 'oscuro'}</h2>
   <div class="grid">${cells
     .map(
@@ -270,12 +320,12 @@ for (const screen of SCREENS) {
     )
     .join('')}</div>
 </section>`);
+      }
     }
   }
-}
-writeFileSync(
-  join(ROOT, 'comparar.html'),
-  `<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  writeFileSync(
+    join(ROOT, 'comparar.html'),
+    `<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Rediseño · comparar</title>
 <style>
   :root { color-scheme: light dark; --bg: #f4f4f2; --fg: #1b1b1f; --muted: #6b6b73; --line: #dcdcd8; }
@@ -309,5 +359,6 @@ ${rows.join('\n')}
   for (const id of ['screen', 'width', 'theme']) document.getElementById(id).addEventListener('change', pick);
 </script>
 </html>`,
-);
-console.log(`Comparación: ${join(ROOT, 'comparar.html')}`);
+  );
+  console.log(`Comparación: ${join(ROOT, 'comparar.html')}`);
+}
