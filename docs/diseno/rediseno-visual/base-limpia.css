@@ -1,0 +1,443 @@
+/* Rediseño visual · base común de las dos direcciones (propuesta, no es código de la app).
+   Se inyecta encima de la app real con scripts/rediseno-capturas.ts, después de los tokens de
+   cada dirección. Menos cajas, líneas finas, la tipografía como jerarquía y el color solo donde
+   significa algo. Usa tokens nuevos que define cada dirección: --line, --surface-3,
+   --cover-outline, --radius-lg, --text-xs…--text-2xl, --shadow-sm y --ease. */
+
+body {
+  font-size: var(--text-md);
+  line-height: 1.5;
+}
+
+h1 {
+  font-size: var(--text-2xl);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+/* Iconos: un trazo algo más fino y el mismo en todos. */
+.icon {
+  stroke-width: 1.75px;
+}
+
+/* —— Carcasa —— */
+.app-header {
+  border-bottom-color: var(--line);
+  background: var(--bg);
+}
+
+.brand {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.brand__mark {
+  width: 24px;
+  height: 24px;
+}
+
+.app-nav {
+  border-right-color: transparent;
+}
+
+.app-nav__link {
+  font-weight: 500;
+}
+
+.app-nav__link[aria-current="page"] {
+  font-weight: 600;
+  box-shadow: none;
+}
+
+.app-nav__link[aria-current="page"] .icon {
+  color: var(--accent);
+}
+
+/* —— Controles —— */
+.btn {
+  border-color: transparent;
+  background: var(--surface-2);
+  font-weight: 500;
+  transition:
+    background-color var(--motion) var(--ease),
+    filter var(--motion) var(--ease);
+}
+
+.btn:hover {
+  background: var(--surface-3);
+}
+
+.btn--ghost {
+  background: transparent;
+}
+
+.btn--ghost:hover {
+  background: var(--surface-2);
+}
+
+.btn--primary,
+.btn--primary:hover {
+  border-color: var(--accent);
+  background: var(--accent);
+  font-weight: 600;
+}
+
+.btn--danger {
+  border-color: transparent;
+}
+
+.icon-btn {
+  color: var(--text-muted);
+}
+
+.icon-btn:hover {
+  color: var(--text);
+}
+
+/* Los campos conservan su borde de 3:1 (WCAG 1.4.11); solo se suavizan. */
+.field {
+  border-radius: var(--radius-sm);
+  transition: border-color var(--motion) var(--ease);
+}
+
+.field:hover {
+  border-color: var(--text-muted);
+}
+
+kbd {
+  border-color: var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.notice,
+.toast {
+  border-color: var(--line);
+  border-radius: var(--radius-lg);
+}
+
+.toast,
+.cover-notice {
+  box-shadow: var(--shadow);
+}
+
+.menu__popup {
+  padding: 6px;
+  border-color: var(--line);
+  border-radius: var(--radius-lg);
+}
+
+.menu__item {
+  border-radius: var(--radius-sm);
+}
+
+.empty-state {
+  border-color: var(--line);
+  border-radius: var(--radius-lg);
+}
+
+/* —— Mi lista: vistas y filtros, en una sola línea que se desliza —— */
+.list-filters {
+  gap: 12px;
+}
+
+.chips {
+  flex-wrap: nowrap;
+  gap: 4px;
+  /* Hueco para el anillo de foco, que el desplazamiento recortaría. */
+  margin: -4px;
+  padding: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.chips::-webkit-scrollbar {
+  display: none;
+}
+
+.list-filters__row > .chips {
+  min-width: 0;
+}
+
+.chip-button {
+  flex: none;
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-muted);
+  font-weight: 500;
+  transition:
+    background-color var(--motion) var(--ease),
+    color var(--motion) var(--ease);
+}
+
+.chip-button:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.chips__label {
+  flex: none;
+  padding-inline: 4px 2px;
+  font-size: var(--text-sm);
+}
+
+/* —— Secciones —— */
+.list-sections {
+  gap: 28px;
+}
+
+.list-section {
+  gap: 6px;
+}
+
+.list-section__header h2 {
+  color: var(--text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.list-section__hint {
+  font-size: var(--text-xs);
+}
+
+/* —— Filas —— */
+.entry-list {
+  gap: 0;
+}
+
+.entry-row__body {
+  gap: 12px;
+  padding: 8px;
+  border: 0;
+  background: transparent;
+  transition:
+    transform var(--motion) var(--ease),
+    background-color var(--motion) var(--ease);
+}
+
+.entry-row:hover .entry-row__body,
+.entry-row:focus-within .entry-row__body {
+  background: var(--surface-2);
+}
+
+.entry-row.is-dragging .entry-row__body {
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.entry-row__title {
+  font-weight: 500;
+}
+
+.entry-row__title:hover {
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.entry-row__rank {
+  font-size: var(--text-sm);
+}
+
+.entry-row__main {
+  gap: 2px;
+}
+
+/* Portadas algo mayores y con un filo que las separa del fondo. */
+.cover {
+  border-radius: var(--radius-sm);
+  outline: 1px solid var(--cover-outline);
+  outline-offset: -1px;
+}
+
+.cover--row {
+  width: 40px;
+  font-size: var(--text-sm);
+}
+
+.cover--palette {
+  width: 28px;
+}
+
+.cover--sheet {
+  width: 120px;
+  border-radius: var(--radius-sm);
+}
+
+/* Marcas: texto secundario; el color, solo en el icono. */
+.flag-badges {
+  gap: 2px 12px;
+}
+
+.flag-badges .chip {
+  padding: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.flag-badges .chip--platinum .icon {
+  color: var(--platinum);
+}
+
+.flag-badges .chip--next .icon {
+  color: var(--next);
+}
+
+/* Estado: botón neutro con el icono en su color (el texto dice el estado; §9.7). */
+.status-button[class] {
+  padding: 4px 10px 4px 8px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--text);
+  font-weight: 500;
+  transition:
+    background-color var(--motion) var(--ease),
+    border-color var(--motion) var(--ease);
+}
+
+.status-button[class]:hover {
+  border-color: var(--control-border);
+  background: var(--surface);
+}
+
+.status-button.status-text--want_to_play > .icon:first-child {
+  color: var(--want_to_play);
+}
+.status-button.status-text--playing > .icon:first-child {
+  color: var(--playing);
+}
+.status-button.status-text--on_hold > .icon:first-child {
+  color: var(--on_hold);
+}
+.status-button.status-text--completed > .icon:first-child {
+  color: var(--completed);
+}
+.status-button.status-text--dropped > .icon:first-child {
+  color: var(--dropped);
+}
+
+.status-button__chevron {
+  color: var(--text-muted);
+}
+
+/* —— Paleta —— */
+.palette__field {
+  border-radius: var(--radius);
+  transition: border-color var(--motion) var(--ease);
+}
+
+.palette__popup {
+  padding: 6px;
+  border-color: var(--line);
+  border-radius: var(--radius-lg);
+}
+
+.palette__option {
+  border-radius: var(--radius-sm);
+}
+
+.palette__option.is-active {
+  box-shadow: inset 2px 0 var(--accent);
+}
+
+.palette__name {
+  font-weight: 500;
+}
+
+.palette__group {
+  border-top-color: var(--line);
+}
+
+/* Hallazgo de la auditoría: en el móvil, la columna implícita (`auto`) de la lista de resultados
+   se ensanchaba hasta el título más largo (cada opción, 395 px en una lista de 358), y el año y
+   «Intro: Apuntar» quedaban debajo de (i). Con la columna en `minmax(0, 1fr)`, el nombre se
+   recorta con puntos suspensivos, como en escritorio. */
+@media (max-width: 767px) {
+  .palette__listbox,
+  .palette__aside,
+  .palette__group {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .palette__option {
+    min-width: 0;
+  }
+
+  /* El nombre manda: «En tu lista: …» baja a dos líneas antes de dejarlo en «H…». */
+  .palette__name {
+    flex: 1 1 45%;
+  }
+
+  .palette__meta {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+
+  .palette__meta .status-text {
+    line-height: 1.25;
+  }
+
+  .app-header > .palette:not(.is-open),
+  .catalog__filter {
+    border-top-color: var(--line);
+    background: var(--bg);
+  }
+
+  .app-nav {
+    border-top-color: var(--line);
+    background: var(--bg);
+  }
+
+  .app-nav__link[aria-current="page"] {
+    background: transparent;
+    box-shadow: none;
+  }
+}
+
+/* —— Catálogo —— */
+.catalog-row {
+  gap: 12px;
+  padding: 4px 8px;
+  border: 0;
+  background: transparent;
+  transition: background-color var(--motion) var(--ease);
+}
+
+.catalog-row:hover,
+.catalog-row:focus-within {
+  background: var(--surface-2);
+}
+
+.catalog-row__title {
+  font-weight: 500;
+}
+
+/* —— Ficha y Ajustes —— */
+.sheet {
+  border-color: var(--line);
+  border-radius: var(--radius-lg);
+}
+
+.sheet .chip-button:not([aria-pressed="true"]) {
+  border-color: var(--line);
+}
+
+.badge {
+  border-color: var(--line);
+}
+
+.settings__section {
+  border-color: var(--line);
+  border-radius: var(--radius-lg);
+}
+
+.settings__nav-link[aria-current="page"] {
+  box-shadow: none;
+}
+
+.shortcut-help {
+  border-color: var(--line);
+  border-radius: var(--radius-lg);
+}

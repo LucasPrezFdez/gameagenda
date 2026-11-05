@@ -1,0 +1,171 @@
+/* Rediseño visual · dirección B, «Tinta» (propuesta).
+   Monocromo nítido: neutros fríos, el acento es la propia tinta (negro en claro, casi blanco en
+   oscuro) y el único color lo ponen las portadas y los iconos de estado. Cada sección es una
+   superficie agrupada con líneas finas entre filas, y las vistas, pestañas subrayadas.
+   Va después de base-limpia.css. */
+
+:root {
+  color-scheme: light;
+  --bg: #f6f6f7;
+  --surface: #ffffff;
+  --surface-2: #f0f0f2;
+  --surface-3: #e7e7ea;
+  --line: #e4e4e8;
+  --control-border: #84848e;
+  --text: #18181b;
+  --text-muted: #5e5e68;
+  --accent: #18181b;
+  --on-accent: #ffffff;
+  --backdrop: rgb(24 24 27 / 0.3);
+  --shadow-sm: 0 1px 2px rgb(24 24 27 / 0.06);
+  --shadow: 0 1px 2px rgb(24 24 27 / 0.05), 0 12px 32px -4px rgb(24 24 27 / 0.16);
+  --cover-outline: rgb(24 24 27 / 0.08);
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-md: 0.9375rem;
+  --text-lg: 1.0625rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.75rem;
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 14px;
+  --row-h: 76px;
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0e0e10;
+    --surface: #161618;
+    --surface-2: #1f1f22;
+    --surface-3: #28282c;
+    --line: #27272b;
+    --control-border: #6e6e78;
+    --text: #f4f4f5;
+    --text-muted: #a1a1aa;
+    --accent: #f4f4f5;
+    --on-accent: #18181b;
+    --backdrop: rgb(0 0 0 / 0.55);
+    --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.35);
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.35), 0 16px 40px -6px rgb(0 0 0 / 0.6);
+    --cover-outline: rgb(255 255 255 / 0.08);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0e0e10;
+  --surface: #161618;
+  --surface-2: #1f1f22;
+  --surface-3: #28282c;
+  --line: #27272b;
+  --control-border: #6e6e78;
+  --text: #f4f4f5;
+  --text-muted: #a1a1aa;
+  --accent: #f4f4f5;
+  --on-accent: #18181b;
+  --backdrop: rgb(0 0 0 / 0.55);
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.35);
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.35), 0 16px 40px -6px rgb(0 0 0 / 0.6);
+  --cover-outline: rgb(255 255 255 / 0.08);
+}
+
+/* —— Vistas: pestañas subrayadas en una línea —— */
+.list-filters > .chips {
+  gap: 20px;
+  margin: 0;
+  padding: 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.list-filters > .chips .chip-button {
+  min-height: 40px;
+  padding: 0 2px;
+  border-radius: 0;
+  background: transparent;
+}
+
+.list-filters > .chips .chip-button:focus-visible {
+  outline-offset: -2px;
+  border-radius: var(--radius-sm);
+}
+
+.list-filters > .chips .chip-button[aria-pressed="true"] {
+  border-color: transparent;
+  background: transparent;
+  color: var(--text);
+  font-weight: 600;
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+/* El filtro de compra, en píldoras pequeñas; la elegida, en tinta. */
+.list-filters__row .chip-button[aria-pressed="true"] {
+  border-color: transparent;
+  background: var(--text);
+  color: var(--bg);
+}
+
+/* —— Secciones agrupadas —— */
+.list-section__header {
+  padding-inline: 12px;
+}
+
+.list-section__header h2 {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.entry-list {
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+/* Línea fina entre filas, desde el título (no desde la portada), como en una lista agrupada. */
+.entry-row + .entry-row .entry-row__body {
+  background-image: linear-gradient(var(--line), var(--line));
+  background-repeat: no-repeat;
+  background-position: right 8px top 0;
+  background-size: calc(100% - 68px) 1px;
+}
+
+.entry-row:hover .entry-row__body,
+.entry-row:focus-within .entry-row__body {
+  background-image: none;
+}
+
+/* —— Catálogo: la misma superficie agrupada —— */
+.catalog-list {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.catalog-list > .catalog-row {
+  right: 4px;
+  left: 4px;
+  background-image: linear-gradient(var(--line), var(--line));
+  background-repeat: no-repeat;
+  background-position: right 8px bottom 0;
+  background-size: calc(100% - 68px) 1px;
+}
+
+.catalog-list > .catalog-row:hover,
+.catalog-list > .catalog-row:focus-within {
+  background-image: none;
+}
+
+/* —— Barra lateral: la página actual, en una pastilla blanca —— */
+@media (min-width: 768px) {
+  .app-nav__link[aria-current="page"] {
+    background: var(--surface);
+    box-shadow:
+      0 0 0 1px var(--line),
+      var(--shadow-sm);
+  }
+}

@@ -1,0 +1,106 @@
+# Rediseño visual · auditoría y propuesta
+
+**05-11-2026**, rama `rediseno-visual` (aparte de `main`). Son los pasos 1 y 2 del encargo (`docs/planificacion/prompts/rediseno-visual.md`). **No toca el código de la app:** las dos direcciones son hojas de estilo que se inyectan encima de la app de producción para fotografiarla. Si no convencen, la rama se queda sin integrar y `main` sigue como estaba.
+
+El encargo pedía esperar a que la segunda parte del núcleo de arranque estuviera en `main`. El usuario pidió empezar ya, el 05-11-2026. La implementación (paso 3) chocará con esa rama en `palette.css` y en el Catálogo, y se resolverá al integrar.
+
+## Cómo verlo
+
+- **Comparación:** `.cache/rediseno/comparar.html`, en la raíz del repositorio principal (no se versiona). Tiene una fila por pantalla, tema y ancho, con las columnas «Ahora», «Dirección A» y «Dirección B», y filtros arriba.
+- **Volver a sacarlas:**
+
+  ```
+  node scripts/rediseno-capturas.ts --variant=antes
+  node scripts/rediseno-capturas.ts --variant=a --css=docs/diseno/rediseno-visual/base-limpia.css,docs/diseno/rediseno-visual/direccion-a.css
+  node scripts/rediseno-capturas.ts --variant=b --css=docs/diseno/rediseno-visual/base-limpia.css,docs/diseno/rediseno-visual/direccion-b.css
+  ```
+
+  Abre `ga-web` de producción en un perfil propio (`.cache/rediseno/perfil`, nunca el del usuario), importa una agenda de prueba de 19 juegos y fotografía seis pantallas (Mi lista, la paleta con «hollow», el Catálogo, la ficha de Hollow Knight, Próximos y Ajustes) en claro y oscuro, a 390, 1 100 y 1 440 px.
+- **Contraste:** `node scripts/rediseno-contraste.ts docs/diseno/rediseno-visual/direccion-a.css`. Mide los pares de `tokens-contrast.test.ts`, más el icono de cada estado sobre el fondo y sobre la fila resaltada (≥3:1).
+
+En lugar de una maqueta HTML aparte, la propuesta se ve en la app real, con el catálogo y las portadas de verdad. Es más fiel y no obliga a mantener dos maquetas.
+
+## 1 · Auditoría: qué mete ruido hoy
+
+1. **Demasiadas cajas.** Cada fila es una tarjeta blanca sobre gris, con 2 px entre una y otra. Además llevan borde las 11 píldoras de vista y de compra, el filtro, el selector de orden y el campo de búsqueda. Se lee como una cuadrícula de bordes antes que como una lista de juegos.
+2. **Las vistas no caben.** A 1 440 px, «Todos 19» salta a una segunda línea. A 390 px, vistas y compra ocupan cuatro líneas, y el rótulo de la primera sección empieza a 436 px de 844: media pantalla de controles.
+3. **El color de estado tiñe bloques grandes.** El botón de estado es una píldora de color en cada fila. En Quiero jugar sale una columna de píldoras azules que compite con las portadas.
+4. **Portadas pequeñas y sin filo:** 32 × 48 px, y en oscuro las portadas oscuras se funden con el fondo.
+5. **Rótulos de sección pesados:** mayúsculas, negrita y la pista «Arrastra :: o usa Alt+↑/↓» al lado.
+6. **El acento se reparte:** barra rosa en la barra lateral, en Ajustes y en la opción activa de la paleta, además del anillo de foco y del botón principal.
+7. **Las marcas, en chips con fondo:** Comprado, Platinado y Próximo suman hasta tres fondos de color más por fila.
+8. **Casi todo va en 600–700:** títulos de fila, marca, botones de estado y rótulos. Con todo en negrita, nada destaca.
+9. **Fallo real, a 390 px en la paleta:** la lista de resultados es una rejilla con una columna implícita `auto`, que se ensancha hasta el título más largo: cada opción mide 395 px dentro de una lista de 358. El año y «Intro: Apuntar» quedan debajo del botón (i). Se arregla con `grid-template-columns: minmax(0, 1fr)` en la lista, sus grupos y la columna de (i) (en `base-limpia.css`), y conviene arreglarlo pase lo que pase con el rediseño.
+
+## 2 · Lo común a las dos direcciones (`base-limpia.css`)
+
+- **Sin tarjetas por fila:** las filas van sobre el fondo, se resaltan al pasar el puntero o con el foco, y la fila arrastrada flota con sombra.
+- **Vistas y compra en una sola línea** que se desliza en horizontal. A 390 px, el rótulo de la primera sección sube de 436 a ≈280 px.
+- **Estado neutro:** el botón es una píldora con un filo fino y el texto en el color normal. El color, solo en el icono, porque el texto ya dice el estado (§9.7).
+- **Marcas como texto secundario,** con el color solo en el icono de Platinado y de Próximo.
+- **Portadas de 40 × 60 px** (en la paleta, 28 px) con un filo de 1 px. Caben en la fila de 72 px del Catálogo (68 px de alto más 4 de hueco): no cambia `ROW_HEIGHT` ni el límite de Firefox.
+- **Tipografía con jerarquía:** el texto base pasa a 15 px con interlineado 1,5. Títulos de fila en 500, rótulos en 600 y el título de pantalla en 28 px y 600. Iconos con trazo de 1,75 px.
+- **Botones sin borde,** con fondo `--surface-2`: el texto ya los identifica. **Los campos conservan su borde de ≥3:1** (WCAG 1.4.11).
+- **El acento, solo en** la opción activa de la paleta (2 px), el icono de la página actual, el botón principal y el foco.
+- **Una sola curva** (`--ease`) para todas las transiciones; ninguna con `prefers-reduced-motion`, como hoy.
+
+Escalas, iguales en las dos:
+
+| | Valores |
+|---|---|
+| Letra | 12 · 13 · 15 · 17 · 20 · 28 px (`--text-xs` … `--text-2xl`); el campo de la paleta sigue en 16 px por iOS |
+| Pesos | 400 · 500 · 600 |
+| Radios | 6 px (portadas, teclas y elementos de menú) · 10 px (controles y filas) · 14 px (superficies flotantes y grupos) |
+| Sombras | `--shadow-sm` (un filo) · `--shadow` (lo que flota) |
+| Fila de Mi lista | 76 px (`--row-h`, antes 64) |
+
+## 3 · Dirección A · «Papel»
+
+> Papel cálido y aire: filas planas sobre el fondo, sin tarjetas, y el rosa de siempre, más hondo y menos saturado, como único acento.
+
+- Neutros templados, ligeramente cálidos. La vista elegida va en una píldora de tinta y la página actual, en un fondo suave.
+- Es la más ligera: no hay ninguna superficie dentro del contenido. Las secciones se separan con espacio.
+- Mantiene la identidad: el rosa del logotipo y del foco.
+
+| Token | Claro | Oscuro |
+|---|---|---|
+| `--bg` | `#FAFAF9` | `#131315` |
+| `--surface` | `#FFFFFF` | `#1A1A1D` |
+| `--surface-2` | `#F2F2F0` | `#232326` |
+| `--line` (nuevo) | `#E8E7E4` | `#2A2A2E` |
+| `--control-border` | `#87877F` (3,62:1) | `#6F6F77` (3,49:1) |
+| `--text` | `#1C1C1E` (17,01:1) | `#ECECEE` (14,72:1) |
+| `--text-muted` | `#63636A` (5,96:1) | `#A1A1A9` (6,77:1) |
+| `--accent` | `#B3255D` (6,29:1) | `#F27AA8` (6,72:1) |
+
+Contraste sobre `--surface`. Los 48 pares cumplen en los dos temas. El más justo es `--control-border` sobre `--surface-2`: 3,23:1 en claro y 3,15:1 en oscuro, con un mínimo de 3. Los colores de estado no cambian.
+
+## 4 · Dirección B · «Tinta»
+
+> Monocromo nítido: neutros fríos, el acento es la propia tinta y el único color lo ponen las portadas y los iconos de estado.
+
+- **Secciones agrupadas:** cada sección es una superficie con un filo y radio de 14 px. Dentro, las filas van separadas por una línea fina que empieza en el título, no en la portada.
+- **Vistas como pestañas subrayadas;** el filtro de compra, en píldoras pequeñas.
+- **El acento es negro en claro y casi blanco en oscuro.** El logotipo pasa a ser un cuadrado de tinta, y el foco y el botón principal van en tinta.
+- Es la más ordenada y la que mejor aguanta listas largas, pero pierde el rosa de la identidad.
+
+| Token | Claro | Oscuro |
+|---|---|---|
+| `--bg` | `#F6F6F7` | `#0E0E10` |
+| `--surface` | `#FFFFFF` | `#161618` |
+| `--surface-2` | `#F0F0F2` | `#1F1F22` |
+| `--line` (nuevo) | `#E4E4E8` | `#27272B` |
+| `--control-border` | `#84848E` (3,70:1) | `#6E6E78` (3,58:1) |
+| `--text` | `#18181B` (17,72:1) | `#F4F4F5` (16,44:1) |
+| `--text-muted` | `#5E5E68` (6,41:1) | `#A1A1AA` (7,05:1) |
+| `--accent` | `#18181B` (17,72:1) | `#F4F4F5` (16,44:1) |
+
+Contraste sobre `--surface`. Los 48 pares cumplen en los dos temas. El más justo es `--control-border` sobre `--surface-2`: 3,25:1 en claro y 3,26:1 en oscuro.
+
+## 5 · Lo que no cambia
+
+Comportamiento, rutas, atajos, gestos, textos y nombres accesibles; la letra del sistema, sin fuentes web; y las reglas de la §9.5: huecos reservados, portada 2:3 fija, nada de `:has()` en la raíz y animaciones solo con `transform` y `opacity`. Las hojas de la propuesta solo cambian CSS. Las únicas reglas con `:has()` son las que ya existían.
+
+## 6 · Qué falta para decidir
+
+Elegir A, B o una mezcla. Por ejemplo, A con las pestañas subrayadas de B, o B con el rosa de A como acento. Después viene el paso 3: llevarlo a `tokens.css` y a las hojas de la app, capa por capa, con `check`, los E2E, `perf` y `size` en verde en cada *commit*. El arreglo de la paleta a 390 px (hallazgo 9) puede ir antes y aparte, directo a `main`.
