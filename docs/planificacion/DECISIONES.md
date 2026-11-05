@@ -396,7 +396,7 @@ Resueltos a partir de las mediciones y de los conflictos detectados entre seccio
       - el hueco entre el aviso de Deshacer y el de portadas usaba `offsetHeight`, que redondea, y con medias alturas salía de 8,5 px: ahora usa `getBoundingClientRect`.
     - **Medido (05-11-2026, CPU al 5 %):**
       - `check` en verde (945 pruebas) y los E2E de Chromium y WebKit (177, con axe, 320 px y foco);
-      - JS inicial de 131,1 KB brotli frente a 130,4 KB en `main`, y 133 pares de contraste;
+      - JS inicial de 131,2 KB brotli frente a 130,4 KB en `main`, y 133 pares de contraste;
       - `npm run perf` en verde en 2 de 3 pasadas. La otra dio una tarea larga de 52 ms, sin fotograma largo, que no se repitió. INP de 32–64 ms, reinicio con caché hasta `scan` en 1 768 ms y restaurar el índice en 171 ms.
     - **Quedan:**
       - el instalador de escritorio con el icono nuevo (`npm run desktop:build`);

@@ -178,7 +178,7 @@ Después, `a2898a6` arregla el hueco entre avisos y la última capa pone las cas
 |---|---|---|
 | `check` | 879 pruebas | 945 pruebas (66 de contraste nuevas) |
 | E2E Chromium + WebKit (axe, 320 px, foco) | 177 | 177 |
-| JS inicial (brotli) | 130,4 KB | 131,1 KB |
+| JS inicial (brotli) | 130,4 KB | 131,2 KB |
 | Pares de contraste | 79 | 133 |
 | Tareas largas al teclear o apuntar | 0 | 0 en 2 de 3 pasadas; una de 52 ms en la otra, sin fotograma largo |
 | INP (20 nombres, 10 altas) | — | 32–64 ms (≤200) |
@@ -188,7 +188,7 @@ Después, `a2898a6` arregla el hueco entre avisos y la última capa pone las cas
 Criterios de aceptación del encargo:
 - Seis tamaños de letra, tres pesos, tres radios, dos sombras y un acento: cumple.
 - Ningún color fuera de `tokens.css`: cumple, salvo el `::backdrop` de la ayuda de atajos, que ya estaba así a propósito porque algunos navegadores no le pasan las variables.
-- `check`, E2E, `perf` y `size` en verde, y +0,7 KB de JS: cumple.
+- `check`, E2E, `perf` y `size` en verde, y +0,8 KB de JS: cumple.
 - Mismas funciones, atajos y textos, y ningún selector de E2E cambiado: cumple.
 
 **Queda:** el visto bueno del usuario sobre las capturas, el instalador de escritorio con el icono nuevo y la pasada con lectores de pantalla sobre la interfaz nueva.
