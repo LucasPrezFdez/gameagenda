@@ -581,48 +581,76 @@
   color: var(--next);
 }
 
+/* El estado de la fila, «Punto» (05-11-2026, elegido por el usuario; DECISIONES §10.31): un punto
+   en el color del estado y el texto en gris, sin caja, como en GitHub Projects. La caja suave y la
+   flecha salen con el puntero, el foco o el menú abierto. El texto dice el estado, así que el color
+   no va solo (§9.7); el icono de estado sigue en el menú, la paleta y la ficha. */
 .status-button {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  min-height: 32px;
-  padding: 4px 10px 4px 8px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
+  gap: 8px;
+  min-height: 28px;
+  padding: 2px 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
   background: transparent;
-  color: var(--text);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
   font-weight: 500;
+  white-space: nowrap;
   cursor: pointer;
   transition:
     background-color var(--motion) var(--ease),
-    border-color var(--motion) var(--ease);
+    color var(--motion) var(--ease);
 }
 
-.status-button.status-text--want_to_play > .icon:first-child {
-  color: var(--want_to_play);
-}
-.status-button.status-text--playing > .icon:first-child {
-  color: var(--playing);
-}
-.status-button.status-text--on_hold > .icon:first-child {
-  color: var(--on_hold);
-}
-.status-button.status-text--completed > .icon:first-child {
-  color: var(--completed);
-}
-.status-button.status-text--dropped > .icon:first-child {
-  color: var(--dropped);
+.status-button:hover,
+.status-button[aria-expanded="true"] {
+  background: var(--surface-3);
+  color: var(--text);
 }
 
-.status-button:hover {
-  border-color: var(--control-border);
-  background: var(--surface);
+.status-button > .icon:first-child {
+  display: none;
+}
+
+.status-button::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+}
+
+.status-button.status-text--want_to_play::before {
+  background: var(--want_to_play);
+}
+.status-button.status-text--playing::before {
+  background: var(--playing);
+}
+.status-button.status-text--on_hold::before {
+  background: var(--on_hold);
+}
+.status-button.status-text--completed::before {
+  background: var(--completed);
+}
+.status-button.status-text--dropped::before {
+  background: var(--dropped);
 }
 
 .status-button__chevron {
-  width: 14px;
-  height: 14px;
-  color: var(--text-muted);
+  width: 12px;
+  height: 12px;
+  margin-left: -4px;
+  opacity: 0;
+  transition: opacity var(--motion) var(--ease);
+}
+
+.entry-row:hover .status-button__chevron,
+.status-button:focus-visible .status-button__chevron,
+.status-button[aria-expanded="true"] .status-button__chevron {
+  opacity: 1;
 }
 
 .notice--ios .notice__detail {
@@ -634,21 +662,22 @@
     display: none;
   }
 
-  .status-button {
-    min-height: var(--target-touch);
+  /* Se ve de 28 px, pero se toca en 44 (RNF-09). */
+  .status-button::after {
+    content: "";
+    position: absolute;
+    inset: -8px -4px;
   }
 }
 
 @media (max-width: 479px) {
-  .status-button__label,
-  .status-button__chevron {
-    display: none;
+  /* El texto se queda también aquí: es corto, y sin él el punto solo diría el color. */
+  .status-button {
+    padding: 2px 6px;
   }
 
-  .status-button {
-    min-width: var(--target-touch);
-    justify-content: center;
-    padding: 4px;
+  .status-button__chevron {
+    display: none;
   }
 
   /* «Orden» sigue en el nombre accesible del botón. */
