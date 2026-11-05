@@ -382,7 +382,7 @@ Resueltos a partir de las mediciones y de los conflictos detectados entre seccio
       - neutros fríos y el acento en tinta, y `--danger` para lo que hacía el rosa de error y de borrar;
       - menos cajas: filas sin tarjeta dentro de una superficie agrupada por sección, con líneas finas desde el título (`--line`);
       - las vistas, en pestañas subrayadas, y la compra, en píldoras, cada una en una línea que se desliza. A 390 px, la primera sección sube de 436 a ≈280 px;
-      - el estado, en un botón neutro con el color solo en el icono;
+      - el estado, como un punto de color con el texto en gris, sin caja. Es «Punto», como en GitHub Projects: al usuario no le gustaba la píldora con el icono. Se comparó con «Etiqueta» (Notion, Jira) y «A la izquierda» (Linear, Things) en `docs/diseno/rediseno-visual/estado.mjs`. Se ve de 28 px y se toca en 44, y en el móvil estrecho el texto se queda;
       - portadas de 40 × 60 px con filo (`--row-h` de 76 px; el Catálogo sigue en su hueco de 72 px);
       - texto a 15 px, seis tamaños, tres pesos, tres radios y dos sombras.
     - **Iconos de estado y marcas:** el usuario pidió mejorarlos con diseños profesionales. Se compararon Phosphor, Fluent, Tabler y Heroicons (MIT), descargados con `npm pack` y leídos como datos, y se eligieron los macizos de Phosphor: los únicos con los ocho conceptos y el mismo lenguaje.

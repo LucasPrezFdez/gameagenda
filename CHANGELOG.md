@@ -20,7 +20,8 @@ Cambios de GameAgenda por versión. Cada hito cierra una versión SemVer 0.x (§
 - **Rediseño visual, dirección «Tinta»** (05-11-2026, en la rama `rediseno-visual`; DECISIONES §10.31 y §9.8). La app es casi monocroma y más limpia:
   - el acento es la tinta, y el color lo ponen las portadas y los iconos de estado;
   - las filas van sin tarjeta, dentro de una superficie por sección, con líneas finas;
-  - las vistas pasan a pestañas subrayadas, en una línea que se desliza, y el estado, a un botón neutro con el color en el icono;
+  - las vistas pasan a pestañas subrayadas, en una línea que se desliza;
+  - el estado de cada fila es un punto de color con el texto en gris, como en GitHub Projects, y la caja y la flecha solo salen al pasar el puntero;
   - las portadas son más grandes (40 × 60 px) y el texto va a 15 px.
 
   En el móvil, la lista empieza mucho antes: el rótulo de la primera sección sube de 436 a ≈280 px.

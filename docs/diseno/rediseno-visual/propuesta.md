@@ -161,6 +161,20 @@ El usuario descarta el rosa: el logo tiene que ir con los colores de la B. Hubo 
 
 Comportamiento, rutas, atajos, gestos, textos y nombres accesibles; la letra del sistema, sin fuentes web; y las reglas de la §9.5: huecos reservados, portada 2:3 fija, nada de `:has()` en la raíz y animaciones solo con `transform` y `opacity`. Las hojas de la propuesta solo cambian CSS. Las únicas reglas con `:has()` son las que ya existían.
 
+### El estado en la fila: Punto
+
+Al usuario no le gustaba el botón de estado de la fila, la píldora con el play o el marcapáginas a la derecha («feo»). Además, en «Pendientes» repetía lo que ya dice el título de cada sección.
+
+- **Opciones comparadas** (inyectadas encima del *build* de la rama; página `estado.mjs`):
+  1. «Etiqueta», como Notion o Jira: tintada y sin borde;
+  2. «Punto», como GitHub Projects;
+  3. «A la izquierda», como Linear o Things: el icono delante de la portada.
+
+  Las tres conservaban el botón, su nombre accesible, su menú y los 44 px táctiles.
+- **Elegida: Punto.** Un punto de 8 px en el color del estado y el texto en gris, sin caja. La caja suave (`--surface-3`) y la flecha salen con el puntero, el foco o el menú abierto. Se ve de 28 px y se toca en 44, gracias a un `::after`.
+- **En el móvil estrecho**, el texto se queda, para que el estado no lo diga solo el color. Cuesta algo de sitio al título.
+- El icono de estado sigue en el menú, en la paleta y en la ficha.
+
 ## 7 · Paso 3: la B en la app (05-11-2026)
 
 Hecho en seis capas, con un *commit* y `check` en verde en cada una:
