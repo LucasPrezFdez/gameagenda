@@ -1,11 +1,30 @@
 # Estado del proyecto — punto de partida de la próxima sesión
 
-**Actualizado:** 05-11-2026, en la sesión 8 (CA2.1 cumplido: M2 cerrado con `v0.2.0`, y la parte del pipeline del núcleo de arranque, en `main`). Antes, el 02-11-2026, en la sesión 7 (gestos y reordenar arrastrando: CA3.4 completo).
+**Actualizado:** 05-11-2026, en la sesión 8 (CA2.1 cumplido: M2 cerrado con `v0.2.0`; la parte del pipeline del núcleo de arranque, en `main`; y el rediseño visual «Tinta», en `main` y desplegado). Antes, el 02-11-2026, en la sesión 7 (gestos y reordenar arrastrando: CA3.4 completo).
 **Cómo retomar:** escribe *«Retoma GameAgenda desde docs/planificacion/ESTADO-SESION.md»*.
 
 ## 0. Lo primero en la próxima sesión
 
 Todo está en `main` y subido, con el CI y el despliegue en verde y sin agentes en marcha. Por orden:
+
+0. **Rediseño visual «Tinta» (05-11-2026, sesión 8): en `main` y desplegado.** Se hizo en la rama `rediseno-visual` (*worktree* `.claude/worktrees/rediseno-visual`, que se conserva) y entró en `main` sin *merge*, en `51b5563`.
+   - Encargo: `docs/planificacion/prompts/rediseno-visual.md`. Auditoría, opciones, elecciones del usuario y medidas: `docs/diseno/rediseno-visual/propuesta.md`. El porqué, en DECISIONES §10.31; los tokens, en la §9.8.
+   - Lo que eligió el usuario:
+     - la dirección B, «Tinta»: monocroma, con el acento en tinta;
+     - los iconos de estado macizos de Phosphor (MIT), con el trofeo de Platinado propio, en platino, y la chincheta de Próximo roja;
+     - el logo «Grafito»;
+     - el estado de la fila como «Punto».
+   - Medido con la CPU al 10 %: `check` (945 pruebas), E2E en Chromium y WebKit (177) y `perf` entero, todo en verde. JS inicial de 131,1 KB.
+   - Herramientas:
+     - `scripts/rediseno-capturas.ts`: capturas de `ga-web` real, con `--css` para inyectar hojas y `--dist` para servir el *build* de la rama bajo el origen de producción;
+     - `scripts/generar-iconos.ts`: todos los iconos a partir de `public/icons/icon.svg` e `icons/icon-sangre.svg`;
+     - `scripts/rediseno-contraste.ts` y `scripts/rediseno-iconos.ts`.
+   - **Al pasar el cliente del núcleo de arranque (`m3-arranque`) a `main`:** habrá conflictos en `palette.css`, en `docs/adr/README.md` y en DECISIONES, donde su §10.30 va antes de la §10.31 del rediseño. Resolverlos conservando el estilo «Tinta», y revisar que el aviso y el estado `boot` de la paleta usen los tokens nuevos (`--line`, `--radius-lg`).
+   - **Despliegue:** `ci` 42125904771 en verde (3 min 21 s), `deploy-web` 42126367721 (41 s) y `smoke:web` en verde.
+   - **App de escritorio, reinstalada en la noche del 05 al 06-11-2026** a petición del usuario, con el instalador nuevo (icono Grafito, comprobado en el `.exe`):
+     - antes, copia de sus datos en el *scratchpad* de la sesión (`copia-escritorio-20261105`, con IndexedDB entera). Después, desinstalación silenciosa de la anterior (`uninstall.exe /S`, que conserva `%LOCALAPPDATA%\dev.workers.gameagenda`) e instalación con `/S`;
+     - «Iniciar con Windows» no estaba activado;
+     - abierta oculta con `--autostart`, se puso al día sola a los 120 s, del bundle `index-D8AJgvtc.js` al `index-D8Qw9-uI.js` y del rosa a la tinta, con la agenda igual. Se miró por CDP en crudo, con `.cache/cdp-escritorio.mjs`. Ha quedado abierta en la bandeja, sin puerto de depuración.
 
 1. **Mirar las ejecuciones programadas del catálogo:** del 03-11 al 05-11 a las 04:17 UTC (05:17 en Madrid); GitHub las arranca hasta 8 h tarde. Con `gh run list --workflow catalog.yml --limit 5`, o en la web de Actions.
    - **CA2.1 cumplido (05-11-2026): 3 de 3.** Las del 03-11 (41631319596), el 04-11 (41826370273) y el 05-11 (42025966457), en verde en 12 min 30 s, 12 min 31 s y 12 min 55 s. Versiones `20261103.1` (198 213 juegos, 462 recientes), `20261104.1` (198 490, 766 recientes) y `20261105.1` (198 684, 986 recientes), con todas las puertas. GitHub las arrancó hacia las 12:00 UTC. Los recientes crecen cada día hasta llenar la ventana de 14 días. **Antes de cerrar M3 tienen que ser 7 seguidas** (§15.5): la racha va por 3.
