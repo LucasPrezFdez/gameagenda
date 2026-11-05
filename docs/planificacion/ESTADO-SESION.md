@@ -1,6 +1,6 @@
 # Estado del proyecto — punto de partida de la próxima sesión
 
-**Actualizado:** 02-11-2026, en la sesión 7 (gestos y reordenar arrastrando: CA3.4 completo). Antes, en la sesión 6 del mismo día (CA2.1 va 1 de 3 y CA2.4 está medido).
+**Actualizado:** 05-11-2026, en la sesión 8 (CA2.1 cumplido: M2 cerrado con `v0.2.0`). Antes, el 02-11-2026, en la sesión 7 (gestos y reordenar arrastrando: CA3.4 completo).
 **Cómo retomar:** escribe *«Retoma GameAgenda desde docs/planificacion/ESTADO-SESION.md»*.
 
 ## 0. Lo primero en la próxima sesión
@@ -8,7 +8,7 @@
 Todo está en `main` y subido, con el CI y el despliegue en verde y sin agentes en marcha. Por orden:
 
 1. **Mirar las ejecuciones programadas del catálogo:** del 03-11 al 05-11 a las 04:17 UTC (05:17 en Madrid); GitHub las arranca hasta 8 h tarde. Con `gh run list --workflow catalog.yml --limit 5`, o en la web de Actions.
-   - **CA2.1 va 2 de 3 (04-11-2026).** Las del 03-11 (41631319596) y el 04-11 (41826370273), en verde en 12 min 30 s y 12 min 31 s. Versiones `20261103.1` (198 213 juegos, 462 recientes) y `20261104.1` (198 490, 766 recientes), con todas las puertas. GitHub las arrancó hacia las 12:00 UTC. **Falta la del 05-11.** Los recientes crecen cada día hasta llenar la ventana de 14 días.
+   - **CA2.1 cumplido (05-11-2026): 3 de 3.** Las del 03-11 (41631319596), el 04-11 (41826370273) y el 05-11 (42025966457), en verde en 12 min 30 s, 12 min 31 s y 12 min 55 s. Versiones `20261103.1` (198 213 juegos, 462 recientes), `20261104.1` (198 490, 766 recientes) y `20261105.1` (198 684, 986 recientes), con todas las puertas. GitHub las arrancó hacia las 12:00 UTC. Los recientes crecen cada día hasta llenar la ventana de 14 días. **Antes de cerrar M3 tienen que ser 7 seguidas** (§15.5): la racha va por 3.
    - **La del 02-11 (41444097606): en rojo**, aunque publicó bien `20261102.1`. Justo después de desplegar, la prueba de humo vio 4 de ≈1 030 ficheros en 404; unos minutos después estaban todos. No se guardó el estado del día ni se avisó a healthchecks.io, y se abrió el *issue* #2. El usuario decidió arreglarlo aunque sea el pipeline: `catalog-smoke.ts` reintenta los 404 hasta 90 s. **CA2.1 vuelve a empezar:** hacen falta las del 03-11, el 04-11 y el 05-11.
    - **La del 01-11 (41301033690): en verde** en 12 min 10 s. Versión `20261101.1`: 197 874 juegos (+0,044 %), 3 563 alias y 93 recientes, los primeros. Todas las puertas en verde, también las de variación, y conserva la versión `20261031.1`.
    - **GitHub la arrancó a las 11:15 UTC, no a las 04:17:** casi 7 h tarde, algo normal en los *cron* de Actions con carga. El *check* de healthchecks.io (1 día + 12 h) lo aguanta. Las del 02-11 y el 03-11 pueden llegar igual de tarde.
@@ -20,13 +20,9 @@ Todo está en `main` y subido, con el CI y el despliegue en verde y sin agentes 
    - **Pendiente:** desde la publicación `20261108.1`, una copia de ese perfil prueba la otra rama de la regla de los 7 días, en la que sí baja el núcleo.
 
    Sin `--profile`, `smoke:web` es la prueba de humo de cada despliegue: primera visita (el 31-10, en `full` en 1,9 s con 3 017 KB), segunda visita sin pedir el *manifest*, y sin red.
-3. **Cerrar M2** cuando haya 3 ejecuciones programadas seguidas en verde (CA2.1):
-   - poner al día la tabla de CA del CHANGELOG (CA2.1 y CA2.4, y CA2.5 si se ha probado);
-   - cabecera `## [0.2.0] · M2 Catálogo vivo · <fecha>`;
-   - ADR-007 y ADR-008 a «aceptada», también en `docs/adr/README.md`;
-   - etiqueta anotada `v0.2.0` y *push* de la etiqueta.
+3. ~~**Cerrar M2**~~ **Hecho el 05-11-2026** (sesión 8): la tabla de CA del CHANGELOG al día, la cabecera `## [0.2.0] · M2 Catálogo vivo · 05-11-2026`, ADR-007 y ADR-008 en «aceptada» (también en `docs/adr/README.md`) y la etiqueta anotada `v0.2.0`, subida. CA2.5 (el *dead-man switch* con el cron parado) y CA2.6 (la agenda de 300 juegos reales) quedan en «Pendiente» del CHANGELOG.
 
-   Después ya se puede tocar el pipeline: núcleo de arranque, abaratar `applyRecent` y ADR-009.
+   Ya se puede tocar el pipeline: núcleo de arranque, abaratar `applyRecent` y ADR-009. Cada cambio sale en la siguiente ejecución programada, que usa `main`.
    - **El núcleo de arranque está hecho en la rama `m3-arranque`** (04-11-2026, subida a GitHub; `main` no lo lleva). Son los 20 000 juegos más populares, en `boot.<hash>.tsv` (773 KB, 269 KB en brotli 11). En la primera visita se puede buscar en ellos mientras llega el núcleo. Con CPU ×4, el estado `boot` llega en 613–759 ms (RNF-05: ≤1 500 ms), y la app, en `search:ready` a los 841–859 ms. `check`, los E2E de Chromium y WebKit y `size` (Worker en 38,7 KB) pasan.
    - ~~**Falta:** la revisión con verificación, el ADR-009 y la documentación.~~ **Hecho el 05-11-2026** en la rama:
      - ADR-009 («propuesta») y DECISIONES §10.30, con las secciones 4.6, 7.6, 8.8, 9.2, 9.6 y 12.4 al día (`e8ff675`);
@@ -72,7 +68,7 @@ Todo está en `main` y subido, con el CI y el despliegue en verde y sin agentes 
     - ~~los secretos de Cloudflare en GitHub~~ **hecho**: el usuario los creó y el despliegue automático funciona (`ci` 41140409104 y `deploy-web` 41140742020). CA0.1–CA0.5 cumplidos;
     - M0 no lleva etiqueta: `v0.0.1` quedaría después de `v0.1.0` (decisión del usuario, 30-10-2026). Su cierre va en el CHANGELOG, en «Sin publicar».
   - **Repositorio público:** el plan lo daba por privado. Los minutos de Actions no cuentan, pero el *cron* se desactiva a los 60 días sin *commits* (R-04).
-- **M2 · Catálogo vivo: en curso** (31-10-2026, sesión 4, con cuatro agentes en paralelo):
+- **M2 · Catálogo vivo: cerrado con `v0.2.0`** (05-11-2026, sesión 8, con CA2.1; empezado el 31-10-2026, en la sesión 4, con cuatro agentes en paralelo):
   - **Contrato en `core`** (`4f6877e`): JSON canónico y firma, *shards* de detalles, `applyRecent` y `StatusMessage.catalog`. Claves de firma `dev-1` (privada en `fixtures/signing/`) y `prod-1` (`9ace9f8`; privada solo para el secreto de GitHub).
   - **En `main`:**
     - A1, la construcción: recientes, *shards*, *kill switches*, firma, puertas, ADR-007 y el arreglo de la clave, que ahora solo va a `GetAppList`. Ejecución real: 217 llamadas, 4 con clave, 0,33 pet./s y 11,3 min.
@@ -108,7 +104,7 @@ Todo está en `main` y subido, con el CI y el despliegue en verde y sin agentes 
        - abaratar `applyRecent` si el arranque pasa de 2 s: no se ha hecho;
     7. ~~borrar la rama `m2-cliente` y las ramas y carpetas `worktree-agent-*`~~ **No se borran** (decisión del usuario, 31-10-2026: «por si acaso»), aunque todas están integradas.
   - **Avisos de los agentes:** el reinicio con caché sube a ≈1,85 s con recientes (≤2 s; con el equipo cargado, a veces se pasa; el 31-10-2026, 1 893 ms); el Worker pesa 36,9 KB de 40; los cambios del plan de sus informes ya están aplicados (punto 6).
-- **M3 · Rápida y ágil: empezado** (31-10-2026, sesión 5; adelantado mientras corren las ejecuciones de CA2.1). **Hasta cerrar M2, no se toca el pipeline** (`pipeline/`, `scripts/catalog-*`, `catalog.yml`): cada ejecución programada usa el código de `main`. Eso deja para después del 3-11 el núcleo de arranque.
+- **M3 · Rápida y ágil: empezado** (31-10-2026, sesión 5; adelantado mientras corren las ejecuciones de CA2.1). Hasta cerrar M2 no se tocó el pipeline (`pipeline/`, `scripts/catalog-*`, `catalog.yml`), porque cada ejecución programada usa el código de `main`. Por eso el núcleo de arranque esperó en la rama `m3-arranque` hasta el 05-11-2026.
   - **App de escritorio para Windows:** hecha e integrada (`a3bce6a`; ADR-010, «propuesta»). La hizo un agente en un *worktree*.
     - `apps/desktop` con Tauri 2: `ga-web` como origen remoto, sin *capabilities* ni órdenes propias, con `desktop.test.ts` en `npm run check`.
     - El atajo lanza `gameagenda:capture` en la página, y `App.tsx` abre la paleta.
@@ -175,7 +171,7 @@ Todo está en `main` y subido, con el CI y el despliegue en verde y sin agentes 
 | Pasada con lectores de pantalla | CA3.5 (y CA1.10, con NVDA) | `docs/medidas/guia-lectores-pantalla-m3.md`: apuntar → cambiar estado → Deshacer con NVDA, Narrador, TalkBack y VoiceOver, unos 10 minutos cada uno. Pega la tabla en el chat |
 | Prueba guiada con 3–5 personas | CA3.6 (O-1 y O-2) | `docs/medidas/protocolo-prueba-guiada-m3.md`: 10 juegos dictados a cada persona (al menos 2 ajenas al proyecto), con los tiempos de Ajustes › Rendimiento. Pega la tabla y los informes en el chat |
 | Medir en el Android de referencia y en un iPhone | CA3.1 (y lo de M1 del *issue* #1) | En el Android, con `docs/medidas/guia-dispositivo-m1.md`; en el iPhone, con Ajustes › Rendimiento y «Copiar informe». También probar ahí «Compartir» con la PWA instalada, lo que manda la app de Steam y el «Pegar» del chip en iOS (CA3.3) |
-| Mirar el correo de GitHub del 3 al 5 de noviembre (la del 2 falló y CA2.1 volvió a empezar) | CA2.1 | Un fallo de `catalog.yml` abre el *issue* `catalogo` y manda correo. Relanzar el flujo lo hace el usuario: Actions › catalog › Run workflow |
+| Mirar el correo de GitHub cada día hasta cerrar M3 (CA2.1 de M2 está cumplido; M3 pide 7 ejecuciones seguidas en verde, y van 3) | CA2.1 | Un fallo de `catalog.yml` abre el *issue* `catalogo` y manda correo. Relanzar el flujo lo hace el usuario: Actions › catalog › Run workflow |
 | Opcional: renovar la clave de Steam | Por si acaso | Un agente abrió por error `.env.local` en el Bloc de notas y dice que lo cerró sin leerlo. Si se renueva: `.env.local`, el secreto `STEAM_API_TOKEN` y la variable `STEAM_KEY_SHA256` |
 | Móviles reales | Medir los presupuestos de rendimiento | Un Android de gama media de referencia (M1) y un iPhone, aunque sea prestado (M3 y M4) |
 | Responder las preguntas de la §18 | Afinar el orden de los hitos y el alcance | Sobre todo PA-01 (¿apuntarás desde el móvil y el PC desde el principio?) y PA-02 (¿iPhone o Android?) |
@@ -212,7 +208,7 @@ Todo está en `main` y subido, con el CI y el despliegue en verde y sin agentes 
 - **Ritmo:** se pueden usar subagentes para trabajos independientes, pero hay que avisar al usuario al acabar cada parte y preguntar si sigue.
 - **No borrar** ramas, *worktrees* ni borradores sin que el usuario lo pida (31-10-2026: «no borres nada por si acaso»).
 - **Lo que el modo automático no deja hacer al asistente:** escribir secretos de GitHub, lanzar `catalog.yml` (despliega en producción) y cambiar `CATALOG_SCHEDULE`. Se le dan al usuario los pasos en la web de GitHub. Las variables normales, como `CATALOG_ORIGIN`, sí se pueden poner.
-- **Hasta cerrar M2, no tocar el pipeline** (`pipeline/`, `scripts/catalog-*`, `catalog.yml`): las ejecuciones programadas usan `main`. Excepción del 02-11-2026, decidida por el usuario: el reintento de los 404 en `catalog-smoke.ts`.
+- **El pipeline ya se puede tocar** (M2 cerrado el 05-11-2026), pero con cuidado: las ejecuciones programadas usan `main`, así que cada cambio de `pipeline/`, `scripts/catalog-*` o `catalog.yml` sale en la siguiente, y M3 pide 7 seguidas en verde (CA2.1). Antes de subir un cambio así, `npm run check` y las pruebas del pipeline en verde.
 - **Después de cada despliegue de `ga-web`, `npm run smoke:web`.** `vite preview` esconde diferencias con Workers Static Assets: el 31-10, el Service Worker roto desde el 30-10.
 - **`npm run perf` en local** necesita antes `npm run catalog:frozen` (catálogo firmado con `dev-1`). Con procesos pesados en marcha (Discord, `cargo`), `perf` y los E2E de WebKit sensibles al tiempo fallan sueltos: se repiten antes de culpar al código.
 - **Los informes de los subagentes** llegan por `SubagentHandback`; los antiguos están en `~/.claude/projects/<proyecto>/<sesión>/subagents/agent-*.jsonl`.
@@ -250,3 +246,4 @@ Todo está en `main` y subido, con el CI y el despliegue en verde y sin agentes 
 | 5 | 31-10-2026 | M2, puesta en marcha: secretos, segunda cuenta de Cloudflare (`gameagenda-cat.workers.dev`) y healthchecks.io; primera publicación firmada con `prod-1` (`20261031.1`, 197 786 juegos, 12 min 7 s); cliente de M2 (B) integrado en `main` y `ga-web` apuntando al catálogo nuevo; la app pasa a la versión 0.2.0 (la que pide el catálogo firmado); fuera los `:has()` de `.app`, que daban 40 tareas largas con ×4 (`perf` entero en verde); ADR-007 fundido, CHANGELOG de la 0.2.0 y el plan al día con lo construido (DECISIONES §10.19–10.21); `meta.catalog` y la comprobación cada 12 h; arreglado el Service Worker de `ga-web`, que no volvía a abrir tras la primera visita desde el 30-10; M3 empezado con la app de escritorio (Tauri) |
 | 6 | 01/02-11-2026 (noche) | Primera ejecución programada de `catalog.yml` en verde (CA2.1, 1 de 3); CA2.4 medido en producción (34,5 KB) y `smoke:web` al día; los dos hallazgos del usuario en la app de escritorio, arreglados (menú de «Orden» y portadas en el Catálogo, §10.22); CA3.7 medido en la app instalada (p50 de 1,24 s); atajos de una tecla de la §9.4 (§10.23) |
 | 7 | 02-11-2026 | Gestos de la §9.4 y reordenar arrastrando `::` (§10.24), con el ajuste «Gestos táctiles» y E2E con toques de verdad por CDP: CA3.4 completo. Índice persistido (§10.25): CA3.2 en 275 ms con CPU ×4. «Compartir», `Ctrl+V` y el chip «Pegar enlace» (§10.26; CA3.3). Panel de rendimiento en Ajustes (§10.27). Auditoría WCAG 2.2 AA, parte automática (§10.28; CA3.5). Restauración del índice en dos fases (CA3.2 en 162 ms) y protocolo de la prueba guiada (CA3.6). CA3.8 en la app de escritorio, por el asistente en la segunda pantalla: ADR-010 aceptado. Versiones nuevas sin que se note (§10.29), en la web y en la app de escritorio. La ejecución programada del catálogo del 02-11 falló en la prueba de humo (404 pasajeros justo tras desplegar) |
+| 8 | 04/05-11-2026 | Núcleo de arranque en la rama `m3-arranque` (20 000 juegos, `boot` con CPU ×4 en 613–759 ms), con ADR-009 propuesto, DECISIONES §10.30 y la revisión verificada (3 arreglos). CA2.1 cumplido con las ejecuciones programadas del 03 al 05-11: M2 cerrado con `v0.2.0`, y ADR-007 y ADR-008 aceptados |

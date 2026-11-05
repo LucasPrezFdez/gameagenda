@@ -1,5 +1,5 @@
 ---
-status: propuesta
+status: aceptada (05-11-2026, con CA2.1)
 date: 2026-10-31
 decision-makers: Lucas (propietario del proyecto)
 ---
@@ -381,7 +381,7 @@ El *issue* dice qué paso falló y si se llegó a desplegar. Si no se desplegó,
 - Mal, porque la primera publicación en un origen nuevo no conserva nada y numera desde `AAAAMMDD.1`.
 - Neutral, porque los recientes empiezan a contar desde la primera publicación de `catalog.yml`, que partió sin estado. En la pasada A1, sobre el estado de M1, el primer `recent` traía 679 altas en dos días y 1 475 renombrados, casi todos el paso del nombre base del plan B al de `GetAppList`.
 - Pendiente:
-  - 3 ejecuciones programadas seguidas en verde (CA2.1), desde el 01-11-2026: hasta entonces, «propuesta»;
+  - ~~3 ejecuciones programadas seguidas en verde (CA2.1)~~ **cumplido el 05-11-2026** con las del 03, el 04 y el 05-11, y el ADR pasa a «aceptada». La del 02-11 publicó bien, pero falló en la prueba de humo por un 404 pasajero del CDN; desde entonces, `catalog-smoke.ts` reintenta los 404 hasta 90 s. Antes de cerrar M3 tienen que ser 7 seguidas (§15.5);
   - el correo de healthchecks.io, deteniendo el cron (CA2.5);
   - `gh run download` del artefacto desde el trabajo `report` y el *issue* en un fallo real;
   - lo que transfiere el núcleo completo (ADR-003);
@@ -416,6 +416,7 @@ El *issue* dice qué paso falló y si se llegó a desplegar. Si no se desplegó,
   - la prueba de humo, con la tabla de cabeceras en el resumen;
   - el resumen de llamadas frente a los límites de CA2.1, que avisa si se pasa.
 - **En producción, el 31-10-2026:** con un Chromium limpio, `ga-web` (0.2.0) verifica la firma, llega a `full` con `20261031.1` en 4,2 s y encuentra Hollow Knight, Baldur's Gate 3, Elden Ring y Stardew Valley.
+- **CA2.1, del 03 al 05-11-2026:** tres ejecuciones programadas seguidas en verde (41631319596, 41826370273 y 42025966457), de 12 min 30 s a 12 min 55 s, con todas las puertas. Publicaron `20261103.1`, `20261104.1` y `20261105.1` (198 684 juegos y 986 recientes). GitHub las arrancó hacia las 12:00 UTC, no a las 04:17, y el *check* de healthchecks.io (1 día + 12 h) lo aguanta.
 
 ## Pros y contras de las opciones
 

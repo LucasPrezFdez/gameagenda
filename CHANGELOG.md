@@ -4,7 +4,11 @@ Cambios de GameAgenda por versión. Cada hito cierra una versión SemVer 0.x (§
 
 ## [Sin publicar]
 
-Será la **0.2.0 · M2 Catálogo vivo**: el catálogo se actualiza solo cada día, firmado, y la app muestra portadas, la ficha completa y los próximos lanzamientos. La app ya es la versión 0.2.0 desde el 31-10-2026, porque el catálogo firmado la pide. La etiqueta `v0.2.0` llega con CA2.1: tres ejecuciones programadas seguidas en verde, desde el 01-11-2026. Al etiquetar, esta cabecera pasa a `## [0.2.0] · M2 Catálogo vivo · <fecha>`.
+Nada todavía.
+
+## [0.2.0] · M2 Catálogo vivo · 05-11-2026
+
+El catálogo se actualiza solo cada día, firmado, y la app muestra portadas, la ficha completa y los próximos lanzamientos. La app es la versión 0.2.0 desde el 31-10-2026, porque el catálogo firmado la pide. La etiqueta llega con CA2.1: tres ejecuciones programadas seguidas en verde, las del 03, el 04 y el 05-11-2026. Trae también lo que se adelantó de M3 antes de etiquetar: la app de escritorio, los atajos, los gestos, el índice persistido y el resto de los apartados «Adelantado de M3».
 
 ### Añadido
 
@@ -62,7 +66,7 @@ Será la **0.2.0 · M2 Catálogo vivo**: el catálogo se actualiza solo cada dí
   - `npm run perf` necesita antes `npm run catalog:frozen`, porque el catálogo tiene que ir firmado;
   - `npm run smoke:web`, prueba de humo de `ga-web` en producción con un Chromium real: primera y segunda visita, sin red y errores. Con `--profile`, mide la actualización de un cliente con el catálogo de ayer (CA2.4): espera a la comprobación del *manifest* y a la versión nueva, y comprueba ≤200 KB, sin núcleo y sin tareas largas.
 - **ADR:**
-  - 007 (pipeline y publicación) y 008 (portadas), propuestos;
+  - 007 (pipeline y publicación) y 008 (portadas), aceptados al cerrar M2 (05-11-2026);
   - la parte de M2 del Worker en el ADR-005 y la cuenta nueva en el ADR-003.
 
 #### Adelantado de M3: app de escritorio para Windows
@@ -164,7 +168,7 @@ Es el hallazgo de CA3.8 (DECISIONES §10.29).
 
 | CA | Estado | Evidencia |
 |---|---|---|
-| CA2.1 Pipeline diario | Pendiente (2 de 3; falta la del 05-11) | La primera publicación, lanzada a mano, salió en verde: 218 llamadas, 4 con clave, 0,334/s y 12 min 7 s. Ejecuciones programadas: la del 01-11-2026 (41301033690), en verde en 12 min 10 s, con `20261101.1`, 93 recientes y todas las puertas, también las de variación (+0,044 % de juegos). GitHub la arrancó a las 11:15 UTC, no a las 04:17. La del 02-11 (41444097606) publicó bien `20261102.1`, pero salió en rojo: justo después de desplegar, la prueba de humo vio 4 de ≈1 030 ficheros en 404 (ver «Corregido»). Desde el arreglo, en verde: la del 03-11 (41631319596, 12 min 30 s) con `20261103.1`, 198 213 juegos (+0,171 %) y 462 recientes, y la del 04-11 (41826370273, 12 min 31 s) con `20261104.1`, 198 490 juegos (+0,14 %) y 766 recientes. Las dos, con todas las puertas y arrancadas hacia las 12:00 UTC |
+| CA2.1 Pipeline diario | Cumplido (05-11-2026; faltan 7 seguidas antes de cerrar M3) | Tres ejecuciones programadas seguidas en verde, del 03 al 05-11-2026. La primera publicación, lanzada a mano, salió en verde: 218 llamadas, 4 con clave, 0,334/s y 12 min 7 s. Ejecuciones programadas: la del 01-11-2026 (41301033690), en verde en 12 min 10 s, con `20261101.1`, 93 recientes y todas las puertas, también las de variación (+0,044 % de juegos). GitHub la arrancó a las 11:15 UTC, no a las 04:17. La del 02-11 (41444097606) publicó bien `20261102.1`, pero salió en rojo: justo después de desplegar, la prueba de humo vio 4 de ≈1 030 ficheros en 404 (ver «Corregido»). Desde el arreglo, en verde: la del 03-11 (41631319596, 12 min 30 s) con `20261103.1`, 198 213 juegos (+0,171 %) y 462 recientes, y la del 04-11 (41826370273, 12 min 31 s) con `20261104.1`, 198 490 juegos (+0,14 %) y 766 recientes, y la del 05-11 (42025966457, 12 min 55 s) con `20261105.1`, 198 684 juegos (+0,098 %) y 986 recientes, con 2 058 ficheros correctos en la prueba de humo. Las tres, con todas las puertas y arrancadas hacia las 12:00 UTC |
 | CA2.2 Puertas | Cumplido con *fixtures*; falta un fallo real | `publish.test.ts` fuerza cada puerta y el «solo falla el enriquecimiento». El *issue* y el aviso del trabajo `report` no se han visto en un fallo real |
 | CA2.3 Firma y *kill switch* | Cumplido en Chromium | `catalog-update.spec` (*manifest* manipulado), `covers.spec` (*kill switch* `covers`) y `host.test`. El WebKit de Playwright para Windows no trae Ed25519 |
 | CA2.4 Actualización ligera | Cumplido | En producción (`docs/medidas/ca2.4-20261102.md`), un cliente con el catálogo `20261031.1` pasa a `20261101.1` bajando 34,5 KB en 4 ficheros (*manifest*, recientes, alias e índice de *shards*), sin núcleo y sin tareas largas en el hilo principal. En pruebas, `catalog-update.spec` y `host.test` (solo el *manifest* y los recientes); `assemble-catalog` y la prueba de humo del pipeline (versión anterior) |
@@ -217,7 +221,7 @@ Es el hallazgo de CA3.8 (DECISIONES §10.29).
 
 ### Pendiente
 
-- **CA2.1:** tres ejecuciones programadas seguidas en verde. Después, ADR-007 y ADR-008 pasan a «aceptada» y se etiqueta `v0.2.0`.
+- **CA2.1 para M3:** 7 ejecuciones programadas seguidas en verde antes de cerrar M3 (§15.5). Las 3 primeras son las del 03 al 05-11-2026.
 - **CA2.5:** probar el *dead-man switch* deteniendo el cron.
 - **CA2.6:** la agenda de prueba con 300 juegos reales.
 - **CA2.2 en un fallo real:** el *issue* `catalogo`, el `/fail` de healthchecks.io y `gh run download` desde el trabajo `report`.

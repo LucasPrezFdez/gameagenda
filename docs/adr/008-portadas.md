@@ -1,6 +1,6 @@
 # ADR-008 · Portadas desde el CDN de Valve y aviso de privacidad
 
-- **Estado:** propuesta
+- **Estado:** aceptada el 05-11-2026, al cerrar M2 (queda CA2.6, con la agenda de 300 juegos reales)
 - **Fecha:** 31-10-2026
 - **Deciden:** el usuario y el asistente
 
