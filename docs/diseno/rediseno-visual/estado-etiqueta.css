@@ -1,0 +1,85 @@
+/* El estado de la fila · opción 1, «Etiqueta» (como las de Notion o Jira). Propuesta: se inyecta
+   encima del build de la rama. Etiqueta pequeña, tintada con el chip de su estado, sin borde; la
+   flecha solo con el puntero, el foco o el menú abierto. El área táctil sigue en 44 px. */
+
+.status-button,
+.status-button:hover {
+  position: relative;
+  gap: 5px;
+  min-height: 26px;
+  padding: 2px 8px 2px 6px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.status-button .icon {
+  width: 14px;
+  height: 14px;
+}
+
+.status-button.status-text--want_to_play {
+  background: var(--want_to_play-chip);
+  color: var(--want_to_play);
+}
+.status-button.status-text--playing {
+  background: var(--playing-chip);
+  color: var(--playing);
+}
+.status-button.status-text--on_hold {
+  background: var(--on_hold-chip);
+  color: var(--on_hold);
+}
+.status-button.status-text--completed {
+  background: var(--completed-chip);
+  color: var(--completed);
+}
+.status-button.status-text--dropped {
+  background: var(--dropped-chip);
+  color: var(--dropped);
+}
+
+.status-button__chevron {
+  width: 12px;
+  height: 12px;
+  margin-left: -1px;
+  color: inherit;
+  opacity: 0;
+  transition: opacity var(--motion) var(--ease);
+}
+
+.entry-row:hover .status-button__chevron,
+.status-button:focus-visible .status-button__chevron,
+.status-button[aria-expanded="true"] .status-button__chevron {
+  opacity: 1;
+}
+
+/* Con el dedo: la etiqueta se ve igual, pero se toca en 44 px. */
+@media (max-width: 767px), (pointer: coarse) {
+  .status-button,
+  .status-button:hover {
+    min-height: 28px;
+  }
+
+  .status-button::after {
+    content: "";
+    position: absolute;
+    inset: -8px -4px;
+  }
+}
+
+/* En el móvil estrecho, sin texto: un cuadrado tintado de 30 px con el icono. */
+@media (max-width: 479px) {
+  .status-button,
+  .status-button:hover {
+    min-width: 30px;
+    min-height: 30px;
+    padding: 0;
+  }
+
+  .status-button .icon {
+    width: 16px;
+    height: 16px;
+  }
+}

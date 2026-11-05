@@ -1,0 +1,94 @@
+/* El estado de la fila · opción 2, «Punto» (como GitHub Projects). Propuesta: se inyecta encima
+   del build de la rama. Un punto de 8 px en el color del estado y el texto en gris, sin caja; la
+   caja suave y la flecha salen con el puntero, el foco o el menú abierto. Área táctil de 44 px. */
+
+.status-button {
+  position: relative;
+  gap: 8px;
+  min-height: 28px;
+  padding: 2px 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.status-button:hover,
+.status-button[aria-expanded="true"] {
+  border: 0;
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+/* El icono se queda para el menú, la paleta y la ficha; aquí, el punto. */
+.status-button > .icon:first-child {
+  display: none;
+}
+
+.status-button::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+}
+
+.status-button.status-text--want_to_play::before {
+  background: var(--want_to_play);
+}
+.status-button.status-text--playing::before {
+  background: var(--playing);
+}
+.status-button.status-text--on_hold::before {
+  background: var(--on_hold);
+}
+.status-button.status-text--completed::before {
+  background: var(--completed);
+}
+.status-button.status-text--dropped::before {
+  background: var(--dropped);
+}
+
+.status-button__chevron {
+  width: 12px;
+  height: 12px;
+  margin-left: -4px;
+  opacity: 0;
+  transition: opacity var(--motion) var(--ease);
+}
+
+.entry-row:hover .status-button__chevron,
+.status-button:focus-visible .status-button__chevron,
+.status-button[aria-expanded="true"] .status-button__chevron {
+  opacity: 1;
+}
+
+@media (max-width: 767px), (pointer: coarse) {
+  .status-button {
+    min-height: 28px;
+  }
+
+  .status-button::after {
+    content: "";
+    position: absolute;
+    inset: -8px -4px;
+  }
+}
+
+/* En el móvil estrecho, el texto se queda: es corto y sin él el punto solo diría el color. */
+@media (max-width: 479px) {
+  .status-button {
+    min-width: 0;
+    padding: 2px 6px;
+  }
+
+  .status-button__label {
+    display: inline;
+  }
+
+  .status-button__chevron {
+    display: none;
+  }
+}

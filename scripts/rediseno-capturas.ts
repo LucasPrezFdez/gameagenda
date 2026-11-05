@@ -96,9 +96,18 @@ const AGENDA: readonly [number, string, Status, Record<string, boolean>][] = [
   [1794680, 'Vampire Survivors', 'dropped', {}],
 ];
 
-type ScreenId = 'lista' | 'paleta' | 'catalogo' | 'ficha' | 'proximos' | 'completado' | 'ajustes';
+type ScreenId =
+  | 'lista'
+  | 'todos'
+  | 'paleta'
+  | 'catalogo'
+  | 'ficha'
+  | 'proximos'
+  | 'completado'
+  | 'ajustes';
 const SCREENS: readonly { id: ScreenId; path: string; title: string }[] = [
   { id: 'lista', path: '/', title: 'Mi lista' },
+  { id: 'todos', path: '/?vista=todos', title: 'Mi lista · Todos' },
   { id: 'paleta', path: '/', title: 'Paleta' },
   { id: 'catalogo', path: '/catalogo', title: 'Catálogo' },
   { id: 'ficha', path: '/juego/steam:367520', title: 'Ficha' },
@@ -290,7 +299,16 @@ writeComparison();
 
 /** La página de comparación: una fila por pantalla, tema y ancho; una columna por variante. */
 function writeComparison(): void {
-  const ORDER = ['antes', 'a', 'b', 'b-iconos', 'despues'];
+  const ORDER = [
+    'antes',
+    'a',
+    'b',
+    'b-iconos',
+    'despues',
+    'estado-etiqueta',
+    'estado-punto',
+    'estado-izquierda',
+  ];
   const variants = readdirSync(ROOT, { withFileTypes: true })
     .filter((d) => d.isDirectory() && !/^(perfil|icono)/.test(d.name))
     .map((d) => d.name)
@@ -303,6 +321,9 @@ function writeComparison(): void {
     a: 'Dirección A',
     b: 'Dirección B',
     'b-iconos': 'B con los iconos nuevos',
+    'estado-etiqueta': 'Estado · 1 Etiqueta',
+    'estado-punto': 'Estado · 2 Punto',
+    'estado-izquierda': 'Estado · 3 A la izquierda',
     despues: 'Después',
   };
   const rows: string[] = [];

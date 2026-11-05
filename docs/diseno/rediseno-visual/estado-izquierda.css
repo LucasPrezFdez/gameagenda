@@ -1,0 +1,68 @@
+/* El estado de la fila · opción 3, «A la izquierda» (como Linear o Things). Propuesta: se inyecta
+   encima del build de la rama. El icono de estado va delante de la portada, como una casilla, sin
+   texto ni flecha; el nombre accesible no cambia (aria-label) y el menú es el mismo. La derecha
+   queda solo para «Más opciones». En la propuesta se recoloca con `order`; al construirlo, el
+   botón pasaría a ir antes en el DOM para que el orden del foco siga al visual (WCAG 2.4.3). */
+
+.entry-row__handle {
+  order: -2;
+}
+
+.entry-row__body > .menu:has(> .status-button) {
+  order: -1;
+}
+
+.status-button,
+.status-button:hover {
+  position: relative;
+  justify-content: center;
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.status-button:hover,
+.status-button[aria-expanded="true"] {
+  background: var(--surface-3);
+}
+
+.status-button .icon {
+  width: 20px;
+  height: 20px;
+}
+
+.status-button__label,
+.status-button__chevron {
+  display: none;
+}
+
+/* Con el dedo, se toca en 44 px aunque se vea de 32. */
+@media (max-width: 767px), (pointer: coarse) {
+  .status-button,
+  .status-button:hover {
+    width: 32px;
+    min-width: 32px;
+    min-height: 32px;
+  }
+
+  .status-button::after {
+    content: "";
+    position: absolute;
+    inset: -6px;
+  }
+}
+
+/* Sin el asa delante (Jugando ahora no se ordena a mano), el icono va pegado al borde. */
+.entry-row__body {
+  gap: 10px;
+}
+
+/* La línea fina entre filas empieza en el título, que ahora va 42 px más a la derecha. */
+.entry-row + .entry-row .entry-row__body {
+  background-size: calc(100% - 110px) 1px;
+}
