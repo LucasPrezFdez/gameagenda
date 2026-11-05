@@ -398,6 +398,7 @@ Resueltos a partir de las mediciones y de los conflictos detectados entre seccio
       - `check` en verde (945 pruebas) y los E2E de Chromium y WebKit (177, con axe, 320 px y foco);
       - JS inicial de 131,2 KB brotli frente a 130,4 KB en `main`, y 133 pares de contraste;
       - `npm run perf` en verde en 2 de 3 pasadas. La otra dio una tarea larga de 52 ms, sin fotograma largo, que no se repitió. INP de 32–64 ms, reinicio con caché hasta `scan` en 1 768 ms y restaurar el índice en 171 ms.
+      - **Tras «Punto» (05-11-2026, CPU al 10 %):** todo en verde a la primera. `check` (945), los E2E de Chromium y WebKit (177) y `perf` entero: 0 tareas largas, INP de 40 ms, LCP de 680 ms, `scan` en 1 898 ms (justo bajo 2 000) y restaurar el índice en 182 ms.
     - **Quedan:**
       - el instalador de escritorio con el icono nuevo (`npm run desktop:build`);
       - la pasada con lectores de pantalla (CA3.5) sobre la interfaz nueva, que hace el usuario.

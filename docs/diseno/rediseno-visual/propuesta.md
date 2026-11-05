@@ -198,6 +198,7 @@ Después, `a2898a6` arregla el hueco entre avisos y la última capa pone las cas
 | INP (20 nombres, 10 altas) | — | 32–64 ms (≤200) |
 | Reinicio con caché → `scan` | ≈2,1 s con el equipo cargado | 1 768 ms (≤2 000) |
 | Restaurar el índice → primera consulta | 162–326 ms | 171 ms (≤400) |
+| Todo, tras «Punto» (CPU al 10 %) | — | En verde a la primera: 945 · 177 E2E · `perf` entero (0 tareas largas, INP 40 ms, `scan` 1 898 ms) |
 
 Criterios de aceptación del encargo:
 - Seis tamaños de letra, tres pesos, tres radios, dos sombras y un acento: cumple.
