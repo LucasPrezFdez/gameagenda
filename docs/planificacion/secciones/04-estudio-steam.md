@@ -101,16 +101,16 @@ Va en un `.tgz` como *asset* de la *Release* `catalog-state` de GitHub (7 copias
 | Recuento | ≥190 000 juegos y entre −2 % y +5 % respecto a la versión anterior (hoy, ≈+0,13 % al día) |
 | Renombrados | ≤1 % de nombres cambiados (hoy, ≈0,01 % al día) |
 | Centinelas | están 730, 570, 1245620, 1086940 y 367520 |
-| Integridad | sin `appid` duplicados ni nombres vacíos; todas las filas se leen; *shards* válidos (Zod) |
-| Tamaño | el núcleo no pasa de su máximo (ver §7) |
-| Consultas de humo | en el índice construido con `packages/core`: «hollow knight» → 367520 primero; «baldurs gate» → 1086940, «elden» → 1245620 y «counter strike» → 730 entre los 3 primeros (el 1.º será «Counter-Strike», 10: coincidencia exacta) |
+| Integridad | sin `appid` duplicados ni nombres vacíos; todas las filas se leen; *shards* válidos (Zod); desde M3, el núcleo de arranque es el prefijo exacto del núcleo, de su misma versión y con `min(20 000, filas)` filas |
+| Tamaño | el núcleo no pasa de su máximo y, desde M3, el núcleo de arranque tampoco (ver §7) |
+| Consultas de humo | en el índice construido con `packages/core`: «hollow knight» → 367520 primero; «baldurs gate» → 1086940, «elden» → 1245620 y «counter strike» → 730 entre los 3 primeros (el 1.º será «Counter-Strike», 10: coincidencia exacta). Desde M3, también en el núcleo de arranque, con los mismos alias |
 | Calidad de búsqueda | en ese mismo índice, el conjunto dorado, los 2 000 nombres exactos y los prefijos de 4 letras cumplen sus umbrales (ver §8.10) |
 
 Si falla **solo el enriquecimiento**, se publican los nombres al día con el último enriquecimiento conocido y `enrichmentAgeDays` crece. Falla si, con clave, Query da cualquier error o devuelve menos del 95 % de los juegos de `GetAppList` (el 29-10-2026, el 99,88 %). Entonces H1 no se clasifica, porque sería toda la lista, y las altas de ese día van sin reseñas ni detalles. Si falla `GetItems`, lo no clasificado se conserva como está en el estado y la ejecución queda «degradada» en el informe. Sin clave, Query es también la lista: si falla, no hay catálogo.
 
 Tras un parón largo (a ≈+0,13 % al día, el +5 % se alcanza en ≈38 días), las comparaciones con la versión anterior bloquearían siempre: se relanza a mano con `--skip-delta-gates` (también como entrada de `workflow_dispatch`), que se las salta como en la primera versión, mantiene el mínimo de 190 000 juegos y lo anota en el informe de la ejecución (ver §12).
 
-**Ficheros** (ver §7): *manifest* firmado, núcleo, recientes (≈4 000 filas en 14 días: ≈264 altas + ≈17 renombrados al día), alias, 1 024 *shards* y su índice; cada despliegue reincluye los de la versión anterior, que se bajan del `ga-catalog` publicado. Secretos: clave de Steam, clave privada de firma, *token* de Cloudflare de la cuenta propia de `ga-catalog` (§11.3) y URL del *dead-man switch* (healthchecks.io; aviso tras 36 h sin ping). La lista completa de secretos y variables está en el ADR-007.
+**Ficheros** (ver §7): *manifest* firmado, núcleo, núcleo de arranque (desde M3), recientes (≈4 000 filas en 14 días: ≈264 altas + ≈17 renombrados al día), alias, 1 024 *shards* y su índice; cada despliegue reincluye los de la versión anterior, que se bajan del `ga-catalog` publicado. Secretos: clave de Steam, clave privada de firma, *token* de Cloudflare de la cuenta propia de `ga-catalog` (§11.3) y URL del *dead-man switch* (healthchecks.io; aviso tras 36 h sin ping). La lista completa de secretos y variables está en el ADR-007.
 
 ### 4.7 Presupuesto, volumen y política HTTP
 
