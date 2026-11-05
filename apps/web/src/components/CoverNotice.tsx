@@ -47,7 +47,9 @@ export function CoverNotice({ hidden }: { hidden: boolean }) {
     if (!visible || !element) return;
     const root = document.documentElement;
     const measure = () => {
-      const height = element.offsetHeight;
+      // Con decimales: `offsetHeight` redondea, y con alturas de medio píxel (texto a 15 px e
+      // interlineado 1,5) el hueco entre los dos avisos salía de 8,5 px en vez de 8.
+      const height = element.getBoundingClientRect().height;
       if (height > 0) root.style.setProperty('--cover-notice-space', `${height + NOTICE_GAP}px`);
     };
     measure();
