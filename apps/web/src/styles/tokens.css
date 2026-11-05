@@ -1,16 +1,26 @@
-/* Tokens de la §9.8: claro por defecto; oscuro con el sistema o con el selector de Ajustes. */
+/* Tokens de la §9.8: claro por defecto; oscuro con el sistema o con el selector de Ajustes.
+   Dirección «Tinta» del rediseño visual (05-11-2026, docs/diseno/rediseno-visual/propuesta.md):
+   neutros fríos, el acento es la propia tinta y el color lo ponen las portadas y los estados. */
 :root {
   color-scheme: light;
-  --bg: #f6f7f9;
+  --bg: #f6f6f7;
   --surface: #ffffff;
-  --surface-2: #eef1f5;
-  --control-border: #7a8594;
-  --text: #161b22;
-  --text-muted: #556170;
-  --accent: #c2185b;
+  --surface-2: #f0f0f2;
+  --surface-3: #e7e7ea;
+  /* Líneas finas que separan sin encajonar (filas, grupos, menús); no identifican controles. */
+  --line: #e4e4e8;
+  --control-border: #84848e;
+  --text: #18181b;
+  --text-muted: #5e5e68;
+  --accent: #18181b;
   --on-accent: #ffffff;
-  --backdrop: rgb(22 27 34 / 0.45);
-  --shadow: 0 8px 28px rgb(22 27 34 / 0.18);
+  /* Errores y acciones que borran: el acento ya no es un color. */
+  --danger: #c4272f;
+  --backdrop: rgb(24 24 27 / 0.3);
+  --shadow-sm: 0 1px 2px rgb(24 24 27 / 0.06);
+  --shadow: 0 1px 2px rgb(24 24 27 / 0.05), 0 12px 32px -4px rgb(24 24 27 / 0.16);
+  /* Filo de 1 px de las portadas, que las separa del fondo. */
+  --cover-outline: rgb(24 24 27 / 0.08);
 
   /* Estados y marcas: texto · chip (opaco, ver §9.8). */
   --want_to_play: #0b63c5;
@@ -42,18 +52,30 @@
   --brand-rim: rgb(255 255 255 / 0.16);
 
   --font: "Segoe UI Variable Text", system-ui, sans-serif;
-  --radius: 8px;
+  /* Letra: seis tamaños (el campo de la paleta sigue en 1rem: iOS no amplía la página). */
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-md: 0.9375rem;
+  --text-lg: 1.0625rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.75rem;
+  /* Tres radios: pequeño (portadas, teclas, elementos de menú), controles y filas, y grupos y
+     superficies flotantes. */
   --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 14px;
   --gap: 12px;
   --gutter: 16px;
   --header-h: 56px;
   --tabbar-h: 56px;
   --capturebar-h: 60px;
-  --row-h: 64px;
+  /* Portada de 40 × 60 px y 8 px arriba y abajo. */
+  --row-h: 76px;
   --option-h: 48px;
   --target: 24px;
   --target-touch: 44px;
   --motion: 160ms;
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --z-sticky: 10;
   --z-overlay: 30;
   --z-palette: 40;
@@ -65,16 +87,21 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --bg: #0e1116;
-    --surface: #161b22;
-    --surface-2: #1e252e;
-    --control-border: #6b7787;
-    --text: #e7ebf0;
-    --text-muted: #a3adba;
-    --accent: #ff6aa8;
-    --on-accent: #0e1116;
+    --bg: #0e0e10;
+    --surface: #161618;
+    --surface-2: #1f1f22;
+    --surface-3: #28282c;
+    --line: #27272b;
+    --control-border: #6e6e78;
+    --text: #f4f4f5;
+    --text-muted: #a1a1aa;
+    --accent: #f4f4f5;
+    --on-accent: #18181b;
+    --danger: #ff6b6b;
     --backdrop: rgb(0 0 0 / 0.55);
-    --shadow: 0 8px 28px rgb(0 0 0 / 0.5);
+    --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.35);
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.35), 0 16px 40px -6px rgb(0 0 0 / 0.6);
+    --cover-outline: rgb(255 255 255 / 0.08);
     --want_to_play: #5ab0ff;
     --want_to_play-chip: #213345;
     --playing: #3fcf8e;
@@ -99,16 +126,21 @@
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #0e1116;
-  --surface: #161b22;
-  --surface-2: #1e252e;
-  --control-border: #6b7787;
-  --text: #e7ebf0;
-  --text-muted: #a3adba;
-  --accent: #ff6aa8;
-  --on-accent: #0e1116;
+  --bg: #0e0e10;
+  --surface: #161618;
+  --surface-2: #1f1f22;
+  --surface-3: #28282c;
+  --line: #27272b;
+  --control-border: #6e6e78;
+  --text: #f4f4f5;
+  --text-muted: #a1a1aa;
+  --accent: #f4f4f5;
+  --on-accent: #18181b;
+  --danger: #ff6b6b;
   --backdrop: rgb(0 0 0 / 0.55);
-  --shadow: 0 8px 28px rgb(0 0 0 / 0.5);
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.35);
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.35), 0 16px 40px -6px rgb(0 0 0 / 0.6);
+  --cover-outline: rgb(255 255 255 / 0.08);
   --want_to_play: #5ab0ff;
   --want_to_play-chip: #213345;
   --playing: #3fcf8e;

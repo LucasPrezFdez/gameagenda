@@ -270,7 +270,7 @@
 }
 
 .field-error {
-  color: var(--accent);
+  color: var(--danger);
   font-size: 0.875rem;
 }
 

@@ -223,7 +223,7 @@
 }
 
 .settings__perf-table td[data-passes="false"] {
-  color: var(--accent);
+  color: var(--danger);
   font-weight: 600;
 }
 
