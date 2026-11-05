@@ -128,12 +128,36 @@ function useGlobalShortcuts(
   }, [palette, slashOpensPalette, singleKeyShortcuts, notices, openHelp, listHref]);
 }
 
+/**
+ * El logo (Grafito): el mismo dibujo que `public/icons/icon.svg`, el marcapáginas y el play de
+ * Phosphor sobre un degradado de zinc, con los colores en tokens.css (`--brand-*`). Va una sola
+ * vez en la página, así que sus `id` no chocan.
+ */
 function LogoMark() {
   return (
-    <svg className="brand__mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
-      <rect width="32" height="32" rx="8" />
-      <path d="M10 7h12a1 1 0 0 1 1 1v17l-7-4-7 4V8a1 1 0 0 1 1-1z" />
-      <path d="M16 11v7M12.5 14.5h7" />
+    <svg className="brand__mark" viewBox="0 0 256 256" aria-hidden="true" focusable="false">
+      <defs>
+        <linearGradient id="brand-mark-fill" x1="0" y1="0" x2="1" y2="1">
+          <stop className="brand__from" offset="0" />
+          <stop className="brand__to" offset="1" />
+        </linearGradient>
+        <mask id="brand-mark-hole">
+          <rect width="256" height="256" fill="#fff" />
+          <path
+            fill="#000"
+            transform="translate(103.5 82.4) scale(0.2)"
+            d="M240,128a15.74,15.74,0,0,1-7.6,13.51L88.32,229.65a16,16,0,0,1-16.2.3A15.86,15.86,0,0,1,64,216.13V39.87a15.86,15.86,0,0,1,8.12-13.82,16,16,0,0,1,16.2.3L232.4,114.49A15.74,15.74,0,0,1,240,128Z"
+          />
+        </mask>
+      </defs>
+      <rect width="256" height="256" rx="56" fill="url(#brand-mark-fill)" />
+      <rect className="brand__rim" x="3" y="3" width="250" height="250" rx="53" />
+      <path
+        className="brand__glyph"
+        transform="translate(35.7 29) scale(.72)"
+        mask="url(#brand-mark-hole)"
+        d="M184,32H72A16,16,0,0,0,56,48V224a8,8,0,0,0,12.24,6.78L128,193.43l59.77,37.35A8,8,0,0,0,200,224V48A16,16,0,0,0,184,32Z"
+      />
     </svg>
   );
 }

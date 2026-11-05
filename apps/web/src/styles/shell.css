@@ -61,16 +61,23 @@
   flex: none;
 }
 
-.brand__mark rect {
-  fill: var(--accent);
+/* El logo (Grafito, ver App.tsx): no cambia con el tema, como el icono de la app. */
+.brand__from {
+  stop-color: var(--brand-from);
 }
 
-.brand__mark path {
+.brand__to {
+  stop-color: var(--brand-to);
+}
+
+.brand__rim {
   fill: none;
-  stroke: var(--on-accent);
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+  stroke: var(--brand-rim);
+  stroke-width: 6;
+}
+
+.brand__glyph {
+  fill: var(--brand-glyph);
 }
 
 .app-header > .palette {

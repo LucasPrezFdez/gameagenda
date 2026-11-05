@@ -58,8 +58,9 @@ export default defineConfig(({ mode }) => ({
         start_url: '/',
         scope: '/',
         display: 'standalone',
-        background_color: '#f6f7f9',
-        theme_color: '#c2185b',
+        // El fondo claro de la dirección B (05-11-2026); antes, el rosa del logo antiguo.
+        background_color: '#f6f6f7',
+        theme_color: '#f6f6f7',
         icons: [
           { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },

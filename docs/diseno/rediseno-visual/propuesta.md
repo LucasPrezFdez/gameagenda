@@ -145,6 +145,18 @@ Siguen los principios de Apple y Fluent para iconos de app: un solo motivo, sin 
 
 Cuando se elija, `icono-app.mjs` saca de ese SVG el favicon (`icon.svg`), las PNG de la PWA (192, 512 y la *maskable* con margen de seguridad), la de iOS (180, sin esquinas, porque iOS pone las suyas) y las de la app de escritorio (`icon.ico` y las PNG de `src-tauri/icons`). El logotipo de la cabecera pasa a ser el mismo motivo.
 
+### Logo: Grafito (segunda ronda)
+
+El usuario descarta el rosa: el logo tiene que ir con los colores de la B. Hubo una segunda ronda de cuatro opciones en esa paleta (`logo.mjs`): Grafito, Jugando, Estados y Platino. Siguen las guías de Microsoft (iconos de app de Windows) y de Apple (HIG): una metáfora literal, sin texto, degradados de un paso con la luz arriba a la izquierda y contraste sobre fondo claro y oscuro.
+
+**Elegido: Grafito.** Es el marcapáginas blanco de Phosphor con el play hueco, sobre un degradado de zinc (`#46464F` → `#18181B`, a 120°), con un filo claro sutil para que no desaparezca en una barra de tareas oscura.
+
+- **Originales:** `apps/web/public/icons/icon.svg`, con esquinas, que es también el favicon, y `apps/web/icons/icon-sangre.svg`, a sangre.
+- **Todos los tamaños:** `node scripts/generar-iconos.ts`. Saca las PNG de la PWA (192, 512 y la *maskable* de 512, con el motivo dentro de la zona segura) y la de iOS (180, a sangre y opaca). También saca, con `tauri icon`, las de la app de escritorio: el `.ico` de 16 a 256 px y las PNG de `tauri.conf.json`. La bandeja usa el mismo icono que la ventana.
+- **Cabecera:** el mismo dibujo en `LogoMark` (`App.tsx`), con sus colores en `--brand-*` de `tokens.css`. No cambian con el tema, como el icono, y `tokens-contrast.test.ts` los deja fuera de la comprobación claro/oscuro.
+- **Color de tema:** el *manifest* y la etiqueta `theme-color` dejan el rosa (`#C2185B`) por el fondo de la B: `#F6F6F7` en claro y `#0E0E10` en oscuro, según el sistema.
+- **La app de escritorio** solo muestra el icono nuevo con un instalador nuevo (`npm run desktop:build`).
+
 ## 6 · Lo que no cambia
 
 Comportamiento, rutas, atajos, gestos, textos y nombres accesibles; la letra del sistema, sin fuentes web; y las reglas de la §9.5: huecos reservados, portada 2:3 fija, nada de `:has()` en la raíz y animaciones solo con `transform` y `opacity`. Las hojas de la propuesta solo cambian CSS. Las únicas reglas con `:has()` son las que ya existían.

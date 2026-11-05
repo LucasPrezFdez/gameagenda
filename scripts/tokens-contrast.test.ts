@@ -93,7 +93,9 @@ describe('tokens', () => {
   });
 
   it('cada color del tema claro tiene su versión oscura', () => {
-    expect(Object.keys(darkSystem).sort()).toEqual(Object.keys(light).sort());
+    // Los del logo (`--brand-*`) no cambian con el tema, como el icono de la app.
+    const themed = Object.keys(light).filter((name) => !name.startsWith('brand-'));
+    expect(Object.keys(darkSystem).sort()).toEqual(themed.sort());
   });
 
   it('la fórmula da los valores de referencia de WCAG', () => {

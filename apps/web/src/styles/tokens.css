@@ -35,6 +35,12 @@
   --next-chip: #fbe9ea;
   --icon-shine: rgb(255 255 255 / 0.5);
 
+  /* Logo (Grafito, 05-11-2026): igual en los dos temas, como el icono de la app (icon.svg). */
+  --brand-from: #46464f;
+  --brand-to: #18181b;
+  --brand-glyph: #ffffff;
+  --brand-rim: rgb(255 255 255 / 0.16);
+
   --font: "Segoe UI Variable Text", system-ui, sans-serif;
   --radius: 8px;
   --radius-sm: 6px;
