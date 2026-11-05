@@ -311,6 +311,10 @@ export function createSearchHost(deps: HostDeps): SearchHost {
   let checking: Promise<void> | null = null;
   let retryPending = false;
   let retryAttempts = 0;
+  /** El reintento pendiente: solo vale el último programado (`cancelLoadRetry` lo anula). */
+  let retryTicket = 0;
+  /** Qué repite el reintento pendiente: la carga del núcleo en `boot` o una actualización. */
+  let retryKind: 'load' | 'update' = 'update';
   /** La comprobación periódica pendiente: solo vale la última programada. */
   let checkTicket = 0;
   const wallClock = (): number => (deps.wallClock ? deps.wallClock() : Date.now());
@@ -587,6 +591,7 @@ export function createSearchHost(deps: HostDeps): SearchHost {
   }
 
   function use(next: Searcher, from: BuildJob): void {
+    if (partial()) cancelLoadRetry();
     const changed = searcher !== next;
     searcher = next;
     searcherSource = { manifest: from.texts.manifest, coreFile: from.texts.coreFile };
@@ -695,7 +700,7 @@ export function createSearchHost(deps: HostDeps): SearchHost {
     emitStatus(true);
     // En `boot` se responde con lo que hay, y la carga se repite sola con espera creciente.
     flushWaiting();
-    if ((bootManifest || bootJob) && loadError.retryable) scheduleRetry();
+    if ((bootManifest || bootJob) && loadError.retryable) scheduleRetry('load');
   }
 
   /**
@@ -783,19 +788,39 @@ export function createSearchHost(deps: HostDeps): SearchHost {
   }
 
   /**
-   * Reintento de una actualización fallida, con una espera que se dobla (1 min … 1 h). En `boot`
-   * (falló el núcleo de la primera visita), se repite la carga.
+   * Reintento con una espera que se dobla (1 min … 1 h): de una actualización fallida
+   * (`update`) o, en `boot`, de la carga del núcleo de la primera visita (`load`). Si se pide uno
+   * de actualización con otro de carga pendiente, el pendiente pasa a serlo de actualización.
    */
-  function scheduleRetry(): void {
-    if (retryPending || !deps.setTimer) return;
+  function scheduleRetry(kind: 'load' | 'update'): void {
+    if (retryPending) {
+      if (kind === 'update') retryKind = 'update';
+      return;
+    }
+    if (!deps.setTimer) return;
     const delay = Math.min(RETRY_MAX_MS, RETRY_MIN_MS * 2 ** retryAttempts);
     retryAttempts++;
     retryPending = true;
+    retryKind = kind;
+    retryTicket++;
+    const ticket = retryTicket;
     deps.setTimer(() => {
+      if (ticket !== retryTicket) return;
       retryPending = false;
-      if (bootManifest) startLoad();
+      // `startLoad` también sirve si entretanto el núcleo de arranque ha dejado de leerse.
+      if (retryKind === 'load') startLoad();
       else void checkForUpdate().catch(() => undefined);
     }, delay);
+  }
+
+  /**
+   * El núcleo de la primera visita ha llegado por otro camino («Reintentar» o la vuelta de la
+   * red), que ya ha comprobado el *manifest*: su reintento pendiente sobra.
+   */
+  function cancelLoadRetry(): void {
+    if (!retryPending || retryKind !== 'load') return;
+    retryPending = false;
+    retryTicket++;
   }
 
   /** Una comprobación fallida: el catálogo vigente sigue; se anuncia o se reintenta más tarde. */
@@ -806,7 +831,7 @@ export function createSearchHost(deps: HostDeps): SearchHost {
     }
     // Sin red ni para el *manifest*: lo repite `online()`. Sin Ed25519 o con la app vieja, no.
     const offline = failure.code === 'network' && failure.path === null;
-    if (failure.retryable && !offline) scheduleRetry();
+    if (failure.retryable && !offline) scheduleRetry('update');
   }
 
   async function update(force: boolean): Promise<void> {
@@ -1014,7 +1039,9 @@ export function createSearchHost(deps: HostDeps): SearchHost {
 
   function query(seq: number, q: string, limit: number): void {
     latestSeq = Math.max(latestSeq, seq);
-    if (suggestJob && suggestJob.seq < latestSeq) suggestJob = null;
+    // También con el mismo `seq`: al salir de `boot`, el cliente repite la consulta, y lo que
+    // sugiriera el núcleo de arranque ya no vale (las sugerencias se vuelven a pedir).
+    if (suggestJob && suggestJob.seq <= latestSeq) suggestJob = null;
     const started = deps.now();
     if (!searcher) {
       deps.post({ type: 'results', seq, items: [], strong: 0, ms: 0 });

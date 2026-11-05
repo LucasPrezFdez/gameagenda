@@ -119,6 +119,30 @@ describe('createSearchClient', () => {
     expect(w.queries().map((q) => q.seq)).toEqual([1, 1]);
   });
 
+  it('al salir de `boot` no pinta las sugerencias del núcleo de arranque y las vuelve a pedir', () => {
+    const w = manualTransport();
+    const client = createSearchClient(w.transport);
+    const suggests = () => w.sent.filter((m) => m.type === 'suggest');
+    w.emit({ ...full, state: 'boot' });
+    client.setQuery('hollow knigth');
+    w.emit({ type: 'results', seq: 1, items: [], strong: 0, ms: 0 });
+    vi.advanceTimersByTime(150);
+    expect(suggests()).toEqual([{ type: 'suggest', seq: 1 }]);
+
+    w.emit({ ...full, state: 'scan' });
+    // Las del núcleo de arranque que lleguen ahora ya no valen.
+    w.emit({ type: 'suggestions', seq: 1, items: [item(1, 'Hollow')] });
+    expect(client.getQueryState().suggestions).toBeNull();
+    // Con la respuesta del catálogo entero se piden otra vez.
+    w.emit({ type: 'results', seq: 1, items: [], strong: 0, ms: 0 });
+    expect(suggests()).toEqual([
+      { type: 'suggest', seq: 1 },
+      { type: 'suggest', seq: 1 },
+    ]);
+    w.emit({ type: 'suggestions', seq: 1, items: [item(367520, 'Hollow Knight')] });
+    expect(client.getQueryState().suggestions?.items[0]?.appid).toBe(367520);
+  });
+
   it('waitForFresh espera al seq actual y cae a `null` tras el plazo', async () => {
     const w = manualTransport();
     const client = createSearchClient(w.transport);

@@ -211,8 +211,10 @@ export function createSearchClient(
         ) {
           // La consulta escrita antes de tener catálogo se lanza ahora (CA1.11); la que respondió
           // el núcleo de arranque se repite con el catálogo entero, con el mismo `seq`, y lo que
-          // dio deja de valer para Intro hasta que llegue la respuesta nueva.
+          // dio deja de valer para Intro hasta que llegue la respuesta nueva. Sus sugerencias se
+          // vuelven a pedir con esa respuesta.
           stale = was === 'boot' && results !== null;
+          if (stale) suggestRequested = 0;
           inFlight = null;
           lastSent = 0;
           pump();
@@ -234,7 +236,8 @@ export function createSearchClient(
         return;
       }
       case 'suggestions': {
-        if (message.seq === seq && results?.seq === seq) {
+        // Con `stale`, son del núcleo de arranque: van a llegar otras del catálogo entero.
+        if (message.seq === seq && results?.seq === seq && !stale) {
           suggestions = message;
           emitQuery();
         }

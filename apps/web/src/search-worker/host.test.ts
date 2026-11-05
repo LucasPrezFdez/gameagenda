@@ -1204,7 +1204,37 @@ describe('createSearchHost · núcleo de arranque (M3, ADR-009)', () => {
       const core = published.manifest.files.core.path;
       expect(pathsOf(t).filter((path) => path === core)).toHaveLength(1);
       expect(t.lastStatus()?.error).toBeNull();
+
+      // El reintento que quedó programado ya sobra: no vuelve a pedir el *manifest*.
+      expect(t.timers.pending).toEqual([RETRY_MIN_MS]);
+      t.server.reset();
+      t.timers.fire();
+      await settle();
+      expect(pathsOf(t)).toEqual([]);
     }
+  });
+
+  it('la consulta repetida al salir de `boot` abandona las sugerencias que se estaban calculando', async () => {
+    let hold: 'boot' | null = 'boot';
+    const t = setupBoot({ hooks: { hold: () => hold, beforeLoad() {} } });
+    t.server.serve(await withBoot());
+    t.send(init);
+    await t.reach('boot');
+    // En `boot` se piden sugerencias; antes de que esté uFuzzy, el cliente repite la consulta
+    // (con el mismo `seq`), como hace al pasar a `scan`.
+    t.send({ type: 'query', seq: 1, q: 'celestte', limit: 8 });
+    t.send({ type: 'suggest', seq: 1 });
+    t.send({ type: 'query', seq: 1, q: 'celestte', limit: 8 });
+    hold = null;
+    t.host.resume();
+    await t.reach('full');
+    await settle();
+    expect(t.suggestions(1)).toBeUndefined();
+    // Las que pide después salen del catálogo entero.
+    t.send({ type: 'query', seq: 1, q: 'celestte', limit: 8 });
+    t.send({ type: 'suggest', seq: 1 });
+    await t.scheduler.runUntil(() => t.suggestions(1) !== undefined);
+    expect(t.suggestions(1)?.items.map((i) => i.appid)).toContain(504230);
   });
 
   it('si la primera visita se corta tras el núcleo de arranque, la siguiente lo lee de la caché', async () => {
