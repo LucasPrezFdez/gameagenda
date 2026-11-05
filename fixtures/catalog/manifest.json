@@ -5,6 +5,7 @@
   "generatedAt": "2026-10-28T00:00:00Z",
   "counts": {
     "core": 298,
+    "boot": 298,
     "aliases": 219,
     "recent": 8
   },
@@ -12,6 +13,11 @@
     "core": {
       "path": "core.f7d1ce6bcb576d9b.tsv",
       "sha256": "f7d1ce6bcb576d9bae9dcb2f67b83d922584e9116377c6ef93b742e04ad83ad3",
+      "bytes": 11219
+    },
+    "boot": {
+      "path": "boot.07e43b6be7c4f0a1.tsv",
+      "sha256": "07e43b6be7c4f0a1430da1dc564358dbdb511e34f803b940668fd2760c528ace",
       "bytes": 11219
     },
     "recent": {
@@ -38,6 +44,6 @@
   },
   "sig": {
     "kid": "dev-1",
-    "ed25519": "r332tOzHHd3-Ugk811ss8jhus5NkXtFikqJbgxbKCLZ9gLQTXZyztgUj5CtTiAUePYAg4KLs3lvxj_AUuPJRBw"
+    "ed25519": "UssTJ0BysmlDIZTBMxPyRYk8HVFx5aXM3qLN0xoV9tumFqve2Py7SSn4-y6uiY_PZCTAIJb3fvgg7-sq8hSfAA"
   }
 }

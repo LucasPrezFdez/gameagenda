@@ -66,6 +66,19 @@ describe('núcleo TSV', () => {
     expect(back.nameEs.get(0)).toBe('Mafia: Edición Definitiva');
   });
 
+  it('núcleo de arranque (ADR-009): las mismas columnas con #gacat-boot; ida y vuelta', () => {
+    const boot = SAMPLE.replace('#gacat-core', '#gacat-boot');
+    const c = parseCore(boot, 'boot');
+    expect(c.kind).toBe('boot');
+    expect(c.version).toBe('20261028.1');
+    expect([...c.appid]).toEqual([730, 105600, 247710]);
+    expect(serializeCore(c, { version: '20261028.1', kind: 'boot' })).toBe(boot);
+    // Las filas, iguales que las del núcleo: solo cambia la cabecera.
+    expect(serializeCore(parseCore(SAMPLE), { version: '20261028.1', kind: 'boot' })).toBe(boot);
+    expect(() => parseCore(SAMPLE, 'boot')).toThrow(CatalogFormatError);
+    expect(() => parseCore(boot, 'recent')).toThrow(CatalogFormatError);
+  });
+
   it('acepta un fichero sin salto de línea final', () => {
     expect(parseCore(SAMPLE.slice(0, -1)).count).toBe(3);
   });
@@ -212,6 +225,27 @@ describe('manifest', () => {
     });
     expect(m.killSwitches?.covers).toBe(false);
     expect('futureField' in m).toBe(false);
+  });
+
+  it('admite el núcleo de arranque (M3: files.boot y counts.boot), y sin él sigue valiendo', () => {
+    const boot = { path: 'boot.dddddddddddddddd.tsv', sha256: sha, bytes: 773_221 };
+    const m = catalogManifestSchema.parse({
+      ...M1,
+      counts: { ...M1.counts, boot: 20_000 },
+      files: { ...M1.files, boot },
+    });
+    expect(m.counts.boot).toBe(20_000);
+    expect(m.files.boot).toEqual(boot);
+    const old = catalogManifestSchema.parse(M1);
+    expect(old.counts.boot).toBeUndefined();
+    expect(old.files.boot).toBeUndefined();
+    // Un `files.boot` mal formado tumba todo el manifest: lo impiden la integridad y el montaje.
+    expect(
+      catalogManifestSchema.safeParse({
+        ...M1,
+        files: { ...M1.files, boot: { ...boot, sha256: 'x' } },
+      }).success,
+    ).toBe(false);
   });
 
   it.each([

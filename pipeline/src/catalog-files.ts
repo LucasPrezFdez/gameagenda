@@ -1,4 +1,5 @@
-// Ficheros publicados (§7.6): `core.<hash>.tsv`, `recent.<hash>.tsv`, `aliases.<hash>.tsv`, los
+// Ficheros publicados (§7.6): `core.<hash>.tsv`, el núcleo de arranque `boot.<hash>.tsv` (las
+// `BOOT_ROWS` primeras filas del núcleo, ADR-009), `recent.<hash>.tsv`, `aliases.<hash>.tsv`, los
 // *shards* `details/<nnnn>.<hash>.json` con su índice `details/index.<hash>.json` y `manifest.json`
 // con `killSwitches`, `enrichmentAgeDays` y, si hay clave de firma, `sig`. Los serializadores y los
 // esquemas son los de `core/catalog-format`: la app los lee tal cual.
@@ -24,6 +25,12 @@ export const MIN_CLIENT_VERSION = '0.0.0';
 /** Desde v0.2.0 la app exige la firma (§7.6): un *manifest* firmado pide esa versión. */
 export const MIN_CLIENT_VERSION_SIGNED = '0.2.0';
 
+/**
+ * Filas del núcleo de arranque (§7.6, ADR-009): las 20 000 primeras del núcleo, en su orden (los
+ * +18 y, en teoría, los retirados incluidos). Con un núcleo más corto, todas.
+ */
+export const BOOT_ROWS = 20_000;
+
 export interface CatalogFiles {
   /** El *manifest* leído con su esquema (para consultarlo). */
   readonly manifest: CatalogManifest;
@@ -31,6 +38,10 @@ export interface CatalogFiles {
   readonly manifestJson: Readonly<Record<string, unknown>>;
   readonly manifestText: string;
   readonly coreText: string;
+  /** Núcleo de arranque: prefijo del núcleo con la cabecera `#gacat-boot v1`. */
+  readonly bootText: string;
+  /** El corte del núcleo de arranque (`BOOT_ROWS` o el del perfil): tiene `min(bootRows, filas)`. */
+  readonly bootRows: number;
   readonly recentText: string;
   readonly aliasesText: string;
   readonly details: DetailFiles;
@@ -53,6 +64,8 @@ export interface CatalogMeta {
   /** Por defecto, la de un *manifest* sin firma; `buildCatalog` pone la de uno firmado. */
   readonly minClientVersion?: string;
   readonly killSwitches?: KillSwitches;
+  /** Filas del núcleo de arranque; por defecto, `BOOT_ROWS`. */
+  readonly bootRows?: number;
 }
 
 const coreRow = (g: Game): CoreRow => ({
@@ -77,7 +90,9 @@ function manifestTextOf(json: Readonly<Record<string, unknown>>): string {
 
 /**
  * Todos los ficheros de una versión. `games` va en el orden del núcleo; `recent`, los juegos de
- * los recientes (en ese mismo orden). El *manifest* sale sin firma: `withSignature` la añade.
+ * los recientes (en ese mismo orden). El núcleo de arranque son las `meta.bootRows` primeras filas
+ * del núcleo: siempre sale, también si el núcleo es más corto (entonces lleva todas). El
+ * *manifest* sale sin firma: `withSignature` la añade.
  */
 export function buildCatalogFiles(
   games: readonly Game[],
@@ -85,11 +100,18 @@ export function buildCatalogFiles(
   meta: CatalogMeta,
   recent: readonly Game[] = [],
 ): CatalogFiles {
-  const coreText = serializeCore(games.map(coreRow), { version: meta.version });
+  const bootRows = meta.bootRows ?? BOOT_ROWS;
+  if (!Number.isInteger(bootRows) || bootRows < 1) {
+    throw new Error(`bootRows no válido: ${bootRows}`);
+  }
+  const rows = games.map(coreRow);
+  const coreText = serializeCore(rows, { version: meta.version });
+  const bootText = serializeCore(rows.slice(0, bootRows), { version: meta.version, kind: 'boot' });
   const recentText = serializeCore(recent.map(coreRow), { version: meta.version, kind: 'recent' });
   const aliasesText = serializeAliases(pairs, { version: meta.version });
   const details = buildDetailFiles(games, meta.version);
   const corePath = hashedName('core', coreText);
+  const bootPath = hashedName('boot', bootText);
   const recentPath = hashedName('recent', recentText);
   const aliasesPath = hashedName('aliases', aliasesText);
   const manifestJson = {
@@ -99,11 +121,14 @@ export function buildCatalogFiles(
     generatedAt: meta.generatedAt,
     counts: {
       core: games.length,
+      // Filas del fichero, +18 incluidos (como `core`).
+      boot: Math.min(bootRows, games.length),
       aliases: aliasesText.split('\n').length - 2,
       recent: recent.length,
     },
     files: {
       core: fileEntry(corePath, coreText),
+      boot: fileEntry(bootPath, bootText),
       recent: fileEntry(recentPath, recentText),
       aliases: fileEntry(aliasesPath, aliasesText),
       details: fileEntry(details.indexPath, details.indexText),
@@ -114,6 +139,7 @@ export function buildCatalogFiles(
   };
   const files = new Map<string, string>([
     [corePath, coreText],
+    [bootPath, bootText],
     [recentPath, recentText],
     [aliasesPath, aliasesText],
     [details.indexPath, details.indexText],
@@ -124,6 +150,8 @@ export function buildCatalogFiles(
     manifestJson,
     manifestText: manifestTextOf(manifestJson),
     coreText,
+    bootText,
+    bootRows,
     recentText,
     aliasesText,
     details,

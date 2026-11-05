@@ -11,6 +11,7 @@ import type { AppListEntry, StoreItem } from '../steam/schemas.ts';
 import { type AliasBuild, buildAliases } from './aliases.ts';
 import { appListPass } from './app-list.ts';
 import {
+  BOOT_ROWS,
   buildCatalogFiles,
   type CatalogFiles,
   MIN_CLIENT_VERSION,
@@ -67,6 +68,8 @@ export interface Profile {
   readonly maxGapIds: number;
   /** `false`: nunca compara con la versión anterior (el estado de los *fixtures* es parcial). */
   readonly deltaGates: boolean;
+  /** Filas del núcleo de arranque (ADR-009); por defecto, `BOOT_ROWS`. */
+  readonly bootRows?: number;
   readonly gates: GateConfig;
 }
 
@@ -79,6 +82,7 @@ export const STEAM_PROFILE: Profile = {
   minQueryCoverage: 0.95,
   maxGapIds: 4000,
   deltaGates: true,
+  bootRows: BOOT_ROWS,
   gates: PUBLISH_GATES,
 };
 
@@ -509,6 +513,7 @@ export async function buildCatalog(client: SteamClient, opts: BuildOptions): Pro
       enrichmentAgeDays,
       minClientVersion: signer ? MIN_CLIENT_VERSION_SIGNED : MIN_CLIENT_VERSION,
       killSwitches: opts.killSwitches ?? KILL_SWITCHES_OFF,
+      bootRows: opts.profile.bootRows ?? BOOT_ROWS,
     },
     recent,
   );
@@ -516,7 +521,7 @@ export async function buildCatalog(client: SteamClient, opts: BuildOptions): Pro
   const byReason: Record<string, number> = {};
   for (const e of excluded) byReason[e.reason] = (byReason[e.reason] ?? 0) + 1;
   log(
-    `4 · Construir ${version}: ${games.length} juegos, ${aliases.pairs.length} alias, ${recent.length} recientes, ${files.details.games} con detalles en ${files.details.shards.size} shards; fuera ${excluded.length} (${JSON.stringify(byReason)})`,
+    `4 · Construir ${version}: ${games.length} juegos (${files.manifest.counts.boot} en boot), ${aliases.pairs.length} alias, ${recent.length} recientes, ${files.details.games} con detalles en ${files.details.shards.size} shards; fuera ${excluded.length} (${JSON.stringify(byReason)})`,
   );
   if (enrichmentAgeDays > 0) {
     log(`   enrichmentAgeDays ${enrichmentAgeDays}: último enriquecimiento del ${enrichedOn}`);
@@ -584,6 +589,11 @@ export async function buildCatalog(client: SteamClient, opts: BuildOptions): Pro
       baseNamesAsked: inputs.baseNamesAsked,
       baseNamesFound: inputs.baseNames.size,
       core: games.length,
+      boot: files.manifest.counts.boot,
+      // +18 del núcleo de arranque: la app los oculta por defecto, como en el núcleo.
+      bootAdult: games
+        .slice(0, files.manifest.counts.boot)
+        .filter((g) => (g.flags & CatalogFlag.adult) !== 0).length,
       nameEs: games.filter((g) => g.nameEs).length,
       withReviews: games.filter((g) => g.reviews > 0).length,
       maxPop: games.reduce((m, g) => Math.max(m, g.pop), 0),

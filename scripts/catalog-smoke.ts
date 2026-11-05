@@ -3,9 +3,10 @@
 // - `manifest.json`: el mismo texto que el montado, firmado con una clave `prod`, `no-cache` y
 //   con CORS para `ga-web`. Espera hasta 2 min a que el CDN sirva la versión nueva;
 // - cada fichero de la carpeta (los de la versión nueva **y** los de la anterior, CA2.4): 200, el
-//   mismo SHA-256, CORS, `immutable` y, los TSV, `text/plain; charset=utf-8` (comprimidos: si no,
-//   avisa; R-16). Un 404 se reintenta hasta 90 s, porque el CDN puede tardar en servir algún
-//   fichero nuevo aunque ya sirva el *manifest* nuevo (02-11-2026);
+//   mismo SHA-256, CORS, `immutable` y, los TSV, `text/plain; charset=utf-8`. Si `core.*` o
+//   `boot.*` llegan sin comprimir, avisa (R-16; del `boot` comprimido depende la primera búsqueda,
+//   RNF-05). Un 404 se reintenta hasta 90 s, porque el CDN puede tardar en servir algún fichero
+//   nuevo aunque ya sirva el *manifest* nuevo (02-11-2026);
 // - un fichero con *hash* que no existe da 404, también con CORS (el cliente ve el 404, §5.4).
 // Deja en `$GITHUB_STEP_SUMMARY` la tabla de cabeceras que hacía `deploy-catalog.yml` en M0.
 //
@@ -163,7 +164,7 @@ export async function smoke(options: SmokeOptions): Promise<SmokeResult> {
       if (r.contentType !== 'text/plain; charset=utf-8') {
         problems.push(`${path} no es text/plain; charset=utf-8 («${r.contentType}»)`);
       }
-      if (path.startsWith('core.') && !r.contentEncoding) {
+      if (/^(core|boot)\./.test(path) && !r.contentEncoding) {
         warnings.push(`${path} llega sin Content-Encoding (CA0.3, R-16)`);
       }
     }

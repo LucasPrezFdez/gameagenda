@@ -91,9 +91,11 @@ export function renderBuild(build: Json | null, canary: Json | null = null): str
     const counts = isObject(build.counts) ? build.counts : {};
     lines.push(`### Catálogo ${String(build.version ?? '?')} (${String(build.mode ?? '?')})`, '');
     const core = num(counts.core);
+    const boot = num(counts.boot);
     const aliases = num(counts.aliases);
     const facts = [
       core !== null ? `${fmt(core)} juegos` : null,
+      boot !== null ? `${fmt(boot)} en el núcleo de arranque` : null,
       aliases !== null ? `${fmt(aliases)} alias` : null,
       build.skipDeltaGates === true ? 'puertas de variación saltadas (--skip-delta-gates)' : null,
     ].filter(Boolean);

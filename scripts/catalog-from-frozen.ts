@@ -1,6 +1,6 @@
 // Catálogo publicable a partir de la copia congelada (`fixtures/catalog-frozen/`, ver §8.10):
-// `manifest.json` firmado + `core`, `recent` y `aliases` en TSV + *shards* de detalles (§7.6), en
-// dos sitios:
+// `manifest.json` firmado + `core`, `boot`, `recent` y `aliases` en TSV + *shards* de detalles
+// (§7.6), en dos sitios:
 // - `pipeline/out/`: el catálogo completo (196 665 juegos), para medir la app con
 //   `CATALOG_DIR=pipeline/out` (no se versiona);
 // - `fixtures/catalog/`: el mini-catálogo de ≈300 juegos con los casos difíciles de la §13.5, que
@@ -20,6 +20,10 @@
 //   `year`), unas reseñas que dan su `pop`, un porcentaje que sale del `appid`, `plat` 1
 //   (Windows) y `deck` 0 (desconocido). No sirven para comprobar datos reales: solo el formato,
 //   la descarga y la interfaz.
+//
+// Desde M3 (ADR-009): el núcleo de arranque `boot` son las `BOOT_ROWS` (20 000) primeras filas
+// del núcleo, en su orden, como lo genera el pipeline: en el completo, un prefijo de 20 000; en el
+// mini, que es más corto, todas sus filas (solo cambia la cabecera, `#gacat-boot v1`).
 //
 // PROVISIONAL: cuando exista el pipeline de la §4.8, el mini-catálogo lo generará
 // `npm run catalog:build -- --source=fixtures` a partir de `fixtures/steam/` (con los nombres
@@ -55,6 +59,7 @@ import {
   serializeCore,
   toBase64Url,
 } from '@gameagenda/core/catalog-format';
+import { BOOT_ROWS } from '../pipeline/src/catalog-files.ts';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const FROZEN = `${root}fixtures/catalog-frozen/`;
@@ -252,13 +257,17 @@ function buildCatalog(
   rows: readonly CoreRow[],
   pairs: readonly AliasPair[],
   recentCount: number,
+  bootCount: number = BOOT_ROWS,
 ): Built {
   const recentRows = newestRows(rows, recentCount);
+  const bootRows = rows.slice(0, bootCount);
   const core = serializeCore(rows, { version: FROZEN_VERSION });
+  const boot = serializeCore(bootRows, { version: FROZEN_VERSION, kind: 'boot' });
   const recent = serializeCore(recentRows, { version: FROZEN_VERSION, kind: 'recent' });
   const aliases = serializeAliases(pairs, { version: FROZEN_VERSION });
   const details = buildDetails(rows);
   const corePath = `core.${sha256(core).slice(0, 16)}.tsv`;
+  const bootPath = `boot.${sha256(boot).slice(0, 16)}.tsv`;
   const recentPath = `recent.${sha256(recent).slice(0, 16)}.tsv`;
   const aliasPath = `aliases.${sha256(aliases).slice(0, 16)}.tsv`;
   const aliasCount = aliases.split('\n').length - 2;
@@ -268,9 +277,15 @@ function buildCatalog(
     v: 1,
     version: FROZEN_VERSION,
     generatedAt: GENERATED_AT,
-    counts: { core: rows.length, aliases: aliasCount, recent: recentRows.length },
+    counts: {
+      core: rows.length,
+      boot: bootRows.length,
+      aliases: aliasCount,
+      recent: recentRows.length,
+    },
     files: {
       core: fileSpec(corePath, core),
+      boot: fileSpec(bootPath, boot),
       recent: fileSpec(recentPath, recent),
       aliases: fileSpec(aliasPath, aliases),
       details: fileSpec(details.index.path, details.index.text),
@@ -285,6 +300,7 @@ function buildCatalog(
     manifest: signed as CatalogManifest,
     files: new Map([
       [corePath, core],
+      [bootPath, boot],
       [recentPath, recent],
       [aliasPath, aliases],
       [details.index.path, details.index.text],
@@ -305,10 +321,10 @@ function writeCatalog(dir: string, built: Built): void {
   mkdirSync(`${dir}details`);
   for (const [name, text] of built.files) writeFileSync(`${dir}${name}`, text, 'utf8');
   writeFileSync(`${dir}manifest.json`, `${JSON.stringify(built.manifest, null, 2)}\n`, 'utf8');
-  const { core, aliases, recent } = built.manifest.counts;
+  const { core, boot, aliases, recent } = built.manifest.counts;
   const shards = [...built.files.keys()].filter((name) => /^details\/\d{4}\./.test(name)).length;
   console.log(
-    `✓ ${dir}: ${core} juegos, ${recent} recientes, ${aliases} alias y ${shards} shards (${built.manifest.files.core.path})`,
+    `✓ ${dir}: ${core} juegos (${boot} en boot), ${recent} recientes, ${aliases} alias y ${shards} shards (${built.manifest.files.core.path}, ${built.manifest.files.boot?.path})`,
   );
 }
 

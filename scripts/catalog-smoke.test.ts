@@ -34,15 +34,17 @@ function cdn(dist: string, tweak: (path: string, h: Headers) => void = () => {})
   };
 }
 
-async function deployed(): Promise<string> {
+async function deployed(boot: { prev?: boolean; next?: boolean } = {}): Promise<string> {
   const prev = writeTestCatalog(tempDir('prev-', dirs), {
     version: '20261030.1',
     appids: [730, 10],
     sign: { kid: 'dev-1', key: DEV_KEY },
+    boot: boot.prev ?? false,
   });
   const next = writeTestCatalog(tempDir('next-', dirs), {
     version: '20261031.1',
     sign: { kid: 'dev-1', key: DEV_KEY },
+    boot: boot.next ?? false,
   });
   const dist = join(tempDir('dist-', dirs), 'dist');
   await assemble({ source: next.dir, previous: prev.dir, out: dist, signature: 'dev' });
@@ -63,6 +65,50 @@ describe('catalog-smoke: lo publicado es lo montado (CA2.4)', () => {
     expect(r.version).toBe('20261031.1');
     expect(r.rows[0]?.path).toBe('manifest.json');
     expect(r.rows.at(-1)).toMatchObject({ path: 'core.0000000000000000.tsv', status: 404 });
+  });
+
+  it('el núcleo de arranque de las dos versiones sale en la tabla y se comprueba como los demás', async () => {
+    const dist = await deployed({ prev: true, next: true });
+    const r = await smoke({
+      url: URL_,
+      dist,
+      webOrigin: WEB,
+      signature: 'dev',
+      fetchImpl: cdn(dist),
+    });
+    expect(r.problems).toEqual([]);
+    expect(r.warnings).toEqual([]);
+    const boots = r.rows.filter((x) => x.path.startsWith('boot.'));
+    expect(boots).toHaveLength(2);
+    for (const b of boots) {
+      expect(b).toMatchObject({
+        status: 200,
+        contentType: 'text/plain; charset=utf-8',
+        contentEncoding: 'gzip',
+        cors: WEB,
+      });
+    }
+  });
+
+  it('un boot sin comprimir es un aviso; con otro Content-Type, un problema', async () => {
+    const dist = await deployed({ next: true });
+    const plain = cdn(dist, (path, h) => {
+      if (path.startsWith('boot.')) h.delete('content-encoding');
+    });
+    const r = await smoke({ url: URL_, dist, webOrigin: WEB, signature: 'dev', fetchImpl: plain });
+    expect(r.problems).toEqual([]);
+    expect(r.warnings.join('\n')).toMatch(/boot\.[0-9a-f]{16}\.tsv llega sin Content-Encoding/);
+    const wrongType = cdn(dist, (path, h) => {
+      if (path.startsWith('boot.')) h.set('content-type', 'application/octet-stream');
+    });
+    const w = await smoke({
+      url: URL_,
+      dist,
+      webOrigin: WEB,
+      signature: 'dev',
+      fetchImpl: wrongType,
+    });
+    expect(w.problems.join('\n')).toMatch(/boot\.[0-9a-f]{16}\.tsv no es text\/plain/);
   });
 
   it('con signature=prod, una firma de desarrollo es un problema', async () => {

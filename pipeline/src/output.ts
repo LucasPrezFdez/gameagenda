@@ -47,7 +47,7 @@ export function gatesMarkdown(r: BuildResult): string {
   const lines = [
     `## Catálogo ${r.version}: ${r.ok ? 'puertas en verde' : 'no se publica'}`,
     '',
-    `- Juegos: ${n(r.games.length)}; recientes: ${n(r.recent.length)}; con detalles: ${n(r.files.details.games)}`,
+    `- Juegos: ${n(r.games.length)}; en el núcleo de arranque: ${n(r.files.manifest.counts.boot ?? 0)}; recientes: ${n(r.recent.length)}; con detalles: ${n(r.files.details.games)}`,
     `- enrichmentAgeDays: ${r.enrichmentAgeDays}${r.inputs.enrichmentFailed ? ` (Query: ${r.inputs.enrichmentFailed.kind}, ${r.inputs.enrichmentFailed.message})` : ''}`,
     ...r.inputs.degraded.map((d) => `- Etapa degradada: ${d.stage} (${d.kind}): ${d.message}`),
     '',

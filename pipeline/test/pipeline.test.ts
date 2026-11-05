@@ -114,13 +114,14 @@ describe('con clave (lista de GetAppList, sintética en los fixtures)', async ()
       'v',
       'version',
     ]);
-    expect(Object.keys(m.files).sort()).toEqual(['aliases', 'core', 'details', 'recent']);
+    expect(Object.keys(m.files).sort()).toEqual(['aliases', 'boot', 'core', 'details', 'recent']);
     expect(m).toMatchObject({
       enrichmentAgeDays: 0,
       minClientVersion: '0.0.0',
       killSwitches: { covers: false, details: false },
     });
     expect(m.files.core.path).toMatch(/^core\.[0-9a-f]{16}\.tsv$/);
+    expect(m.files.boot?.path).toMatch(/^boot\.[0-9a-f]{16}\.tsv$/);
     expect(m.files.details?.path).toMatch(/^details\/index\.[0-9a-f]{16}\.json$/);
     // El estado de los fixtures solo tiene los retirados: todo lo demás es alta.
     expect(m.counts.recent).toBe(r.games.length - 5);
@@ -130,6 +131,26 @@ describe('con clave (lista de GetAppList, sintética en los fixtures)', async ()
     expect(core.appid[0]).toBe(730);
     // Los retirados, al final.
     expect((core.flags[core.count - 1] ?? 0) & CatalogFlag.retired).toBe(CatalogFlag.retired);
+  });
+
+  it('el núcleo de arranque: con menos de 20 000 juegos, todas las filas del núcleo (+18 y retirados incluidos)', () => {
+    const m = r.files.manifest;
+    expect(m.counts.boot).toBe(r.games.length);
+    expect(r.files.bootText.startsWith(`#gacat-boot v1\t${r.version}\t`)).toBe(true);
+    const boot = parseCore(r.files.bootText, 'boot');
+    const core = parseCore(r.files.coreText);
+    expect(boot.count).toBe(core.count);
+    expect(r.files.bootText.split('\n').slice(1)).toEqual(r.files.coreText.split('\n').slice(1));
+    expect([...boot.appid]).toEqual([...core.appid]);
+    // Los 5 retirados siguen al final y el +18 (644560) está dentro.
+    const retired = [...boot.flags].filter((f) => (f & CatalogFlag.retired) !== 0).length;
+    expect(retired).toBe(5);
+    expect((boot.flags[boot.count - 1] ?? 0) & CatalogFlag.retired).toBe(CatalogFlag.retired);
+    const adult = [...boot.appid].indexOf(644560);
+    expect(adult).toBeGreaterThanOrEqual(0);
+    expect(boot.flags[adult]).toBe(CatalogFlag.adult);
+    expect(r.summary.counts).toMatchObject({ boot: r.games.length });
+    expect(r.gates.find((g) => g.id === 'smoke')?.detail).toContain('en boot');
   });
 });
 
@@ -156,6 +177,7 @@ describe('determinismo y páginas crudas', () => {
     const a = (await build(false)).result;
     const b = (await build(false)).result;
     expect(b.files.coreText).toBe(a.files.coreText);
+    expect(b.files.bootText).toBe(a.files.bootText);
     expect(b.files.aliasesText).toBe(a.files.aliasesText);
     expect(b.files.manifestText).toBe(a.files.manifestText);
     expect(serializeState(b.state)).toBe(serializeState(a.state));
@@ -273,6 +295,7 @@ describe('npm run catalog:build -- --source=fixtures', () => {
     expect(names.some((f) => /^details\/index\.[0-9a-f]{16}\.json$/.test(f))).toBe(true);
     expect(names.some((f) => /^details\/\d{4}\.[0-9a-f]{16}\.json$/.test(f))).toBe(true);
     expect(names.some((f) => /^recent\.[0-9a-f]{16}\.tsv$/.test(f))).toBe(true);
+    expect(names.filter((f) => /^boot\.[0-9a-f]{16}\.tsv$/.test(f))).toHaveLength(1);
     // ed25519 es determinista: la firma también sale igual.
     expect(b).toEqual(a);
     const m = JSON.parse(readFileSync(join(outs[0] as string, 'manifest.json'), 'utf8'));

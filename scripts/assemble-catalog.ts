@@ -9,6 +9,9 @@
 //   obligatoria y de una clave `prod` de `CATALOG_SIGNING_KEYS`: si no, el cliente la rechazaría;
 // - cada fichero que cita: existe, con sus bytes, su SHA-256 y el prefijo del *hash* en el nombre
 //   (las reglas de `_headers` los cachean como inmutables);
+// - el núcleo de arranque (`files.boot`, ADR-009), si lo cita: empieza por la cabecera
+//   `#gacat-boot v1` de la versión del *manifest* (que sea el prefijo del núcleo lo comprueba la
+//   puerta de integridad al construirlo). Una versión sin él (las publicadas antes de M3) vale;
 // - el índice de *shards* (`details`) y cada *shard*: esquema Zod, versión del índice, prefijo del
 //   *hash* y que cada `appid` cae en su *shard*;
 // - la versión anterior, igual (sin el Zod de los *shards*, ya publicados), y que la nueva es
@@ -162,6 +165,18 @@ async function loadCatalog(
       );
     }
     files.set(spec.path, bytes);
+  }
+
+  // Defensa en profundidad: el cliente lee el `boot` en la primera visita, antes que el núcleo.
+  const boot = manifest.files.boot;
+  if (boot) {
+    const head = Buffer.from(`#gacat-boot v1\t${manifest.version}\t`, 'utf8');
+    const bytes = files.get(boot.path) as Buffer;
+    if (!bytes.subarray(0, head.length).equals(head)) {
+      throw new Error(
+        `${boot.path} no empieza por la cabecera «#gacat-boot v1» de la versión ${manifest.version}`,
+      );
+    }
   }
 
   const indexSpec = manifest.files.details;
