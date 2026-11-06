@@ -1,15 +1,24 @@
 /* Carcasa: cabecera, barra lateral, pestañas en móvil, avisos y menús (ver §9.1 y §9.3).
    Puntos de corte: 768 y 1 280 px; sin desplazamiento horizontal a 320 px. */
 
+/* Navegación (DECISIONES §10.33, elegida por el usuario el 06-11-2026). En el PC, una barra lateral
+   de altura completa con la marca, el buscador y las secciones, como Linear o Notion, que se encoge
+   a un riel de iconos de 64 px (`data-sidebar`). En el móvil, una cápsula flotante con las
+   secciones y el buscador como botón redondo aparte, como las apps de iOS 26. */
 .app {
+  --sidebar-w: 248px;
   display: grid;
   min-height: 100dvh;
-  grid-template-columns: 200px minmax(0, 1fr);
-  grid-template-rows: var(--header-h) auto 1fr;
+  grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
   grid-template-areas:
-    "header header"
-    "nav banner"
-    "nav main";
+    "sidebar banner"
+    "sidebar main";
+  transition: grid-template-columns var(--motion) var(--ease);
+}
+
+.app[data-sidebar="collapsed"] {
+  --sidebar-w: 64px;
 }
 
 .skip-link {
@@ -27,22 +36,33 @@
   top: 8px;
 }
 
-.app-header {
-  grid-area: header;
+/* La barra lateral: cabecera (marca, encoger, «Más opciones» y buscador) y secciones. Sin
+   `overflow`: la lista de la paleta y los menús salen de ella hacia el contenido. */
+.app-sidebar {
+  grid-area: sidebar;
   position: sticky;
   top: 0;
   z-index: var(--z-sticky);
   display: flex;
-  align-items: center;
-  gap: var(--gap);
-  padding: 0 var(--gutter);
-  border-bottom: 1px solid var(--line);
-  background: var(--bg);
+  flex-direction: column;
+  height: 100dvh;
+  border-right: 1px solid var(--line);
+  background: var(--surface);
 }
 
-/* La cabecera es un contexto de apilamiento: con la paleta abierta pasa por encima de todo. */
+/* Con la paleta abierta, la barra pasa por encima de todo (es su contexto de apilamiento). En el
+   móvil la barra no tiene caja y lo hace la cabecera. */
+.app-sidebar:has(.palette.is-open),
 .app-header:has(.palette.is-open) {
   z-index: var(--z-palette);
+}
+
+.app-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px 2px;
+  padding: 16px 12px 8px 16px;
 }
 
 .brand {
@@ -51,6 +71,7 @@
   gap: 8px;
   min-height: var(--target);
   font-weight: 600;
+  margin-right: auto;
   letter-spacing: -0.01em;
   text-decoration: none;
   white-space: nowrap;
@@ -81,23 +102,15 @@
   fill: var(--brand-glyph);
 }
 
+/* El buscador, debajo de la marca. `min-width: 0`: sin él, el ancho propio del campo de texto lo
+   sacaba de la barra. */
 .app-header > .palette {
-  flex: 1;
-  max-width: 40rem;
-  margin-inline: auto;
-}
-
-.app-header__menu {
-  margin-left: auto;
+  flex: 1 1 100%;
+  min-width: 0;
 }
 
 .app-nav {
-  grid-area: nav;
-  position: sticky;
-  top: var(--header-h);
-  align-self: start;
-  height: calc(100dvh - var(--header-h));
-  padding: var(--gutter) 8px;
+  padding: 8px 12px;
 }
 
 .app-nav ul {
@@ -110,8 +123,8 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 40px;
-  padding: 8px 12px;
+  min-height: 36px;
+  padding: 6px 10px;
   border-radius: var(--radius-sm);
   color: var(--text-muted);
   font-weight: 500;
@@ -126,14 +139,54 @@
   color: var(--text);
 }
 
-/* La página actual, en una pastilla blanca con su filo; el icono, en tinta. */
+/* La página actual, sobre un fondo suave (como Linear); el icono, en tinta. */
 .app-nav__link[aria-current="page"] {
-  background: var(--surface);
+  background: var(--surface-2);
   color: var(--text);
   font-weight: 600;
-  box-shadow:
-    0 0 0 1px var(--line),
-    var(--shadow-sm);
+}
+
+/* Encoger la barra lateral: solo en el PC. */
+.app-sidebar-toggle {
+  flex: none;
+}
+
+/* Barra encogida (PC): riel de 64 px con la marca, los botones, la lupa y los iconos de las
+   secciones. Los nombres siguen en el árbol de accesibilidad (ocultos solo a la vista) y salen
+   con el puntero (`title`). */
+@media (min-width: 768px) {
+  .app[data-sidebar="collapsed"] .app-header {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    gap: 8px;
+    padding: 16px 12px 8px;
+  }
+
+  .app[data-sidebar="collapsed"] .brand {
+    justify-content: center;
+    min-height: 36px;
+    margin: 0;
+  }
+
+  .app[data-sidebar="collapsed"] :is(.brand__name, .app-nav__label) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .app[data-sidebar="collapsed"] .app-header > .palette {
+    flex: none;
+    width: 40px;
+  }
+
+  .app[data-sidebar="collapsed"] .app-nav__link {
+    justify-content: center;
+    padding: 0;
+    min-height: 40px;
+  }
 }
 
 .app-nav__link[aria-current="page"] .icon {
@@ -285,9 +338,9 @@
 .toaster {
   position: fixed;
   bottom: calc(24px + var(--cover-notice-space, 0px));
-  left: calc(50% + 100px);
+  left: calc(50% + var(--sidebar-w) / 2);
   z-index: var(--z-toast);
-  width: min(36rem, calc(100vw - 2 * var(--gutter) - 200px));
+  width: min(36rem, calc(100vw - 2 * var(--gutter) - var(--sidebar-w)));
   transform: translateX(-50%);
   pointer-events: none;
 }
@@ -297,9 +350,9 @@
 .cover-notice {
   position: fixed;
   bottom: 24px;
-  left: calc(50% + 100px);
+  left: calc(50% + var(--sidebar-w) / 2);
   z-index: var(--z-toast);
-  width: min(36rem, calc(100vw - 2 * var(--gutter) - 200px));
+  width: min(36rem, calc(100vw - 2 * var(--gutter) - var(--sidebar-w)));
   translate: -50% 0;
   box-shadow: var(--shadow);
   animation: toast-in var(--motion) ease-out;
@@ -314,8 +367,8 @@
 
 /* Nada de `:has()` en `.app`: cada cambio del DOM de la app (cada resultado de la paleta) lo vuelve
    a comprobar recorriendo Mi lista entera. Con 500 entradas y CPU ×4 eran dos tareas largas por
-   nombre tecleado (npm run perf, 31-10-2026). En la cabecera, el recorrido es corto. */
-.app-header:has(.palette.is-open) ~ .cover-notice {
+   nombre tecleado (npm run perf, 31-10-2026). En la barra lateral, el recorrido es corto. */
+.app-sidebar:has(.palette.is-open) ~ .cover-notice {
   display: none;
 }
 
@@ -356,15 +409,25 @@
   }
 }
 
-/* Móvil: pestañas abajo y la barra de captura encima (ver §9.1). */
+/* Móvil: cabecera arriba y, abajo, la cápsula flotante de las secciones con el buscador redondo
+   a su derecha (ver §9.1). La barra lateral no tiene caja: sus hijos van a la rejilla de `.app`. */
 @media (max-width: 767px) {
   .app {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: 52px auto 1fr;
+    grid-template-rows: var(--header-h) auto 1fr;
     grid-template-areas:
       "header"
       "banner"
       "main";
+    transition: none;
+  }
+
+  .app-sidebar {
+    display: contents;
+  }
+
+  .app-sidebar-toggle {
+    display: none;
   }
 
   html {
@@ -372,22 +435,41 @@
   }
 
   .app-header {
-    height: 52px;
+    grid-area: header;
+    position: sticky;
+    top: 0;
+    z-index: var(--z-sticky);
+    flex-wrap: nowrap;
+    gap: var(--gap);
+    height: var(--header-h);
+    padding: 0 var(--gutter);
+    border-bottom: 1px solid var(--line);
+    background: var(--bg);
   }
 
+  /* La cápsula de las secciones, flotante. Deja sitio al buscador redondo donde lo hay (Mi lista). */
   .app-nav {
     position: fixed;
-    inset: auto 0 0;
+    inset: auto 84px calc(12px + env(safe-area-inset-bottom)) 16px;
     z-index: var(--z-sticky);
-    height: auto;
-    padding: 0 0 env(safe-area-inset-bottom);
-    border-top: 1px solid var(--line);
-    background: var(--bg);
+    height: 60px;
+    padding: 4px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+  }
+
+  .app[data-route="catalog"] .app-nav,
+  .app[data-route="settings"] .app-nav,
+  .app[data-route="game"] .app-nav {
+    right: 16px;
   }
 
   .app-nav ul {
     flex-direction: row;
-    height: var(--tabbar-h);
+    gap: 2px;
+    height: 100%;
   }
 
   .app-nav li {
@@ -399,13 +481,13 @@
     justify-content: center;
     gap: 2px;
     height: 100%;
-    border-radius: 0;
-    font-size: 0.75rem;
+    padding: 0 4px;
+    border-radius: 999px;
+    font-size: var(--text-xs);
   }
 
   .app-nav__link[aria-current="page"] {
-    background: transparent;
-    box-shadow: none;
+    background: var(--surface-3);
   }
 
   .app-main {

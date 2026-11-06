@@ -66,9 +66,11 @@
   --radius-lg: 14px;
   --gap: 12px;
   --gutter: 16px;
-  --header-h: 56px;
-  --tabbar-h: 56px;
-  --capturebar-h: 60px;
+  /* Alto de la cabecera del móvil; en el PC no hay cabecera encima del contenido (abajo). */
+  --header-h: 52px;
+  /* Móvil: lo que tapan abajo la cápsula flotante (60 px a 12 del borde) y su hueco. */
+  --tabbar-h: 64px;
+  --capturebar-h: 8px;
   /* Portada de 40 × 60 px y 8 px arriba y abajo. */
   --row-h: 76px;
   --option-h: 48px;
@@ -160,6 +162,12 @@
   --owned-chip: #2d323a;
   --next: #ff6b6b;
   --next-chip: #3a2224;
+}
+
+@media (min-width: 768px) {
+  :root {
+    --header-h: 0px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

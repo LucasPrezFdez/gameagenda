@@ -37,6 +37,8 @@ const { values } = parseArgs({
     dist: { type: 'string' },
     // Solo rehace `comparar.html` con las capturas que ya hay, sin abrir el navegador.
     'solo-comparar': { type: 'boolean', default: false },
+    // Con la barra lateral encogida (PC; DECISIONES §10.33). Al acabar la deja desplegada.
+    encoger: { type: 'boolean', default: false },
   },
 });
 
@@ -264,6 +266,20 @@ if (await understood.isVisible({ timeout: 4000 }).catch(() => false)) {
   await page.waitForTimeout(500);
 }
 
+/** Encoge o despliega la barra lateral con su botón (el ajuste se guarda en el perfil). */
+async function setSidebarCollapsed(want: boolean): Promise<void> {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(`${BASE}/`);
+  const toggle = page.getByRole('button', { name: 'Barra lateral' });
+  if ((await toggle.count()) === 0) return;
+  const collapsed = (await toggle.getAttribute('aria-expanded')) === 'false';
+  if (collapsed !== want) {
+    await toggle.click();
+    await page.waitForTimeout(800);
+  }
+}
+if (values.encoger) await setSidebarCollapsed(true);
+
 const widths = (values.widths ?? '').split(',').map(Number);
 const themes = (values.themes ?? '').split(',') as ('light' | 'dark')[];
 const only = values.screens?.split(',');
@@ -293,6 +309,7 @@ for (const theme of themes) {
     }
   }
 }
+if (values.encoger) await setSidebarCollapsed(false);
 await context.close();
 console.log(`${shots} capturas en ${OUT}`);
 writeComparison();

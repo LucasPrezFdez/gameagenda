@@ -407,3 +407,23 @@ Resueltos a partir de las mediciones y de los conflictos detectados entre seccio
     - **Pruebas:** `desktop.spec.ts` comprueba ahora lo contrario: el evento no abre la paleta, no cambia de pantalla ni recarga, y con la paleta abierta no la cierra ni le borra el texto.
     - **CA3.7:** el p50 de 1,24 s del 02-11-2026 se midió con el atajo abriendo la paleta. Ahora el recorrido es atajo, `Ctrl+K`, nombre e `Intro`.
     - **Pendiente:** en el próximo instalador, quitar de `main.rs` el `eval` de `CAPTURE_SCRIPT` y su comentario, y la prueba que fija el evento en `desktop.test.ts`.
+33. **Navegación nueva entre Mi lista, Catálogo y Ajustes (06-11-2026, decisión del usuario; cambia §9.1):** al usuario no le gustaba («bastante malo»). Había una barra lateral de 200 px para tres secciones y, en el móvil, las pestañas y la barra del buscador apiladas abajo, unos 116 px.
+    - **Cómo se eligió:** dos opciones basadas en apps de referencia, inyectadas como CSS encima del *build* y comparadas en `docs/diseno/navegacion/navegacion.mjs`:
+      1. pestañas en la cabecera (GitHub, Vercel) con una cápsula flotante en el móvil (iOS 26);
+      2. barra lateral de altura completa (Linear, Notion) con la barra de Material 3 en el móvil.
+
+      El usuario se quedó con la barra lateral para el PC, pero «que se pueda encoger», y con la cápsula para el móvil.
+    - **PC:** `.app-sidebar` agrupa la cabecera y la navegación en una columna fija de altura completa:
+      - arriba, la marca, el botón «Barra lateral» (`aria-expanded`, con `title` «Encoger…» o «Desplegar…») y «Más opciones»; debajo, el buscador, y luego las secciones;
+      - encogida (`data-sidebar="collapsed"`, ajuste `sidebarCollapsed`, que se lee antes del primer pintado), la columna pasa de 248 a 64 px con una transición de `grid-template-columns`;
+      - los nombres se ocultan solo a la vista y salen en `title`; el buscador queda en una lupa de 40 px que, al abrir la paleta, se despliega hacia el contenido;
+      - `--header-h` pasa a 0 en el PC, porque no hay cabecera encima del contenido, y los avisos se centran con `--sidebar-w`.
+    - **Móvil:** `.app-sidebar` va con `display: contents`, así que la cabecera vuelve a la rejilla, arriba.
+      - Las secciones van en una cápsula flotante de 60 px, a 12 px del borde; el buscador es un botón redondo de 56 px a su derecha. El campo sigue ahí, invisible, para el teclado de iOS.
+      - Donde no hay buscador (Catálogo, Ajustes, ficha), la cápsula ocupa todo el ancho, y el filtro del Catálogo sube arriba.
+      - `--tabbar-h` y `--capturebar-h` pasan a 64 y 8 px.
+    - **Orden del DOM:** sigue al visual: marca, encoger, «Más opciones», buscador y secciones (antes, el buscador iba antes que «Más opciones»).
+    - **Pruebas:**
+      - `sidebar.spec.ts`: encoger, nombres accesibles y `title`, recordarlo al recargar y la lupa que abre la paleta; en el móvil, la cápsula flotante y sin botón de encoger;
+      - `check` (945) y los E2E de Chromium y WebKit (179), en verde.
+      - `perf`: 1 o 2 tareas largas de 51–60 ms al apuntar, las mismas que dio `main` medido justo después en las mismas condiciones (CPU al 16 %). Son del equipo, no del cambio.

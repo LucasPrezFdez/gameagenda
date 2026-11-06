@@ -18,6 +18,16 @@ const variants = [
     'Escritorio como GitHub o Vercel: pestañas en la cabecera y el contenido centrado. Móvil como iOS 26: cápsula flotante y el buscador como botón redondo aparte.',
   ],
   [
+    'nav-nueva',
+    'Construida: barra lateral (PC) y cápsula flotante (móvil)',
+    'La elegida por el usuario: la barra lateral de la opción 2 en el PC y la cápsula de la opción 1 en el móvil.',
+  ],
+  [
+    'nav-encogida',
+    'Construida, con la barra lateral encogida (PC)',
+    'Riel de 64 px: marca, encoger, «Más opciones», la lupa y los iconos de las secciones, con el nombre al pasar el puntero.',
+  ],
+  [
     'nav-lateral',
     '2 · Barra lateral y Material 3',
     'Escritorio como Linear o Notion: barra lateral de altura completa con la marca y el buscador arriba. Móvil como Material 3: barra con la píldora detrás del icono activo y un botón flotante «Apunta un juego…».',

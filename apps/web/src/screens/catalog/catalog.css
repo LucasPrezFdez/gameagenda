@@ -112,16 +112,10 @@
   font-size: var(--text-sm);
 }
 
-/* En móvil, el filtro ocupa el sitio de la barra de captura (ver §9.1). */
+/* En el móvil, el filtro va arriba, en su sitio: abajo está la cápsula flotante (ver §9.1). */
 @media (max-width: 767px) {
   .catalog__filter {
-    position: fixed;
-    inset: auto 0 calc(var(--tabbar-h) + env(safe-area-inset-bottom));
-    z-index: var(--z-sticky);
     max-width: none;
-    padding: 8px var(--gutter);
-    border-top: 1px solid var(--line);
-    background: var(--bg);
   }
 
   .catalog__filter .field {

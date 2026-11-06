@@ -29,6 +29,8 @@ export interface UiSettings {
   readonly loadCovers: boolean;
   /** Aviso de primera capa de las portadas (§11.2): sin ver, visto o ya cerrado. */
   readonly coverNotice: CoverNoticeState;
+  /** La barra lateral del PC, encogida a un riel de iconos (DECISIONES §10.33). */
+  readonly sidebarCollapsed: boolean;
 }
 
 /**
@@ -46,6 +48,7 @@ export const DEFAULT_SETTINGS: UiSettings = {
   listSearch: '',
   loadCovers: true,
   coverNotice: 'unseen',
+  sidebarCollapsed: false,
 };
 
 export type SettingKey = keyof UiSettings;
@@ -64,6 +67,7 @@ function validValue(key: SettingKey, value: unknown): UiSettings[SettingKey] | u
     case 'touchGestures':
     case 'showAdult':
     case 'loadCovers':
+    case 'sidebarCollapsed':
       return typeof value === 'boolean' ? value : undefined;
     case 'listSearch':
       return typeof value === 'string' && value.length <= MAX_LIST_SEARCH ? value : undefined;

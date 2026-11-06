@@ -39,6 +39,10 @@ export const es = {
     undoLast: 'Deshacer último cambio',
     shortcuts: 'Atajos de teclado',
     capture: 'Apuntar un juego',
+    /** El botón que encoge y despliega la barra lateral (en el PC). */
+    sidebar: 'Barra lateral',
+    collapseSidebar: 'Encoger la barra lateral',
+    expandSidebar: 'Desplegar la barra lateral',
   },
 
   nav: { list: 'Mi lista', catalog: 'Catálogo', settings: 'Ajustes' },

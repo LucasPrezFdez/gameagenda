@@ -167,12 +167,15 @@ function NavItem({
   icon,
   label,
   current,
+  collapsed,
   onIntent,
 }: {
   to: string;
   icon: IconName;
   label: string;
   current: boolean;
+  /** Barra lateral encogida (PC): solo el icono, y el nombre en `title`. */
+  collapsed: boolean;
   onIntent?: () => void;
 }) {
   return (
@@ -181,11 +184,12 @@ function NavItem({
         to={to}
         className="app-nav__link"
         aria-current={current ? 'page' : undefined}
+        title={collapsed ? label : undefined}
         onPointerEnter={onIntent}
         onFocus={onIntent}
       >
         <Icon name={icon} />
-        <span>{label}</span>
+        <span className="app-nav__label">{label}</span>
       </Link>
     </li>
   );
@@ -249,8 +253,9 @@ export function App() {
 
 function AppShell() {
   const { route } = useLocation();
-  const { notices } = useServices();
+  const { notices, settings: settingsStore } = useServices();
   const settings = useSettings();
+  const collapsed = settings.sidebarCollapsed;
   const commands = useCommands();
   const canUndo = useCanUndo();
   const online = useOnline();
@@ -334,75 +339,102 @@ function AppShell() {
   return (
     <PaletteProvider handle={paletteRef}>
       <ShortcutHelpProvider value={openHelp}>
-        <div className="app" data-route={route.name}>
+        <div
+          className="app"
+          data-route={route.name}
+          data-sidebar={collapsed ? 'collapsed' : 'expanded'}
+        >
           <a className="skip-link" href="#main">
             {es.shell.skipToContent}
           </a>
-          <header className="app-header">
-            <Link to={listHref} className="brand">
-              <LogoMark />
-              <span>{es.appName}</span>
-            </Link>
-            <Palette
-              ref={paletteRef}
-              actions={paletteActions}
-              showBar={route.name === 'list' || route.name === 'capture' || route.name === 'share'}
-              onClose={() => {
-                if (window.location.pathname === '/apuntar') navigate('/', { replace: true });
-              }}
-            />
-            <MenuButton
-              label={es.shell.more}
-              className="app-header__menu"
-              items={[
-                {
-                  key: 'undo',
-                  label: es.shell.undoLast,
-                  icon: 'undo',
-                  disabled: !canUndo,
-                  onSelect: (event) => notices.undoLast({ feedbackStart: event.timeStamp }),
-                },
-                {
-                  key: 'shortcuts',
-                  label: es.shell.shortcuts,
-                  icon: 'keyboard',
-                  onSelect: openHelp,
-                },
-                {
-                  key: 'settings',
-                  label: es.nav.settings,
-                  icon: 'settings',
-                  onSelect: () => navigate(settingsPath(null)),
-                },
-                {
-                  key: 'about',
-                  label: es.settings.section.about,
-                  icon: 'info',
-                  onSelect: () => navigate(settingsPath('about')),
-                },
-              ]}
-            />
-          </header>
+          <div className="app-sidebar">
+            <header className="app-header">
+              <Link to={listHref} className="brand">
+                <LogoMark />
+                <span className="brand__name">{es.appName}</span>
+              </Link>
+              <button
+                type="button"
+                className="icon-btn app-sidebar-toggle"
+                aria-label={es.shell.sidebar}
+                aria-expanded={!collapsed}
+                aria-controls="app-nav"
+                title={collapsed ? es.shell.expandSidebar : es.shell.collapseSidebar}
+                onClick={() => settingsStore.update({ sidebarCollapsed: !collapsed })}
+              >
+                <Icon name="sidebar" />
+              </button>
+              <MenuButton
+                label={es.shell.more}
+                className="app-header__menu"
+                items={[
+                  {
+                    key: 'undo',
+                    label: es.shell.undoLast,
+                    icon: 'undo',
+                    disabled: !canUndo,
+                    onSelect: (event) => notices.undoLast({ feedbackStart: event.timeStamp }),
+                  },
+                  {
+                    key: 'shortcuts',
+                    label: es.shell.shortcuts,
+                    icon: 'keyboard',
+                    onSelect: openHelp,
+                  },
+                  {
+                    key: 'settings',
+                    label: es.nav.settings,
+                    icon: 'settings',
+                    onSelect: () => navigate(settingsPath(null)),
+                  },
+                  {
+                    key: 'about',
+                    label: es.settings.section.about,
+                    icon: 'info',
+                    onSelect: () => navigate(settingsPath('about')),
+                  },
+                ]}
+              />
+              <Palette
+                ref={paletteRef}
+                actions={paletteActions}
+                showBar={
+                  route.name === 'list' || route.name === 'capture' || route.name === 'share'
+                }
+                onClose={() => {
+                  if (window.location.pathname === '/apuntar') navigate('/', { replace: true });
+                }}
+              />
+            </header>
 
-          <nav className="app-nav" aria-label={es.shell.mainNav}>
-            <ul>
-              <NavItem to={listHref} icon="list" label={es.nav.list} current={onList} />
-              <NavItem
-                to="/catalogo"
-                icon="catalog"
-                label={es.nav.catalog}
-                current={route.name === 'catalog'}
-                onIntent={() => void loadCatalog()}
-              />
-              <NavItem
-                to={settingsPath(null)}
-                icon="settings"
-                label={es.nav.settings}
-                current={route.name === 'settings'}
-                onIntent={() => void loadSettings()}
-              />
-            </ul>
-          </nav>
+            <nav id="app-nav" className="app-nav" aria-label={es.shell.mainNav}>
+              <ul>
+                <NavItem
+                  to={listHref}
+                  icon="list"
+                  label={es.nav.list}
+                  current={onList}
+                  collapsed={collapsed}
+                />
+                <NavItem
+                  to="/catalogo"
+                  icon="catalog"
+                  label={es.nav.catalog}
+                  current={route.name === 'catalog'}
+                  collapsed={collapsed}
+                  onIntent={() => void loadCatalog()}
+                />
+                <NavItem
+                  to={settingsPath(null)}
+                  icon="settings"
+                  label={es.nav.settings}
+                  current={route.name === 'settings'}
+                  collapsed={collapsed}
+                  onIntent={() => void loadSettings()}
+                />
+              </ul>
+            </nav>
+          </div>
 
           {!online && (
             <div className="app-banner notice" role="status">
