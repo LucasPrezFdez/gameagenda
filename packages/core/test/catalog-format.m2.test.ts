@@ -1,6 +1,7 @@
 // Contrato del catálogo de M2 (§7.6): JSON canónico, firma, *shards* de detalles y recientes.
 import { createPrivateKey, sign } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import {
   applyRecent,
@@ -216,6 +217,87 @@ describe('recientes sobre el núcleo (§7.6)', () => {
     expect(out.name[1]).toBe('B');
     // El núcleo original no cambia.
     expect(core.name[1]).toBe('Juego 300');
+  });
+
+  it('propiedad: da lo mismo que aplicarlos fila a fila, nombres en español incluidos', () => {
+    // La regla de §7.6 escrita de la forma más directa, sin columnas ni búsquedas binarias.
+    const isRetired = (r: CoreRow) => ((r.flags ?? 0) & CatalogFlag.retired) !== 0;
+    const byRow = (coreRows: readonly CoreRow[], recentRows: readonly CoreRow[]) => {
+      const last = new Map<number, CoreRow>();
+      for (const r of recentRows) last.set(r.appid, r);
+      const inCore = new Set(coreRows.map((r) => r.appid));
+      const live = coreRows.filter((r) => !isRetired(r)).length;
+      const gaps = new Map<number, CoreRow[]>();
+      for (const r of last.values()) {
+        if (inCore.has(r.appid)) continue;
+        let at = coreRows.length;
+        if (!isRetired(r)) {
+          const p = r.pop ?? 0;
+          at = coreRows
+            .slice(0, live)
+            .findIndex((c) => (c.pop ?? 0) < p || ((c.pop ?? 0) === p && c.appid < r.appid));
+          if (at === -1) at = live;
+        }
+        gaps.set(at, [...(gaps.get(at) ?? []), r]);
+      }
+      const out: CoreRow[] = [];
+      for (let g = 0; g <= coreRows.length; g++) {
+        const gap = gaps.get(g) ?? [];
+        out.push(...gap.sort((x, y) => (y.pop ?? 0) - (x.pop ?? 0) || y.appid - x.appid));
+        const c = coreRows[g];
+        if (c) out.push(last.get(c.appid) ?? c);
+      }
+      return out;
+    };
+    const rowsOf = (c: ReturnType<typeof applyRecent>) =>
+      Array.from({ length: c.count }, (_, g) => coreRowAt(c, g));
+    // `appid` de 1 a 60 y `pop` de 0 a 3: muchos repetidos, bloques de igual `pop` y altas que
+    // caen en el mismo hueco.
+    const rowArb = fc.record({
+      appid: fc.integer({ min: 1, max: 60 }),
+      pop: fc.integer({ min: 0, max: 3 }),
+      nameEs: fc.option(fc.constantFrom('Uno', 'Dos', 'Tres'), { nil: null }),
+      retired: fc.boolean(),
+      year: fc.option(fc.integer({ min: 1990, max: 2026 }), { nil: null }),
+    });
+    fc.assert(
+      fc.property(
+        fc.uniqueArray(rowArb, { selector: (r) => r.appid, maxLength: 40 }),
+        fc.array(rowArb, { maxLength: 25 }),
+        (coreSpec, recentSpec) => {
+          const make = (r: (typeof coreSpec)[number], tag: string): CoreRow => ({
+            appid: r.appid,
+            name: `${tag} ${r.appid}`,
+            nameEs: r.nameEs,
+            flags: r.retired ? CatalogFlag.retired : CatalogFlag.free,
+            year: r.year,
+            pop: r.pop,
+          });
+          // Un núcleo válido: los no retirados por `pop` descendente (dentro del bloque, en el
+          // orden que salga, como las reseñas) y los retirados al final.
+          const coreRows = [
+            ...coreSpec
+              .filter((r) => !r.retired)
+              .sort((x, y) => y.pop - x.pop)
+              .map((r) => make(r, 'Núcleo')),
+            ...coreSpec.filter((r) => r.retired).map((r) => make(r, 'Núcleo')),
+          ];
+          const recentRows = recentSpec.map((r, i) => make(r, `Reciente ${i}`));
+          const c = coreFromRows(coreRows, { version: '20261024.1' });
+          const recent = coreFromRows(recentRows, { version: '20261031.1', kind: 'recent' });
+          const out = applyRecent(c, recent);
+          const expected = coreFromRows(byRow(coreRows, recentRows), { version: '20261031.1' });
+          expect(rowsOf(out)).toEqual(rowsOf(expected));
+          // Los nombres en español, en orden de fila, como al copiarlos una a una.
+          expect([...out.nameEs.keys()]).toEqual([...expected.nameEs.keys()]);
+          // Sin recientes, el núcleo tal cual, con su versión.
+          expect(out.version).toBe(recentRows.length > 0 ? '20261031.1' : '20261024.1');
+          // El núcleo original no cambia.
+          expect(rowsOf(c)).toEqual(rowsOf(coreFromRows(coreRows, { version: '20261024.1' })));
+        },
+      ),
+      { numRuns: 2000 },
+    );
   });
 
   it('con el núcleo real y ≈4 000 recientes, tarda poco y conserva el orden', () => {
