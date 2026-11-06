@@ -1,16 +1,43 @@
-// Worker `ga-web` (§5.2 y §14 de prototipe.md): solo *assets* estáticos del *build* de producción
-// (`npm run build`), con el *fallback* de la SPA para los enlaces profundos (`/juego/steam:730`).
-// Las cabeceras van en `public/_headers`, que Vite copia a `dist/`. Desde M4, un *script* Hono
-// solo en `/api/*`. Lo despliega `.github/workflows/deploy-web.yml`; en local:
-// `npx wrangler dev -c apps/web/wrangler.jsonc`.
+// Worker `ga-web` (§5.2 y §14 de prototipe.md): los *assets* estáticos del *build* de producción
+// (`npm run build`), con el *fallback* de la SPA para los enlaces profundos (`/juego/steam:730`), y
+// desde M4 la micro-API Hono (`worker/`), que solo corre en `/api/*` (`run_worker_first`; ADR-011).
+// Las cabeceras de la SPA van en `public/_headers`, que Vite copia a `dist/`; las de la micro-API
+// las pone ella. Lo despliega `.github/workflows/deploy-web.yml`; en local:
+// `npx wrangler dev -c apps/web/wrangler.jsonc --var SYNC_ENABLED:1`, con las migraciones de D1
+// aplicadas antes con `npx wrangler d1 migrations apply DB --local -c apps/web/wrangler.jsonc`.
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
   "name": "ga-web",
+  "main": "./worker/index.ts",
   // La más reciente que admite el `workerd` de `wrangler` 4.155.0 (1.20261023.1).
   "compatibility_date": "2026-10-23",
   "workers_dev": true,
   "assets": {
     "directory": "./dist",
-    "not_found_handling": "single-page-application"
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  // D1 en la jurisdicción UE (§7.7 y §11.2), creada con
+  // `npx wrangler d1 create ga-agenda --jurisdiction=eu`. PENDIENTE: el id real, al crearla.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "ga-agenda",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "./worker/migrations"
+    }
+  ],
+  // Límites por IP de las rutas sin autenticar (§11.4): aproximados y por ubicación de Cloudflare.
+  // `namespace_id` es único en la cuenta.
+  "ratelimits": [
+    { "name": "RL_AGENDA", "namespace_id": "1101", "simple": { "limit": 5, "period": 60 } },
+    { "name": "RL_REDEEM", "namespace_id": "1102", "simple": { "limit": 10, "period": 60 } }
+  ],
+  "vars": {
+    // La micro-API responde 503 hasta que se publiquen los textos legales (CA4.7).
+    "SYNC_ENABLED": "0",
+    // Edad mínima declarada al activar la sincronización (art. 7 LOPDGDD; R-10: puede pasar a 16).
+    "MIN_AGE": "14"
   }
 }

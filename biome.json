@@ -86,6 +86,10 @@
                   {
                     "group": ["@tauri-apps/*", "@tauri-apps/**"],
                     "message": "La web no importa Tauri: solo se conocen por la URL (§14.3, regla 8)."
+                  },
+                  {
+                    "group": ["**/worker/**"],
+                    "message": "La SPA solo habla con la micro-API por HTTP, en el mismo origen (§14.3, regla 3)."
                   }
                 ]
               }
@@ -110,6 +114,49 @@
                   {
                     "group": ["@gameagenda/pipeline", "@gameagenda/pipeline/**", "**/pipeline/**"],
                     "message": "apps/web y pipeline/ no se importan entre sí (§14.3, regla 2)."
+                  },
+                  {
+                    "group": ["**/packages/core/**"],
+                    "message": "core se importa por su nombre, @gameagenda/core/… (§14.3, regla 7)."
+                  },
+                  {
+                    "group": ["**/fixtures/**"],
+                    "message": "El código de producción no importa fixtures/ (§14.3, regla 5)."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/web/worker/**", "!apps/web/worker/test/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "**/src/**",
+                      "react",
+                      "react/**",
+                      "react-dom",
+                      "react-dom/**",
+                      "dexie"
+                    ],
+                    "message": "La micro-API importa core y Hono, nunca apps/web/src/ (§14.3, regla 3)."
+                  },
+                  {
+                    "group": ["node:*"],
+                    "message": "La micro-API corre en Workers sin nodejs_compat: solo APIs web (ADR-011)."
+                  },
+                  {
+                    "group": ["@gameagenda/pipeline", "@gameagenda/pipeline/**", "**/pipeline/**"],
+                    "message": "La micro-API no importa pipeline/ (§14.3, regla 2)."
                   },
                   {
                     "group": ["**/packages/core/**"],
@@ -162,6 +209,7 @@
         "packages/core/test/**",
         "apps/web/e2e/**",
         "apps/web/perf/**",
+        "apps/web/worker/test/**",
         "**/*.config.ts",
         "scripts/**"
       ],

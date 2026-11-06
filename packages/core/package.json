@@ -13,6 +13,7 @@
     "./catalog-format": "./src/catalog-format/index.ts",
     "./entries": "./src/entries/index.ts",
     "./sync": "./src/sync/index.ts",
+    "./api": "./src/api/index.ts",
     "./steam-link": "./src/steam-link/index.ts",
     "./schemas": "./src/schemas/index.ts",
     "./bench": "./src/bench/index.ts"
