@@ -92,22 +92,27 @@ export const entrySchema = z
     }
   }) satisfies z.ZodType<EntryFields>;
 
+const OP_SHAPE = {
+  opId: opIdSchema,
+  entryId: entryIdSchema,
+  field: fieldSchema,
+  value: z.json(),
+  hlc: hlcSchema,
+};
+
+function checkOpValue(op: { field: string; value: unknown }, ctx: z.RefinementCtx): void {
+  if (!isField(op.field)) return;
+  if (!fieldValueSchema(op.field).safeParse(op.value).success) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['value'],
+      message: `Valor no válido para ${op.field}`,
+    });
+  }
+}
+
 /** Operación de la `outbox` o de la sincronización, con el valor validado según su campo. */
-export const opSchema = z
-  .object({
-    opId: opIdSchema,
-    entryId: entryIdSchema,
-    field: fieldSchema,
-    value: z.json(),
-    hlc: hlcSchema,
-  })
-  .superRefine((op, ctx) => {
-    if (!isField(op.field)) return;
-    if (!fieldValueSchema(op.field).safeParse(op.value).success) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['value'],
-        message: `Valor no válido para ${op.field}`,
-      });
-    }
-  });
+export const opSchema = z.object(OP_SHAPE).superRefine(checkOpValue);
+
+/** La misma, sin campos de más: la que acepta la micro-API (§11.4). */
+export const strictOpSchema = z.strictObject(OP_SHAPE).superRefine(checkOpValue);

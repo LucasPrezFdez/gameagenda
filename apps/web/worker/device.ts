@@ -45,11 +45,13 @@ export async function readDevice(c: Context<AppEnv>): Promise<DeviceAuth | null>
   const token = getCookie(c, DEVICE_COOKIE, 'host');
   if (token === undefined || token.length === 0 || token.length > MAX_TOKEN_LENGTH) return null;
   const row = await c.env.DB.prepare(
-    "SELECT id, agenda_id FROM device WHERE token_hash = ?1 AND kind = 'app'",
+    "SELECT id, agenda_id, last_seen_at FROM device WHERE token_hash = ?1 AND kind = 'app'",
   )
     .bind(await sha256Hex(token))
-    .first<{ id: string; agenda_id: string }>();
-  return row === null ? null : { deviceId: row.id, agendaId: row.agenda_id };
+    .first<{ id: string; agenda_id: string; last_seen_at: string }>();
+  return row === null
+    ? null
+    : { deviceId: row.id, agendaId: row.agenda_id, token, lastSeenAt: row.last_seen_at };
 }
 
 /** Rutas con cookie: sin un dispositivo válido, 401 y fuera las cookies, para que la app lo sepa. */

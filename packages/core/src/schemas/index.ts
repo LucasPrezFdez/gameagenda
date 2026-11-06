@@ -28,6 +28,7 @@ export {
   rankSchema,
   statusSchema,
   steamEntryIdSchema,
+  strictOpSchema,
 } from './entry.ts';
 export {
   createExport,

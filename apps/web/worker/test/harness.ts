@@ -114,8 +114,15 @@ export interface Harness {
   client(ip?: string): Client;
 }
 
-export function createHarness(overrides: Partial<Env> = {}): Harness {
-  const db = new SqliteD1();
+export interface HarnessOptions {
+  /** Otra D1 (p. ej., una que simula escrituras concurrentes). */
+  db?: SqliteD1;
+  /** Cambios por página de `sync`. */
+  pageSize?: number;
+}
+
+export function createHarness(overrides: Partial<Env> = {}, options: HarnessOptions = {}): Harness {
+  const db = options.db ?? new SqliteD1();
   const clock = { ms: T0 };
   const limits = { agenda: new CountingLimit(), redeem: new CountingLimit() };
   const env: Env = {
@@ -127,7 +134,10 @@ export function createHarness(overrides: Partial<Env> = {}): Harness {
     MIN_AGE: String(DEFAULT_MIN_AGE),
     ...overrides,
   };
-  const app = createApp({ now: () => clock.ms });
+  const app = createApp({
+    now: () => clock.ms,
+    ...(options.pageSize === undefined ? {} : { pageSize: options.pageSize }),
+  });
   let nextIp = 1;
   const harness: Harness = {
     db,

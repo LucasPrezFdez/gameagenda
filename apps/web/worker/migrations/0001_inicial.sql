@@ -3,15 +3,19 @@
 -- que borrar una agenda se lleva todo lo suyo. Cambios respecto a la §7.7, con su porqué en el
 -- ADR-011: `created_at`, `label` y `last_seen_at` para la lista de dispositivos; revocar y canjear
 -- borran la fila (el *hash* se guarda hasta revocarlo, §11.2), así que no hay `revoked_at` ni
--- `used_at`; `recovery_hash` es único, para buscarlo por índice; e índices para las cascadas.
+-- `used_at`; `recovery_hash` es único, para buscarlo por índice; índices para las cascadas; y
+-- `write_id`, para la concurrencia optimista de `sync`.
 
 CREATE TABLE agenda (
   id TEXT PRIMARY KEY,
   seq INTEGER NOT NULL DEFAULT 0,
   purged_seq INTEGER NOT NULL DEFAULT 0,
+  -- Lo pone cada escritura de `sync` junto con la `seq` nueva; las filas solo se escriben si
+  -- sigue siendo el suyo, es decir, si nadie escribió entre la lectura y la escritura.
+  write_id TEXT NOT NULL DEFAULT '',
   recovery_hash TEXT NOT NULL UNIQUE,
   created_at TEXT NOT NULL,
-  last_sync_at TEXT NOT NULL  -- en cada sync; retención de 13 meses (§11.2)
+  last_sync_at TEXT NOT NULL  -- como mucho una vez al día; retención de 13 meses (§11.2)
 ) STRICT;
 
 CREATE TABLE device (

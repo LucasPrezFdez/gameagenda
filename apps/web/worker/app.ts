@@ -9,6 +9,7 @@ import { apiError, apiHeaders, killSwitch, requestRules } from './http.ts';
 import { agendaRoutes } from './routes/agenda.ts';
 import { deviceRoutes } from './routes/devices.ts';
 import { pairingRoutes } from './routes/pairing.ts';
+import { syncRoutes } from './routes/sync.ts';
 
 export function createApp(deps: Deps = { now: Date.now }): Hono<AppEnv> {
   const app = new Hono<AppEnv>();
@@ -18,6 +19,7 @@ export function createApp(deps: Deps = { now: Date.now }): Hono<AppEnv> {
   agendaRoutes(api, deps);
   deviceRoutes(api);
   pairingRoutes(api, deps);
+  syncRoutes(api, deps);
   app.route(API_BASE, api);
 
   app.all('/api/*', (c) => apiError(c, 'not_found'));

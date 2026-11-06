@@ -2,8 +2,12 @@
 
 import { beats, type Op } from './op.ts';
 
-/** Tamaño de lote de la sincronización (§7.7). */
-export const SYNC_BATCH_SIZE = 500;
+/**
+ * Tamaño de lote de la sincronización (§7.7). Era 500; con 200, filtrar y planificar el lote en el
+ * Worker cuesta ≈1,4 ms (p50) y ≈2,3 ms (p99) en Node, lejos de los 10 ms de CPU del plan gratuito
+ * también en frío (con 500, 8,5 ms en frío; ADR-011 y CA4.6).
+ */
+export const SYNC_BATCH_SIZE = 200;
 
 function key(o: Op): string {
   return `${o.entryId}\u0000${o.field}`;

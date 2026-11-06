@@ -34,6 +34,9 @@
     { "name": "RL_AGENDA", "namespace_id": "1101", "simple": { "limit": 5, "period": 60 } },
     { "name": "RL_REDEEM", "namespace_id": "1102", "simple": { "limit": 10, "period": 60 } }
   ],
+  // Mantenimiento de D1 (`worker/maintenance.ts`): a diario, y la purga de lápidas los lunes.
+  // A las 03:17 UTC, lejos del catálogo (04:17).
+  "triggers": { "crons": ["17 3 * * *"] },
   "vars": {
     // La micro-API responde 503 hasta que se publiquen los textos legales (CA4.7).
     "SYNC_ENABLED": "0",

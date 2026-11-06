@@ -56,11 +56,27 @@ export interface Env {
 export interface DeviceAuth {
   deviceId: string;
   agendaId: string;
+  /** La credencial de la cookie, para renovarla al sincronizar. */
+  token: string;
+  /** Instante ISO 8601 UTC: la cookie se renueva, como mucho, una vez al día (§11.4). */
+  lastSeenAt: string;
+}
+
+/** Lo que pasa Cloudflare al *handler* `scheduled` (Cron Trigger). */
+export interface ScheduledController {
+  scheduledTime: number;
+  cron: string;
+}
+
+export interface ExecutionContext {
+  waitUntil(promise: Promise<unknown>): void;
 }
 
 /** Lo que se inyecta en las rutas: el reloj, para probar las caducidades. */
 export interface Deps {
   now: () => number;
+  /** Cambios por página de `sync` (`SYNC_PAGE_SIZE`); las pruebas la bajan para paginar. */
+  pageSize?: number;
 }
 
 /** Tipos de Hono para la app: `c.env` y `c.var`. */
