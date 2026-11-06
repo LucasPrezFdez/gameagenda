@@ -1,11 +1,25 @@
 # Estado del proyecto — punto de partida de la próxima sesión
 
-**Actualizado:** 06-11-2026, en la sesión 9 (el cliente del núcleo de arranque, en `main` y desplegado: el núcleo de arranque, entero en producción). Antes, el 05-11-2026, en la sesión 8 (CA2.1 cumplido: M2 cerrado con `v0.2.0`; la parte del pipeline del núcleo de arranque, en `main`; y el rediseño visual «Tinta», en `main` y desplegado).
+**Actualizado:** 06-11-2026, en la sesión 10 (M4 empezado en la rama `m4-sincronizacion`: la base de la micro-API y el ADR-011). Antes, en la sesión 9 (el cliente del núcleo de arranque, en `main` y desplegado: el núcleo de arranque, entero en producción). Antes, el 05-11-2026, en la sesión 8 (CA2.1 cumplido: M2 cerrado con `v0.2.0`; la parte del pipeline del núcleo de arranque, en `main`; y el rediseño visual «Tinta», en `main` y desplegado).
 **Cómo retomar:** escribe *«Retoma GameAgenda desde docs/planificacion/ESTADO-SESION.md»*.
 
 ## 0. Lo primero en la próxima sesión
 
-Todo está en `main` y subido, con el CI y el despliegue en verde y sin agentes en marcha. Por orden:
+Lo de M3 está en `main` y subido, con el CI y el despliegue en verde y sin agentes en marcha; M4, en su rama (abajo). Por orden:
+
+**M4 · Sincronización: empezado el 06-11-2026 (sesión 10), en la rama `m4-sincronizacion`** (subida; el árbol de trabajo está en ella). No va a `main` hasta tener la base de D1 en Cloudflare y el permiso de D1 en el *token* de `deploy-web`: con el *binding* en `wrangler.jsonc`, cada despliegue fallaría.
+
+- **Parte 1, hecha** (`07720f7` y `29d0d39`): la base de la micro-API. ADR-011 («propuesta») y DECISIONES §10.34.
+  - `apps/web/worker/`: Hono solo en `/api/*`, con el interruptor `SYNC_ENABLED` apagado; reglas de la §11.4; crear agenda con la edad y el código de recuperación; dispositivos; emparejar; recuperar; borrar en cascada. Esquema en `worker/migrations/0001_inicial.sql`. Contrato en `@gameagenda/core/api`.
+  - Pruebas con `app.request()` y D1 sobre `node:sqlite`: `check` da 1 008. Comprobado también con `wrangler dev` (`workerd` y D1 locales).
+  - **Ojo:** parar `wrangler dev` con TaskStop deja vivos sus procesos de Node y `workerd` en Windows. Se buscan con `Get-CimInstance Win32_Process` (línea de órdenes con `wrangler`) y se paran, y después los `workerd` de `node_modules`.
+- **Siguientes partes, por este orden:**
+  2. `POST /api/v1/sync` en el servidor (lotes de §7.7 con `merge()`, páginas, `reset`, purga semanal) y las pruebas de propiedades de CA4.1;
+  3. el cliente: Ajustes › Sincronización (activar con la edad, código de recuperación, QR y texto para emparejar, dispositivos), el motor (Web Locks, foco, red y visibilidad; cursor; desfase de la HLC) y los E2E con dos contextos (CA4.2 y CA4.3);
+  4. buzón y Atajo de iOS, `resolve` (CA4.5), textos legales (CA4.7) y CA4.6;
+  5. desplegar: crear D1 con `--jurisdiction=eu` (y ver si el plan gratuito la admite, igual que `ratelimits`), el permiso de D1 del *token*, las migraciones en `deploy-web` y las pruebas en el iPhone.
+- **Le tocará al usuario:** el nombre o alias y el correo de contacto del responsable para los textos legales; dar permiso de D1 al *token* `CLOUDFLARE_API_TOKEN`; y probar en el iPhone (CA4.3 y CA4.5).
+
 
 0. **Rediseño visual «Tinta» (05-11-2026, sesión 8): en `main` y desplegado.** Se hizo en la rama `rediseno-visual` (*worktree* `.claude/worktrees/rediseno-visual`, que se conserva) y entró en `main` sin *merge*, en `51b5563`.
    - Encargo: `docs/planificacion/prompts/rediseno-visual.md`. Auditoría, opciones, elecciones del usuario y medidas: `docs/diseno/rediseno-visual/propuesta.md`. El porqué, en DECISIONES §10.31; los tokens, en la §9.8.
@@ -288,3 +302,5 @@ Todo está en `main` y subido, con el CI y el despliegue en verde y sin agentes 
 | 6 | 01/02-11-2026 (noche) | Primera ejecución programada de `catalog.yml` en verde (CA2.1, 1 de 3); CA2.4 medido en producción (34,5 KB) y `smoke:web` al día; los dos hallazgos del usuario en la app de escritorio, arreglados (menú de «Orden» y portadas en el Catálogo, §10.22); CA3.7 medido en la app instalada (p50 de 1,24 s); atajos de una tecla de la §9.4 (§10.23) |
 | 7 | 02-11-2026 | Gestos de la §9.4 y reordenar arrastrando `::` (§10.24), con el ajuste «Gestos táctiles» y E2E con toques de verdad por CDP: CA3.4 completo. Índice persistido (§10.25): CA3.2 en 275 ms con CPU ×4. «Compartir», `Ctrl+V` y el chip «Pegar enlace» (§10.26; CA3.3). Panel de rendimiento en Ajustes (§10.27). Auditoría WCAG 2.2 AA, parte automática (§10.28; CA3.5). Restauración del índice en dos fases (CA3.2 en 162 ms) y protocolo de la prueba guiada (CA3.6). CA3.8 en la app de escritorio, por el asistente en la segunda pantalla: ADR-010 aceptado. Versiones nuevas sin que se note (§10.29), en la web y en la app de escritorio. La ejecución programada del catálogo del 02-11 falló en la prueba de humo (404 pasajeros justo tras desplegar) |
 | 8 | 04/05-11-2026 | Núcleo de arranque en la rama `m3-arranque` (20 000 juegos, `boot` con CPU ×4 en 613–759 ms), con ADR-009 propuesto, DECISIONES §10.30 y la revisión verificada (3 arreglos). CA2.1 cumplido con las ejecuciones programadas del 03 al 05-11: M2 cerrado con `v0.2.0`, y ADR-007 y ADR-008 aceptados |
+| 9 | 06-11-2026 | Cliente del núcleo de arranque en `main` y desplegado (`d001730`); ADR-009 aceptada; `applyRecent` más barato (≈21 → ≈10 ms en frío) |
+| 10 | 06-11-2026 | M4 empezado en la rama `m4-sincronizacion`: base de la micro-API (Hono solo en `/api/*`, reglas de la §11.4, agenda, dispositivos, emparejar, recuperar y borrar; D1 con su migración), contrato en `@gameagenda/core/api`, ADR-011 propuesto y DECISIONES §10.34 |
