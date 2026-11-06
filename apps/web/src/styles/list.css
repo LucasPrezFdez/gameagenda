@@ -261,8 +261,11 @@
   content-visibility: visible;
 }
 
+/* Resaltada con el puntero encima o con el foco puesto con el teclado; no por un clic, que deja
+   el foco en la fila (o lo pasa a la siguiente si la fila cambia de sección) y la dejaba
+   «encendida» sin el ratón encima (06-11-2026). `:has()` acotado a la fila (§9.5, regla 7). */
 .entry-row:hover .entry-row__body,
-.entry-row:focus-within .entry-row__body {
+.entry-row:has(:focus-visible) .entry-row__body {
   background-color: var(--surface-2);
   background-image: none;
 }
@@ -550,7 +553,8 @@
   gap: 2px 12px;
 }
 
-/* Las acciones rápidas se ven con el puntero o el foco (WCAG 1.4.13). */
+/* Las acciones rápidas se ven con el puntero encima o con el foco del teclado (WCAG 1.4.13), no
+   tras un clic. */
 .entry-row__actions {
   display: flex;
   align-items: center;
@@ -559,7 +563,7 @@
 }
 
 .entry-row:hover .entry-row__actions,
-.entry-row:focus-within .entry-row__actions {
+.entry-row:has(:focus-visible) .entry-row__actions {
   opacity: 1;
 }
 

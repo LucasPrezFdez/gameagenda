@@ -153,3 +153,33 @@ test('el menú de «Orden» cabe en la pantalla, sin barra horizontal', async ({
   }
   await checks.expectClean();
 });
+
+test('las acciones de la fila salen con el puntero o el teclado, y no se quedan tras un clic', async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, 'con el dedo no hay acciones al pasar por encima');
+  const checks = await setup(page);
+  await page.goto('/');
+  await capture(page, 'hades ii', 'Hades II');
+  await capture(page, 'celeste', 'Celeste');
+  const actions = row(page, 'Celeste').locator('.entry-row__actions');
+  const body = row(page, 'Celeste').locator('.entry-row__body');
+  const resting = await body.evaluate((el) => getComputedStyle(el).backgroundColor);
+
+  await row(page, 'Celeste').hover();
+  await expect(actions).toHaveCSS('opacity', '1');
+  // Un clic deja el foco en la fila, pero sin el puntero encima vuelve a estar como antes.
+  await actions.getByRole('button', { name: 'Comprado: Celeste' }).click();
+  await page.mouse.move(4, 4);
+  await expect(actions).toHaveCSS('opacity', '0');
+  await expect(body).toHaveCSS('background-color', resting);
+
+  // Con el teclado, la fila con el foco las enseña (WCAG 1.4.13).
+  await page.keyboard.press('Tab');
+  await expect(page.locator('.entry-row:has(:focus-visible) .entry-row__actions')).toHaveCSS(
+    'opacity',
+    '1',
+  );
+  await checks.expectClean();
+});

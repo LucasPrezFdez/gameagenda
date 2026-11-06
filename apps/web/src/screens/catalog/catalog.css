@@ -51,8 +51,9 @@
   transition: background-color var(--motion) var(--ease);
 }
 
+/* Como las filas de Mi lista: con el puntero o el foco del teclado, no tras un clic en «+». */
 .catalog-row:hover,
-.catalog-row:focus-within {
+.catalog-row:has(:focus-visible) {
   background-color: var(--surface-2);
 }
 
@@ -96,7 +97,7 @@
 }
 
 .catalog-list > .catalog-row:hover,
-.catalog-list > .catalog-row:focus-within {
+.catalog-list > .catalog-row:has(:focus-visible) {
   background-image: none;
 }
 

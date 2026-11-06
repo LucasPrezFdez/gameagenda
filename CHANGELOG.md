@@ -39,6 +39,7 @@ Cambios de GameAgenda por versión. Cada hito cierra una versión SemVer 0.x (§
 
 ### Corregido
 
+- **Las filas se quedaban «encendidas» tras un clic** (06-11-2026, lo vio el usuario). Al pulsar «Empezar» o una marca, la fila (o la siguiente, si el juego cambiaba de sección) seguía resaltada y con sus acciones a la vista sin el ratón encima. Pasaba en Mi lista y en el Catálogo. Ahora salen solo con el puntero encima o con el foco puesto con el teclado (`:has(:focus-visible)` en vez de `:focus-within`).
 - **Paleta en el móvil:** a 390 px, cada resultado medía 395 px dentro de una lista de 358, y el año y «Intro: Apuntar» quedaban debajo del botón (i).
 - **El aviso de Deshacer** quedaba a 8,5 px del de las portadas en vez de a 8, por redondear la altura de este.
 
