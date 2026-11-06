@@ -19,7 +19,14 @@ Todo está en `main` y subido, con el CI y el despliegue en verde y sin agentes 
      - `scripts/rediseno-capturas.ts`: capturas de `ga-web` real, con `--css` para inyectar hojas y `--dist` para servir el *build* de la rama bajo el origen de producción;
      - `scripts/generar-iconos.ts`: todos los iconos a partir de `public/icons/icon.svg` e `icons/icon-sangre.svg`;
      - `scripts/rediseno-contraste.ts` y `scripts/rediseno-iconos.ts`.
-   - **Al pasar el cliente del núcleo de arranque (`m3-arranque`) a `main`:** habrá conflictos en `palette.css`, en `docs/adr/README.md` y en DECISIONES, donde su §10.30 va antes de la §10.31 del rediseño. Resolverlos conservando el estilo «Tinta», y revisar que el aviso y el estado `boot` de la paleta usen los tokens nuevos (`--line`, `--radius-lg`).
+   - **Después, en la misma sesión (06-11-2026), por decisión del usuario:**
+     - `Ctrl+Mayús+Espacio` solo pone la app de escritorio delante (§10.32);
+     - el estado de la fila, como «Punto»;
+     - la navegación nueva (§10.33). En el PC, una barra lateral de altura completa que se encoge a un riel de 64 px (`sidebarCollapsed`), con las vistas de Mi lista y su contador, «Jugando ahora» y «A continuación» con portadas, y un pie (`SidebarLibrary`, solo a ≥768 px). En el móvil, una cápsula flotante con el buscador redondo aparte. Se hizo en la rama `rediseno-navegacion`, en el mismo *worktree*, y entró en `main` sin *merge* en `f85c4ee`.
+     - Los E2E que pulsaban las pestañas de vista usan `viewControl`, porque en el PC no se ven con la barra desplegada.
+     - **Despliegue de la navegación:** `ci` 42140175663 se canceló en el E2E de Chromium por lentitud del *runner* y pasó al repetirlo. Después, `deploy-web` 42141698774 (29 s) y `smoke:web`, en verde. La app de escritorio, reiniciada oculta, se puso al día sola en 120 s (`index-E_oPSGxS.js`) y quedó en la bandeja.
+     - **Ojo con el CI:** esta noche el *runner* de GitHub fue lento. Dos veces un trabajo agotó su tiempo y canceló la ejecución, y entonces `deploy-web` se salta. `gh run rerun <id> --failed` lo arregla, y el asistente sí puede lanzarlo.
+   - **Al pasar el cliente del núcleo de arranque (`m3-arranque`) a `main`:** según un *merge* de prueba del 06-11-2026 (`git merge-tree`, con `main` en `f85c4ee`), solo habrá conflictos en `docs/adr/README.md` y en DECISIONES, donde su §10.30 va antes de las §10.31–10.33. El código, `palette.css` incluido, se mezcla solo. Resolverlos conservando el estilo «Tinta», y revisar que el aviso y el estado `boot` de la paleta usen los tokens nuevos (`--line`, `--radius-lg`).
    - **Despliegue:** `ci` 42125904771 en verde (3 min 21 s), `deploy-web` 42126367721 (41 s) y `smoke:web` en verde.
    - **App de escritorio, reinstalada en la noche del 05 al 06-11-2026** a petición del usuario, con el instalador nuevo (icono Grafito, comprobado en el `.exe`):
      - antes, copia de sus datos en el *scratchpad* de la sesión (`copia-escritorio-20261105`, con IndexedDB entera). Después, desinstalación silenciosa de la anterior (`uninstall.exe /S`, que conserva `%LOCALAPPDATA%\dev.workers.gameagenda`) e instalación con `/S`;
