@@ -199,12 +199,12 @@ IndexedDB guarda `meta.catalog` (`{version, checkedAt}`: la versión cuyo *manif
 
 ### 7.7 Esquema de D1 (M4)
 
-D1 en la jurisdicción UE; cada `*_hash` (tokens y código de recuperación) es el SHA-256 de un secreto aleatorio de ≥128 bits. El esquema vigente es `apps/web/worker/migrations/0001_inicial.sql`; respecto al primer borrador, lleva `created_at`, `label` y `last_seen_at` para la lista de dispositivos, `recovery_hash` único e índices para las cascadas, y no tiene `revoked_at` ni `used_at`: revocar y canjear borran la fila (ADR-011).
+D1 en la jurisdicción UE; cada `*_hash` (tokens y código de recuperación) es el SHA-256 de un secreto aleatorio de ≥128 bits. El esquema vigente es `apps/web/worker/migrations/0001_inicial.sql`; respecto al primer borrador, lleva `created_at`, `label` y `last_seen_at` para la lista de dispositivos, `recovery_hash` único, índices para las cascadas y `write_id` para la concurrencia optimista de `sync`, y no tiene `revoked_at` ni `used_at`: revocar y canjear borran la fila (ADR-011).
 
 ```sql
 CREATE TABLE agenda (id TEXT PRIMARY KEY, seq INTEGER NOT NULL DEFAULT 0,
-  purged_seq INTEGER NOT NULL DEFAULT 0, recovery_hash TEXT NOT NULL UNIQUE,
-  created_at TEXT NOT NULL,
+  purged_seq INTEGER NOT NULL DEFAULT 0, write_id TEXT NOT NULL DEFAULT '',
+  recovery_hash TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL,
   last_sync_at TEXT NOT NULL) STRICT;  -- en cada sync; retención (§11.2)
 CREATE TABLE device (id TEXT PRIMARY KEY,
   agenda_id TEXT NOT NULL REFERENCES agenda (id) ON DELETE CASCADE,
@@ -230,24 +230,24 @@ CREATE TABLE resolve_cache (appid INTEGER PRIMARY KEY,  -- datos públicos
   name TEXT NOT NULL, fetched_at TEXT NOT NULL) STRICT;
 ```
 
-**Sincronización** (`POST /api/v1/sync`, flujo en la §5): un `batch()` atómico con hasta 500 operaciones, sin partir acciones, reserva *n* secuencias y aplica LWW en SQL ([JSON](https://developers.cloudflare.com/d1/sql-api/query-json/)):
+**Sincronización** (`POST /api/v1/sync`, flujo en la §5; ADR-011): lotes de hasta 200 operaciones (`SYNC_BATCH_SIZE`), sin partir acciones. El servidor decide el LWW con la misma `applyOps()` de `core` que la app, no en SQL: lee en una transacción la `seq` de la agenda y las filas de las entradas tocadas, reconstruye cada entrada, le aplica el lote (con las derivadas y los reenvíos) y escribe las filas que cambian. En SQL, el desempate por valor compararía UTF-8, y en JavaScript se compara UTF-16. La escritura reserva *n* secuencias con concurrencia optimista ([JSON](https://developers.cloudflare.com/d1/sql-api/query-json/)):
 
 ```sql
-UPDATE agenda SET seq = seq + ?2 WHERE id = ?1;
+UPDATE agenda SET seq = seq + ?2, write_id = ?3 WHERE id = ?1 AND seq = ?5;
 INSERT INTO op (agenda_id, entry_id, field, value, hlc, seq)
-SELECT ?1, j.value ->> '$.entryId', j.value ->> '$.field',
-  j.value -> '$.value', j.value ->> '$.hlc',
-  (SELECT seq FROM agenda WHERE id = ?1) - ?2 + j.key + 1
-FROM json_each(?3) AS j WHERE true
+SELECT ?1, j.value ->> '$.e', j.value ->> '$.f', j.value ->> '$.v',
+  j.value ->> '$.h', ?5 + j.key + 1         -- ?5: la seq leída
+FROM json_each(?4) AS j
+WHERE (SELECT write_id FROM agenda WHERE id = ?1) = ?3
 ON CONFLICT (agenda_id, entry_id, field) DO UPDATE
-  SET value = excluded.value, hlc = excluded.hlc, seq = excluded.seq
-  WHERE excluded.hlc > op.hlc;       -- idempotente
+  SET value = excluded.value, hlc = excluded.hlc, seq = excluded.seq;
 ```
 
-- D1 ejecuta los `batch()` [en serie y de forma atómica](https://developers.cloudflare.com/d1/worker-api/d1-database/): nadie ve la secuencia N+1 sin la N. Luego la micro-API lee en una sola consulta las filas de `op` de las entradas tocadas (`entry_id IN (SELECT value FROM json_each(?))`), pasa `merge()` en memoria y sube las derivadas con las mismas sentencias en otro `batch()`: ≈10 consultas por petición, frente a las [50 por invocación](https://developers.cloudflare.com/d1/platform/limits/) del plan gratuito (cada `batch()` cuenta como una; verificado el 28-10-2026). Al emparejarse, un dispositivo sube todas sus entradas. DDL y subida, validadas en SQLite 3.53.4 (28-10-2026).
-- La respuesta trae `seq`, `serverTime` (ms UTC), las filas de `op` con `seq` mayor que el cursor (1 000 por página), `more`, los rechazos (Zod o HLC más de 5 min por delante, que el cliente vuelve a sellar: ver §7.4) y, a los dispositivos `app`, los enlaces del buzón: el cliente los apunta como un enlace pegado y los confirma en la llamada siguiente. Las páginas se aplican en una transacción y el cursor va a `meta.syncCursor`.
-- **Purga semanal** (Cron Trigger, un `batch()`): `purged_seq` pasa a la mayor `seq` de las entradas con `deletedAt` (o esqueletos) de más de 90 días y se borran sus filas; los tokens caducados, a diario. Los clientes purgan igual sus lápidas sincronizadas.
-- **Cliente atrasado** (cursor menor que `purged_seq`): recibe `reset: true`; tras subir su `outbox` en esa llamada, baja el estado completo desde 0 y borra las entradas que el servidor no tiene: una copia vieja no resucita lo borrado.
+- D1 ejecuta los `batch()` [en serie y de forma atómica](https://developers.cloudflare.com/d1/worker-api/d1-database/): nadie ve la secuencia N+1 sin la N. Si otro dispositivo escribió entre la lectura y la escritura, `write_id` ya no es el suyo, no se escribe nada y se repite (hasta 3 veces; después, 503 `busy`). Un reenvío a otra entrada lee sus filas y repite el cálculo, hasta 8 saltos. Son 3 consultas por petición, y una más por salto, frente a las [50 por invocación](https://developers.cloudflare.com/d1/platform/limits/) del plan gratuito (cada `batch()` cuenta como una; verificado el 28-10-2026). Al emparejarse, un dispositivo sube todas sus entradas.
+- `value` es el JSON canónico (`canon()`). Cada operación pasa por Zod (estricto) y por el reloj; si una no vale, se rechazan con ella todas las de su HLC (`invalid`, se descartan), y las que van más de 5 min por delante, como `clock` (el cliente las vuelve a sellar: ver §7.4).
+- La petición lleva `cursor` y el `purgedSeq` de la última respuesta. La respuesta trae `cursor`, `purgedSeq`, `reset`, `more`, `serverTime` (ms UTC), las filas de `op` con `seq` mayor que el cursor (1 000 por página, también las propias), las operaciones aceptadas y las rechazadas. Más adelante, a los dispositivos `app`, también los enlaces del buzón: el cliente los apunta como un enlace pegado y los confirma en la llamada siguiente. Las páginas se aplican en una transacción y el cursor va a `meta.syncCursor`.
+- **Mantenimiento** (Cron Trigger diario a las 03:17 UTC, un `batch()`): los *tokens* caducados y las agendas sin sincronizar en 13 meses; los lunes, la purga semanal: `purged_seq` pasa a la mayor `seq` de las entradas con `deletedAt` (o esqueletos) de más de 90 días, se borran sus filas y la `seq` sube 1. Los clientes purgan igual sus lápidas sincronizadas.
+- **Cliente atrasado** (`0 < cursor < purged_seq`, y su `purgedSeq` es anterior): recibe `reset: true`; tras subir su `outbox` en esa llamada, baja el estado completo desde 0 y borra las entradas que el servidor no tiene y que no están en su `outbox`: una copia vieja no resucita lo borrado. Las páginas siguientes llevan el `purgedSeq` nuevo y ya no son *reset*. Un cursor por delante del servidor (D1 vuelto atrás con Time Travel) también baja desde 0, y el cliente, al ver un cursor menor, vuelve a subirlo todo.
 
 ### 7.8 Volumen de datos y minimización
 

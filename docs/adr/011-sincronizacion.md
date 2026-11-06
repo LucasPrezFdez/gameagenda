@@ -29,7 +29,7 @@ Desde M1 el cliente ya está preparado: ids naturales, HLC por campo, `outbox` y
 
 ## Decisión
 
-Opción elegida: **1**, porque es la del plan (D-13), mantiene la cookie de primera parte y la CSP con `connect-src 'self'`, y D1 se prueba en Node con el mismo SQL. Lo que sigue es lo construido el 06-11-2026 (rama `m4-sincronizacion`; DECISIONES §10.34). La sincronización, el buzón y `resolve` se añadirán aquí al hacerlos.
+Opción elegida: **1**, porque es la del plan (D-13), mantiene la cookie de primera parte y la CSP con `connect-src 'self'`, y D1 se prueba en Node con el mismo SQL. Lo que sigue es lo construido el 06-11-2026 en la rama `m4-sincronizacion`: la base (DECISIONES §10.34) y `POST /api/v1/sync` con la purga (§10.35). El cliente, el buzón y `resolve` se añadirán aquí al hacerlos.
 
 ### Encaminamiento
 
@@ -69,20 +69,51 @@ Opción elegida: **1**, porque es la del plan (D-13), mantiene la cookie de prim
 - Son aproximados y por ubicación de Cloudflare. Protegen la cuota: adivinar 140 bits es inviable igual.
 - En `workerd` local, la quinta alta del mismo minuto dio 429.
 
+### Sincronización (`POST /api/v1/sync`)
+
+Una ida y vuelta, como dice la §7.7: sube la `outbox` y baja los cambios desde el cursor. Lo que cambia respecto a la §7.7:
+
+- **El LWW lo decide la `merge()` de `core`, no el SQL.** El servidor lee en una transacción la `seq` de la agenda y las filas de las entradas tocadas, reconstruye cada entrada, le aplica el lote con `applyOps()` (LWW, Platinado ⇒ Completado y reenvío de los manuales vinculados) y escribe las filas que cambian (`worker/sync-plan.ts`). Si una derivada toca otra entrada, lee sus filas y repite, hasta 8 saltos.
+  - El motivo: el servidor tiene que leer las filas de todos modos, para las derivadas. Además, el `WHERE excluded.hlc > op.hlc` de la §7.7 necesitaba un desempate por valor, y SQLite compara UTF-8 donde JavaScript compara UTF-16. Así hay una sola implementación de LWW (§5.4, principio 6).
+- **Concurrencia optimista:** el `batch()` de escritura hace `UPDATE agenda SET seq = seq + n, write_id = <uuid> WHERE seq = <la leída>`, y el `INSERT … SELECT … FROM json_each()` solo escribe si `write_id` sigue siendo el suyo. Si otro dispositivo escribió entre medias, se repite, hasta 3 veces (después, 503 `busy`). En el mismo `batch()` se lee la página de cambios, así que nadie ve la `seq` N+1 sin la N.
+- **Rechazos por acción:** cada operación pasa por `strictOpSchema` y por el reloj. Si una no vale, se rechazan con ella todas las de su HLC, porque una acción no se parte. `invalid` se descarta; `clock` (más de 5 min por delante) se vuelve a sellar. Las demás van en `accepted`, ganen o no.
+- **Cursor y purga:** la petición lleva `cursor` y el `purgedSeq` de la última respuesta. Hay `reset` (bajar desde 0 y, al acabar, borrar lo que el servidor ya no tiene) si `0 < cursor < purged_seq` y la app no ha visto esa purga (`purgedSeq < purged_seq`). Sin el `purgedSeq`, las páginas de un *reset* volverían a pedirlo. Un cursor por delante del servidor (D1 vuelto atrás con Time Travel) también baja desde 0; la app lo nota porque el cursor nuevo es menor, y entonces vuelve a subirlo todo.
+- **Respuesta:** `cursor`, `purgedSeq`, `reset`, `more`, `serverTime`, `changes` (1 000 por página, también las propias: aplicarlas otra vez no cambia nada), `accepted` y `rejected` (`index`, `opId`, `reason`).
+- **Cookie:** se renueva al sincronizar, como mucho una vez al día, con `device.last_seen_at` y `agenda.last_sync_at`.
+- **Lotes de 200, no de 500:** en Node, filtrar y planificar 500 operaciones cuesta p50 3,1 ms y p99 4,9 ms, y 8,5 ms en frío, cerca de los 10 ms del plan gratuito. Con 200, p50 ≈1,4 ms y p99 ≈2,3 ms. `SYNC_BATCH_SIZE` pasa a 200. El servidor admite hasta 1 000, por si una sola acción tuviera más. CA4.6 se mide en producción.
+- **Consultas:** 3 por petición con escritura (cookie, lectura y `batch()`), y una más por cada salto de reenvío. El límite gratuito es de 50.
+
+### Mantenimiento (Cron Trigger `17 3 * * *`, `worker/maintenance.ts`)
+
+Un solo `batch()` al día:
+
+- borra los *tokens* de emparejamiento caducados;
+- borra en cascada las agendas sin sincronizar en 13 meses (§11.2);
+- los lunes, la purga semanal: las entradas con `deletedAt` de hace más de 90 días y los esqueletos (sin `status` o sin `title`) sin cambios en 90 días. `purged_seq` sube a la mayor `seq` de lo purgado, y la `seq`, 1, para que un `sync` que leyó antes de la purga lo note.
+
+Comprobado en `workerd` local con la API de `wrangler dev` (`POST /cdn-cgi/local/explorer/api/local/scheduled?worker=ga-web` con `cron` y `scheduled_time`; `/__scheduled` ya no existe en la 4.155.0).
+
 ### Esquema de D1 (`worker/migrations/0001_inicial.sql`)
 
-Es el de la §7.7, con cinco cambios:
+Es el de la §7.7, con seis cambios:
 
 - `created_at` en `agenda` y en `inbox_item`, y `label`, `created_at` y `last_seen_at` en `device`, para la lista de dispositivos de Ajustes;
 - sin `revoked_at` ni `used_at`, porque revocar y canjear borran la fila;
 - `recovery_hash` único, para buscarlo por índice;
-- índices por `agenda_id` en las tablas hijas, para las cascadas.
+- índices por `agenda_id` en las tablas hijas, para las cascadas;
+- `write_id` en `agenda`, para la concurrencia optimista de `sync`.
 
-D1 aplica las claves foráneas, así que borrar una agenda se lleva sus dispositivos, *tokens*, operaciones y buzón (CA4.7). `STRICT`, `WITHOUT ROWID` y `RETURNING` funcionan en el `workerd` de `wrangler` 4.155.0.
+D1 aplica las claves foráneas, así que borrar una agenda se lleva sus dispositivos, *tokens*, operaciones y buzón (CA4.7). `STRICT`, `WITHOUT ROWID`, `RETURNING`, `json_each`, `->>`, el *upsert* y la purga con CTE funcionan en el `workerd` de `wrangler` 4.155.0.
 
 ### Pruebas
 
-- Las rutas se prueban con `app.request()` de Hono, en Vitest y en Node (§12). D1 va sobre `node:sqlite` (SQLite 3.53.4) con las migraciones, las claves foráneas activas y `batch()` atómico (`worker/test/d1-sqlite.ts`). Los límites, el reloj y los clientes, cada uno con su tarro de cookies, son falsos. En total, 32 pruebas de la micro-API y 4 de los códigos de `core`.
+- Las rutas se prueban con `app.request()` de Hono, en Vitest y en Node (§12). D1 va sobre `node:sqlite` (SQLite 3.53.4) con las migraciones, las claves foráneas activas y `batch()` atómico (`worker/test/d1-sqlite.ts`). Los límites, el reloj y los clientes, cada uno con su tarro de cookies, son falsos. En total, 55 pruebas de la micro-API y 4 de los códigos de `core`.
+- **CA4.1, con 1 000 casos cada una** (`sync.properties.test.ts`), con los generadores de las propiedades de `merge()` de `core`:
+  - las mismas operaciones, barajadas, repetidas, en lotes y desde dos dispositivos, dan en D1 el estado de aplicarlas de una vez;
+  - con datos incompletos (la marca sin su estado), Platinado ⇒ Completado se cumple en lo que guarda D1 tras cada petición;
+  - dos réplicas que apuntan sin red y sincronizan en cualquier orden, con páginas de 7 y lotes de 1 a 30, acaban iguales entre sí y con D1.
+
+  Con un servidor en el que gana lo último que llega, fallan las tres; con un cursor que se salta una fila, la tercera y dos de ejemplo. Tardan ≈15 s.
 - `@cloudflare/vitest-pool-workers` sigue descartado (§6: exige otra versión mayor de Vitest). Lo que Node no imita (la versión de SQLite de D1, los límites reales) se comprueba con `wrangler dev` y en producción.
 
 ### Consecuencias
@@ -93,9 +124,11 @@ D1 aplica las claves foráneas, así que borrar una agenda se lleva sus disposit
 - Bien, porque las pruebas de la micro-API corren en Node, en menos de 1 s, sin `workerd`.
 - Mal, porque la D1 de las pruebas no es D1. Lo que dependa de su motor (versión de SQLite, límites, `json_each`) se comprueba con `wrangler dev` antes de subirlo.
 - Mal, porque los tipos de Workers van escritos a mano: si se usa algo más del entorno, hay que declararlo.
-- Mal, porque el *bundle* lleva Zod entero, 271 KiB. Cabe de sobra, pero cuenta en el arranque en frío.
+- Bien, porque el servidor y la app fusionan con el mismo código: lo que comprueban las propiedades de `merge()` vale también para D1.
+- Mal, porque el *bundle* lleva Zod entero: 309 KiB (69 KiB con gzip) con `sync`. Cabe de sobra, pero cuenta en el arranque en frío.
+- Mal, porque `sync` lee antes de escribir: dos dispositivos que sincronizan a la vez pueden repetir la petición, y con más de 3 choques seguidos la app recibe 503 y reintenta más tarde.
 - **Pendiente:**
-  - `POST /api/v1/sync` con la `merge()` de `core` en el servidor, el cliente de sincronización (Web Locks, disparadores, cursor y desfase de la HLC), la purga semanal y CA4.1–CA4.3;
+  - el cliente de sincronización (Web Locks, disparadores, cursor, `reset`, desfase de la HLC y volver a sellar), con CA4.2 y CA4.3;
   - el buzón y `resolve` (CA4.5), con sus límites `RL_INBOX` y `RL_RESOLVE`;
   - Ajustes › Sincronización y los textos legales (CA4.7);
   - medir CA4.6.
@@ -106,9 +139,9 @@ D1 aplica las claves foráneas, así que borrar una agenda se lleva sus disposit
 
 ### Confirmación
 
-- `apps/web/worker/test/` (`rules`, `agenda` y `pairing`) y `packages/core/test/api.codes.test.ts`, dentro de `npm run check`.
+- `apps/web/worker/test/` (`rules`, `agenda`, `pairing`, `sync`, `sync.properties` y `maintenance`) y `packages/core/test/api.codes.test.ts`, dentro de `npm run check`.
 - Biome: la micro-API no importa `apps/web/src/`, `node:*`, React, Dexie ni `pipeline/`, y la SPA no importa `worker/` (comprobado con un fichero que lo incumple).
-- `wrangler dev` el 06-11-2026: alta, cookies, lista, código de un solo uso, 404 de la API, *fallback* de la SPA, límite y borrado en cascada.
+- `wrangler dev` el 06-11-2026: alta, cookies, lista, código de un solo uso, 404 de la API, *fallback* de la SPA, límite y borrado en cascada; `sync` con la derivada de Platinado, el rechazo de una acción entera, texto con ñ y emoji y la repetición idempotente; y la purga de un lunes.
 - CA4.1–CA4.7, al cerrar M4.
 
 ## Pros y contras de las opciones

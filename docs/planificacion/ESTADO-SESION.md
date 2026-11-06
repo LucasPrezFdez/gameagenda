@@ -13,8 +13,11 @@ Lo de M3 está en `main` y subido, con el CI y el despliegue en verde y sin agen
   - `apps/web/worker/`: Hono solo en `/api/*`, con el interruptor `SYNC_ENABLED` apagado; reglas de la §11.4; crear agenda con la edad y el código de recuperación; dispositivos; emparejar; recuperar; borrar en cascada. Esquema en `worker/migrations/0001_inicial.sql`. Contrato en `@gameagenda/core/api`.
   - Pruebas con `app.request()` y D1 sobre `node:sqlite`: `check` da 1 008. Comprobado también con `wrangler dev` (`workerd` y D1 locales).
   - **Ojo:** parar `wrangler dev` con TaskStop deja vivos sus procesos de Node y `workerd` en Windows. Se buscan con `Get-CimInstance Win32_Process` (línea de órdenes con `wrangler`) y se paran, y después los `workerd` de `node_modules`.
+- **Parte 2, hecha** (06-11-2026): `POST /api/v1/sync` y el mantenimiento diario de D1. ADR-011 y DECISIONES §10.35.
+  - El LWW lo decide la `applyOps()` de `core` en el servidor (`worker/sync-plan.ts`), con concurrencia optimista (`write_id`). Rechazos por acción, `purgedSeq` en la petición para el `reset`, renovación diaria de la cookie y lotes de 200 (`SYNC_BATCH_SIZE`; con 500, 8,5 ms de CPU en frío).
+  - Cron Trigger `17 3 * * *`: *tokens* caducados y agendas de más de 13 meses; los lunes, la purga de lápidas y esqueletos de 90 días.
+  - CA4.1: 3 propiedades con 1 000 casos cada una, por la micro-API (`sync.properties.test.ts`). `check` da 1 031 pruebas. Comprobado en `workerd` local, también la purga (API local: `POST /cdn-cgi/local/explorer/api/local/scheduled?worker=ga-web` con `cron` y `scheduled_time`).
 - **Siguientes partes, por este orden:**
-  2. `POST /api/v1/sync` en el servidor (lotes de §7.7 con `merge()`, páginas, `reset`, purga semanal) y las pruebas de propiedades de CA4.1;
   3. el cliente: Ajustes › Sincronización (activar con la edad, código de recuperación, QR y texto para emparejar, dispositivos), el motor (Web Locks, foco, red y visibilidad; cursor; desfase de la HLC) y los E2E con dos contextos (CA4.2 y CA4.3);
   4. buzón y Atajo de iOS, `resolve` (CA4.5), textos legales (CA4.7) y CA4.6;
   5. desplegar: crear D1 con `--jurisdiction=eu` (y ver si el plan gratuito la admite, igual que `ratelimits`), el permiso de D1 del *token*, las migraciones en `deploy-web` y las pruebas en el iPhone.

@@ -53,7 +53,7 @@ Quienes hacen la prueba guiada de M3 (ver §2.4) en el móvil y el PC del desarr
 | *Hashes* de credenciales (dispositivo, buzón, recuperación) y de emparejamiento | D1 | Hasta revocarlas o borrar la agenda; los de emparejamiento, 10 min |
 | Lápidas | Dispositivo | No se purgan antes de M4; después, las ya sincronizadas, 90 días tras el borrado (ver §7.4 y §7.7) |
 | Lápidas | D1 | 90 días tras el borrado (purga semanal, ver §7.7) |
-| Agenda sin sincronizar en 13 meses | D1 | Se borra (propuesta) |
+| Agenda sin sincronizar en 13 meses | D1 | Se borra (el mantenimiento diario, ADR-011) |
 | Ticket de login con SteamID64 (Fase 2) | D1 | ≤10 min |
 
 Fuentes: <https://www.aepd.es/guias/guia-cookies.pdf> · <https://www.boe.es/buscar/act.php?id=BOE-A-2018-16673> · <https://developers.cloudflare.com/d1/reference/time-travel/> · <https://developers.cloudflare.com/d1/configuration/data-location/>

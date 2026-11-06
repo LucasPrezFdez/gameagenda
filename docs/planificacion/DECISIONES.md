@@ -467,3 +467,14 @@ Resueltos a partir de las mediciones y de los conflictos detectados entre seccio
     - **Límites:** `RL_AGENDA`, 5 por minuto, y `RL_REDEEM`, 10 por minuto, por el SHA-256 de la IP.
     - **Pruebas:** 32 de la micro-API con `app.request()` y 4 de los códigos de `core`. También `wrangler dev` con `workerd` y D1 locales: `STRICT`, `WITHOUT ROWID` y `RETURNING` funcionan, el *fallback* de la SPA sigue igual y el límite real da 429 en la quinta alta del minuto.
     - **Sin verificar hasta desplegar:** si el plan gratuito admite la jurisdicción UE de D1 y el *binding* `ratelimits`; la documentación no lo dice.
+
+35. **`POST /api/v1/sync` y el mantenimiento de D1 (06-11-2026, en la rama `m4-sincronizacion`; cambia §7.7 y §11.2; CA4.1):** lo que el plan no decía. Lo recoge el ADR-011.
+    - **El LWW, en la `merge()` de `core` y no en SQL.** El servidor lee la `seq` y las filas de las entradas tocadas, aplica el lote con `applyOps()` y escribe lo que cambia (`worker/sync-plan.ts`). Así hay una sola implementación. El desempate por valor del SQL de la §7.7 comparaba UTF-8, y el de JavaScript compara UTF-16.
+    - **Concurrencia optimista:** `UPDATE agenda … WHERE seq = <leída>` con un `write_id` nuevo, y el `INSERT` solo escribe si sigue siendo el suyo. Si choca, se repite hasta 3 veces; después, 503 `busy`. La purga sube la `seq` 1 para que un `sync` en curso lo note.
+    - **Rechazos por acción:** si una operación no vale, se rechazan todas las de su HLC (`invalid`). Las que van más de 5 min por delante, como `clock`.
+    - **`purgedSeq` en la petición:** sin él, cada página de un *reset* volvería a ser un *reset*. Hay *reset* si `0 < cursor < purged_seq` y la app no ha visto esa purga.
+    - **Cursor por delante del servidor** (D1 vuelto atrás): baja desde 0, y la app, al ver un cursor menor, vuelve a subirlo todo.
+    - **Lotes de 200, no de 500:** con 500 operaciones, filtrar y planificar cuesta en Node p99 4,9 ms en caliente y 8,5 ms en frío, cerca de los 10 ms de CPU del plan gratuito. Con 200, p99 ≈2,3 ms. El servidor admite hasta 1 000 por petición.
+    - **Mantenimiento diario** (Cron Trigger a las 03:17 UTC): *tokens* caducados y agendas sin sincronizar en 13 meses; los lunes, la purga de lápidas y esqueletos de más de 90 días.
+    - **La cookie y `last_sync_at`** se renuevan al sincronizar, como mucho una vez al día.
+    - **Pruebas:** 14 de ejemplo, 6 del mantenimiento y las 3 propiedades de CA4.1 con 1 000 casos cada una, con los generadores de `core`. Fallan las tres con un servidor en el que gana lo último que llega. Comprobado también en `workerd` local, con la purga de un lunes lanzada por la API local de `wrangler dev`.
