@@ -1,6 +1,6 @@
 # Estado del proyecto — punto de partida de la próxima sesión
 
-**Actualizado:** 05-11-2026, en la sesión 8 (CA2.1 cumplido: M2 cerrado con `v0.2.0`; la parte del pipeline del núcleo de arranque, en `main`; y el rediseño visual «Tinta», en `main` y desplegado). Antes, el 02-11-2026, en la sesión 7 (gestos y reordenar arrastrando: CA3.4 completo).
+**Actualizado:** 06-11-2026, en la sesión 9 (el cliente del núcleo de arranque, en `main` y desplegado: el núcleo de arranque, entero en producción). Antes, el 05-11-2026, en la sesión 8 (CA2.1 cumplido: M2 cerrado con `v0.2.0`; la parte del pipeline del núcleo de arranque, en `main`; y el rediseño visual «Tinta», en `main` y desplegado).
 **Cómo retomar:** escribe *«Retoma GameAgenda desde docs/planificacion/ESTADO-SESION.md»*.
 
 ## 0. Lo primero en la próxima sesión
@@ -26,7 +26,7 @@ Todo está en `main` y subido, con el CI y el despliegue en verde y sin agentes 
      - Los E2E que pulsaban las pestañas de vista usan `viewControl`, porque en el PC no se ven con la barra desplegada.
      - **Despliegue de la navegación:** `ci` 42140175663 se canceló en el E2E de Chromium por lentitud del *runner* y pasó al repetirlo. Después, `deploy-web` 42141698774 (29 s) y `smoke:web`, en verde. La app de escritorio, reiniciada oculta, se puso al día sola en 120 s (`index-E_oPSGxS.js`) y quedó en la bandeja.
      - **Ojo con el CI:** esta noche el *runner* de GitHub fue lento. Dos veces un trabajo agotó su tiempo y canceló la ejecución, y entonces `deploy-web` se salta. `gh run rerun <id> --failed` lo arregla, y el asistente sí puede lanzarlo.
-   - **Al pasar el cliente del núcleo de arranque (`m3-arranque`) a `main`:** según un *merge* de prueba del 06-11-2026 (`git merge-tree`, con `main` en `f85c4ee`), solo habrá conflictos en `docs/adr/README.md` y en DECISIONES, donde su §10.30 va antes de las §10.31–10.33. El código, `palette.css` incluido, se mezcla solo. Resolverlos conservando el estilo «Tinta», y revisar que el aviso y el estado `boot` de la paleta usen los tokens nuevos (`--line`, `--radius-lg`).
+   - ~~**Al pasar el cliente del núcleo de arranque (`m3-arranque`) a `main`:**~~ **Hecho el 06-11-2026** (sesión 9; ver el punto 3). Solo chocaron `docs/adr/README.md` y DECISIONES. El aviso y el estado `boot` de la paleta usan clases que ya existían (`.notice`, `.palette__notice`), así que «Tinta» ya los estiliza. El pie de la barra lateral dice «Cargando el catálogo…» en `boot`.
    - **Despliegue:** `ci` 42125904771 en verde (3 min 21 s), `deploy-web` 42126367721 (41 s) y `smoke:web` en verde.
    - **App de escritorio, reinstalada en la noche del 05 al 06-11-2026** a petición del usuario, con el instalador nuevo (icono Grafito, comprobado en el `.exe`):
      - antes, copia de sus datos en el *scratchpad* de la sesión (`copia-escritorio-20261105`, con IndexedDB entera). Después, desinstalación silenciosa de la anterior (`uninstall.exe /S`, que conserva `%LOCALAPPDATA%\dev.workers.gameagenda`) e instalación con `/S`;
@@ -34,7 +34,7 @@ Todo está en `main` y subido, con el CI y el despliegue en verde y sin agentes 
      - abierta oculta con `--autostart`, se puso al día sola a los 120 s, del bundle `index-D8AJgvtc.js` al `index-D8Qw9-uI.js` y del rosa a la tinta, con la agenda igual. Se miró por CDP en crudo, con `.cache/cdp-escritorio.mjs`. Ha quedado abierta en la bandeja, sin puerto de depuración.
 
 1. **Mirar las ejecuciones programadas del catálogo:** del 03-11 al 05-11 a las 04:17 UTC (05:17 en Madrid); GitHub las arranca hasta 8 h tarde. Con `gh run list --workflow catalog.yml --limit 5`, o en la web de Actions.
-   - **CA2.1 cumplido (05-11-2026): 3 de 3.** Las del 03-11 (41631319596), el 04-11 (41826370273) y el 05-11 (42025966457), en verde en 12 min 30 s, 12 min 31 s y 12 min 55 s. Versiones `20261103.1` (198 213 juegos, 462 recientes), `20261104.1` (198 490, 766 recientes) y `20261105.1` (198 684, 986 recientes), con todas las puertas. GitHub las arrancó hacia las 12:00 UTC. Los recientes crecen cada día hasta llenar la ventana de 14 días. **Antes de cerrar M3 tienen que ser 7 seguidas** (§15.5): la racha va por 3.
+   - **CA2.1 cumplido (05-11-2026): 3 de 3.** Las del 03-11 (41631319596), el 04-11 (41826370273) y el 05-11 (42025966457), en verde en 12 min 30 s, 12 min 31 s y 12 min 55 s. Versiones `20261103.1` (198 213 juegos, 462 recientes), `20261104.1` (198 490, 766 recientes) y `20261105.1` (198 684, 986 recientes), con todas las puertas. GitHub las arrancó hacia las 12:00 UTC. Los recientes crecen cada día hasta llenar la ventana de 14 días. **Antes de cerrar M3 tienen que ser 7 seguidas** (§15.5): la racha va por 4, con la del 06-11 (42214891787, en verde en 12 min 22 s): versión `20261106.1`, con 198 951 juegos, 1 282 recientes y el primer núcleo de arranque.
    - **La del 02-11 (41444097606): en rojo**, aunque publicó bien `20261102.1`. Justo después de desplegar, la prueba de humo vio 4 de ≈1 030 ficheros en 404; unos minutos después estaban todos. No se guardó el estado del día ni se avisó a healthchecks.io, y se abrió el *issue* #2. El usuario decidió arreglarlo aunque sea el pipeline: `catalog-smoke.ts` reintenta los 404 hasta 90 s. **CA2.1 vuelve a empezar:** hacen falta las del 03-11, el 04-11 y el 05-11.
    - **La del 01-11 (41301033690): en verde** en 12 min 10 s. Versión `20261101.1`: 197 874 juegos (+0,044 %), 3 563 alias y 93 recientes, los primeros. Todas las puertas en verde, también las de variación, y conserva la versión `20261031.1`.
    - **GitHub la arrancó a las 11:15 UTC, no a las 04:17:** casi 7 h tarde, algo normal en los *cron* de Actions con carga. El *check* de healthchecks.io (1 día + 12 h) lo aguanta. Las del 02-11 y el 03-11 pueden llegar igual de tarde.
@@ -56,9 +56,18 @@ Todo está en `main` y subido, con el CI y el despliegue en verde y sin agentes 
      - `check` (905 pruebas, Worker en 38,7 KB) y los E2E de `boot.spec` y `search.spec`, en verde.
    - **Orden para pasarlo a `main`:**
      1. ~~Tras cerrar M2, `main` avanza hasta el último *commit* del pipeline (`e78eea2`).~~ **Hecho el 05-11-2026** con el *merge* `947efd4`. Antes de subirlo, `check` (879 pruebas) y los E2E de Chromium y WebKit (177), en verde. El cliente en producción ya admite `files.boot` como opcional y no lo lee.
-     2. Una ejecución programada publica el boot (la primera, la del 06-11-2026); se comprueba con `catalog-smoke`, que ya sabe del boot, y mirando que el *manifest* trae `files.boot` y `counts.boot` = 20 000.
-     3. Después entra el cliente, con la documentación y los arreglos de la revisión (hasta `ff15aae`).
-   - **Perf:** «Reinicio con caché → escaneo listo» da unos 2,1 s, sobre un presupuesto de ≤2 000 ms. `main` también lo supera en las mismas condiciones (2 039 y 2 543 ms), con el equipo cargado (CPU al 71 %). Hay que medirlo con el equipo en reposo. El 05-11 tampoco se pudo: había un juego abierto (Penumbra) y Discord, con la CPU al 28 %.
+     2. ~~Una ejecución programada publica el boot.~~ **Hecho el 06-11-2026:** la del 06-11 (42214891787, con `catalog-smoke` en verde) publicó `20261106.1` con `files.boot` y `counts.boot` = 20 000 (`boot.4a415a34ad39b7cc.tsv`, 773 256 bytes, 200 e `immutable`).
+     3. ~~Después entra el cliente.~~ **Hecho el 06-11-2026** (sesión 9) con el *merge* `d001730` (`--no-ff`, hasta `ff15aae`).
+        - Antes de subirlo: `check` (971 pruebas, JS inicial de 131,9 KB y Worker de 38,7 KB) y los E2E de Chromium y WebKit (187), en verde.
+        - Después: `ci` 42227747890 y `deploy-web` 42228220058, en verde.
+        - `smoke:web`, todo en orden: `none → boot → scan → full`. En la primera pasada, `boot` llegó a los 2,0 s y `full` a los 4,9 s; en la segunda, a los 0,9 s y a los 2,0 s, con 3 392 KB de `ga-catalog`. La segunda visita no usa el núcleo de arranque.
+        - `ga-catalog` sirve el núcleo de arranque en 343 KB con brotli, no en 269: Cloudflare comprime al vuelo con un nivel más bajo. La puerta (≤512 KiB con brotli 11) mide el fichero, no lo servido.
+        - **ADR-009 sigue en «propuesta»:** falta que el usuario diga si pasa a «aceptada» ya o con CA3.1, medido en el móvil (`search:boot` en el panel de rendimiento).
+   - **Perf (06-11-2026, CPU al 11 %, con Discord y Steam abiertos):**
+     - primera visita hasta `boot`: 556 ms con CPU ×4;
+     - reinicio con caché hasta `scan`: 1 923 ms (≤2 000 ms; el 05-11 daba ≈2,1 s, con el equipo más cargado);
+     - restaurar el índice: 161 ms.
+     - **Falla una puerta:** 1 tarea larga de 58–59 ms al apuntar, sin fotograma largo, en dos pasadas. `main` sin el *merge* (`caa473f`) da lo mismo justo después, en las mismas condiciones: 2 tareas (90 y 58 ms) y 1 (58 ms). No es del núcleo de arranque. Ya salía tras la navegación nueva con la CPU al 16 %; con la CPU al 5 % pasaba. Si se repite con el equipo en reposo, mirar el `onkeydown` de `#root` (81 ms en una de las de `main`) y los contadores de `SidebarLibrary`, que se recalculan al apuntar.
 4. **App de escritorio:** el usuario la instaló y la probó el 02-11-2026. Encontró dos cosas, arregladas ese día (`279c10a`):
    - **el menú de «Orden» de Mi lista sacaba una barra horizontal**, porque a 1 100 px se salía 48 px. Ahora se abre hacia la izquierda, y cualquier menú que no quepa se da la vuelta;
    - **el Catálogo no tenía portadas.** Las quiere siempre: ahora las lleva, pedidas con el desplazamiento parado (DECISIONES §10.22).

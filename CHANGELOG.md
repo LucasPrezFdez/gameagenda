@@ -6,6 +6,13 @@ Cambios de GameAgenda por versión. Cada hito cierra una versión SemVer 0.x (§
 
 ### Añadido
 
+#### Para el usuario
+
+- **Buscar antes en la primera visita** (06-11-2026; ADR-009, DECISIONES §10.30): mientras llega el catálogo completo, la paleta ya busca en los 20 000 juegos más populares. Lo dice junto a los resultados y, si no encuentra el juego, no da por hecho que no está en Steam ni resalta la fila «a mano», porque puede llegar unos segundos después. Al llegar el catálogo entero, repite la búsqueda abierta. El Catálogo y la ficha esperan al catálogo completo.
+  - Con CPU ×4, en local, se puede buscar a los 556 ms (presupuesto: 1 500 ms, RNF-05). En producción, con la fibra del PC, a los 0,9 s, y el catálogo completo llega a los 2,0 s (`smoke:web`, 06-11-2026).
+  - Si el catálogo completo falla, se sigue buscando en el de arranque, con «Reintentar», y la carga se repite sola.
+  - Ajustes › Rendimiento añade «Búsqueda lista en la primera visita» (`search:boot`), para medirlo en el móvil (CA3.1).
+
 #### Ingeniería
 
 - **Núcleo de arranque en el pipeline** (ADR-009, primera parte; 05-11-2026):
@@ -13,7 +20,8 @@ Cambios de GameAgenda por versión. Cada hito cierra una versión SemVer 0.x (§
   - la puerta de integridad comprueba que es el principio del núcleo, y `assemble-catalog` y `catalog-smoke` lo conocen. Una versión anterior sin él sigue valiendo;
   - `catalog:frozen` lo genera también en el mini-catálogo de `fixtures/`.
 
-  El cliente todavía no lo lee: entra en la segunda parte, cuando una ejecución programada haya publicado el primero.
+  El primero lo publicó la ejecución programada del 06-11-2026 (`20261106.1`). `ga-catalog` lo sirve en 343 KB con brotli, porque Cloudflare lo comprime al vuelo con un nivel más bajo que el 11.
+- **El cliente lo lee** (ADR-009, segunda parte; 06-11-2026): estado `boot` en el Worker, con prioridad sobre el núcleo, que se baja después. `smoke-web.ts` comprueba `none → boot → scan → full` en la primera visita y que la segunda no lo usa.
 
 ### Cambiado
 
