@@ -49,6 +49,12 @@ Todo está en `main` y subido, con el CI y el despliegue en verde y sin agentes 
 3. ~~**Cerrar M2**~~ **Hecho el 05-11-2026** (sesión 8): la tabla de CA del CHANGELOG al día, la cabecera `## [0.2.0] · M2 Catálogo vivo · 05-11-2026`, ADR-007 y ADR-008 en «aceptada» (también en `docs/adr/README.md`) y la etiqueta anotada `v0.2.0`, subida. CA2.5 (el *dead-man switch* con el cron parado) y CA2.6 (la agenda de 300 juegos reales) quedan en «Pendiente» del CHANGELOG.
 
    Ya se puede tocar el pipeline: núcleo de arranque, abaratar `applyRecent` y ADR-009. Cada cambio sale en la siguiente ejecución programada, que usa `main`.
+   - ~~**Abaratar `applyRecent`**~~ **Hecho el 06-11-2026** (sesión 9; ADR-005, «Recientes»). La puerta del pipeline también lo usa, así que sale en la ejecución programada del 07-11.
+     - Copia las columnas del núcleo en bloques (`set` y `slice` más `concat`) y coloca después las sustituciones y los nombres en español, con una tabla abierta de `appid`.
+     - Da lo mismo que antes: las mismas firmas en tres casos con el núcleo congelado, y una prueba de propiedad nueva (2 000 casos) contra la regla aplicada fila a fila, que también pasa con la versión anterior y caza una mutación.
+     - Medido en frío, que es como cuenta (una llamada por arranque): ≈21 → ≈10 ms sin estrangular. Escribir la consulta a la tabla dentro del bucle no ganaba nada; lo que ganó fue copiar los nombres con operaciones nativas.
+     - En Chromium con CPU ×4, «recientes» del desglose pasa de 116–152 a 55–57 ms. En el mismo rato, con la CPU al 18–29 %, `scan` dio 1 930–2 033 ms con la nueva y 2 016–2 149 ms con la anterior: el resto del desglose («claves, exactos y pajar», ≈1 450 ms) es lo que sube con la carga.
+     - El Worker pasa de 38,7 a 39,0 KB de 40. `check`: 972 pruebas.
    - **El núcleo de arranque está hecho en la rama `m3-arranque`** (04-11-2026, subida a GitHub; `main` no lo lleva). Son los 20 000 juegos más populares, en `boot.<hash>.tsv` (773 KB, 269 KB en brotli 11). En la primera visita se puede buscar en ellos mientras llega el núcleo. Con CPU ×4, el estado `boot` llega en 613–759 ms (RNF-05: ≤1 500 ms), y la app, en `search:ready` a los 841–859 ms. `check`, los E2E de Chromium y WebKit y `size` (Worker en 38,7 KB) pasan.
    - ~~**Falta:** la revisión con verificación, el ADR-009 y la documentación.~~ **Hecho el 05-11-2026** en la rama:
      - ADR-009 («propuesta») y DECISIONES §10.30, con las secciones 4.6, 7.6, 8.8, 9.2, 9.6 y 12.4 al día (`e8ff675`);
@@ -136,7 +142,7 @@ Todo está en `main` y subido, con el CI y el despliegue en verde y sin agentes 
 
        Los informes estaban en las transcripciones de los subagentes de la sesión 4, en las llamadas `SubagentHandback` de `~/.claude/projects/…/ba53a48a-…/subagents/`. De ellos salieron dos pendientes de código:
        - `meta.catalog` con la comprobación cada 12 h: **hecho** (31-10-2026, `catalog-meta.ts`). Hay 13 pruebas unitarias nuevas, un E2E y el gancho `checkEveryStart` para los E2E que publican y recargan. El Worker pesa 37,4 KB de 40;
-       - abaratar `applyRecent` si el arranque pasa de 2 s: no se ha hecho;
+       - ~~abaratar `applyRecent` si el arranque pasa de 2 s~~ **hecho el 06-11-2026** (sesión 9; ver §0, punto 3);
     7. ~~borrar la rama `m2-cliente` y las ramas y carpetas `worktree-agent-*`~~ **No se borran** (decisión del usuario, 31-10-2026: «por si acaso»), aunque todas están integradas.
   - **Avisos de los agentes:** el reinicio con caché sube a ≈1,85 s con recientes (≤2 s; con el equipo cargado, a veces se pasa; el 31-10-2026, 1 893 ms); el Worker pesa 36,9 KB de 40; los cambios del plan de sus informes ya están aplicados (punto 6).
 - **M3 · Rápida y ágil: empezado** (31-10-2026, sesión 5; adelantado mientras corren las ejecuciones de CA2.1). Hasta cerrar M2 no se tocó el pipeline (`pipeline/`, `scripts/catalog-*`, `catalog.yml`), porque cada ejecución programada usa el código de `main`. Por eso el núcleo de arranque esperó en la rama `m3-arranque` hasta el 05-11-2026.

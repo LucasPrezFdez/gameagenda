@@ -22,6 +22,10 @@ Cambios de GameAgenda por versión. Cada hito cierra una versión SemVer 0.x (§
 
   El primero lo publicó la ejecución programada del 06-11-2026 (`20261106.1`). `ga-catalog` lo sirve en 343 KB con brotli, porque Cloudflare lo comprime al vuelo con un nivel más bajo que el 11.
 - **El cliente lo lee** (ADR-009, segunda parte; 06-11-2026): estado `boot` en el Worker, con prioridad sobre el núcleo, que se baja después. `smoke-web.ts` comprueba `none → boot → scan → full` en la primera visita y que la segunda no lo usa.
+- **`applyRecent`, más barato** (06-11-2026; ADR-005, «Recientes»). Copia las columnas en bloques y no consulta un `Map` por fila, y da exactamente lo mismo: lo comprueba una prueba de propiedad contra la regla aplicada fila a fila.
+  - Con 4 000 recientes, la primera llamada pasa de ≈21 a ≈10 ms sin estrangular.
+  - En el reinicio con caché con CPU ×4, los recientes bajan de 116–152 a 55–57 ms. Hasta `scan` hay 60–90 ms menos con el mismo equipo cargado.
+  - Los recientes crecen unos 200 al día, hasta llenar su ventana de 14 días.
 
 ### Cambiado
 

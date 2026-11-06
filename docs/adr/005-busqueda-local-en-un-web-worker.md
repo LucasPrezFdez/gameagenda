@@ -130,6 +130,10 @@ Opción elegida: **1**, porque de las medidas es la única que cumple a la vez l
 - `recent` se baja y se guarda con los demás ficheros.
 - Al arrancar se lee de una vez y `applyRecent` lo aplica al núcleo leído antes de construir el índice (§8.8).
 - Con el catálogo completo y 4 000 filas, `applyRecent` tarda 16–27 ms sin estrangular, en un solo bloque (no es cooperativo). En una actualización en segundo plano puede retrasar una consulta una vez; si el Android de referencia lo nota, `core` tendría que ofrecer una versión por trozos.
+- **Más barato desde el 06-11-2026:** copia las columnas del núcleo en bloques entre los huecos de las altas (`set` y `slice`) y coloca después las sustituciones y los nombres en español, con una tabla abierta de `appid` en vez de un `Map` por fila.
+  - La primera llamada, que es la que cuenta porque se hace una vez por arranque, pasa de ≈21 a ≈10 ms sin estrangular.
+  - En el desglose del reinicio con CPU ×4, «recientes» baja de 116–152 a 55–57 ms, medido con el mismo equipo cargado.
+  - Una prueba de propiedad la compara con la regla aplicada fila a fila.
 
 **Regla de los 7 días** (§5.4; CA2.4):
 
@@ -207,7 +211,7 @@ Opción elegida: **1**, porque de las medidas es la única que cumple a la vez l
 
   - Los recientes cuestan 119–129 ms con ×4 en todas las pasadas; el resto de la diferencia es ruido.
   - Sigue dentro de los 2 s, pero el margen baja a ≈150 ms. Con el equipo cargado por otros procesos, cinco de doce reinicios pasaron de 2 s (hasta 2,5 s); con el código de M1, en las mismas condiciones, el peor fue de 1,87 s.
-  - Para recuperarlo hay dos caminos: un `applyRecent` más barato en `core` (hoy rehace las seis columnas fila a fila, con un `Map` por fila) o el índice persistido de M3.
+  - Para recuperarlo hay dos caminos: un `applyRecent` más barato en `core` (hoy rehace las seis columnas fila a fila, con un `Map` por fila) o el índice persistido de M3. Se han hecho los dos: el índice persistido el 02-11-2026 (CA3.2) y el `applyRecent` más barato el 06-11-2026 (ver «Recientes»).
 - **Tamaño:** el Worker pasa a 36,9 KB brotli (límite 40). Parte es de los esquemas de detalles, que entran por el índice de `@gameagenda/core/catalog-format` aunque el Worker no los use.
 
 ### Consecuencias
