@@ -1,6 +1,6 @@
 # ADR-009 · Arranque rápido: índice persistido y núcleo de arranque
 
-- **Estado:** propuesta
+- **Estado:** aceptada (06-11-2026, con el núcleo de arranque en producción; CA3.1, en el móvil, sigue pendiente)
 - **Fecha:** 05-11-2026
 - **Deciden:** el usuario y el asistente
 

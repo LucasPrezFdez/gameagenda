@@ -68,7 +68,7 @@ Todo está en `main` y subido, con el CI y el despliegue en verde y sin agentes 
         - Después: `ci` 42227747890 y `deploy-web` 42228220058, en verde.
         - `smoke:web`, todo en orden: `none → boot → scan → full`. En la primera pasada, `boot` llegó a los 2,0 s y `full` a los 4,9 s; en la segunda, a los 0,9 s y a los 2,0 s, con 3 392 KB de `ga-catalog`. La segunda visita no usa el núcleo de arranque.
         - `ga-catalog` sirve el núcleo de arranque en 343 KB con brotli, no en 269: Cloudflare comprime al vuelo con un nivel más bajo. La puerta (≤512 KiB con brotli 11) mide el fichero, no lo servido.
-        - **ADR-009 sigue en «propuesta»:** falta que el usuario diga si pasa a «aceptada» ya o con CA3.1, medido en el móvil (`search:boot` en el panel de rendimiento).
+        - **ADR-009, aceptada el 06-11-2026** por decisión del usuario, sin esperar a CA3.1. La medida en el móvil (`search:boot` en el panel de rendimiento) sigue pendiente, con el resto de CA3.1.
    - **Perf (06-11-2026, CPU al 11 %, con Discord y Steam abiertos):**
      - primera visita hasta `boot`: 556 ms con CPU ×4;
      - reinicio con caché hasta `scan`: 1 923 ms (≤2 000 ms; el 05-11 daba ≈2,1 s, con el equipo más cargado);
