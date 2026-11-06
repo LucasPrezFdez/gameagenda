@@ -1,5 +1,5 @@
 import { expect, type Page, test } from '@playwright/test';
-import { capture, setup, toast } from './helpers.ts';
+import { capture, setup, toast, viewControl } from './helpers.ts';
 
 const row = (page: Page, title: string) =>
   page
@@ -87,7 +87,7 @@ test('Platinado pasa a Completado y lo dice el aviso; En pausa va plegada', asyn
   await show.click();
   await expect(row(page, 'Terraria')).toHaveCount(1);
 
-  await page.getByRole('button', { name: /^Todos 3/ }).click();
+  await viewControl(page, /^Todos 3/).click();
   await expect(page).toHaveURL('/?vista=todos');
   await expect(page.getByRole('heading', { name: 'Completado (1)' })).toBeVisible();
   await checks.expectClean();

@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 
 /** Ganchos del Worker de búsqueda en el *build* del modo `e2e` (`src/search-client/e2e-hooks.ts`). */
 export interface SearchTestOptions {
@@ -101,6 +101,17 @@ export async function releaseCatalog(page: Page) {
 /** Espera a que la búsqueda llegue a `state` (medidas `search:ready` y `search:full`). */
 export async function waitForSearch(page: Page, state: 'ready' | 'full') {
   await expect.poll(() => measures(page, `search:${state}`)).toHaveLength(1);
+}
+
+/**
+ * Una vista de Mi lista: en el PC, el enlace de la barra lateral (las pestañas no se ven con la
+ * barra desplegada; DECISIONES §10.33); en el móvil, la pestaña. Su nombre lleva el contador.
+ */
+export function viewControl(page: Page, name: string | RegExp): Locator {
+  return page
+    .getByRole('navigation', { name: 'Vistas' })
+    .getByRole('link', { name })
+    .or(page.getByRole('group', { name: 'Vistas' }).getByRole('button', { name }));
 }
 
 export function paletteInput(page: Page) {

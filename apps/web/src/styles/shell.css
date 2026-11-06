@@ -284,6 +284,7 @@
 }
 
 .sidebar-views__count {
+  min-width: 1ch;
   margin-left: auto;
   color: var(--text-muted);
   font-size: var(--text-xs);
@@ -348,6 +349,14 @@
     width: 1px;
     height: 1px;
     clip-path: inset(50%);
+  }
+}
+
+/* Con las vistas en la barra, las pestañas de vista de Mi lista sobran; con la barra encogida
+   o en el móvil, vuelven. */
+@media (min-width: 768px) {
+  .app[data-sidebar="expanded"] .list-filters > .chips {
+    display: none;
   }
 }
 

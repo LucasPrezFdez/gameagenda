@@ -2,7 +2,7 @@
 // servidos en local. Hoy, para las pruebas: lunes, 2 de noviembre de 2026, en Madrid.
 import { expect, type Page, test } from '@playwright/test';
 import { day, serveCovers, serveDetails, shardOf } from './details.ts';
-import { capture, expectAccessible, search, setup } from './helpers.ts';
+import { capture, expectAccessible, search, setup, viewControl } from './helpers.ts';
 
 test.use({ timezoneId: 'Europe/Madrid' });
 
@@ -140,10 +140,9 @@ test('Próximos agrupa por lanzamiento y pide solo los *shards* que hacen falta 
   await page.goto('/');
   await captureAll(page);
 
-  const views = page.getByRole('group', { name: 'Vistas' });
   // El contador sale cuando se saben las fechas.
-  await expect(views.getByRole('button', { name: 'Próximos 5' })).toBeVisible();
-  await views.getByRole('button', { name: /^Próximos/ }).click();
+  await expect(viewControl(page, 'Próximos 5')).toBeVisible();
+  await viewControl(page, /^Próximos/).click();
   await expect(page).toHaveURL('/?vista=proximos');
 
   await expect(section(page, 'Ya disponibles (1)')).toBeVisible();
@@ -171,7 +170,7 @@ test('Próximos agrupa por lanzamiento y pide solo los *shards* que hacen falta 
   await expectAccessible(page, 'Próximos');
 
   // Orden por lanzamiento en Todos: de lo más antiguo a lo más nuevo; por confirmar, al final.
-  await views.getByRole('button', { name: /^Todos/ }).click();
+  await viewControl(page, /^Todos/).click();
   await page.getByRole('button', { name: 'Orden: Prioridad' }).click();
   await page.getByRole('menuitemradio', { name: 'Lanzamiento' }).click();
   await expect(page).toHaveURL('/?vista=todos&orden=lanzamiento');

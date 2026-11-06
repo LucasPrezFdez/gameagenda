@@ -11,16 +11,19 @@ import { Link } from '../router/router.tsx';
 import { gamePath, withSearch } from '../router/routes.ts';
 import {
   buildSections,
+  countUpcoming,
   countViews,
   DEFAULT_LIST_PARAMS,
+  type ListParams,
   type ListView,
   listSearchParams,
 } from '../screens/my-list/list-model.ts';
+import { useReleases } from '../screens/my-list/use-releases.ts';
 import { useOpenShortcutHelp } from '../shortcuts/ShortcutHelp.tsx';
 import { Cover } from './bits.tsx';
 import { Icon } from './icons.tsx';
 
-/** Las vistas, en el orden de la §9.1; Próximos va sin contador (depende de las fechas). */
+/** Las vistas, en el orden de la §9.1. El contador de Próximos sale cuando se saben las fechas. */
 const VIEWS: readonly ListView[] = [
   'pending',
   'playing',
@@ -33,20 +36,31 @@ const VIEWS: readonly ListView[] = [
 ];
 const SHELF_SIZE = 4;
 
+const PENDING: ListParams = { ...DEFAULT_LIST_PARAMS, view: 'pending' };
+
 export function SidebarLibrary({
-  currentView,
+  listParams,
+  onList,
   collapsed,
 }: {
-  /** La vista abierta, si se está en Mi lista. */
-  currentView: ListView | null;
+  /** La última vista, filtros y orden de Mi lista: los enlaces los conservan, como las pestañas. */
+  listParams: ListParams;
+  /** En Mi lista: marca la vista abierta. */
+  onList: boolean;
   collapsed: boolean;
 }) {
   const entries = useAgendaEntries();
   const status = useCatalogStatus();
   const openHelp = useOpenShortcutHelp();
-  const counts = useMemo(() => countViews(entries, 'any'), [entries]);
+  const { purchase } = listParams;
+  const counts = useMemo(() => countViews(entries, purchase), [entries, purchase]);
+  const releases = useReleases(entries, PENDING);
+  const upcoming = useMemo(
+    () => countUpcoming(entries, purchase, releases.upcoming),
+    [entries, purchase, releases.upcoming],
+  );
   const shelves = useMemo(() => {
-    const sections = buildSections(entries, { ...DEFAULT_LIST_PARAMS, view: 'pending' });
+    const sections = buildSections(entries, PENDING);
     return (['playing', 'next'] as const)
       .map((id) => ({
         id,
@@ -66,18 +80,19 @@ export function SidebarLibrary({
           {VIEWS.map((view) => (
             <li key={view}>
               <Link
-                to={withSearch('/', listSearchParams({ ...DEFAULT_LIST_PARAMS, view }))}
+                to={withSearch('/', listSearchParams({ ...listParams, view }))}
                 className="sidebar-views__link"
-                aria-current={currentView === view ? 'page' : undefined}
+                aria-current={onList && listParams.view === view ? 'page' : undefined}
               >
                 <span
                   className={`sidebar-views__dot sidebar-views__dot--${view}`}
                   aria-hidden="true"
                 />
                 <span className="sidebar-views__label">{es.list.view[view]}</span>
-                {view !== 'upcoming' && (
-                  <span className="sidebar-views__count">{counts[view]}</span>
-                )}
+                {/* El hueco del contador de Próximos ya está, aunque aún no se sepa (§9.5). */}
+                <span className="sidebar-views__count">
+                  {view === 'upcoming' ? upcoming : counts[view]}
+                </span>
               </Link>
             </li>
           ))}

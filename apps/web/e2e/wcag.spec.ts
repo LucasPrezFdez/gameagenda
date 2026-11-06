@@ -6,7 +6,14 @@
 // de los colores, en los dos temas, lo comprueba `scripts/tokens-contrast.test.ts` sobre los tokens.
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page, test } from '@playwright/test';
-import { capture, expectAccessible, openPalette, paletteInput, setup } from './helpers.ts';
+import {
+  capture,
+  expectAccessible,
+  openPalette,
+  paletteInput,
+  setup,
+  viewControl,
+} from './helpers.ts';
 
 /** Píxeles que la página se sale por la derecha (0 si no hay desplazamiento horizontal). */
 function overflow(page: Page): Promise<number> {
@@ -59,9 +66,10 @@ test('axe en lo que se abre encima: ayuda, «Apuntar como…», alta a mano, Pr�
   }
 
   await page.goto('/?vista=proximos');
-  await expect(page.getByRole('button', { name: /^Próximos/ })).toHaveAttribute(
-    'aria-pressed',
-    'true',
+  // En el PC, la vista abierta es el enlace de la barra lateral; en el móvil, la pestaña pulsada.
+  await expect(viewControl(page, /^Próximos/)).toHaveAttribute(
+    isMobile ? 'aria-pressed' : 'aria-current',
+    isMobile ? 'true' : 'page',
   );
   await expectAccessible(page, 'Próximos');
 

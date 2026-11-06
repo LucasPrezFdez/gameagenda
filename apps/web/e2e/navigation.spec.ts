@@ -11,7 +11,8 @@ test('navega por las rutas con la barra lateral o las pestañas y vuelve atrás'
   await nav.getByRole('link', { name: 'Catálogo' }).click();
   await expect(page).toHaveURL('/catalogo');
   await expect(page.getByRole('heading', { level: 1, name: 'Catálogo de Steam' })).toBeFocused();
-  await expect(page.getByText('294 juegos')).toBeVisible();
+  // En el contenido: el pie de la barra lateral también dice «Catálogo: 294 juegos».
+  await expect(page.getByRole('main').getByText('294 juegos')).toBeVisible();
 
   await nav.getByRole('link', { name: 'Ajustes' }).click();
   await expect(page).toHaveURL('/ajustes');
@@ -35,7 +36,8 @@ test('la ficha se abre desde Mi lista y Esc devuelve el foco a la fila', async (
   await page.goto('/');
   await capture(page, 'hades ii', 'Hades II');
 
-  const row = page.getByRole('link', { name: /Hades II$/ });
+  // En Mi lista: en el PC, «Jugando ahora» de la barra lateral lo enlaza también.
+  const row = page.getByRole('main').getByRole('link', { name: /Hades II$/ });
   await row.focus();
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL('/juego/steam:1145350');
@@ -57,7 +59,7 @@ test('la ficha se abre desde Mi lista y Esc devuelve el foco a la fila', async (
 
   await page.keyboard.press('Escape');
   await expect(page).toHaveURL('/');
-  await expect(page.getByRole('link', { name: /Hades II$/ })).toBeFocused();
+  await expect(page.getByRole('main').getByRole('link', { name: /Hades II$/ })).toBeFocused();
   await checks.expectClean();
 });
 

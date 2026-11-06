@@ -1,7 +1,15 @@
 // La agenda guardada en Dexie: recargar la conserva (CA1.8), estado y marca a ≤2 toques con
 // respuesta ≤100 ms (CA1.6), ficha editable con Deshacer (CA1.12) y dos pestañas coherentes.
 import { expect, type Page, test } from '@playwright/test';
-import { capture, measures, openPalette, setup, toast, waitForSearch } from './helpers.ts';
+import {
+  capture,
+  measures,
+  openPalette,
+  setup,
+  toast,
+  viewControl,
+  waitForSearch,
+} from './helpers.ts';
 import { expectStored } from './storage.ts';
 
 const row = (page: Page, title: string) =>
@@ -118,7 +126,7 @@ test('estado y marca a ≤2 toques desde Mi lista, con respuesta ≤100 ms (CA1.
   expect(await lastFeedback(page)).toBeLessThanOrEqual(100);
 
   // Platinado desde la ficha y Deshacer: el estado exacto de antes, también la fecha.
-  await page.getByRole('button', { name: /^Todos \d/ }).click();
+  await viewControl(page, /^Todos \d/).click();
   await page.getByRole('main').getByRole('link', { name: 'Hades II' }).click();
   const sheet = page.getByRole('region', { name: 'Hades II' });
   const platinum = sheet.getByRole('button', { name: 'Platinado', exact: true });

@@ -427,3 +427,14 @@ Resueltos a partir de las mediciones y de los conflictos detectados entre seccio
       - `sidebar.spec.ts`: encoger, nombres accesibles y `title`, recordarlo al recargar y la lupa que abre la paleta; en el móvil, la cápsula flotante y sin botón de encoger;
       - `check` (945) y los E2E de Chromium y WebKit (179), en verde.
       - `perf`: 1 o 2 tareas largas de 51–60 ms al apuntar, las mismas que dio `main` medido justo después en las mismas condiciones (CPU al 16 %). Son del equipo, no del cambio.
+    - **Lo que llena la barra lateral (06-11-2026, opción 1 «Todo junto», elegida por el usuario frente a «Solo Jugando ahora»; páginas `relleno.mjs`):** al usuario le sobraba el espacio vacío debajo de las secciones. `SidebarLibrary` solo se monta en el PC (≥768 px) y lleva, en este orden:
+      - **Vistas**, como las listas de Things: Pendientes, Jugando, Quiero jugar, En pausa, Completado, Abandonado, Próximos y Todos, con su punto de color (el de «Punto»; aro en las que no son un estado) y su contador. Los contadores aplican el filtro de compra, y el de Próximos sale cuando se saben las fechas (`useReleases`).
+        - Los enlaces conservan la compra, el orden y la búsqueda, como las pestañas, y la vista abierta sale de la URL (`aria-current`).
+        - Con la barra desplegada, las pestañas de vista de Mi lista no se ven en el PC; vuelven con la barra encogida y en el móvil.
+      - **Jugando ahora** y **A continuación**, como la biblioteca de Spotify o de Steam: hasta 4 juegos de cada uno, con portada de 28 px, que abren la ficha. Encogida, solo las portadas, con el nombre en `title`.
+      - **Un pie anclado abajo** con «Atajos de teclado» y el catálogo («Catálogo: 188 370 juegos», o si está cargando o sin cargar).
+      - Se desplaza dentro de la barra si no cabe.
+      - **Pruebas:**
+        - `sidebar.spec.ts`: contadores, vista abierta, conservar la compra, «Jugando ahora» abre la ficha y las pestañas vuelven al encoger;
+        - los E2E que pulsaban las pestañas usan `viewControl`: en el PC, el enlace de la barra; en el móvil, la pestaña;
+        - `check` (945), los E2E (181) y `perf` entero en verde con la CPU al 5 %: 0 tareas largas, INP de 40 ms y `scan` en 1 802 ms.

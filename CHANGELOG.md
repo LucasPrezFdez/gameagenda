@@ -27,7 +27,12 @@ Cambios de GameAgenda por versión. Cada hito cierra una versión SemVer 0.x (§
   En el móvil, la lista empieza mucho antes: el rótulo de la primera sección sube de 436 a ≈280 px.
 - **Iconos de estado y marcas nuevos,** macizos, de Phosphor (MIT). Platinado es un trofeo de platino al estilo de PlayStation y Próximo, una chincheta roja; los dos solo van en color con la marca puesta. Los avisos de las licencias de los iconos van en `licencias.txt`.
 - **Navegación nueva** (06-11-2026, decisión del usuario; DECISIONES §10.33):
-  - **En el PC,** una barra lateral de altura completa, como Linear o Notion, con la marca, el buscador y las secciones. Se encoge a un riel de iconos con su botón y lo recuerda.
+  - **En el PC,** una barra lateral de altura completa, como Linear o Notion, con la marca, el buscador y las secciones. Debajo:
+    - las vistas de Mi lista con su contador, como las listas de Things (sustituyen a las pestañas de arriba);
+    - «Jugando ahora» y «A continuación» con portadas, que abren la ficha;
+    - un pie con los atajos y el catálogo.
+
+    Se encoge a un riel de iconos (con las portadas) con su botón y lo recuerda.
   - **En el móvil,** una cápsula flotante con Mi lista, Catálogo y Ajustes, y el buscador como botón redondo aparte, como las apps de iOS 26. Pasa de dos barras apiladas abajo a una sola fila flotante. El filtro del Catálogo sube arriba.
 - **`Ctrl+Mayús+Espacio` en la app de escritorio solo la pone delante** (06-11-2026, decisión del usuario; DECISIONES §10.32): ya no abre la paleta. Para apuntar, `Ctrl+K`. Llega sin reinstalar.
 - **Logo nuevo, «Grafito»:** un marcapáginas blanco con un play hueco sobre zinc oscuro. Sale en la pestaña, en la app instalada (móvil, iPhone y escritorio) y en la cabecera. El color de tema deja el rosa.

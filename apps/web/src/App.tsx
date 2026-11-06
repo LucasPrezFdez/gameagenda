@@ -254,7 +254,7 @@ export function App() {
 }
 
 function AppShell() {
-  const { route } = useLocation();
+  const { route, search } = useLocation();
   const { notices, settings: settingsStore } = useServices();
   const settings = useSettings();
   const collapsed = settings.sidebarCollapsed;
@@ -262,6 +262,8 @@ function AppShell() {
   const canUndo = useCanUndo();
   const online = useOnline();
   const wide = useMediaQuery('(min-width: 1280px)');
+  // La barra lateral (con sus vistas y portadas) solo existe en el PC; en el móvil no se monta.
+  const desktop = useMediaQuery('(min-width: 768px)');
   const paletteRef = useRef<PaletteHandle>(null);
   const [helpOpen, setHelpOpen] = useState(false);
   const openHelp = useCallback(() => setHelpOpen(true), []);
@@ -436,10 +438,13 @@ function AppShell() {
                 />
               </ul>
             </nav>
-            <SidebarLibrary
-              currentView={onList ? parseListParams(settings.listSearch).view : null}
-              collapsed={collapsed}
-            />
+            {desktop && (
+              <SidebarLibrary
+                listParams={parseListParams(onList ? search : settings.listSearch)}
+                onList={onList}
+                collapsed={collapsed}
+              />
+            )}
           </div>
 
           {!online && (
