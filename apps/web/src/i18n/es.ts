@@ -47,6 +47,14 @@ export const es = {
 
   nav: { list: 'Mi lista', catalog: 'Catálogo', settings: 'Ajustes' },
 
+  /** Lo que llena la barra lateral del PC (DECISIONES §10.33). */
+  sidebar: {
+    views: 'Vistas',
+    catalog: (count: string) => `Catálogo: ${count} juegos`,
+    catalogLoading: 'Cargando el catálogo…',
+    catalogError: 'Catálogo sin cargar',
+  },
+
   /** Ayuda de atajos (`?`; §9.4). */
   shortcuts: {
     title: 'Atajos de teclado',

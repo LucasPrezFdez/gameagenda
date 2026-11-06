@@ -1,0 +1,6 @@
+/* Relleno de la barra lateral · «Solo Jugando ahora» (propuesta): sin las vistas ni el pie;
+   solo las portadas de lo que se juega y lo siguiente. */
+.sidebar-views,
+.sidebar-footer {
+  display: none;
+}

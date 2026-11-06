@@ -17,6 +17,7 @@ import { CoverNotice } from './components/CoverNotice.tsx';
 import { Icon, type IconName } from './components/icons.tsx';
 import { MenuButton } from './components/MenuButton.tsx';
 import { ScreenHeading } from './components/ScreenHeading.tsx';
+import { SidebarLibrary } from './components/SidebarLibrary.tsx';
 
 import { DetailsProvider } from './details/details-context.tsx';
 import { ErrorBoundary } from './errors/ErrorBoundary.tsx';
@@ -32,6 +33,7 @@ import { endFirstCommit } from './perf/measures.ts';
 import { Link, navigate, useLocation } from './router/router.tsx';
 import { gamePath, type Route, settingsPath, withSearch } from './router/routes.ts';
 import { GameScreen } from './screens/game/GameScreen.tsx';
+import { parseListParams } from './screens/my-list/list-model.ts';
 import { MyListScreen } from './screens/my-list/MyListScreen.tsx';
 import type { ThemePreference } from './settings/settings-store.ts';
 import { filterField, isShortcutTarget } from './shortcuts/dom.ts';
@@ -434,6 +436,10 @@ function AppShell() {
                 />
               </ul>
             </nav>
+            <SidebarLibrary
+              currentView={onList ? parseListParams(settings.listSearch).view : null}
+              collapsed={collapsed}
+            />
           </div>
 
           {!online && (

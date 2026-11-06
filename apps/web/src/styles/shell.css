@@ -193,6 +193,170 @@
   color: var(--accent);
 }
 
+/* Lo que llena la barra lateral debajo de las secciones (PC; DECISIONES §10.33): las vistas de
+   Mi lista con su contador, «Jugando ahora» y «A continuación» con portadas pequeñas, y un pie con
+   los atajos y el estado del catálogo. Se desplaza dentro de la barra si no cabe. */
+.sidebar-library {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 20px;
+  min-height: 0;
+  padding: 12px 12px 12px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.sidebar-library h2 {
+  padding: 0 10px 4px;
+}
+
+.sidebar-views ul,
+.sidebar-shelf ul {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.sidebar-views__link,
+.sidebar-shelf__link,
+.sidebar-footer__help {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  text-decoration: none;
+  transition:
+    background-color var(--motion) var(--ease),
+    color var(--motion) var(--ease);
+}
+
+.sidebar-views__link {
+  min-height: 30px;
+  padding: 4px 10px;
+}
+
+.sidebar-views__link:hover,
+.sidebar-shelf__link:hover,
+.sidebar-footer__help:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.sidebar-views__link[aria-current="page"] {
+  background: var(--surface-2);
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* El punto de la vista, como el de las filas («Punto»); las que no son un estado, un aro. */
+.sidebar-views__dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  margin-inline: 4px;
+  border: 1.5px solid currentcolor;
+  border-radius: 50%;
+}
+
+.sidebar-views__dot--want_to_play {
+  border-color: var(--want_to_play);
+  background: var(--want_to_play);
+}
+.sidebar-views__dot--playing {
+  border-color: var(--playing);
+  background: var(--playing);
+}
+.sidebar-views__dot--on_hold {
+  border-color: var(--on_hold);
+  background: var(--on_hold);
+}
+.sidebar-views__dot--completed {
+  border-color: var(--completed);
+  background: var(--completed);
+}
+.sidebar-views__dot--dropped {
+  border-color: var(--dropped);
+  background: var(--dropped);
+}
+
+.sidebar-views__count {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: 500;
+}
+
+.sidebar-shelf__link {
+  min-height: 48px;
+  padding: 3px 10px;
+  color: var(--text);
+}
+
+.sidebar-shelf__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.sidebar-footer__help {
+  min-height: 30px;
+  padding: 4px 10px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.sidebar-footer__catalog {
+  padding: 2px 10px;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+/* Encogida: solo las portadas, con su nombre al pasar el puntero. */
+@media (min-width: 768px) {
+  .app[data-sidebar="collapsed"] :is(.sidebar-views, .sidebar-footer, .sidebar-library h2) {
+    display: none;
+  }
+
+  .app[data-sidebar="collapsed"] .sidebar-library {
+    gap: 8px;
+    padding-inline: 12px;
+    scrollbar-width: none;
+  }
+
+  .app[data-sidebar="collapsed"] .sidebar-shelf__link {
+    justify-content: center;
+    padding: 2px 0;
+  }
+
+  .app[data-sidebar="collapsed"] .sidebar-shelf__name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    clip-path: inset(50%);
+  }
+}
+
+@media (max-width: 767px) {
+  .sidebar-library {
+    display: none;
+  }
+}
+
 .app-banner {
   grid-area: banner;
   margin: 12px var(--gutter) 0;

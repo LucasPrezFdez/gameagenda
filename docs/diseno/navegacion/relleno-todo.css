@@ -1,0 +1,7 @@
+/* Relleno de la barra lateral · «Todo junto» (propuesta): con las vistas en la barra, las
+   pestañas de vista de Mi lista sobran en el PC con la barra desplegada. */
+@media (min-width: 768px) {
+  .app[data-sidebar="expanded"] .list-filters > .chips {
+    display: none;
+  }
+}
