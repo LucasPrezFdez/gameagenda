@@ -12,8 +12,11 @@ export function startCatalogRefresh(search: SearchClient, agenda: AgendaStore): 
 
   async function check(): Promise<void> {
     const { state, version } = search.getStatus();
-    if (!canSearchCatalog(state) || version === null || version === done) return;
-    done = version;
+    // En `boot` (M3) se vuelve a mirar en `scan`, con la misma versión: un enlace pegado mientras
+    // tanto de un juego que no está entre los más populares ha quedado provisional.
+    const key = state === 'boot' ? `${version}|boot` : version;
+    if (!canSearchCatalog(state) || version === null || key === done) return;
+    done = key;
     const appids: number[] = [];
     for (const entry of agenda.getSnapshot()) {
       const parsed = isSteamEntryId(entry.id) ? parseEntryId(entry.id) : null;

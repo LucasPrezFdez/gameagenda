@@ -130,7 +130,7 @@ stateDiagram-v2
 | Estado | Qué hace la paleta |
 |---|---|
 | Sin catálogo (`none`) | busca en Mi lista, apunta a mano y acepta enlaces, con aviso de progreso (ver §9) |
-| Núcleo de arranque (`boot`, M3) | busca en los 20 000 más populares (269 KB brotli; se descarga primero) |
+| Núcleo de arranque (`boot`, M3) | busca en los 20 000 más populares (269 KB brotli; se descarga primero), con un aviso junto a los resultados; sin resultados, `Intro` no apunta a mano; el Catálogo espera a `scan` |
 | Escaneo (`scan`, desde M1) | busca en todo el catálogo mientras se construye el índice: el nivel 0 y los alias con un mapa de claves exactas; los niveles 1–3, con `indexOf` sobre el pajar en orden de filas y las mismas comprobaciones de clave y el mismo orden (§8.4); el nivel 4, igual |
 | Restaurado (`full`, M3) | índice leído de IndexedDB (`meta.searchIndex`, sin Dexie), sin normalizar ni construir; niveles 0–2 al instante, el 3 en cuanto está el pajar |
 | Completo (`full`) | todos los niveles |
@@ -143,6 +143,14 @@ El índice se construye sobre el núcleo con `recent` ya aplicado. En M1 se cons
 - **Dos fases:** lo principal (≈22 MB) basta para los niveles 0–2; el pajar del nivel 3 (≈5 MB) va en otra fila y se lee justo después. Si falta o no cuadra, el índice se construye en segundo plano desde la caché y se vuelve a guardar.
 - **Va en un *chunk* diferido** del Worker, como uFuzzy, que no importa nada: si importara el de entrada, WebKit lo volvería a evaluar.
 - Si el índice guardado no cuadra o IndexedDB falla, se construye como en M1.
+
+El núcleo de arranque, tal como se ha construido (04-11-2026; `DECISIONES.md` §10.30 y ADR-009):
+
+- **Solo en la primera visita** (sin núcleo en Cache Storage) y si el *manifest* trae `files.boot`: el Worker baja a la vez el núcleo de arranque y los alias, antes que el resto, los lee e indexa solo hasta `scan`, con prioridad sobre el núcleo, y responde en `boot`. Cuando el núcleo llega a `scan`, lo sustituye.
+- **Nunca es el catálogo en uso:** no se guarda su índice, no lo mira una actualización ni lo baja una versión nueva (CA2.4), y un reinicio con caché no lo usa.
+- **Qué responde:** `query` y `suggest`, con él; la ficha y `lookup`, solo si todo lo pedido está en él; el Catálogo y `matchExact` esperan a `scan`. Al salir de `boot`, el cliente repite la consulta abierta (con la misma secuencia), y lo que dio el núcleo de arranque no vale para `Intro` hasta que llega la respuesta nueva. Sus sugerencias del nivel 4 tampoco: el Worker abandona las que estaba calculando y el cliente las vuelve a pedir con la respuesta nueva.
+- **Si falla:** un núcleo de arranque que no baja o no se lee se ignora, y la visita sigue como en M2. Si falla el núcleo estando en `boot`, se sigue buscando en el de arranque, se anuncia el error y la carga se repite sola con la espera creciente (1 min … 1 h). «Actualizar catálogo» y la vuelta de la red durante la primera carga van detrás de ella.
+- **Medido** con CPU ×4 y el catálogo completo (`npm run perf`, en local): `boot` en 613–759 ms y `search:ready` de la app en 841–859 ms (≤1 500 ms, RNF-05). La red no cuenta: falta medirlo en el dispositivo (CA3.1).
 
 ### 8.9 Presupuestos y cómo se miden
 

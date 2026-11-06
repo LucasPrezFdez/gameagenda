@@ -3,15 +3,18 @@
 // `/index.html` de Workers Static Assets; ver ADR-003).
 //
 // 1. Primera visita: el catálogo llega a `full` sin error (firma y `minClientVersion` aceptados) y
-//    queda `meta.catalog`. Anota lo que baja de `ga-catalog`.
-// 2. Segunda visita: la página abre (desde el Service Worker) y no vuelve a pedir el *manifest*
-//    antes de 12 h (§5.3).
+//    queda `meta.catalog`. Anota lo que baja de `ga-catalog`, los estados por los que pasa y
+//    cuándo se puede buscar. Con núcleo de arranque (M3: un cliente que lo usa y un *manifest*
+//    con `files.boot`), pasa por `boot` y lo baja antes que el núcleo; sin él, como en M2.
+// 2. Segunda visita: la página abre (desde el Service Worker), no vuelve a pedir el *manifest*
+//    antes de 12 h (§5.3) ni usa el núcleo de arranque.
 // 3. Sin red: la página abre y el catálogo llega a `full`.
 //
 // Con `--profile=<carpeta>`, el navegador se conserva entre ejecuciones: la siguiente arranca con
 // el catálogo y `meta.catalog` de la anterior. Así se mide CA2.4 tras una publicación nueva (lo
 // que baja un cliente con el núcleo de ayer); si han pasado ≥12 h, la primera visita comprueba el
-// *manifest*. Sin `--profile`, cada ejecución es una primera visita.
+// *manifest*. Sin `--profile`, cada ejecución es una primera visita. Con el catálogo del perfil,
+// nunca se pide el núcleo de arranque (tampoco al actualizar: CA2.4).
 //
 // Uso: npm run smoke:web [-- --url=https://… --profile=.cache/smoke-web]
 import { resolve } from 'node:path';
@@ -45,11 +48,13 @@ if (values.profile && process.platform === 'win32') {
 
 /**
  * Guarda en `__smokeStatus` el último `status` del Worker de búsqueda (sin ganchos de prueba), en
- * `__smokeFullAt` cuándo llegó a `full` por primera vez y en `__smokeLong` las tareas largas del
- * hilo principal.
+ * `__smokeStates` los estados por los que pasa (sin repetir el anterior), en `__smokeReadyAt` y
+ * `__smokeFullAt` cuándo llegó por primera vez a uno distinto de `none` (como `search:ready`) y a
+ * `full`, y en `__smokeLong` las tareas largas del hilo principal.
  */
 const WATCH_STATUS = `{
   globalThis.__smokeLong = [];
+  globalThis.__smokeStates = [];
   try {
     new PerformanceObserver((list) => {
       for (const entry of list.getEntries()) {
@@ -65,6 +70,11 @@ const WATCH_STATUS = `{
         const data = event.data;
         if (data && data.type === 'status') {
           globalThis.__smokeStatus = { state: data.state, version: data.version, error: data.error };
+          const states = globalThis.__smokeStates;
+          if (states[states.length - 1] !== data.state) states.push(data.state);
+          if (data.state !== 'none' && globalThis.__smokeReadyAt === undefined) {
+            globalThis.__smokeReadyAt = performance.now();
+          }
           if (data.state === 'full' && globalThis.__smokeFullAt === undefined) {
             globalThis.__smokeFullAt = performance.now();
           }
@@ -74,6 +84,8 @@ const WATCH_STATUS = `{
   };
 }`;
 const STATUS = 'globalThis.__smokeStatus ?? null';
+const STATES = 'globalThis.__smokeStates ?? []';
+const READY_AT = 'globalThis.__smokeReadyAt ?? null';
 /** Las tareas largas del hilo principal desde que el catálogo llegó a `full` (en ms). */
 const LONG_AFTER_FULL = `(globalThis.__smokeLong ?? [])
   .filter((task) => task.start >= (globalThis.__smokeFullAt ?? Infinity))
@@ -134,6 +146,25 @@ const CHECK_INTERVAL_MS = 12 * 3_600_000;
 /** Lo más que puede bajar un cliente con un núcleo de ≤7 días (CA2.4). */
 const CA24_MAX_KB = 200;
 const RE_CORE_FILE = /(^|\/)core\.[^/]*\.tsv$/;
+/** El núcleo de arranque (M3, ADR-009): solo en una primera visita, nunca al actualizar. */
+const RE_BOOT_FILE = /(^|\/)boot\.[^/]*\.tsv$/;
+/** Estados del Worker, en el orden en que pueden llegar (§8.8). */
+const STATE_ORDER = ['none', 'boot', 'scan', 'full'];
+
+/** ¿De `none` a `full`, cada estado una vez y en orden (sin volver atrás)? */
+function isStateSequence(states: readonly string[]): boolean {
+  const ranks = states.map((state) => STATE_ORDER.indexOf(state));
+  return (
+    ranks[0] === 0 &&
+    ranks.at(-1) === STATE_ORDER.length - 1 &&
+    ranks.every((rank, i) => i === 0 || rank > (ranks[i - 1] as number))
+  );
+}
+
+/** Los estados por los que ha pasado el Worker en esta carga de la página. */
+async function statesOf(page: Page): Promise<string[]> {
+  return (await page.evaluate(STATES)) as string[];
+}
 
 function isCatalogMeta(value: unknown): value is CatalogMeta {
   const meta = value as Partial<CatalogMeta> | null;
@@ -232,6 +263,27 @@ try {
       `Primera visita: catálogo ${status?.version ?? '—'} en ${status?.state ?? '—'} en ${seconds} s, sin error (${JSON.stringify(status?.error ?? null)})`,
     );
     await page.waitForTimeout(1500);
+    const states = await statesOf(page);
+    const readyAt = (await page.evaluate(READY_AT)) as number | null;
+    const ready = readyAt === null ? '—' : `${(readyAt / 1000).toFixed(1)} s`;
+    const boots = traffic.catalogFiles.filter((path) => RE_BOOT_FILE.test(path));
+    if (before === null) {
+      // De verdad la primera: con núcleo de arranque (un cliente de M3 y `files.boot` en el
+      // *manifest*), pasa por `boot` y lo baja antes que el núcleo; sin él, como en M2.
+      const booted = states.includes('boot');
+      const first = (re: RegExp) => traffic.catalogFiles.findIndex((path) => re.test(path));
+      check(
+        isStateSequence(states) &&
+          booted === boots.length > 0 &&
+          (!booted || first(RE_BOOT_FILE) < first(RE_CORE_FILE)),
+        `Primera visita: ${states.join(' → ')}; se puede buscar a los ${ready} ${booted ? `en boot (${boots.join(', ')}, antes que el núcleo)` : '(sin núcleo de arranque)'}`,
+      );
+    } else {
+      check(
+        boots.length === 0 && !states.includes('boot'),
+        `Primera visita con el catálogo del perfil: ${states.join(' → ')}, sin núcleo de arranque; se puede buscar a los ${ready}`,
+      );
+    }
     if (checkDue && before) {
       // La comprobación termina al apuntarla en `meta.catalog`; una versión nueva se adopta
       // después, al acabar de indexarla en segundo plano.
@@ -263,11 +315,12 @@ try {
     if (traffic.catalogFiles.length <= 20) console.log(`  ${traffic.catalogFiles.join(', ')}`);
     if (traffic.failed.length > 0) console.log(`  fallidas: ${traffic.failed.join(', ')}`);
     if (checkDue && isCatalogMeta(meta) && meta.version !== before?.version) {
-      // CA2.4: con un núcleo de ≤7 días baja el *manifest*, los recientes y poco más.
+      // CA2.4: con un núcleo de ≤7 días baja el *manifest*, los recientes y poco más; nunca el
+      // núcleo de arranque, que solo es para la primera visita.
       const cores = traffic.catalogFiles.filter((path) => RE_CORE_FILE.test(path));
       check(
-        traffic.catalogBytes / 1024 <= CA24_MAX_KB && cores.length === 0,
-        `CA2.4: ${kb} KB de ga-catalog (≤${CA24_MAX_KB} KB) y ${cores.length === 0 ? 'sin núcleo' : `con núcleo (${cores.join(', ')})`}`,
+        traffic.catalogBytes / 1024 <= CA24_MAX_KB && cores.length === 0 && boots.length === 0,
+        `CA2.4: ${kb} KB de ga-catalog (≤${CA24_MAX_KB} KB), ${cores.length === 0 ? 'sin núcleo' : `con núcleo (${cores.join(', ')})`} y ${boots.length === 0 ? 'sin núcleo de arranque' : `con núcleo de arranque (${boots.join(', ')})`}`,
       );
       const long = (await page.evaluate(LONG_AFTER_FULL)) as number[];
       check(
@@ -290,6 +343,11 @@ try {
     check(
       traffic.manifests === 0,
       `Segunda visita: ${traffic.manifests} peticiones del manifest (0 antes de 12 h)`,
+    );
+    const states = await statesOf(page);
+    check(
+      !states.includes('boot') && !traffic.catalogFiles.some((path) => RE_BOOT_FILE.test(path)),
+      `Segunda visita: ${states.join(' → ')}, sin núcleo de arranque`,
     );
     if (traffic.catalogFiles.length > 0) {
       console.log(`  de ga-catalog: ${traffic.catalogFiles.slice(0, 20).join(', ')}`);

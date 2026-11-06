@@ -12,6 +12,7 @@ export const PANEL_METRICS = [
   'lcp',
   'app:list-visible',
   'search:ready',
+  'search:boot',
   'search:full',
   'search:index-restored',
 ] as const;
@@ -29,8 +30,9 @@ export interface Budget {
 
 /**
  * Presupuestos de la §3 en el móvil, que es para lo que está el panel (CA3.1): RNF-01 (apuntar),
- * RNF-02 (tecla → resultados; en escritorio, ≤2 fotogramas), RNF-03 (toque → respuesta e INP) y
- * RNF-04 (LCP, Mi lista y poder buscar tras un reinicio). El resto solo informa.
+ * RNF-02 (tecla → resultados; en escritorio, ≤2 fotogramas), RNF-03 (toque → respuesta e INP),
+ * RNF-04 (LCP, Mi lista y poder buscar tras un reinicio) y RNF-05 (poder buscar en la primera
+ * visita, con el núcleo de arranque: `search:boot`). El resto solo informa.
  */
 export const BUDGETS: Readonly<Record<PanelMetric, Budget | null>> = {
   'search:keystroke-to-results': { stat: 'p95', limit: 50 },
@@ -40,6 +42,7 @@ export const BUDGETS: Readonly<Record<PanelMetric, Budget | null>> = {
   lcp: { stat: 'p75', limit: 2500 },
   'app:list-visible': { stat: 'p95', limit: 1000 },
   'search:ready': { stat: 'p95', limit: 2000 },
+  'search:boot': { stat: 'p95', limit: 1500 },
   'search:full': null,
   'search:index-restored': null,
 };

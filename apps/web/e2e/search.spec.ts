@@ -7,6 +7,7 @@ import {
   setup,
   toast,
   waitForSearch,
+  waitForState,
 } from './helpers.ts';
 
 /** Guion de la §12.3: cinco juegos distintos del mini-catálogo. */
@@ -95,7 +96,8 @@ test('puente de escaneo: en `scan` busca con los mismos niveles y al pasar a `fu
 }) => {
   const checks = await setup(page, { hold: 'scan', latencyMs: 150 });
   await page.goto('/');
-  await waitForSearch(page, 'ready');
+  // Con núcleo de arranque, `search:ready` llega antes, en `boot`: aquí se quiere `scan`.
+  await waitForState(page, 'scan');
   expect(await measures(page, 'search:full')).toHaveLength(0);
   await expect(page.getByText(/Preparando el catálogo/)).toHaveCount(0);
 

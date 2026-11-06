@@ -1,7 +1,8 @@
 // Cliente de búsqueda del hilo principal (ver §8.7). Reglas:
 // - `seq` crece en cada cambio del campo y solo se pintan los `results` del `seq` actual;
 // - como mucho una consulta en curso: mientras tanto se guarda solo el último texto (sin *debounce*);
-// - Intro espera hasta 500 ms a los resultados del `seq` actual (`waitForFresh`).
+// - Intro espera hasta 500 ms a los resultados del `seq` actual (`waitForFresh`);
+// - al pasar de `boot` (el núcleo de arranque, M3) a `scan`, el texto se vuelve a buscar.
 import type {
   CatalogState,
   CoreGame,
@@ -90,6 +91,14 @@ export function canSearchCatalog(state: CatalogState): boolean {
   return state !== 'none';
 }
 
+/**
+ * ¿Está el catálogo entero? En `boot` (M3) solo se busca en los más populares: el Catálogo, que
+ * recorre todas las filas, espera a `scan` como en `none`.
+ */
+export function canBrowseCatalog(state: CatalogState): boolean {
+  return state === 'scan' || state === 'full';
+}
+
 const LATIN = /\p{Script=Latin}/gu;
 
 /** ¿Merece la pena pedir el nivel 4 para este texto y estos resultados? */
@@ -124,6 +133,8 @@ export function createSearchClient(
   let inputTimeStamp: number | null = null;
   let results: ResultsMessage | null = null;
   let suggestions: SuggestionsMessage | null = null;
+  /** `results` es del núcleo de arranque y ya se ha vuelto a pedir con el catálogo entero. */
+  let stale = false;
   let inFlight: number | null = null;
   let lastSent = 0;
   let suggestRequested = 0;
@@ -143,7 +154,7 @@ export function createSearchClient(
       inputTimeStamp,
       results,
       suggestions,
-      fresh: results !== null && results.seq === seq,
+      fresh: results !== null && results.seq === seq && !stale,
     };
   }
 
@@ -191,14 +202,23 @@ export function createSearchClient(
         restoredMs = message.ms;
         return;
       case 'status': {
-        const wasSearchable = canSearchCatalog(status.state);
+        const was = status.state;
         status = message;
         for (const listener of statusListeners) listener();
-        if (!wasSearchable && canSearchCatalog(status.state)) {
-          // La consulta escrita antes de tener catálogo se lanza ahora (CA1.11).
+        if (
+          (!canSearchCatalog(was) && canSearchCatalog(status.state)) ||
+          (was === 'boot' && status.state !== 'boot')
+        ) {
+          // La consulta escrita antes de tener catálogo se lanza ahora (CA1.11); la que respondió
+          // el núcleo de arranque se repite con el catálogo entero, con el mismo `seq`, y lo que
+          // dio deja de valer para Intro hasta que llegue la respuesta nueva. Sus sugerencias se
+          // vuelven a pedir con esa respuesta.
+          stale = was === 'boot' && results !== null;
+          if (stale) suggestRequested = 0;
           inFlight = null;
           lastSent = 0;
           pump();
+          if (stale) emitQuery();
         }
         return;
       }
@@ -207,6 +227,7 @@ export function createSearchClient(
         if (message.seq === seq) {
           results = message;
           suggestions = null;
+          stale = false;
           emitQuery();
           settleWaiters();
           maybeSuggest();
@@ -215,7 +236,8 @@ export function createSearchClient(
         return;
       }
       case 'suggestions': {
-        if (message.seq === seq && results?.seq === seq) {
+        // Con `stale`, son del núcleo de arranque: van a llegar otras del catálogo entero.
+        if (message.seq === seq && results?.seq === seq && !stale) {
           suggestions = message;
           emitQuery();
         }

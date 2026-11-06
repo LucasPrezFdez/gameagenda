@@ -14,6 +14,16 @@ export interface TypingReport {
 
 export interface BenchApi {
   readonly marker: string;
+  /**
+   * Primera visita con la caché vacía (RNF-05, M3): de `init` a `boot` (`null` si el catálogo no
+   * trae núcleo de arranque), a `scan` y a `full`, en ms. Deja el catálogo en Cache Storage.
+   */
+  firstVisit(): Promise<{
+    hasBoot: boolean;
+    bootMs: number | null;
+    scanMs: number;
+    fullMs: number;
+  }>;
   prime(): Promise<{ version: string; count: number }>;
   restart(hold: 'scan' | null): Promise<{ scanMs: number; fullMs: number | null }>;
   release(): Promise<{ fullMs: number }>;

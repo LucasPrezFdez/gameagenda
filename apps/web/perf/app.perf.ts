@@ -1,8 +1,9 @@
-// `npm run perf`, parte 2 (§12.4; RNF-01 a RNF-04, CA1.5): la app real (*build* del modo `e2e`)
-// con el catálogo completo y 500 entradas en Mi lista. Con CPU ×4: primera visita (LCP),
-// reinicio con caché (`app:list-visible`, `search:ready`, LCP y la primera maquetación de CJK y
-// emoji tras calentar las fuentes de reserva) y una sesión que teclea 20
-// nombres y apunta 10 (INP, `ui:feedback`, `capture:palette-to-confirm` y tareas largas). Sin
+// `npm run perf`, parte 2 (§12.4; RNF-01 a RNF-05, CA1.5): la app real (*build* del modo `e2e`)
+// con el catálogo completo y 500 entradas en Mi lista. Con CPU ×4: primera visita (LCP y, con
+// núcleo de arranque, `search:ready` en `boot`), reinicio con caché (`app:list-visible`,
+// `search:ready`, LCP y la primera maquetación de CJK y emoji tras calentar las fuentes de
+// reserva) y una sesión que teclea 20 nombres y apunta 10 (INP, `ui:feedback`,
+// `capture:palette-to-confirm` y tareas largas). Sin
 // estrangular, los mismos 20 nombres: `search:keystroke-to-results` para el presupuesto de
 // escritorio. El Worker de búsqueda no se estrangula (ver `worker-throttling.perf.ts`).
 import { writeFileSync } from 'node:fs';
@@ -138,6 +139,14 @@ function agendaExport(games: readonly { appid: number; title: string }[]): strin
   return stringifyExport(
     createExport({ entries, exportedAt: new Date().toISOString(), appVersion: '0.0.0' }),
   );
+}
+
+/** ¿Trae el catálogo servido núcleo de arranque (`files.boot`, M3)? */
+async function catalogHasBoot(page: Page): Promise<boolean> {
+  const manifest = (await (await page.request.get('/catalog-dev/manifest.json')).json()) as {
+    files: { boot?: unknown };
+  };
+  return manifest.files.boot !== undefined;
 }
 
 async function readCatalog(page: Page): Promise<CoreCatalog> {
@@ -371,11 +380,16 @@ test('parte 2: app real con el catálogo completo y 500 entradas en Mi lista', a
   const throttle = (rate: number) => cdp.send('Emulation.setCPUThrottlingRate', { rate });
 
   try {
-    // 1. Primera visita con ×4: LCP antes de cualquier interacción (el catálogo baja después).
+    // 1. Primera visita con ×4: LCP antes de cualquier interacción (el catálogo baja después) y,
+    //    con núcleo de arranque (M3), `search:ready` en `boot` (RNF-05).
     await throttle(RATE);
     await page.goto('/');
     await waitMeasure(page, 'search:full');
     const firstLcp = await lcp(page);
+    const firstReady = (await measures(page, 'search:ready'))[0] ?? null;
+    const firstStates = await page.evaluate(() => [...(globalThis.__gaSearchTest?.states ?? [])]);
+    const hasBoot = await catalogHasBoot(page);
+    if (hasBoot) expect.soft(firstStates, 'la primera visita pasa por boot').toContain('boot');
 
     // 2. Las 500 entradas, importadas desde Ajustes › Datos (sin estrangular: no se mide).
     await throttle(1);
@@ -441,6 +455,18 @@ test('parte 2: app real con el catálogo completo y 500 entradas en Mi lista', a
 
     const frame = 1000 / hz;
     throttled.add({ metric: 'Primera visita: LCP', value: firstLcp, limit: 2500 });
+    throttled.add({
+      metric: 'Primera visita: búsqueda lista (search:ready)',
+      value: firstReady === null ? null : Math.round(firstReady),
+      ...(hasBoot
+        ? {
+            limit: 1500,
+            note: `estados ${firstStates.join(' → ')} (RNF-05); el Worker va sin estrangular y el catálogo se sirve en local, sin comprimir`,
+          }
+        : {
+            note: `el catálogo servido no trae núcleo de arranque (files.boot): solo informa; estados ${firstStates.join(' → ')}`,
+          }),
+    });
     throttled.add({
       metric: 'Reinicio con caché: Mi lista visible (app:list-visible)',
       value: Math.round(listVisible),

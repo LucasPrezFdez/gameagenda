@@ -44,6 +44,7 @@ Las medidas son las mismas en los tests y en el panel: `performance.measure` y, 
 | `capture:palette-to-confirm` | Apertura de la paleta | Fotograma con la confirmación |
 | `app:list-visible` · `search:ready` · `search:full` | Inicio de la navegación | Mi lista con datos · primer `status` con estado distinto de `none` (`scan`, `boot` o `full`: ya se busca en el catálogo) · estado `full` |
 | `search:index-restored` (M3) | Inicio de la lectura del índice persistido | Índice listo para la primera consulta |
+| `search:boot` (M3) | Inicio de la navegación | `search:ready` cuando llega en `boot`: la primera visita ya busca en el núcleo de arranque (RNF-05; en el panel, «Búsqueda lista en la primera visita», p95 ≤1,5 s) |
 | INP | Inicio de la interacción (`PerformanceObserver` de tipo `event`, agrupado por `interactionId`) | Siguiente pintado |
 
 - **`perf`:** Playwright en Chromium con CPU ×4 (`Emulation.setCPUThrottlingRate` por CDP) y, como umbrales, los presupuestos (ver §3) y los propios de la búsqueda (ver §8.9). Como CDP **no estrangula los Workers dedicados** (medido; ver §8.9), la prueba tiene dos partes:

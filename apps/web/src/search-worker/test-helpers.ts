@@ -86,6 +86,11 @@ export interface PublishOptions {
   readonly sign?: boolean;
   /** Campos más del *manifest* (van firmados). */
   readonly extra?: Readonly<Record<string, unknown>>;
+  /**
+   * Núcleo de arranque (M3): las primeras `n` filas del núcleo o, como texto, el fichero tal cual
+   * (para uno que no se lee). Por defecto, ninguno, como los catálogos de M2.
+   */
+  readonly boot?: number | string;
 }
 
 const bytesOf = (text: string) => new TextEncoder().encode(text).byteLength;
@@ -120,6 +125,11 @@ export async function publish(
   const recentFile = recent === null ? null : await fileOf('recent', 'tsv', recent);
   const aliasFile = await fileOf('aliases', 'tsv', aliasText);
   const detailsFile = await fileOf('details/index', 'json', detailsIndex);
+  const boot =
+    typeof options.boot === 'number'
+      ? serializeCore(rows.slice(0, options.boot), { version, kind: 'boot' })
+      : (options.boot ?? null);
+  const bootFile = boot === null ? null : await fileOf('boot', 'tsv', boot);
   const unsigned: Record<string, unknown> = {
     format: 'gacat',
     v: 1,
@@ -129,12 +139,14 @@ export async function publish(
       core: rows.length,
       aliases: aliases.length,
       ...(recentRows ? { recent: recentRows.length } : {}),
+      ...(typeof options.boot === 'number' ? { boot: Math.min(options.boot, rows.length) } : {}),
     },
     files: {
       core: coreFile,
       aliases: aliasFile,
       ...(recentFile ? { recent: recentFile } : {}),
       details: detailsFile,
+      ...(bootFile ? { boot: bootFile } : {}),
     },
     enrichmentAgeDays: 0,
     minClientVersion: '0.0.0',
@@ -150,6 +162,7 @@ export async function publish(
     [detailsFile.path, detailsIndex],
   ]);
   if (recentFile && recent !== null) files.set(recentFile.path, recent);
+  if (bootFile && boot !== null) files.set(bootFile.path, boot);
   return {
     manifest,
     files,
@@ -244,7 +257,8 @@ export class MemoryCacheStorage {
 /**
  * Servidor de catálogo en memoria para `fetch`. Como el publicador, conserva los ficheros de las
  * versiones anteriores (`drop` quita uno); `offline` simula el modo avión y `missing`, ficheros
- * que dan 404. `bytes` suma los cuerpos servidos.
+ * que dan 404. `corrupt` estropea todos los ficheros y `corrupted`, solo esos. `bytes` suma los
+ * cuerpos servidos.
  */
 export function catalogServer(base: string) {
   let current: Published | null = null;
@@ -253,6 +267,7 @@ export function catalogServer(base: string) {
     offline: false,
     requests: [] as string[],
     corrupt: false,
+    corrupted: new Set<string>(),
     bytes: 0,
     missing: new Set<string>(),
   };
@@ -269,7 +284,7 @@ export function catalogServer(base: string) {
     }
     const text = files.get(path);
     if (text === undefined || state.missing.has(path)) return new Response('', { status: 404 });
-    const body = state.corrupt ? `${text}x` : text;
+    const body = state.corrupt || state.corrupted.has(path) ? `${text}x` : text;
     state.bytes += bytesOf(body);
     return new Response(body);
   }) as typeof fetch;

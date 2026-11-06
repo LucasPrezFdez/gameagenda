@@ -398,3 +398,76 @@ describe('createCatalogStore', () => {
     expect(await store.readCached()).toBeNull();
   });
 });
+
+describe('núcleo de arranque (M3, ADR-009)', () => {
+  const withBoot = () => publish('20261028.1', ROWS, undefined, { boot: 4 });
+
+  it('sin `files.boot` no hay núcleo de arranque ni se pide nada', async () => {
+    const { server, store } = setup();
+    server.serve(await publish('20261028.1'));
+    const manifest = await store.fetchManifest();
+    server.reset();
+    expect(await store.downloadBoot(manifest)).toBeNull();
+    expect(server.state.requests).toEqual([]);
+  });
+
+  it('`download()` no lo pide nunca: es lo que hace la app 0.2.0 con un manifest que lo trae', async () => {
+    const { server, store } = setup();
+    const v1 = await withBoot();
+    server.serve(v1);
+    const texts = await store.download(await store.fetchManifest());
+    expect(texts.core).toBe(v1.texts.core);
+    const boot = v1.manifest.files.boot?.path as string;
+    expect(server.state.requests.some((url) => url.endsWith(boot))).toBe(false);
+  });
+
+  it('baja el núcleo de arranque y los alias, los comprueba y los guarda sin el manifest', async () => {
+    const { server, caches, store } = setup();
+    const v1 = await withBoot();
+    server.serve(v1);
+    const manifest = await store.fetchManifest();
+    server.reset();
+    const boot = await store.downloadBoot(manifest);
+    const { files } = v1.manifest;
+    expect(boot).toEqual({
+      manifest,
+      boot: v1.files.get(files.boot?.path as string),
+      aliases: v1.texts.aliases,
+    });
+    expect(new Set(server.state.requests)).toEqual(
+      new Set([`${BASE}${files.boot?.path}`, `${BASE}${files.aliases.path}`]),
+    );
+    expect(new Set(caches.stores.get('gacat-20261028.1')?.keys())).toEqual(
+      new Set([`${BASE}${files.boot?.path}`, `${BASE}${files.aliases.path}`]),
+    );
+    // Sin el *manifest*, la versión sigue incompleta: no se arranca con ella.
+    expect(await store.readCached()).toBeNull();
+    expect(await store.readCachedSource()).toBeNull();
+
+    // Otra vez (una visita cortada): de la caché. Y `download()` ya no pide los alias.
+    server.reset();
+    expect(await store.downloadBoot(manifest)).toEqual(boot);
+    expect(server.state.requests).toEqual([]);
+    await store.download(manifest);
+    expect(server.state.requests).toEqual(
+      [files.core.path, files.recent?.path, files.details?.path].map((path) => `${BASE}${path}`),
+    );
+    expect(await store.readCached()).not.toBeNull();
+  });
+
+  it('uno que no coincide con su sha256 falla con `integrity` y su ruta, y no se guarda', async () => {
+    const { server, caches, store } = setup();
+    const v1 = await withBoot();
+    server.serve(v1);
+    const manifest = await store.fetchManifest();
+    const path = v1.manifest.files.boot?.path as string;
+    server.state.corrupted.add(path);
+    const failure = await store.downloadBoot(manifest).catch((e: unknown) => e);
+    expect(failure).toBeInstanceOf(CatalogLoadError);
+    expect(failure).toMatchObject({ code: 'integrity', path });
+    // Los alias, que sí valen, quedan para `download()`.
+    expect([...(caches.stores.get('gacat-20261028.1')?.keys() ?? [])]).toEqual([
+      `${BASE}${v1.manifest.files.aliases.path}`,
+    ]);
+  });
+});

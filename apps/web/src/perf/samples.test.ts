@@ -60,6 +60,9 @@ describe('muestras del panel de rendimiento', () => {
     expect(byMetric['search:full']).toMatchObject({ n: 1, budget: null, passes: null });
     expect(byMetric.inp).toMatchObject({ n: 0, p50: null, passes: null });
     expect(BUDGETS.inp).toEqual({ stat: 'p75', limit: 200 });
+    // RNF-04 (reinicio) y RNF-05 (primera visita, con el núcleo de arranque; M3).
+    expect(BUDGETS['search:ready']).toEqual({ stat: 'p95', limit: 2000 });
+    expect(BUDGETS['search:boot']).toEqual({ stat: 'p95', limit: 1500 });
   });
 
   it('suma lo guardado y lo de esta sesión, y lee con cuidado lo guardado', () => {
