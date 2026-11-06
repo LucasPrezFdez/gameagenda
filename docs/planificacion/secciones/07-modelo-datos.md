@@ -199,19 +199,21 @@ IndexedDB guarda `meta.catalog` (`{version, checkedAt}`: la versión cuyo *manif
 
 ### 7.7 Esquema de D1 (M4)
 
-D1 en la jurisdicción UE; cada `*_hash` (tokens y código de recuperación) es el SHA-256 de un secreto aleatorio de ≥128 bits.
+D1 en la jurisdicción UE; cada `*_hash` (tokens y código de recuperación) es el SHA-256 de un secreto aleatorio de ≥128 bits. El esquema vigente es `apps/web/worker/migrations/0001_inicial.sql`; respecto al primer borrador, lleva `created_at`, `label` y `last_seen_at` para la lista de dispositivos, `recovery_hash` único e índices para las cascadas, y no tiene `revoked_at` ni `used_at`: revocar y canjear borran la fila (ADR-011).
 
 ```sql
 CREATE TABLE agenda (id TEXT PRIMARY KEY, seq INTEGER NOT NULL DEFAULT 0,
-  purged_seq INTEGER NOT NULL DEFAULT 0, recovery_hash TEXT NOT NULL,
+  purged_seq INTEGER NOT NULL DEFAULT 0, recovery_hash TEXT NOT NULL UNIQUE,
+  created_at TEXT NOT NULL,
   last_sync_at TEXT NOT NULL) STRICT;  -- en cada sync; retención (§11.2)
 CREATE TABLE device (id TEXT PRIMARY KEY,
   agenda_id TEXT NOT NULL REFERENCES agenda (id) ON DELETE CASCADE,
   kind TEXT NOT NULL CHECK (kind IN ('app', 'inbox')), -- inbox: Atajo de iOS
-  token_hash TEXT NOT NULL UNIQUE, revoked_at TEXT) STRICT;
-CREATE TABLE pairing_token (token_hash TEXT PRIMARY KEY,  -- un uso, 10 min
+  label TEXT NOT NULL, token_hash TEXT NOT NULL UNIQUE,
+  created_at TEXT NOT NULL, last_seen_at TEXT NOT NULL) STRICT;
+CREATE TABLE pairing_token (token_hash TEXT PRIMARY KEY, -- canjearlo lo borra
   agenda_id TEXT NOT NULL REFERENCES agenda (id) ON DELETE CASCADE,
-  expires_at TEXT NOT NULL, used_at TEXT) STRICT;
+  expires_at TEXT NOT NULL) STRICT;                    -- 10 min
 CREATE TABLE op (                         -- operación ganadora por campo
   agenda_id TEXT NOT NULL REFERENCES agenda (id) ON DELETE CASCADE,
   entry_id TEXT NOT NULL CHECK ((entry_id GLOB 'steam:[1-9]*' AND
@@ -221,7 +223,9 @@ CREATE TABLE op (                         -- operación ganadora por campo
   PRIMARY KEY (agenda_id, entry_id, field)) STRICT, WITHOUT ROWID;
 CREATE INDEX op_by_seq ON op (agenda_id, seq);
 CREATE TABLE inbox_item (id TEXT PRIMARY KEY, url TEXT NOT NULL,  -- buzón
-  agenda_id TEXT NOT NULL REFERENCES agenda (id) ON DELETE CASCADE) STRICT;
+  agenda_id TEXT NOT NULL REFERENCES agenda (id) ON DELETE CASCADE,
+  created_at TEXT NOT NULL) STRICT;
+-- Y un índice por agenda_id en device, pairing_token e inbox_item.
 CREATE TABLE resolve_cache (appid INTEGER PRIMARY KEY,  -- datos públicos
   name TEXT NOT NULL, fetched_at TEXT NOT NULL) STRICT;
 ```

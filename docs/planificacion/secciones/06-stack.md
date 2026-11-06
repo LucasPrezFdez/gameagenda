@@ -17,8 +17,8 @@ Versiones exactas comprobadas en el registro de npm el 28-10-2026 (Biome y `wran
 | Búsqueda | Índice propio + `@leeoniya/ufuzzy` | — / 1.0.19 | p95 de 2,1 ms por pulsación en Edge con el núcleo real (8,7 ms con CPU ×4; ver §8.11); uFuzzy solo para «¿Quizás buscabas…?» (ver §8) | Fuse.js, FlexSearch, Orama, MiniSearch |
 | Contratos | Zod | 4.6.7 | Steam, micro-API e importación | — |
 | Ids | `uuid` (v7) | 14.0.3 | `manual:<uuidv7>` y `opId` ordenables por tiempo | UUID v4 |
-| Hosting | Cloudflare Workers Static Assets, `wrangler`, `@cloudflare/workers-types` | — / 4.155.0 / 5.20261028.1 | *Assets* gratuitos e ilimitados (ver §5.4) | Vercel Hobby, Netlify Free |
-| Micro-API (M4) | Hono + D1 en la UE | 4.13.14 / — | Mínima y hecha para Workers; se prueba con `app.request()` | Prisma, Drizzle |
+| Hosting | Cloudflare Workers Static Assets, `wrangler` | — / 4.155.0 | *Assets* gratuitos e ilimitados (ver §5.4) | Vercel Hobby, Netlify Free |
+| Micro-API (M4) | Hono + D1 en la UE | 4.13.16 / — | Mínima y hecha para Workers, sin dependencias; se prueba con `app.request()` y D1 sobre `node:sqlite`. Los tipos del entorno de Workers que usa van escritos a mano, sin `@cloudflare/workers-types` (ADR-011) | Prisma, Drizzle |
 | Login con Steam (Fase 2) | `steam-signin` | 1.0.5 | OpenID 2.0 verificado en el servidor (ver §10) | `passport-steam` |
 | Lint y formato | Biome | 2.6.4 | Una sola herramienta, sin la API de TS | ESLint con tipos |
 | Pruebas | Vitest, fast-check, `@playwright/test` | 5.0.5 / 4.10.2 / 1.64.1 | Nativo de Vite; propiedades de `merge()`; CPU ×4 y WebKit en Windows (ver §12) | `@cloudflare/vitest-pool-workers` |
@@ -54,7 +54,7 @@ Rangos de `peerDependencies` y `engines` en npm (28-10-2026):
 
 - `vite-plugin-pwa` 2.0.0 admite Vite 8 y exige `workbox-build` y `workbox-window` ^7.4.1: los dos se fijan en 7.4.1.
 - `@vitejs/plugin-react` 6.1.2 exige Vite ^8.0.0; Vitest 5.0.5 admite Vite ^6.4, ^7 y ^8.
-- Vite 8.3.5 pide Node ^20.19 o ≥22.12, y `wrangler` 4.155.0, Node ≥22 y `@cloudflare/workers-types` ≥5.20261023.1.
+- Vite 8.3.5 pide Node ^20.19 o ≥22.12, y `wrangler` 4.155.0, Node ≥22.
 - `@tanstack/react-virtual` 3.14.23 admite React 19.
 - `@axe-core/playwright` 4.14.0 pide `playwright-core` ≥1.0.0 y trae `axe-core` ~4.14.0; `@types/react-dom` 19.3.0 pide `@types/react` ^19.3.0; `fake-indexeddb` 6.2.6, Node ≥18.
 - TypeScript 7.0 no tiene API de compilador hasta la 7.1. Biome, Vite y Vitest no la usan; si otra herramienta la pidiera, solo ella usaría 6.0.3. Hasta M1, ninguna la ha pedido.

@@ -27,7 +27,7 @@ Este registro recoge las decisiones de arquitectura de GameAgenda, en español y
 | 008 | Portadas desde el CDN de Valve y aviso de privacidad | M2 | aceptada (05-11-2026) | [008-portadas.md](008-portadas.md) |
 | 009 | Arranque rápido: índice persistido y núcleo de arranque | M3 | aceptada (06-11-2026) | [009-arranque-rapido.md](009-arranque-rapido.md) |
 | 010 | App de escritorio: envoltorio Tauri de `ga-web` con atajo global | M3 | aceptada (02-11-2026, con CA3.7 y CA3.8) | [010-app-de-escritorio.md](010-app-de-escritorio.md) |
-| 011 | Sincronización: micro-API, D1 en la UE y emparejamiento | M4 | pendiente | — |
+| 011 | Sincronización: micro-API, D1 en la UE y emparejamiento | M4 | propuesta | [011-sincronizacion.md](011-sincronizacion.md) |
 | 012 | Cuenta de Steam con OpenID 2.0 | Fase 2 | pendiente | — |
 
 Si M4 se adelanta a M3 (PA-01), la sincronización pasa a ser el ADR-009, y M3 se queda con los ADR-010 y 011 (§15.1).

@@ -453,3 +453,17 @@ Resueltos a partir de las mediciones y de los conflictos detectados entre seccio
         - `sidebar.spec.ts`: contadores, vista abierta, conservar la compra, «Jugando ahora» abre la ficha y las pestañas vuelven al encoger;
         - los E2E que pulsaban las pestañas usan `viewControl`: en el PC, el enlace de la barra; en el móvil, la pestaña;
         - `check` (945), los E2E (181) y `perf` entero en verde con la CPU al 5 %: 0 tareas largas, INP de 40 ms y `scan` en 1 802 ms.
+
+34. **Micro-API de M4, la base (06-11-2026, en la rama `m4-sincronizacion`; cambia §5.2, §6, §7.7, §11.4 y R-10):** lo que el plan no decía. Lo recoge el ADR-011 («propuesta»).
+    - **Rama:** M4 va en `m4-sincronizacion` hasta que exista la base de D1 en Cloudflare y el *token* de `deploy-web` tenga permiso de D1. Con el *binding* de D1 en `wrangler.jsonc` de `main`, cada despliegue fallaría hasta entonces.
+    - **Encaminamiento:** `main: ./worker/index.ts` y `run_worker_first: ["/api/*"]`. Lo que llegue al *script* fuera de `/api/*` vuelve a los *assets* con `env.ASSETS.fetch()`. La variable `SYNC_ENABLED` vale `"0"`, y con ella toda `/api/*` responde 503 hasta publicar los textos legales (CA4.7).
+    - **Contrato en `core`:** `@gameagenda/core/api`, con los esquemas Zod de peticiones (estrictos) y respuestas (abiertos), los códigos de error y el formato de los códigos.
+    - **Tipos del entorno escritos a mano** (`apps/web/worker/env.ts`), sin `@cloudflare/workers-types`: son seis métodos de D1, `ratelimits` y `ASSETS`, y así la D1 de las pruebas, sobre `node:sqlite`, implementa la misma interfaz. Hono pasa a la 4.13.16 (parche).
+    - **Cookie indicio `__Host-ga_sync=1`,** sin secreto y legible por la app, junto a la credencial `HttpOnly`: con IndexedDB borrada, la app sabe que sigue emparejada sin preguntar al servidor en cada arranque (CA4.3).
+    - **Códigos:** 28 símbolos de Crockford (140 bits), en 7 grupos de 4. El emparejamiento se canjea con `DELETE … RETURNING`. Usado, caducado e inventado dan la misma respuesta.
+    - **Recuperación:** el código sigue valiendo tras canjearlo. Ruta nueva, `POST /api/v1/recovery`, para crear otro y anular el anterior.
+    - **Revocar y canjear borran la fila:** el esquema pierde `revoked_at` y `used_at`, y gana `label`, `created_at` y `last_seen_at` en `device`, `created_at` en `agenda` e `inbox_item`, `recovery_hash` único e índices para las cascadas.
+    - **Edad:** el cliente manda la `minAge` que pidió declarar, y si no coincide con la variable `MIN_AGE` (14), el servidor responde 409. El proyecto de ley que la sube a 16 seguía en el Congreso el 06-11-2026 (R-10).
+    - **Límites:** `RL_AGENDA`, 5 por minuto, y `RL_REDEEM`, 10 por minuto, por el SHA-256 de la IP.
+    - **Pruebas:** 32 de la micro-API con `app.request()` y 4 de los códigos de `core`. También `wrangler dev` con `workerd` y D1 locales: `STRICT`, `WITHOUT ROWID` y `RETURNING` funcionan, el *fallback* de la SPA sigue igual y el límite real da 429 en la quinta alta del minuto.
+    - **Sin verificar hasta desplegar:** si el plan gratuito admite la jurisdicción UE de D1 y el *binding* `ratelimits`; la documentación no lo dice.

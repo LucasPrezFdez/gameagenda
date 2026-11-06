@@ -508,15 +508,16 @@ Las flechas discontinuas llegan en M4; la Fase 2 no aparece. El navegador solo h
 
 **El Worker de búsqueda no importa Dexie.** Dexie 4.4.7 ocupa ≈27 KB brotli (medido el 28-10-2026), dos tercios del presupuesto de 40 KB del Worker (ver §6.2). El Worker lee y escribe sus claves de `meta` (versión del catálogo y, desde M3, el índice persistido; ver §7) con IndexedDB nativo: abre la misma base cuando Dexie ya la ha creado, sin pedir versión, y cierra la conexión ante `versionchange` para no bloquear sus migraciones. La interfaz conoce la versión por el mensaje `status` (ver §8.7).
 
-**Rutas de la micro-API (M4).** Zod en cada entrada y las reglas de petición de la §11.4 (nada cambia por GET); «cookie» es la credencial de dispositivo `__Host-`. Las rutas de la cuenta de Steam (Fase 2) están en la §10.
+**Rutas de la micro-API (M4).** Zod en cada entrada y las reglas de petición de la §11.4 (nada cambia por GET); «cookie» es la credencial de dispositivo `__Host-`. El contrato (esquemas de petición y respuesta, y códigos de error) está en `@gameagenda/core/api`, y el código, en `apps/web/worker/` (ADR-011). Mientras la variable `SYNC_ENABLED` no valga `1`, toda `/api/*` responde 503. Las rutas de la cuenta de Steam (Fase 2) están en la §10.
 
 | Ruta | Para qué | Credencial | Límite |
 |---|---|---|---|
 | `POST /api/v1/agenda` | Al activar la sincronización: crea la agenda, pone la cookie y devuelve el código de recuperación (se muestra una vez) | Ninguna | Por IP |
 | `POST /api/v1/pairing` | Genera un *token* de emparejamiento (un uso, 10 min) | Cookie | — |
 | `POST /api/v1/pairing/redeem` | Lo canjea desde la app nueva y pone la cookie | *Token* en el cuerpo | Por IP |
-| `POST /api/v1/recovery/redeem` | Canjea el código de recuperación y pone la cookie | Código en el cuerpo | Por IP |
-| `GET /api/v1/devices` · `POST /api/v1/devices/<id>/revoke` | Lista y revoca dispositivos, incluido el *token* del buzón | Cookie | — |
+| `POST /api/v1/recovery/redeem` | Canjea el código de recuperación y pone la cookie; el código sigue valiendo | Código en el cuerpo | Por IP |
+| `POST /api/v1/recovery` | Crea otro código de recuperación y anula el anterior (ADR-011) | Cookie | — |
+| `GET /api/v1/devices` · `POST /api/v1/devices/<id>/revoke` | Lista y revoca dispositivos, incluido el *token* del buzón; revocar borra la fila | Cookie | — |
 | `POST /api/v1/inbox/token` | Crea el *token* del buzón para el Atajo de iOS (se muestra una vez) | Cookie | — |
 | `POST /api/v1/inbox` | Deja un enlace de la tienda en el buzón | `Authorization` | Por *token* |
 | `POST /api/v1/sync` | Sube `outbox` y baja cambios (ver §7.7) | Cookie | — |
@@ -740,8 +741,8 @@ Versiones exactas comprobadas en el registro de npm el 28-10-2026 (Biome y `wran
 | Búsqueda | Índice propio + `@leeoniya/ufuzzy` | — / 1.0.19 | p95 de 2,1 ms por pulsación en Edge con el núcleo real (8,7 ms con CPU ×4; ver §8.11); uFuzzy solo para «¿Quizás buscabas…?» (ver §8) | Fuse.js, FlexSearch, Orama, MiniSearch |
 | Contratos | Zod | 4.6.7 | Steam, micro-API e importación | — |
 | Ids | `uuid` (v7) | 14.0.3 | `manual:<uuidv7>` y `opId` ordenables por tiempo | UUID v4 |
-| Hosting | Cloudflare Workers Static Assets, `wrangler`, `@cloudflare/workers-types` | — / 4.155.0 / 5.20261028.1 | *Assets* gratuitos e ilimitados (ver §5.4) | Vercel Hobby, Netlify Free |
-| Micro-API (M4) | Hono + D1 en la UE | 4.13.14 / — | Mínima y hecha para Workers; se prueba con `app.request()` | Prisma, Drizzle |
+| Hosting | Cloudflare Workers Static Assets, `wrangler` | — / 4.155.0 | *Assets* gratuitos e ilimitados (ver §5.4) | Vercel Hobby, Netlify Free |
+| Micro-API (M4) | Hono + D1 en la UE | 4.13.16 / — | Mínima y hecha para Workers, sin dependencias; se prueba con `app.request()` y D1 sobre `node:sqlite`. Los tipos del entorno de Workers que usa van escritos a mano, sin `@cloudflare/workers-types` (ADR-011) | Prisma, Drizzle |
 | Login con Steam (Fase 2) | `steam-signin` | 1.0.5 | OpenID 2.0 verificado en el servidor (ver §10) | `passport-steam` |
 | Lint y formato | Biome | 2.6.4 | Una sola herramienta, sin la API de TS | ESLint con tipos |
 | Pruebas | Vitest, fast-check, `@playwright/test` | 5.0.5 / 4.10.2 / 1.64.1 | Nativo de Vite; propiedades de `merge()`; CPU ×4 y WebKit en Windows (ver §12) | `@cloudflare/vitest-pool-workers` |
@@ -777,7 +778,7 @@ Rangos de `peerDependencies` y `engines` en npm (28-10-2026):
 
 - `vite-plugin-pwa` 2.0.0 admite Vite 8 y exige `workbox-build` y `workbox-window` ^7.4.1: los dos se fijan en 7.4.1.
 - `@vitejs/plugin-react` 6.1.2 exige Vite ^8.0.0; Vitest 5.0.5 admite Vite ^6.4, ^7 y ^8.
-- Vite 8.3.5 pide Node ^20.19 o ≥22.12, y `wrangler` 4.155.0, Node ≥22 y `@cloudflare/workers-types` ≥5.20261023.1.
+- Vite 8.3.5 pide Node ^20.19 o ≥22.12, y `wrangler` 4.155.0, Node ≥22.
 - `@tanstack/react-virtual` 3.14.23 admite React 19.
 - `@axe-core/playwright` 4.14.0 pide `playwright-core` ≥1.0.0 y trae `axe-core` ~4.14.0; `@types/react-dom` 19.3.0 pide `@types/react` ^19.3.0; `fake-indexeddb` 6.2.6, Node ≥18.
 - TypeScript 7.0 no tiene API de compilador hasta la 7.1. Biome, Vite y Vitest no la usan; si otra herramienta la pidiera, solo ella usaría 6.0.3. Hasta M1, ninguna la ha pedido.
@@ -1012,19 +1013,21 @@ IndexedDB guarda `meta.catalog` (`{version, checkedAt}`: la versión cuyo *manif
 
 ### 7.7 Esquema de D1 (M4)
 
-D1 en la jurisdicción UE; cada `*_hash` (tokens y código de recuperación) es el SHA-256 de un secreto aleatorio de ≥128 bits.
+D1 en la jurisdicción UE; cada `*_hash` (tokens y código de recuperación) es el SHA-256 de un secreto aleatorio de ≥128 bits. El esquema vigente es `apps/web/worker/migrations/0001_inicial.sql`; respecto al primer borrador, lleva `created_at`, `label` y `last_seen_at` para la lista de dispositivos, `recovery_hash` único e índices para las cascadas, y no tiene `revoked_at` ni `used_at`: revocar y canjear borran la fila (ADR-011).
 
 ```sql
 CREATE TABLE agenda (id TEXT PRIMARY KEY, seq INTEGER NOT NULL DEFAULT 0,
-  purged_seq INTEGER NOT NULL DEFAULT 0, recovery_hash TEXT NOT NULL,
+  purged_seq INTEGER NOT NULL DEFAULT 0, recovery_hash TEXT NOT NULL UNIQUE,
+  created_at TEXT NOT NULL,
   last_sync_at TEXT NOT NULL) STRICT;  -- en cada sync; retención (§11.2)
 CREATE TABLE device (id TEXT PRIMARY KEY,
   agenda_id TEXT NOT NULL REFERENCES agenda (id) ON DELETE CASCADE,
   kind TEXT NOT NULL CHECK (kind IN ('app', 'inbox')), -- inbox: Atajo de iOS
-  token_hash TEXT NOT NULL UNIQUE, revoked_at TEXT) STRICT;
-CREATE TABLE pairing_token (token_hash TEXT PRIMARY KEY,  -- un uso, 10 min
+  label TEXT NOT NULL, token_hash TEXT NOT NULL UNIQUE,
+  created_at TEXT NOT NULL, last_seen_at TEXT NOT NULL) STRICT;
+CREATE TABLE pairing_token (token_hash TEXT PRIMARY KEY, -- canjearlo lo borra
   agenda_id TEXT NOT NULL REFERENCES agenda (id) ON DELETE CASCADE,
-  expires_at TEXT NOT NULL, used_at TEXT) STRICT;
+  expires_at TEXT NOT NULL) STRICT;                    -- 10 min
 CREATE TABLE op (                         -- operación ganadora por campo
   agenda_id TEXT NOT NULL REFERENCES agenda (id) ON DELETE CASCADE,
   entry_id TEXT NOT NULL CHECK ((entry_id GLOB 'steam:[1-9]*' AND
@@ -1034,7 +1037,9 @@ CREATE TABLE op (                         -- operación ganadora por campo
   PRIMARY KEY (agenda_id, entry_id, field)) STRICT, WITHOUT ROWID;
 CREATE INDEX op_by_seq ON op (agenda_id, seq);
 CREATE TABLE inbox_item (id TEXT PRIMARY KEY, url TEXT NOT NULL,  -- buzón
-  agenda_id TEXT NOT NULL REFERENCES agenda (id) ON DELETE CASCADE) STRICT;
+  agenda_id TEXT NOT NULL REFERENCES agenda (id) ON DELETE CASCADE,
+  created_at TEXT NOT NULL) STRICT;
+-- Y un índice por agenda_id en device, pairing_token e inbox_item.
 CREATE TABLE resolve_cache (appid INTEGER PRIMARY KEY,  -- datos públicos
   name TEXT NOT NULL, fetched_at TEXT NOT NULL) STRICT;
 ```
@@ -1781,11 +1786,11 @@ Fuentes: <https://www.aepd.es/guias/guia-cookies.pdf> · <https://www.boe.es/bus
 
 ### 11.4 Micro-API y emparejamiento (M4)
 
-- **Credencial de dispositivo:** cookie `__Host-` `HttpOnly` `Secure` `SameSite=Lax` con 256 bits aleatorios; el servidor guarda solo su SHA-256. Ni el JavaScript ni un XSS la leen, y no le afecta la purga de 7 días de WebKit sobre lo que escriben los *scripts* (prueba en un iPhone real, ver §15). Chrome limita las cookies a 400 días: se renueva al sincronizar, como mucho una vez al día. En Ajustes se ven y se revocan los dispositivos.
-- **Emparejar:** *token* de un solo uso, ≥128 bits y 10 min, en QR y como texto. Se canjea con un POST desde dentro de la app, nunca con un GET (una vista previa de enlaces lo gastaría); si va en una URL, en el fragmento (`#`), que no llega al servidor. Solo se guarda su *hash*, como el del código de recuperación (128 bits, se muestra una vez).
+- **Credencial de dispositivo:** cookie `__Host-` `HttpOnly` `Secure` `SameSite=Lax` con 256 bits aleatorios; el servidor guarda solo su SHA-256. Ni el JavaScript ni un XSS la leen, y no le afecta la purga de 7 días de WebKit sobre lo que escriben los *scripts* (prueba en un iPhone real, ver §15). Chrome limita las cookies a 400 días: se renueva al sincronizar, como mucho una vez al día. En Ajustes se ven y se revocan los dispositivos; revocar borra la fila, y revocarse a uno mismo es desemparejar. Va con un indicio sin secreto, `__Host-ga_sync=1`, que la app sí lee: si se borra solo IndexedDB, sabe que sigue emparejada y restaura la agenda sin preguntar al servidor en cada arranque (CA4.3). Las dos se crean y se borran juntas (ADR-011).
+- **Emparejar:** *token* de un solo uso, ≥128 bits y 10 min, en QR y como texto. Se canjea con un POST desde dentro de la app, nunca con un GET (una vista previa de enlaces lo gastaría); si va en una URL, en el fragmento (`#`), que no llega al servidor. Solo se guarda su *hash*, como el del código de recuperación (se muestra una vez). Los dos son 28 símbolos de la base32 de Crockford (140 bits) en grupos de 4, sin I, L, O ni U. El canje es un `DELETE … RETURNING`, así que solo lo usa uno, y usado, caducado o inventado dan la misma respuesta. El código de recuperación sigue valiendo tras canjearlo; `POST /api/v1/recovery` crea otro y anula el anterior. Un dispositivo ya emparejado no crea agenda ni canjea códigos.
 - **Buzón:** *token* de solo escritura y revocable en la cabecera `Authorization`, nunca en la URL; solo acepta enlaces de la tienda de Steam.
 - **Peticiones:** nada cambia por GET; el resto exige `Content-Type: application/json` y `Origin` propio, salvo el buzón: el Atajo de iOS no envía `Origin` (a verificar en M4), así que esa ruta no lo comprueba ni acepta la cookie, solo su *token*. Zod rechaza campos desconocidos, cada ruta tiene tamaño máximo y no se aceptan HLC más de 5 min por delante del servidor: cada respuesta de `sync` trae la hora del servidor, con la que el cliente corrige su desfase y vuelve a sellar lo rechazado (ver §7.4). `Cache-Control: no-store` y registros sin cuerpos ni *tokens*. Solo se llama a `api.steampowered.com` (en Fase 2, también a `steamcommunity.com`): nunca es un *proxy* abierto.
-- **Rate limiting** en las rutas sin autenticar (crear agenda, canjear emparejamiento o código, `resolve`; en Fase 2, las de Steam) y por *token* en el buzón, con el *binding* `ratelimits` (10 o 60 s; contadores aproximados por ubicación; plan gratuito a verificar en M4). Adivinar ≥128 bits es inviable: el límite protege la cuota gratuita de 100 000 peticiones/día, y si se agota, buscar y apuntar siguen funcionando (ver §5).
+- **Rate limiting** en las rutas sin autenticar (crear agenda, canjear emparejamiento o código, `resolve`; en Fase 2, las de Steam) y por *token* en el buzón, con el *binding* `ratelimits` (10 o 60 s; contadores aproximados por ubicación; plan gratuito a verificar al desplegar: la documentación no lo dice). Crear agenda, 5 por minuto, y canjear un código, 10 por minuto; al *binding* le llega el SHA-256 de la IP, no la IP (ADR-011). Adivinar ≥128 bits es inviable: el límite protege la cuota gratuita de 100 000 peticiones/día, y si se agota, buscar y apuntar siguen funcionando (ver §5).
 
 Fuentes: <https://developers.cloudflare.com/workers/static-assets/headers/> · <https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/>
 
@@ -2192,7 +2197,7 @@ Probabilidad (P) e impacto (I) en tres niveles: B = bajo, M = medio, A = alto. S
 | R-07 | El *ranking* no acierta (siglas, romanos, nombres en español, CJK, «próximamente» sin reseñas) | M | M | Niveles y alias de la §8; conjuntos dorados en CI; consultas de humo como puerta de publicación; alta manual siempre disponible y Deshacer | Un conjunto dorado baja de su umbral; Deshacer frecuente justo tras apuntar |
 | R-08 | Cloudflare cambia el plan gratuito (hoy: *assets* estáticos gratis e ilimitados; Workers con 100 000 peticiones/día y 10 ms de CPU) | B | M | El camino crítico son ficheros estáticos que sirve cualquier *hosting* con cabeceras propias; micro-API pequeña y portable (Hono corre en Node); sin caché de Workers sobre los *assets* | Cambio de condiciones; 429 en `/api/*` o CPU cerca de 10 ms |
 | R-09 | Los términos de la Web API (2010) no hablan de uso comercial y licencian los datos para el uso personal de los usuarios | B | A | Prototipo personal y gratuito; sin marcas de Valve en nombre ni icono; aviso de marca; consultar a Valve antes de monetizar (ver §18); catálogo independiente de la fuente (IGDB en Fase 2) | Decisión de monetizar; contacto de Valve |
-| R-10 | La edad de consentimiento digital sube de 14 a 16 años: un proyecto de ley orgánica está en el Congreso desde 2025, sin aprobación definitiva conocida a 28-10-2026 (a verificar en M4) | M | B | Declaración de edad configurable al activar la sincronización (M4); ninguna cuenta antes | Aprobación publicada en el BOE |
+| R-10 | La edad de consentimiento digital sube de 14 a 16 años: un proyecto de ley orgánica está en el Congreso desde 2025, sin aprobación definitiva conocida a 28-10-2026; el 06-11-2026 seguía en el Congreso, con enmiendas de ponencia del 24-06-2026 | M | B | Declaración de edad configurable al activar la sincronización (M4); ninguna cuenta antes | Aprobación publicada en el BOE |
 | R-11 | La beta de Achievement Sets (octubre de 2026) cambia qué es el 100 % (logros archivados fuera, conjuntos de DLC aparte) | A | B | Platinado manual en el prototipo; en Fase 2, solo sugerencia que el usuario confirma (ver §10) | Cambios en la beta o en los campos `groups` de la API |
 | R-12 | El alcance crece (DLC, otras plataformas, precios, avisos…) | A | M | Criterios cerrados por hito; lo no listado va a Fase 2; cada cambio de alcance, con su ADR | Un hito se desvía más de un 30 % de su estimación |
 | R-13 | Un solo desarrollador: disponibilidad irregular y pérdida de contexto | A | M | Hitos cortos con valor visible; CI, pipeline y despliegue automáticos; ADR breves; 20 % de colchón en el calendario | Dos semanas sin cerrar ninguna tarea |

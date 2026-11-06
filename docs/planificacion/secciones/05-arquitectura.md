@@ -65,15 +65,16 @@ Las flechas discontinuas llegan en M4; la Fase 2 no aparece. El navegador solo h
 
 **El Worker de búsqueda no importa Dexie.** Dexie 4.4.7 ocupa ≈27 KB brotli (medido el 28-10-2026), dos tercios del presupuesto de 40 KB del Worker (ver §6.2). El Worker lee y escribe sus claves de `meta` (versión del catálogo y, desde M3, el índice persistido; ver §7) con IndexedDB nativo: abre la misma base cuando Dexie ya la ha creado, sin pedir versión, y cierra la conexión ante `versionchange` para no bloquear sus migraciones. La interfaz conoce la versión por el mensaje `status` (ver §8.7).
 
-**Rutas de la micro-API (M4).** Zod en cada entrada y las reglas de petición de la §11.4 (nada cambia por GET); «cookie» es la credencial de dispositivo `__Host-`. Las rutas de la cuenta de Steam (Fase 2) están en la §10.
+**Rutas de la micro-API (M4).** Zod en cada entrada y las reglas de petición de la §11.4 (nada cambia por GET); «cookie» es la credencial de dispositivo `__Host-`. El contrato (esquemas de petición y respuesta, y códigos de error) está en `@gameagenda/core/api`, y el código, en `apps/web/worker/` (ADR-011). Mientras la variable `SYNC_ENABLED` no valga `1`, toda `/api/*` responde 503. Las rutas de la cuenta de Steam (Fase 2) están en la §10.
 
 | Ruta | Para qué | Credencial | Límite |
 |---|---|---|---|
 | `POST /api/v1/agenda` | Al activar la sincronización: crea la agenda, pone la cookie y devuelve el código de recuperación (se muestra una vez) | Ninguna | Por IP |
 | `POST /api/v1/pairing` | Genera un *token* de emparejamiento (un uso, 10 min) | Cookie | — |
 | `POST /api/v1/pairing/redeem` | Lo canjea desde la app nueva y pone la cookie | *Token* en el cuerpo | Por IP |
-| `POST /api/v1/recovery/redeem` | Canjea el código de recuperación y pone la cookie | Código en el cuerpo | Por IP |
-| `GET /api/v1/devices` · `POST /api/v1/devices/<id>/revoke` | Lista y revoca dispositivos, incluido el *token* del buzón | Cookie | — |
+| `POST /api/v1/recovery/redeem` | Canjea el código de recuperación y pone la cookie; el código sigue valiendo | Código en el cuerpo | Por IP |
+| `POST /api/v1/recovery` | Crea otro código de recuperación y anula el anterior (ADR-011) | Cookie | — |
+| `GET /api/v1/devices` · `POST /api/v1/devices/<id>/revoke` | Lista y revoca dispositivos, incluido el *token* del buzón; revocar borra la fila | Cookie | — |
 | `POST /api/v1/inbox/token` | Crea el *token* del buzón para el Atajo de iOS (se muestra una vez) | Cookie | — |
 | `POST /api/v1/inbox` | Deja un enlace de la tienda en el buzón | `Authorization` | Por *token* |
 | `POST /api/v1/sync` | Sube `outbox` y baja cambios (ver §7.7) | Cookie | — |
