@@ -6,6 +6,7 @@ import {
   useLayoutEffect,
   useSyncExternalStore,
 } from 'react';
+import { takePairingLink } from './pairing-link.ts';
 import { parseRoute, type Route } from './routes.ts';
 
 export type NavigationKind = 'initial' | 'push' | 'replace' | 'pop';
@@ -60,6 +61,8 @@ function onPopState(): void {
 
 /** Prepara el historial y escucha `popstate`; devuelve la función que lo para. */
 export function startRouter(): () => void {
+  // `/emparejar#<código>` (M4): el código sale de la URL antes de nada (§11.4).
+  takePairingLink(window.location, history);
   if (typeof (history.state as HistoryState | null)?.idx !== 'number') {
     history.replaceState({ idx: 0 }, '');
   }

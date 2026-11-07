@@ -1,10 +1,10 @@
 // Ajustes (ver §9.1): Apariencia, Contenido (+18), Teclado (solo el atajo `/`), Datos (con la
 // edad del catálogo y «Actualizar catálogo», M2), Privacidad («Cargar portadas» y «Datos de Steam
-// que guardamos», M2), Rendimiento (el panel de la §12.7, M3) y Acerca de (con el aviso de
-// marca, ver §11.1). En escritorio, menú y
-// sección a la vez; en móvil, primero la lista de secciones y después cada una.
+// que guardamos», M2), Sincronización (M4: `SyncPanel.tsx`), Rendimiento (el panel de la §12.7, M3)
+// y Acerca de (con el aviso de marca, ver §11.1). En escritorio, menú y sección a la vez; en móvil,
+// primero la lista de secciones y después cada una.
 import { type JSX, useId, useRef, useState } from 'react';
-import { useCatalogStatus, useServices, useSettings } from '../../app/services.tsx';
+import { useCatalogStatus, useServices, useSettings, useSyncState } from '../../app/services.tsx';
 import { Icon } from '../../components/icons.tsx';
 import { ScreenHeading } from '../../components/ScreenHeading.tsx';
 import { useDetailsCatalog, useDetailsStore } from '../../details/details-context.tsx';
@@ -15,10 +15,25 @@ import { Link } from '../../router/router.tsx';
 import { SETTINGS_SECTIONS, type SettingsSection, settingsPath } from '../../router/routes.ts';
 import type { ThemePreference } from '../../settings/settings-store.ts';
 import { useOpenShortcutHelp } from '../../shortcuts/ShortcutHelp.tsx';
+import { SyncError } from '../../sync/types.ts';
 import { PerformancePanel } from './PerformancePanel.tsx';
+// En el *chunk* de Ajustes, sin Zod. Como *chunk* propio, Rolldown partía el JS inicial en cuatro
+// (React, `es.ts` y el reloj, compartidos con él) y lo subía unos 4 KB con brotli.
+import { SyncPanel } from './SyncPanel.tsx';
 import './settings.css';
 
 const THEMES: readonly ThemePreference[] = ['system', 'light', 'dark'];
+
+/**
+ * Por qué no se ha podido borrar la agenda del servidor: con la sincronización activada, «Borrar
+ * todos mis datos» no borra nada si no puede borrarla también allí (ver `deleteAll`).
+ */
+function deleteServerError(error: unknown): string {
+  const code = error instanceof SyncError ? error.code : null;
+  if (code === 'network') return es.settings.deleteServerOffline;
+  if (code === 'sync_disabled') return es.settings.deleteServerDisabled;
+  return es.settings.deleteServerFailed;
+}
 
 function Appearance() {
   const { settings } = useServices();
@@ -135,9 +150,14 @@ type ImportState =
 const loadDataActions = () => import('../../data/data-actions.ts');
 
 function Data() {
-  const { agenda, settings, notices, search, copyReminder } = useServices();
+  const { agenda, settings, notices, search, copyReminder, sync } = useServices();
+  const syncState = useSyncState();
+  // Emparejada (o restaurando, o con el indicio antes de leer el estado): borra también el servidor.
+  const synced = syncState.status === 'paired' || syncState.status === 'restoring';
+  const unpaired = syncState.status === 'unpaired';
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [word, setWord] = useState('');
   const [importState, setImportState] = useState<ImportState>({ kind: 'idle' });
   const fileRef = useRef<HTMLInputElement>(null);
@@ -192,7 +212,22 @@ function Data() {
 
   async function deleteAll(): Promise<void> {
     setDeleting(true);
+    setDeleteError(null);
     const { showAdult } = settings.getSnapshot();
+    // M4 (CA4.7): primero la agenda del servidor, en cascada, y después lo local. Si no se puede
+    // (sin red, el interruptor apagado, un error), no se borra nada y se dice: con lo local
+    // borrado y la cookie viva, el siguiente arranque restauraría la agenda desde el servidor
+    // (indicio sin estado, CA4.3), y desemparejarse también necesita la red.
+    const withServer = synced;
+    if (withServer) {
+      try {
+        await sync.deleteServerAgenda();
+      } catch (error) {
+        setDeleting(false);
+        setDeleteError(deleteServerError(error));
+        return;
+      }
+    }
     try {
       const { deleteAllData } = await loadDataActions();
       await deleteAllData(services);
@@ -202,7 +237,7 @@ function Data() {
         // vacía la pila
       }
       setImportState({ kind: 'idle' });
-      notices.notify(es.toast.deletedAll);
+      notices.notify(withServer ? es.settings.deletedAllSynced : es.toast.deletedAll);
     } catch (error) {
       failed(error);
     } finally {
@@ -211,6 +246,12 @@ function Data() {
       setWord('');
     }
   }
+
+  const deleteHint = synced
+    ? es.settings.deleteAllHintSynced
+    : unpaired
+      ? es.settings.deleteAllHintUnpaired
+      : es.settings.deleteAllHint;
 
   return (
     <div className="settings__data">
@@ -261,7 +302,7 @@ function Data() {
 
       <div className="settings__danger">
         <p id={`${id}-hint`} className="muted">
-          {es.settings.deleteAllHint}
+          {deleteHint}
         </p>
         {confirming ? (
           <form
@@ -280,19 +321,36 @@ function Data() {
               autoComplete="off"
               autoCapitalize="characters"
               spellCheck={false}
+              aria-describedby={`${id}-hint`}
               onChange={(event) => setWord(event.target.value)}
             />
             <div className="settings__buttons">
-              <button type="button" className="btn" onClick={() => setConfirming(false)}>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => {
+                  setConfirming(false);
+                  setDeleteError(null);
+                }}
+              >
                 {es.settings.cancel}
               </button>
               <button
                 type="submit"
                 className="btn btn--danger"
                 disabled={word.trim() !== es.settings.deleteConfirmWord || deleting}
+                aria-describedby={deleteError !== null ? `${id}-delete-error` : undefined}
               >
                 {deleting ? es.settings.deleting : es.settings.deleteConfirm}
               </button>
+            </div>
+            {/* No se ha borrado nada: es lo único que sale como alerta en Ajustes (§9.6). */}
+            <div role="alert">
+              {deleteError !== null && (
+                <p id={`${id}-delete-error`} className="settings__error">
+                  {deleteError}
+                </p>
+              )}
             </div>
           </form>
         ) : (
@@ -487,6 +545,7 @@ const SECTIONS: Readonly<Record<SettingsSection, () => JSX.Element>> = {
   keyboard: Keyboard,
   data: Data,
   privacy: Privacy,
+  sync: SyncPanel,
   performance: PerformancePanel,
   about: About,
 };

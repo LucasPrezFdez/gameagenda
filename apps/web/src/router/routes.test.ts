@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { gamePath, parseRoute, settingsPath, withSearch } from './routes.ts';
+import {
+  gamePath,
+  PAIR_PATH,
+  pairingCodeFromHash,
+  pairingUrl,
+  parseRoute,
+  SETTINGS_SECTIONS,
+  SETTINGS_SLUGS,
+  settingsPath,
+  withSearch,
+} from './routes.ts';
 
 describe('parseRoute', () => {
   it('reconoce las rutas de la §9.1', () => {
@@ -30,5 +40,57 @@ describe('parseRoute', () => {
     expect(settingsPath('data')).toBe('/ajustes/datos');
     expect(withSearch('/', new URLSearchParams())).toBe('/');
     expect(withSearch('/catalogo', new URLSearchParams({ q: 'hades' }))).toBe('/catalogo?q=hades');
+  });
+});
+
+describe('Ajustes › Sincronización (M4)', () => {
+  it('va entre Privacidad y Rendimiento, como en el wireframe de la §9.3', () => {
+    const i = SETTINGS_SECTIONS.indexOf('sync');
+    expect(SETTINGS_SECTIONS[i - 1]).toBe('privacy');
+    expect(SETTINGS_SECTIONS[i + 1]).toBe('performance');
+    expect(settingsPath('sync')).toBe('/ajustes/sincronizacion');
+    expect(parseRoute('/ajustes/sincronizacion')).toEqual({ name: 'settings', section: 'sync' });
+  });
+
+  it('cada sección tiene su segmento, sin repetir', () => {
+    const slugs = SETTINGS_SECTIONS.map((s) => SETTINGS_SLUGS[s]);
+    expect(new Set(slugs).size).toBe(slugs.length);
+    for (const section of SETTINGS_SECTIONS) {
+      expect(parseRoute(settingsPath(section))).toEqual({ name: 'settings', section });
+    }
+  });
+});
+
+describe('/emparejar (M4; §11.4)', () => {
+  const code = 'GXEN-Q32V-ABCD-EFGH-JKMN-PQRS-TVWX';
+
+  it('reconoce la ruta del enlace del QR, con o sin barra final', () => {
+    expect(parseRoute(PAIR_PATH)).toEqual({ name: 'pair' });
+    expect(parseRoute('/emparejar/')).toEqual({ name: 'pair' });
+    expect(parseRoute('/emparejar/otra')).toEqual({ name: 'notFound' });
+  });
+
+  it('lleva el código en el fragmento, que no llega al servidor', () => {
+    const url = new URL(pairingUrl('https://ga-web.gameagenda.workers.dev', code));
+    expect(url.pathname).toBe(PAIR_PATH);
+    expect(url.search).toBe('');
+    expect(url.hash).toBe(`#${code}`);
+    expect(pairingCodeFromHash(url.hash)).toBe(code);
+  });
+
+  it('saca el código del fragmento tal cual, sin normalizarlo', () => {
+    expect(pairingCodeFromHash(`#${code}`)).toBe(code);
+    expect(pairingCodeFromHash('#gxen q32v')).toBe('gxen q32v');
+    expect(pairingCodeFromHash('#gxen%20q32v')).toBe('gxen q32v');
+    expect(pairingCodeFromHash(code)).toBe(code);
+  });
+
+  it('sin código, con uno roto o demasiado largo, no hay código', () => {
+    expect(pairingCodeFromHash('')).toBeNull();
+    expect(pairingCodeFromHash('#')).toBeNull();
+    expect(pairingCodeFromHash('#   ')).toBeNull();
+    expect(pairingCodeFromHash('#%E0%A4%A')).toBeNull();
+    expect(pairingCodeFromHash(`#${'A'.repeat(65)}`)).toBeNull();
+    expect(pairingCodeFromHash(`#${'A'.repeat(64)}`)).toBe('A'.repeat(64));
   });
 });

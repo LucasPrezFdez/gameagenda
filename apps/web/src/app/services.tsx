@@ -1,5 +1,5 @@
-// Servicios de la app (agenda, búsqueda, ajustes, avisos y aviso de copia), con *hooks* de
-// suscripción.
+// Servicios de la app (agenda, búsqueda, ajustes, avisos, aviso de copia y, desde M4,
+// sincronización), con *hooks* de suscripción.
 import { createContext, type ReactNode, use, useMemo, useSyncExternalStore } from 'react';
 import type { AgendaEntry, AgendaStore } from '../agenda/types.ts';
 import type { CopyReminderState, CopyReminderStore } from '../data/copy-reminder.ts';
@@ -8,6 +8,7 @@ import type { PerfSampler } from '../perf/sampler.ts';
 import type { PerfSamples } from '../perf/samples.ts';
 import type { QueryState, SearchClient, StatusMessage } from '../search-client/index.ts';
 import type { SettingsStore, UiSettings } from '../settings/settings-store.ts';
+import type { SyncService, SyncState } from '../sync/types.ts';
 
 export interface AppServices {
   readonly agenda: AgendaStore;
@@ -17,6 +18,8 @@ export interface AppServices {
   readonly copyReminder: CopyReminderStore;
   /** Muestras del panel de rendimiento (M3). */
   readonly perf?: PerfSampler;
+  /** Sincronización (M4): estado y operaciones de Ajustes › Sincronización (`sync/types.ts`). */
+  readonly sync: SyncService;
 }
 
 const ServicesContext = createContext<AppServices | null>(null);
@@ -56,6 +59,12 @@ export function useSettings(): UiSettings {
 export function useCopyReminder(): CopyReminderState | null {
   const { copyReminder } = useServices();
   return useSyncExternalStore(copyReminder.subscribe, copyReminder.getSnapshot);
+}
+
+/** El estado de la sincronización (M4), para Ajustes › Sincronización. */
+export function useSyncState(): SyncState {
+  const { sync } = useServices();
+  return useSyncExternalStore(sync.subscribe, sync.getSnapshot);
 }
 
 export function useCatalogStatus(): StatusMessage {

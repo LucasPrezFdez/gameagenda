@@ -108,6 +108,7 @@ test('a 320 px (el zoom al 400 %), ninguna pantalla se desplaza en horizontal (1
     ['Teclado y gestos', '/ajustes/teclado'],
     ['Datos', '/ajustes/datos'],
     ['Privacidad', '/ajustes/privacidad'],
+    ['Sincronización', '/ajustes/sincronizacion'],
     ['Rendimiento', '/ajustes/rendimiento'],
     ['Acerca de', '/ajustes/acerca-de'],
     ['404', '/no-existe'],

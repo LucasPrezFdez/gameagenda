@@ -30,8 +30,15 @@ import { Palette, type PaletteActions, type PaletteHandle } from './palette/Pale
 import { PaletteProvider } from './palette/palette-context.tsx';
 import { linkInText } from './palette/palette-model.ts';
 import { endFirstCommit } from './perf/measures.ts';
+import { stashPairingCode } from './router/pairing-link.ts';
 import { Link, navigate, useLocation } from './router/router.tsx';
-import { gamePath, type Route, settingsPath, withSearch } from './router/routes.ts';
+import {
+  gamePath,
+  pairingCodeFromHash,
+  type Route,
+  settingsPath,
+  withSearch,
+} from './router/routes.ts';
 import { GameScreen } from './screens/game/GameScreen.tsx';
 import { parseListParams } from './screens/my-list/list-model.ts';
 import { MyListScreen } from './screens/my-list/MyListScreen.tsx';
@@ -239,6 +246,8 @@ function Screens({ route, wide }: { route: Route; wide: boolean }) {
       {route.name === 'game' && <GameScreen key={route.id} id={route.id} />}
       {route.name === 'catalog' && <CatalogScreen />}
       {route.name === 'settings' && <SettingsScreen section={route.section} />}
+      {/* `/emparejar` (M4) pasa enseguida a Ajustes › Sincronización: la misma pantalla. */}
+      {route.name === 'pair' && <SettingsScreen section="sync" />}
       {route.name === 'notFound' && <NotFoundScreen />}
     </>
   );
@@ -277,6 +286,16 @@ function AppShell() {
   // `/apuntar` abre la paleta sobre Mi lista (acceso directo del *manifest*).
   useEffect(() => {
     if (route.name === 'capture') paletteRef.current?.open(performance.now());
+  }, [route.name]);
+
+  // `/emparejar#<código>` (M4; §11.4). Al cargar la página ya lo resuelve `startRouter()`; esto
+  // cubre una navegación dentro de la app. Antes de pintar: guarda el código para Ajustes ›
+  // Sincronización y cambia la entrada del historial por la de esa sección, sin el fragmento.
+  // Canjearlo es un POST tras pulsar «Emparejar este dispositivo», nunca automático.
+  useLayoutEffect(() => {
+    if (route.name !== 'pair') return;
+    stashPairingCode(pairingCodeFromHash(window.location.hash));
+    navigate(settingsPath('sync'), { replace: true });
   }, [route.name]);
 
   const captureLink = useLinkCapture();
@@ -338,7 +357,8 @@ function AppShell() {
     route.name === 'capture' ||
     route.name === 'share' ||
     route.name === 'game';
-  const group = onList ? 'agenda' : route.name;
+  const inSettings = route.name === 'settings' || route.name === 'pair';
+  const group = onList ? 'agenda' : inSettings ? 'settings' : route.name;
 
   return (
     <PaletteProvider handle={paletteRef}>
@@ -432,7 +452,7 @@ function AppShell() {
                   to={settingsPath(null)}
                   icon="settings"
                   label={es.nav.settings}
-                  current={route.name === 'settings'}
+                  current={inSettings}
                   collapsed={collapsed}
                   onIntent={() => void loadSettings()}
                 />

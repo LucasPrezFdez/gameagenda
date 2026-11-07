@@ -249,6 +249,13 @@ export const es = {
     allEntries: 'Juegos',
     empty:
       'Tu agenda está vacía. Apunta el primer juego que quieras jugar: escribe su nombre y pulsa Intro.',
+    // M4 (CA4.3): con IndexedDB borrada y el dispositivo aún emparejado, la agenda vuelve sola.
+    restoring:
+      'Estamos trayendo tu agenda sincronizada. Tus juegos aparecerán aquí en unos segundos.',
+    restoringOffline:
+      'Tu agenda sincronizada llegará en cuanto haya conexión. Mientras, puedes seguir apuntando.',
+    restoringFailed:
+      'No hemos podido traer tu agenda sincronizada. Lo seguiremos intentando; mientras, puedes seguir apuntando.',
     exploreCatalog: 'Explorar el catálogo',
     noMatches: 'Ningún juego de tu lista cumple estos filtros.',
     clearFilters: 'Quitar los filtros',
@@ -386,6 +393,7 @@ export const es = {
       keyboard: 'Teclado y gestos',
       data: 'Datos',
       privacy: 'Privacidad',
+      sync: 'Sincronización',
       performance: 'Rendimiento',
       about: 'Acerca de',
     } satisfies Record<SettingsSection, string>,
@@ -409,6 +417,19 @@ export const es = {
     exportErrors: 'Exportar registro de errores',
     deleteAll: 'Borrar todos mis datos',
     deleteAllHint: 'Borra tu lista y tus ajustes de este dispositivo. No se puede deshacer.',
+    // M4: con la sincronización activada, también se borra la agenda del servidor (CA4.7).
+    deleteAllHintSynced:
+      'Borra tu lista y tus ajustes de este dispositivo, y tu agenda sincronizada del servidor. Tus otros dispositivos dejarán de sincronizar, pero conservarán su lista. No se puede deshacer.',
+    deleteAllHintUnpaired:
+      'Borra tu lista y tus ajustes de este dispositivo. Como ya no está emparejado, tu agenda sincronizada no se borra: recupérala antes con tu código en Ajustes › Sincronización, o bórrala desde otro dispositivo emparejado. No se puede deshacer.',
+    deleteServerOffline:
+      'No hay conexión y no podemos borrar tu agenda sincronizada, así que no hemos borrado nada. Vuelve a intentarlo cuando tengas conexión.',
+    deleteServerDisabled:
+      'La sincronización no está disponible ahora mismo y no podemos borrar tu agenda sincronizada, así que no hemos borrado nada. Vuelve a intentarlo más tarde.',
+    deleteServerFailed:
+      'No hemos podido borrar tu agenda sincronizada, así que no hemos borrado nada. Vuelve a intentarlo dentro de un rato.',
+    deletedAllSynced:
+      'Hemos borrado todos tus datos de este dispositivo y tu agenda sincronizada del servidor.',
     deleteConfirmLabel: 'Escribe BORRAR para confirmar',
     deleteConfirmWord: 'BORRAR',
     deleteConfirm: 'Borrar todo',
@@ -553,6 +574,176 @@ export const es = {
     importInvalid: 'Este archivo no es una copia válida de GameAgenda. No hemos cambiado nada.',
     retry: 'Reintentar',
     chooseOther: 'Elegir otro',
+  },
+
+  /** Sincronización (M4): el aviso de la §9.6 y el nombre del dispositivo por defecto. */
+  sync: {
+    failed: (count: number) =>
+      count === 0
+        ? 'No hemos podido sincronizar. Lo seguiremos intentando.'
+        : `No hemos podido sincronizar ${plural(count, 'cambio', 'cambios')}. Lo seguiremos intentando.`,
+    retryNow: 'Reintentar ahora',
+    /** «Chrome en Windows». */
+    deviceLabel: (browser: string, system: string) => `${browser} en ${system}`,
+    unknownBrowser: 'Navegador',
+    unknownSystem: 'otro sistema',
+  },
+
+  /** Ajustes › Sincronización (M4; §9.1, §11.2 y §11.4). */
+  syncPanel: {
+    loading: 'Cargando el estado de la sincronización…',
+    // Sin sincronizar. La cookie la crea el gesto de activar o emparejar, y se avisa aquí (§11.2).
+    intro:
+      'Ten la misma agenda en el móvil y en el PC, con una copia fuera de este dispositivo. Se sincroniza sola, también cuando vuelve la conexión.',
+    stored:
+      'Guardamos tu agenda (juegos, estados, marcas, fechas y notas) y el nombre de cada dispositivo en servidores de Cloudflare en la Unión Europea. No pedimos email, nombre ni contraseña.',
+    cookie:
+      'Al activar o emparejar, este dispositivo guarda una cookie que lo identifica ante el servidor. Solo sirve para sincronizar, y se borra al desemparejarlo.',
+    /** Hueco de los textos legales (CA4.7): aquí irá el enlace cuando se publiquen. */
+    legal:
+      'Política de privacidad y condiciones: las publicaremos antes de abrir la sincronización.',
+    deviceName: 'Nombre de este dispositivo',
+    deviceNameHint: 'Así lo reconocerás en la lista de dispositivos.',
+    deviceNameMissing: 'Escribe un nombre para este dispositivo.',
+    /** Nombre por defecto en la app de escritorio (Tauri, ADR-010). */
+    desktopLabel: 'App de escritorio',
+    activateTitle: 'Empezar a sincronizar',
+    age: (age: number) => `Tengo ${age} años o más`,
+    ageMissing: (age: number) =>
+      `Para sincronizar tienes que tener ${age} años o más. Si es tu caso, marca la casilla.`,
+    activate: 'Activar sincronización',
+    activating: 'Activando…',
+    joinTitle: 'Ya sincronizo en otro dispositivo',
+    joinIntro:
+      'En el otro dispositivo, abre Ajustes › Sincronización y pulsa «Emparejar otro dispositivo». Escribe aquí el código que te dé, o tu código de recuperación.',
+    code: 'Código',
+    codeHint: '28 letras y números, con guiones o sin ellos.',
+    codeInvalid:
+      'Este código está incompleto o tiene caracteres que no valen. Revisa que tenga 28 letras y números.',
+    pairThis: 'Emparejar este dispositivo',
+    useRecovery: 'Usar código de recuperación',
+    joining: 'Uniendo este dispositivo a tu agenda…',
+    fromLink:
+      'Has abierto un enlace para emparejar. Pulsa «Emparejar este dispositivo» para unirlo a tu agenda.',
+    fromLinkPaired: 'Este dispositivo ya sincroniza: no necesita el código del enlace.',
+    joined: 'Este dispositivo ya está emparejado. Estamos trayendo tu agenda.',
+
+    // El código de recuperación se muestra una sola vez (§11.4).
+    recoveryTitle: 'Tu código de recuperación',
+    recoveryWhy:
+      'Si borras los datos del navegador o pierdes este dispositivo, con este código recuperas tu agenda en cualquier otro.',
+    recoveryOnce:
+      'Solo lo verás ahora. Guárdalo en un sitio seguro, como un gestor de contraseñas, y no lo compartas.',
+    recoveryCode: 'Código de recuperación',
+    copy: 'Copiar',
+    copied: 'Hemos copiado el código.',
+    copyFailed: 'No hemos podido copiarlo. Selecciona el código y cópialo a mano.',
+    saved: 'Ya lo he guardado',
+
+    // Emparejada: el estado (§9.6) y lo que se puede hacer.
+    statusTitle: 'Estado',
+    restoring: 'Trayendo tu agenda sincronizada…',
+    restoringOffline: 'Sin conexión. Traeremos tu agenda en cuanto vuelva.',
+    syncing: 'Sincronizando…',
+    synced: (ago: string) => `Sincronizado ${ago}.`,
+    justNow: 'hace un momento',
+    /** Para el lector de pantalla, sin cuenta que avance: «a las 18:42», «el 3 nov a las 18:42». */
+    atTime: (time: string) => `a las ${time}`,
+    onDay: (day: string, time: string) => `el ${day} a las ${time}`,
+    never: 'Aún no se ha sincronizado.',
+    offline: 'Sin conexión. Sincronizaremos en cuanto vuelva.',
+    disabled: 'La sincronización no está disponible ahora mismo. Lo intentaremos más tarde.',
+    failed:
+      'No hemos podido sincronizar. Lo seguiremos intentando; si sigue así, pulsa «Sincronizar ahora» dentro de un rato.',
+    failedLater: 'El servidor está muy ocupado. Lo intentaremos de nuevo dentro de un rato.',
+    failedStorage:
+      'No hemos podido leer o guardar en este dispositivo. Recarga la página para seguir sincronizando.',
+    pending: (count: number) =>
+      count === 1
+        ? '1 juego con cambios sin sincronizar.'
+        : `${formatCount(count)} juegos con cambios sin sincronizar.`,
+    syncNow: 'Sincronizar ahora',
+
+    pairTitle: 'Emparejar otro dispositivo',
+    pairIntro:
+      'Abre GameAgenda en el otro dispositivo y ve a Ajustes › Sincronización. Escanea el QR con su cámara, o escribe el código en «Ya sincronizo en otro dispositivo».',
+    pairHome:
+      'En un iPhone o un iPad con GameAgenda en la pantalla de inicio, ábrela desde ahí y escribe el código: la cámara abriría el enlace en Safari, que guarda sus datos aparte.',
+    pairCreate: 'Emparejar otro dispositivo',
+    pairCreating: 'Creando un código…',
+    pairCode: 'Código de emparejamiento',
+    pairQr: 'Código QR para emparejar otro dispositivo',
+    pairExpiresIn: (time: string) => `Caduca en ${time}`,
+    pairValidUntil: (clock: string) => `Sirve una sola vez, hasta las ${clock}.`,
+    pairExpired: 'Este código ha caducado. Pide otro.',
+    pairAnother: 'Otro código',
+    pairHide: 'Ocultar el código',
+    paired: (label: string) => `«${label}» ya está emparejado.`,
+
+    devicesTitle: 'Dispositivos',
+    devicesLoading: 'Cargando los dispositivos…',
+    devicesRetry: 'Volver a cargar',
+    thisDevice: 'Este dispositivo',
+    inbox: 'Atajo de iOS',
+    deviceSince: (date: string) => `Desde el ${date}`,
+    deviceLastSeen: (when: string) => `Última vez: ${when}`,
+    unpair: 'Desemparejar',
+    unpairLabel: (label: string) => `Desemparejar: ${label}`,
+    unpairConfirm: (label: string) =>
+      `¿Desemparejar «${label}»? Dejará de sincronizar, pero conservará su lista.`,
+    unpairInboxConfirm: (label: string) =>
+      `¿Desemparejar «${label}»? El Atajo de iOS dejará de poder apuntar juegos.`,
+    unpaired: (label: string) => `Hemos desemparejado «${label}».`,
+    cancel: 'Cancelar',
+
+    newRecoveryTitle: 'Código de recuperación',
+    newRecoveryIntro:
+      'Si has perdido el tuyo o alguien lo ha visto, crea uno nuevo. El anterior dejará de valer.',
+    newRecovery: 'Código de recuperación nuevo',
+    newRecoveryConfirm: 'El código anterior dejará de valer. ¿Crear uno nuevo?',
+    newRecoveryDo: 'Crear código nuevo',
+
+    leaveTitle: 'Desemparejar este dispositivo',
+    leaveIntro: 'Dejará de sincronizar. Tu agenda se queda en este dispositivo y en los demás.',
+    leave: 'Desemparejar este dispositivo',
+    leaveConfirm: '¿Desemparejar este dispositivo? Podrás volver a emparejarlo con un código.',
+    left: 'Este dispositivo ya no sincroniza. Tu agenda sigue aquí.',
+
+    // Desemparejado (§11.4): por el servidor (401) o porque se borraron las cookies.
+    unpairedTitle: 'Este dispositivo ya no sincroniza',
+    unpairedServer:
+      'Lo han desemparejado desde otro dispositivo, o se ha borrado la agenda sincronizada. Tu agenda sigue en este dispositivo.',
+    unpairedCookies:
+      'Se han borrado las cookies de GameAgenda en este navegador, y con ellas su emparejamiento. Tu agenda sigue en este dispositivo.',
+    unpairedHow:
+      'Para volver a sincronizar, escribe tu código de recuperación o un código de emparejamiento de otro dispositivo.',
+    rejoinTitle: 'Volver a sincronizar',
+    forgetIntro:
+      'Si no vas a volver a sincronizar, quita la sincronización de este dispositivo. Tu agenda se queda.',
+    forget: 'Dejar de sincronizar',
+    forgetConfirm: '¿Dejar de sincronizar en este dispositivo? Tu agenda se queda aquí.',
+
+    errors: {
+      network:
+        'No hemos podido conectar con el servidor. Comprueba tu conexión y vuelve a intentarlo.',
+      rateLimited: 'Demasiados intentos seguidos. Espera un minuto y vuelve a intentarlo.',
+      disabled: 'La sincronización aún no está disponible. Vuelve a intentarlo más adelante.',
+      ageChanged:
+        'Ha cambiado la edad mínima para sincronizar. Recarga la página para ver la declaración nueva.',
+      alreadyPaired:
+        'Este dispositivo ya está emparejado con una agenda. Para unirlo a otra, desemparéjalo antes.',
+      invalidPairing: (minutes: number) =>
+        `Este código no vale: puede que esté mal escrito, que ya se haya usado o que haya caducado (dura ${minutes} minutos). Pide otro en el otro dispositivo.`,
+      invalidRecovery:
+        'Este código de recuperación no vale. Revisa que esté bien escrito; si creaste uno nuevo, el anterior ya no sirve.',
+      unauthorized: 'Este dispositivo ya no está emparejado.',
+      notFound: 'Ese dispositivo ya no estaba emparejado.',
+      storage:
+        'No hemos podido guardar en este dispositivo. Recarga la página y vuelve a intentarlo.',
+      unavailable:
+        'Este navegador no deja guardar datos (quizá es una ventana privada), así que no puede sincronizar.',
+      server: 'Algo ha fallado en el servidor. Vuelve a intentarlo dentro de un rato.',
+    },
   },
 
   errors: {

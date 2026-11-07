@@ -24,6 +24,7 @@ import { catalogIsLoading, hasWorkInProgress } from './pwa/work-in-progress.ts';
 import { startRouter } from './router/router.tsx';
 import { createAppSearchClient } from './search-client/index.ts';
 import { createSettingsStore, parseSettings } from './settings/settings-store.ts';
+import { createSyncService, type SyncController, trackLocalWrites } from './sync/facade.ts';
 import './styles/tokens.css';
 import './styles/base.css';
 import './styles/shell.css';
@@ -109,11 +110,16 @@ async function start(): Promise<void> {
     node: randomNode(secureRandom),
     snapshot: local?.state.clock,
   });
+  // Sincronización (M4): usa este mismo reloj y se entera de cada escritura local en la `outbox`.
+  // No toca la red hasta después de pintar Mi lista, y solo si está emparejada (`sync.start()`).
+  let sync: SyncController | null = null;
   const agenda = createAgenda({
     entries: local?.state.entries,
     clock,
     newId: uuidv7,
-    storage: local ? createDexieAgendaStorage(local.db, uuidv7) : null,
+    storage: local
+      ? trackLocalWrites(createDexieAgendaStorage(local.db, uuidv7), () => sync?.notifyLocalWrite())
+      : null,
     onStorageError,
   });
   if (local) connectErrorLog(createDexieErrorLogStorage(local.db));
@@ -150,7 +156,16 @@ async function start(): Promise<void> {
     : [exportList];
   if (!local) showStorageNotice();
 
-  const services: AppServices = { agenda, search, settings, notices, copyReminder, perf };
+  sync = createSyncService({
+    db: local?.db ?? null,
+    clock,
+    newOpId: uuidv7,
+    notices,
+    copyReminder,
+    onError: (error) => logError('storage', error),
+  });
+
+  const services: AppServices = { agenda, search, settings, notices, copyReminder, perf, sync };
   search.init({ catalogVersion: null, showAdult });
   startCatalogRefresh(search, agenda);
 
@@ -163,6 +178,8 @@ async function start(): Promise<void> {
       </ServicesProvider>
     </StrictMode>,
   );
+  // Tras el primer pintado y en un rato ocioso: lee su estado y, si está emparejada, sincroniza.
+  sync.start();
   // Cuando ya se puede buscar (antes, la paleta no enseña nombres del catálogo) y en ratos
   // ociosos: así no retrasa el primer pintado de Mi lista.
   const stopWarmup = search.subscribeStatus(() => {

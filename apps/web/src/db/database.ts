@@ -12,7 +12,8 @@ export const SCHEMA_V1 = {
   entries: 'id, [view+rank], lastHlc, deletedAt',
   outbox: 'opId, [entryId+field]',
   settings: 'key',
-  meta: 'key', // hlcClock, catalog, searchIndex, syncCursor, backup, errorLog, copyReminder
+  // hlcClock, catalog, searchIndex, syncCursor, syncState, backup, errorLog, copyReminder…
+  meta: 'key',
 } as const;
 
 export interface SettingRow {
@@ -33,6 +34,17 @@ export const META_KEYS = {
   copyReminder: 'copyReminder',
   /** Muestras del panel de rendimiento (Ajustes › Rendimiento, M3). */
   perfSamples: 'perfSamples',
+  /**
+   * Sincronización (M4, §7.7): `{cursor, purgedSeq, reset, maxSeen}`. Lo escribe el motor en la
+   * misma transacción en que aplica cada página (ver `src/sync/state.ts`).
+   */
+  syncCursor: 'syncCursor',
+  /**
+   * Sincronización (M4): el emparejamiento visto desde este navegador, para Ajustes:
+   * `{deviceId, restore, lastSyncAt, lastError, unpairedBy, lastPurgeAt}` (ver `src/sync/state.ts`).
+   * Sin esta clave y sin el indicio `__Host-ga_sync`, la sincronización está apagada.
+   */
+  syncState: 'syncState',
 } as const;
 
 export type GameAgendaDb = Dexie & {

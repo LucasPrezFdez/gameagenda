@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "description": "Lógica pura compartida: normalización, búsqueda, formato del catálogo y reglas de la agenda.",
+  "sideEffects": [
+    "./src/zod-config.ts"
+  ],
   "exports": {
     ".": "./src/index.ts",
     "./normalize": "./src/normalize/index.ts",

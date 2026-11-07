@@ -195,6 +195,252 @@
   }
 }
 
+/* Error de «Borrar todos mis datos» (M4: no se ha borrado nada). */
+.settings__error {
+  color: var(--danger);
+}
+
+/* Ajustes › Sincronización (M4; SyncPanel.tsx). Bloques separados por una línea fina, como Datos. */
+.sync {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+/* Vacía, fuera del flujo pero en el árbol de accesibilidad: así se anuncia lo que llegue. */
+.sync__message:empty {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.sync__block,
+.sync__form,
+.sync__field,
+.sync__codebox,
+.sync__pairing-code {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.sync__block + .sync__block {
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+
+.sync__form {
+  gap: 12px;
+}
+
+.sync__field {
+  gap: 6px;
+  max-width: 26rem;
+}
+
+/* También en los `h4` (el código de emparejamiento y el de recuperación), sin el margen del navegador. */
+.sync__label {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+
+.sync__error {
+  color: var(--danger);
+}
+
+.sync__note {
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+/* Códigos: monoespaciada, grupos que no se parten y un toque los selecciona enteros. */
+.sync__code,
+.sync__code-input {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-variant-ligatures: none;
+}
+
+.sync__code {
+  align-self: flex-start;
+  max-width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: var(--text-xl);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  line-height: 1.5;
+  user-select: all;
+  -webkit-user-select: all;
+}
+
+.sync__code[data-expired] {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.sync__code-group {
+  white-space: nowrap;
+}
+
+.sync__code-input {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.sync__code-input::placeholder {
+  text-transform: none;
+}
+
+/* Estado: el punto solo acompaña al texto, que es el que lo dice (WCAG 1.4.1). */
+.sync__status {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.sync__status[data-tone="problem"] {
+  border-color: var(--danger);
+}
+
+.sync__status-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sync__dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-top: 0.5em;
+  border-radius: 50%;
+  background: var(--playing);
+}
+
+.sync__status[data-tone="busy"] .sync__dot {
+  background: var(--want_to_play);
+}
+
+.sync__status[data-tone="offline"] .sync__dot {
+  background: var(--text-muted);
+}
+
+.sync__status[data-tone="problem"] .sync__dot {
+  background: var(--danger);
+}
+
+/* QR y código de emparejamiento: oscuro sobre claro en los dos temas (las cámaras lo esperan así),
+   con la zona tranquila de 4 módulos dentro del propio SVG. */
+.sync__pairing {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 16px 24px;
+}
+
+.sync__qr-slot {
+  flex: none;
+}
+
+.sync__qr {
+  display: block;
+  width: 216px;
+  max-width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  border-radius: var(--radius-sm);
+}
+
+.sync__qr--empty {
+  background: var(--surface-2);
+}
+
+.sync__qr-light {
+  fill: #ffffff;
+}
+
+.sync__qr-dark {
+  fill: #18181b;
+}
+
+.sync__pairing-code {
+  flex: 1 1 16rem;
+}
+
+/* Dispositivos. */
+.sync__devices {
+  display: flex;
+  flex-direction: column;
+}
+
+.sync__device {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+/* La línea del bloque siguiente ya separa el último. */
+.sync__device:last-child {
+  border-bottom: 0;
+}
+
+.sync__device-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sync__device-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.sync__badge {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: 500;
+}
+
+.sync__confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.sync__device .sync__confirm {
+  flex: 1 1 100%;
+}
+
 /* Panel de rendimiento (M3): la tabla se desplaza sola en una pantalla estrecha, no la página. */
 .settings__perf {
   display: flex;

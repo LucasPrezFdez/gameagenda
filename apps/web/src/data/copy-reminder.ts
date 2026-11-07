@@ -1,7 +1,8 @@
 // Aviso para exportar tras 30 días sin copia (RNF-08, §9.6). Cuenta desde la última exportación
 // (JSON o CSV) o, si nunca se ha exportado, desde que hubo algo en Mi lista; «Ahora no» lo aplaza
-// 7 días. Es de este dispositivo: vive en `meta.copyReminder` y no va en la copia. En M4 contará
-// también la sincronización.
+// 7 días. Es de este dispositivo: vive en `meta.copyReminder` y no va en la copia. Desde M4, una
+// sincronización correcta cuenta como copia (`copied()`, como mucho una vez por hora; ver
+// `sync/runtime.ts`).
 
 const DAY_MS = 86_400_000;
 export const REMIND_AFTER_MS = 30 * DAY_MS;

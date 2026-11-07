@@ -6,6 +6,8 @@ export const SETTINGS_SECTIONS = [
   'keyboard',
   'data',
   'privacy',
+  // M4: entre Privacidad y Rendimiento, como en el *wireframe* de la §9.3.
+  'sync',
   'performance',
   'about',
 ] as const;
@@ -18,9 +20,18 @@ export const SETTINGS_SLUGS: Readonly<Record<SettingsSection, string>> = {
   keyboard: 'teclado',
   data: 'datos',
   privacy: 'privacidad',
+  sync: 'sincronizacion',
   performance: 'rendimiento',
   about: 'acerca-de',
 };
+
+/**
+ * Enlace del QR de emparejamiento (M4; §11.4): `<origen>/emparejar#<código>`. El código va en el
+ * fragmento, que el navegador no manda al servidor, y nunca se canjea con un GET: la app lo quita
+ * de la URL al arrancar y abre Ajustes › Sincronización con el código puesto (ver
+ * `pairing-link.ts`).
+ */
+export const PAIR_PATH = '/emparejar';
 
 export type Route =
   | { readonly name: 'list' }
@@ -30,6 +41,8 @@ export type Route =
   | { readonly name: 'catalog' }
   | { readonly name: 'game'; readonly id: string }
   | { readonly name: 'settings'; readonly section: SettingsSection | null }
+  /** Enlace del QR de emparejamiento (M4): se queda en Ajustes › Sincronización. */
+  | { readonly name: 'pair' }
   | { readonly name: 'notFound' };
 
 const STEAM_ID = /^steam:[1-9][0-9]{0,9}$/;
@@ -54,6 +67,7 @@ export function parseRoute(pathname: string): Route {
   if (path === '/share') return { name: 'share' };
   if (path === '/catalogo') return { name: 'catalog' };
   if (path === '/ajustes') return { name: 'settings', section: null };
+  if (path === PAIR_PATH) return { name: 'pair' };
 
   const game = /^\/juego\/([^/]+)$/.exec(path);
   if (game?.[1] !== undefined) {
@@ -74,6 +88,24 @@ export function gamePath(id: string): string {
 
 export function settingsPath(section: SettingsSection | null): string {
   return section === null ? '/ajustes' : `/ajustes/${SETTINGS_SLUGS[section]}`;
+}
+
+/** `https://ga-web…/emparejar#XXXX-XXXX-…`: lo que lleva el QR de «Emparejar otro dispositivo». */
+export function pairingUrl(origin: string, code: string): string {
+  return `${origin}${PAIR_PATH}#${code}`;
+}
+
+/** Un código pegado con espacios o guiones de más sigue cabiendo (`CODE_INPUT_MAX` de core). */
+const PAIR_FRAGMENT_MAX = 64;
+
+/**
+ * El código del fragmento de `/emparejar#…`, tal cual (lo normaliza `parseCode()` al canjearlo, en
+ * Ajustes), o `null` si no hay. Sin Zod: va en el *chunk* inicial.
+ */
+export function pairingCodeFromHash(hash: string): string | null {
+  const raw = hash.startsWith('#') ? hash.slice(1) : hash;
+  const text = (decode(raw) ?? '').trim();
+  return text === '' || text.length > PAIR_FRAGMENT_MAX ? null : text;
 }
 
 /** Une ruta y parámetros, sin `?` si no quedan parámetros. */

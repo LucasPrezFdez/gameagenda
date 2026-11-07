@@ -18,6 +18,7 @@ import {
   useCopyReminder,
   useServices,
   useSettings,
+  useSyncState,
 } from '../../app/services.tsx';
 import { ChoiceMenu } from '../../components/ChoiceMenu.tsx';
 import { Icon } from '../../components/icons.tsx';
@@ -47,11 +48,32 @@ import {
   PURCHASE_FILTERS,
   parseListParams,
 } from './list-model.ts';
+import { emptyTextOf, SYNCED_EMPTY_TEXTS, syncedEmptyState } from './restore-notice.ts';
 import { useReleases } from './use-releases.ts';
 
 function sectionLabel(section: ListSection): string {
   if (section.group) return groupLabel(section.group);
   return section.id === null ? es.list.allEntries : es.list.section[section.id];
+}
+
+/**
+ * El texto de Mi lista vacía. Con la sincronización activada (M4; CA4.3), puede que la agenda esté
+ * llegando del servidor: todos los textos posibles van en la misma celda y solo se ve uno, así que
+ * cambiar de uno a otro no mueve el botón (§9.5, regla 3).
+ */
+function EmptyText() {
+  const syncState = useSyncState();
+  if (!syncedEmptyState(syncState)) return <p>{es.list.empty}</p>;
+  const shown = emptyTextOf(syncState);
+  return (
+    <div className="empty-state__texts" role="status" data-empty-text={shown}>
+      {SYNCED_EMPTY_TEXTS.map((kind) => (
+        <p key={kind} data-shown={kind === shown ? '' : undefined}>
+          {es.list[kind]}
+        </p>
+      ))}
+    </div>
+  );
 }
 
 /** Huecos de la lista mientras llegan las fechas (§9.5, regla 4: nunca una pantalla de carga). */
@@ -481,7 +503,7 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
 
       {total === 0 ? (
         <div className="empty-state">
-          <p>{es.list.empty}</p>
+          <EmptyText />
           <Link to="/catalogo" className="btn btn--primary">
             {es.list.exploreCatalog}
           </Link>

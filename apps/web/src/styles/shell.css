@@ -408,6 +408,21 @@
   background: var(--surface);
 }
 
+/* M4 (CA4.3): los textos del estado vacío de una agenda sincronizada, en la misma celda. El hueco
+   es el del más largo, así que pasar de «Estamos trayendo tu agenda…» a otro no mueve el botón
+   (§9.5, regla 3). Los que no se ven quedan fuera del árbol de accesibilidad. */
+.empty-state__texts {
+  display: grid;
+}
+
+.empty-state__texts > p {
+  grid-area: 1 / 1;
+}
+
+.empty-state__texts > p:not([data-shown]) {
+  visibility: hidden;
+}
+
 .capture-button {
   display: none;
 }

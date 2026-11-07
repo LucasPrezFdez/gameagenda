@@ -112,11 +112,18 @@ export function receiveHlc(state: HlcParts, remote: HlcParts, wallMs: number): H
 
 export interface HlcClock {
   readonly node: string;
+  /** Desfase con el servidor en ms, leído en vivo: vale 0 hasta la primera sincronización. */
   readonly offset: number;
   /** HLC nueva para una acción local (todas sus operaciones la comparten). */
   next(): string;
   /** Avanza el reloj tras fusionar operaciones ajenas (importación o sincronización). */
   receive(hlc: string): void;
+  /**
+   * Fija el desfase con el servidor (§7.4; ver `nextOffset`). Si la parte física del reloj va
+   * más de `MAX_DRIFT_MS` por delante de `now() + desfase`, la baja a esa hora, con contador 0:
+   * las acciones siguientes ya no salen con una HLC que el servidor rechazaría por reloj.
+   */
+  setOffset(offsetMs: number): void;
   /** Estado serializable para `meta.hlcClock`. */
   snapshot(): HlcClockSnapshot;
 }
@@ -132,11 +139,13 @@ export interface HlcClockOptions {
 
 export function createHlcClock({ now, node, snapshot }: HlcClockOptions): HlcClock {
   if (!NODE_PATTERN.test(node)) throw new TypeError(`createHlcClock: nodo no válido: ${node}`);
-  const offset = snapshot?.offset ?? 0;
+  let offset = snapshot?.offset ?? 0;
   let state: HlcParts = { ms: snapshot?.ms ?? 0, counter: snapshot?.counter ?? 0, node };
   return {
     node,
-    offset,
+    get offset() {
+      return offset;
+    },
     next() {
       state = tickHlc(state, now() + offset);
       return formatHlc(state);
@@ -146,8 +155,50 @@ export function createHlcClock({ now, node, snapshot }: HlcClockOptions): HlcClo
       if (remote === null) throw new TypeError(`receive: HLC no válida: ${hlc}`);
       state = receiveHlc(state, remote, now() + offset);
     },
+    setOffset(offsetMs) {
+      if (!Number.isFinite(offsetMs))
+        throw new RangeError(`setOffset: desfase no válido: ${offsetMs}`);
+      offset = Math.round(offsetMs);
+      const wall = Math.floor(now() + offset);
+      if (state.ms > wall + MAX_DRIFT_MS) state = { ms: Math.max(0, wall), counter: 0, node };
+    },
     snapshot() {
       return { ms: state.ms, counter: state.counter, offset };
     },
   };
+}
+
+/** Cambios del desfase menores que esto se ignoran: ver `nextOffset`. */
+export const MIN_OFFSET_CHANGE_MS = 500;
+
+/** Una ida y vuelta de `sync`: envío y recepción con el reloj local, y la hora del servidor. */
+export interface OffsetSample {
+  sentAt: number;
+  receivedAt: number;
+  serverTime: number;
+}
+
+/**
+ * Desfase medido en una ida y vuelta: la hora del servidor menos el punto medio del envío y la
+ * recepción (el servidor toma su hora entre las dos). El error es, como mucho, media ida y vuelta.
+ */
+export function offsetFromRoundTrip({ sentAt, receivedAt, serverTime }: OffsetSample): number {
+  return Math.round(serverTime - (sentAt + receivedAt) / 2);
+}
+
+/**
+ * El desfase que conviene usar tras una muestra. Se queda el actual si el medido no se aparta más
+ * que la incertidumbre de la medida (media ida y vuelta) ni más de `MIN_OFFSET_CHANGE_MS`: así el
+ * ruido de la red no cambia el desfase (ni reescribe `meta.hlcClock`) en cada sincronización, y
+ * unos cientos de ms no importan frente a los 5 min de tolerancia del servidor. Una muestra
+ * imposible (no finita o con la recepción antes del envío) tampoco lo cambia.
+ */
+export function nextOffset(current: number, sample: OffsetSample): number {
+  const { sentAt, receivedAt, serverTime } = sample;
+  if (![sentAt, receivedAt, serverTime].every(Number.isFinite) || receivedAt < sentAt) {
+    return current;
+  }
+  const measured = offsetFromRoundTrip(sample);
+  const uncertainty = Math.max(MIN_OFFSET_CHANGE_MS, (receivedAt - sentAt) / 2);
+  return Math.abs(measured - current) <= uncertainty ? current : measured;
 }
