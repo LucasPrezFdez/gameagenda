@@ -20,20 +20,10 @@ import { PerformancePanel } from './PerformancePanel.tsx';
 // En el *chunk* de Ajustes, sin Zod. Como *chunk* propio, Rolldown partía el JS inicial en cuatro
 // (React, `es.ts` y el reloj, compartidos con él) y lo subía unos 4 KB con brotli.
 import { SyncPanel } from './SyncPanel.tsx';
+import { deleteServerErrorText } from './sync-model.ts';
 import './settings.css';
 
 const THEMES: readonly ThemePreference[] = ['system', 'light', 'dark'];
-
-/**
- * Por qué no se ha podido borrar la agenda del servidor: con la sincronización activada, «Borrar
- * todos mis datos» no borra nada si no puede borrarla también allí (ver `deleteAll`).
- */
-function deleteServerError(error: unknown): string {
-  const code = error instanceof SyncError ? error.code : null;
-  if (code === 'network') return es.settings.deleteServerOffline;
-  if (code === 'sync_disabled') return es.settings.deleteServerDisabled;
-  return es.settings.deleteServerFailed;
-}
 
 function Appearance() {
   const { settings } = useServices();
@@ -210,6 +200,12 @@ function Data() {
     }
   }
 
+  /** Cierra la confirmación sin perder el foco: vuelve a «Borrar todos mis datos». */
+  function closeConfirm(): void {
+    setConfirming(false);
+    requestAnimationFrame(() => document.getElementById(`${id}-start`)?.focus());
+  }
+
   async function deleteAll(): Promise<void> {
     setDeleting(true);
     setDeleteError(null);
@@ -217,14 +213,16 @@ function Data() {
     // M4 (CA4.7): primero la agenda del servidor, en cascada, y después lo local. Si no se puede
     // (sin red, el interruptor apagado, un error), no se borra nada y se dice: con lo local
     // borrado y la cookie viva, el siguiente arranque restauraría la agenda desde el servidor
-    // (indicio sin estado, CA4.3), y desemparejarse también necesita la red.
+    // (indicio sin estado, CA4.3), y desemparejarse también necesita la red. Con un 401 tampoco:
+    // puede que solo se haya revocado este dispositivo y la agenda siga en el servidor con los
+    // demás. El estado pasa a `unpaired` y otro «Borrar todo» ya borra solo lo local.
     const withServer = synced;
     if (withServer) {
       try {
         await sync.deleteServerAgenda();
       } catch (error) {
         setDeleting(false);
-        setDeleteError(deleteServerError(error));
+        setDeleteError(deleteServerErrorText(error instanceof SyncError ? error.code : null));
         return;
       }
     }
@@ -242,7 +240,7 @@ function Data() {
       failed(error);
     } finally {
       setDeleting(false);
-      setConfirming(false);
+      closeConfirm();
       setWord('');
     }
   }
@@ -329,16 +327,19 @@ function Data() {
                 type="button"
                 className="btn"
                 onClick={() => {
-                  setConfirming(false);
+                  closeConfirm();
                   setDeleteError(null);
                 }}
               >
                 {es.settings.cancel}
               </button>
+              {/* Mientras borra (con la red, si está emparejado), `aria-disabled` y no `disabled`:
+                  así el botón conserva el foco y, si falla, se sigue desde él (§9.7). */}
               <button
                 type="submit"
                 className="btn btn--danger"
-                disabled={word.trim() !== es.settings.deleteConfirmWord || deleting}
+                disabled={word.trim() !== es.settings.deleteConfirmWord}
+                aria-disabled={deleting}
                 aria-describedby={deleteError !== null ? `${id}-delete-error` : undefined}
               >
                 {deleting ? es.settings.deleting : es.settings.deleteConfirm}
@@ -355,6 +356,7 @@ function Data() {
           </form>
         ) : (
           <button
+            id={`${id}-start`}
             type="button"
             className="btn btn--danger"
             aria-describedby={`${id}-hint`}

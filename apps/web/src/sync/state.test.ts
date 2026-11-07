@@ -55,6 +55,14 @@ describe('lo guardado en meta', () => {
     expect(parseSyncRecord('x')).toBeNull();
   });
 
+  it('un meta.syncState de antes, con lastPurgeAt, se sigue leyendo y sin ese campo', () => {
+    // La app purgaba por su cuenta y lo apuntaba; ahora solo purga D1 (llega con un `reset`).
+    const old = { ...newRecord('d1', false), lastSyncAt: 5, lastPurgeAt: 7 };
+    expect(parseSyncRecord(old)).toEqual({ ...newRecord('d1', false), lastSyncAt: 5 });
+    expect(parseSyncRecord({ ...old, lastPurgeAt: null })).toEqual(parseSyncRecord(old));
+    expect(newRecord(null, true)).not.toHaveProperty('lastPurgeAt');
+  });
+
   it('cuenta juegos con cambios pendientes, no operaciones', async () => {
     const db = openDatabase({ name: 'pending', indexedDB: new IDBFactory(), IDBKeyRange });
     const h = '1793178900000-0000-k3x9p2qa';

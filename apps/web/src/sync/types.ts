@@ -11,6 +11,7 @@ import type { ApiErrorCode, DeviceInfo } from '@gameagenda/core/api';
  * - `paired`: emparejado; mira `activity`.
  * - `restoring`: hay indicio de emparejamiento (`__Host-ga_sync=1`) pero no hay estado local
  *   (IndexedDB borrada, CA4.3): baja la agenda desde 0. Pasa a `paired` con la primera ronda buena.
+ *   Si se borra con la app abierta, restaura sin recargar.
  * - `unpaired`: había estado local, pero el dispositivo ya no está emparejado: mira
  *   `unpairedReason`. La agenda local y la `outbox` siguen intactas; la interfaz ofrece canjear el
  *   código de recuperación (`redeemRecoveryCode`) o dejarlo así (`forget`).
@@ -24,7 +25,9 @@ export type SyncStatus = 'off' | 'paired' | 'restoring' | 'unpaired';
  * - `offline`: sin red (`navigator.onLine === false` o un fallo de red sin conexión): espera a
  *   `online`;
  * - `error`: la última ronda falló (`error` dice por qué); se reintenta sola con espera
- *   exponencial (de unos 5 s a 5 min) mientras la página esté visible;
+ *   exponencial (de unos 5 s a 5 min) mientras la página esté visible. También si no se ha podido
+ *   cargar el motor (`network`; una pestaña vieja tras un despliegue): eso no se reintenta solo,
+ *   sino con `syncNow` («Sincronizar ahora»);
  * - `disabled`: la micro-API responde 503 `sync_disabled` (interruptor `SYNC_ENABLED`, CA4.7);
  *   no se reintenta en bucle, solo con el siguiente disparador.
  */
@@ -122,13 +125,21 @@ export interface SyncService {
   listDevices(): Promise<readonly DeviceInfo[]>;
   /**
    * Revoca un dispositivo. Si es este (`self: true`), es «Desemparejar este dispositivo»: el
-   * servidor quita las cookies, el estado pasa a `off` y la agenda local se queda como está.
+   * servidor quita las cookies, el estado pasa a `off` y la agenda local se queda como está. Una
+   * ronda que ya estuviera en marcha acaba sin cambiar ese `off`.
    */
   revokeDevice(id: string): Promise<{ readonly self: boolean }>;
   /**
    * Borra la agenda del servidor en cascada (CA4.7) y deja este navegador en `off`. Para «Borrar
    * todos mis datos»: llamarla ANTES de `agenda.deleteAll()`; si no, con el indicio aún puesto y
    * `meta` vacía, la app restauraría la agenda desde el servidor. Sin emparejar, no hace nada.
+   * Antes espera a que acabe la ronda en marcha de otra pestaña (Web Lock), y lo que llegue
+   * después ya no se guarda.
+   *
+   * Si el dispositivo ya no está emparejado (401: lo han revocado desde otro, o la agenda ya no
+   * existe; el servidor no distingue los dos casos), NO ha borrado nada: el estado pasa a
+   * `unpaired` (`server`; `off` si no había estado local) y rechaza con `unauthorized`. Con los
+   * demás errores tampoco ha borrado nada, y la sincronización sigue como estaba.
    */
   deleteServerAgenda(): Promise<void>;
   /** Sincroniza ya («Reintentar ahora»); se resuelve al acabar la ronda (no lanza). */

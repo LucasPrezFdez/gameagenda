@@ -22,8 +22,18 @@
 //   su `seq` y `purged_seq`, cuántas filas tiene en cada tabla y, con `entries=1`, sus entradas
 //   tal como las reconstruye el servidor. Por `agenda`, para comprobar que «Borrar todos mis
 //   datos» la ha vaciado (CA4.7): tras borrarla, el dispositivo ya no existe.
+// - `POST /__e2e/snapshot` y `POST /__e2e/restore`: una copia de la D1 del mundo y su vuelta atrás,
+//   como un restore con Time Travel (lo escrito después de la copia desaparece). Con
+//   `{ newEpoch: false }`, sin el paso del *runbook* que cambia la época
+//   (`UPDATE agenda SET epoch = lower(hex(randomblob(8)))`).
+// - `POST /__e2e/hold` con `{ pattern, mode? }`: la siguiente petición a la micro-API cuya ruta
+//   case con la expresión `pattern` espera, antes de llegar a ella, hasta `POST /__e2e/release`
+//   (`mode: 'hold'`); con `mode: 'fail'`, todas cortan la conexión (como sin servidor) hasta
+//   entonces. `GET /__e2e/hold` dice si hay una retenida (`waiting`). Sirve en los dos motores:
+//   el `page.route()` de Playwright no ve las peticiones de una página con Service Worker en WebKit.
 
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import type { SQLInputValue } from 'node:sqlite';
 import type { TLSSocket } from 'node:tls';
 import { DEFAULT_MIN_AGE } from '@gameagenda/core/api';
 import type { Entry } from '@gameagenda/core/entries';
@@ -59,6 +69,27 @@ interface World {
   readonly env: Env;
   readonly app: ReturnType<typeof createApp>;
   offsetMs: number;
+  /** La copia de `POST /__e2e/snapshot`: las filas de cada tabla. */
+  snapshot: Map<string, Record<string, SQLInputValue>[]> | null;
+  /** La retención de `POST /__e2e/hold`, hasta que una petición case (o hasta `release`). */
+  hold: Hold | null;
+  /** La petición retenida ahora mismo, si la hay. */
+  held: Hold | null;
+}
+
+interface Hold {
+  readonly pattern: RegExp;
+  readonly mode: 'hold' | 'fail';
+  readonly released: Promise<void>;
+  readonly release: () => void;
+}
+
+function newHold(pattern: RegExp, mode: 'hold' | 'fail'): Hold {
+  let release: () => void = () => undefined;
+  const released = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  return { pattern, mode, released, release: () => release() };
 }
 
 const worlds = new Map<string, World>();
@@ -81,6 +112,9 @@ function world(id: string): World {
     },
     app: createApp({ now: () => Date.now() + created.offsetMs }),
     offsetMs: 0,
+    snapshot: null,
+    hold: null,
+    held: null,
   };
   worlds.set(id, created);
   return created;
@@ -208,6 +242,8 @@ export interface E2eAgendaReport {
   exists: boolean;
   seq: number | null;
   purgedSeq: number | null;
+  /** La época de la agenda (`agenda.epoch`, migración 0002), que cambia con un restore. */
+  epoch: string | null;
   /** Filas de cada tabla con el `agenda_id` de esta agenda. */
   rows: { device: number; op: number; pairingToken: number; inboxItem: number };
   /** Con `entries=1`: las entradas que reconstruye el servidor con sus filas de `op`, por id. */
@@ -243,8 +279,8 @@ function agendaReport(w: World, params: URLSearchParams): E2eAgendaReport | null
     agendaId = row?.agenda_id ?? null;
   }
   if (agendaId === null) return null;
-  const [agenda] = w.db.rows<{ seq: number; purged_seq: number }>(
-    'SELECT seq, purged_seq FROM agenda WHERE id = ?',
+  const [agenda] = w.db.rows<{ seq: number; purged_seq: number; epoch: string }>(
+    'SELECT seq, purged_seq, epoch FROM agenda WHERE id = ?',
     agendaId,
   );
   const report: E2eAgendaReport = {
@@ -252,6 +288,7 @@ function agendaReport(w: World, params: URLSearchParams): E2eAgendaReport | null
     exists: agenda !== undefined,
     seq: agenda?.seq ?? null,
     purgedSeq: agenda?.purged_seq ?? null,
+    epoch: agenda?.epoch ?? null,
     rows: {
       device: count(w, 'device', agendaId),
       op: count(w, 'op', agendaId),
@@ -269,6 +306,43 @@ function agendaReport(w: World, params: URLSearchParams): E2eAgendaReport | null
     );
   }
   return report;
+}
+
+/** Las tablas de la D1, de padres a hijas (así se insertan; se borran al revés). */
+const SNAPSHOT_TABLES = ['agenda', 'device', 'pairing_token', 'op', 'inbox_item', 'resolve_cache'];
+
+function takeSnapshot(w: World): void {
+  w.snapshot = new Map(
+    SNAPSHOT_TABLES.map((table) => [
+      table,
+      w.db.rows<Record<string, SQLInputValue>>(`SELECT * FROM ${table}`),
+    ]),
+  );
+}
+
+/** Vuelve a la copia, como Time Travel: lo escrito después desaparece; los dispositivos, no. */
+function restoreSnapshot(w: World, newEpoch: boolean): void {
+  const snapshot = w.snapshot;
+  if (snapshot === null) throw new TypeError('Antes de restore hace falta un snapshot');
+  const { sqlite } = w.db;
+  sqlite.exec('BEGIN');
+  try {
+    for (const table of [...SNAPSHOT_TABLES].reverse()) sqlite.exec(`DELETE FROM ${table}`);
+    for (const table of SNAPSHOT_TABLES) {
+      for (const row of snapshot.get(table) ?? []) {
+        const columns = Object.keys(row);
+        const marks = columns.map(() => '?').join(', ');
+        sqlite
+          .prepare(`INSERT INTO ${table} (${columns.join(', ')}) VALUES (${marks})`)
+          .run(...columns.map((c) => row[c] ?? null));
+      }
+    }
+    if (newEpoch) sqlite.exec('UPDATE agenda SET epoch = lower(hex(randomblob(8)))');
+    sqlite.exec('COMMIT');
+  } catch (error) {
+    sqlite.exec('ROLLBACK');
+    throw error;
+  }
 }
 
 async function e2eRoute(req: IncomingMessage, res: ServerResponse, w: World): Promise<void> {
@@ -308,6 +382,33 @@ async function e2eRoute(req: IncomingMessage, res: ServerResponse, w: World): Pr
       await runMaintenance(w.db, ranAt);
       return sendJson(res, 200, { ranAt: new Date(ranAt).toISOString() });
     }
+    case 'POST /__e2e/hold': {
+      const body = await readJson(req);
+      if (typeof body.pattern !== 'string') throw new TypeError('pattern: expresión regular');
+      const mode = body.mode ?? 'hold';
+      if (mode !== 'hold' && mode !== 'fail') throw new TypeError("mode: 'hold' o 'fail'");
+      w.hold?.release();
+      w.hold = newHold(new RegExp(body.pattern), mode);
+      return sendJson(res, 200, { ok: true });
+    }
+    case 'GET /__e2e/hold':
+      return sendJson(res, 200, { armed: w.hold !== null, waiting: w.held !== null });
+    case 'POST /__e2e/release':
+      w.hold?.release();
+      w.held?.release();
+      w.hold = null;
+      return sendJson(res, 200, { ok: true });
+    case 'POST /__e2e/snapshot':
+      takeSnapshot(w);
+      return sendJson(res, 200, { ok: true });
+    case 'POST /__e2e/restore': {
+      const body = await readJson(req);
+      if (body.newEpoch !== undefined && typeof body.newEpoch !== 'boolean') {
+        throw new TypeError('newEpoch: booleano');
+      }
+      restoreSnapshot(w, body.newEpoch !== false);
+      return sendJson(res, 200, { ok: true });
+    }
     case 'GET /__e2e/agenda': {
       const report = agendaReport(w, url.searchParams);
       return report === null
@@ -333,8 +434,21 @@ export function e2eApiMiddleware(): (
     if (!isApi && !path.startsWith(E2E_ROUTES_PREFIX)) return next();
     const { world: id, cookie } = splitWorldCookie(req.headers.cookie);
     const w = world(id);
+    const hold = isApi && w.hold?.pattern.test(path) === true ? w.hold : null;
+    if (hold?.mode === 'fail') {
+      res.destroy();
+      return;
+    }
+    if (hold !== null) {
+      w.hold = null;
+      w.held = hold;
+    }
     const handle = isApi
-      ? toRequest(req, cookie)
+      ? (hold?.released ?? Promise.resolve())
+          .then(() => {
+            if (w.held === hold) w.held = null;
+            return toRequest(req, cookie);
+          })
           .then((request) => w.app.fetch(request, w.env))
           .then((response) => writeResponse(res, response))
       : e2eRoute(req, res, w);

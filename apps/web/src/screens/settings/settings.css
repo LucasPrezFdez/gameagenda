@@ -200,12 +200,16 @@
   color: var(--danger);
 }
 
-/* Ajustes › Sincronización (M4; SyncPanel.tsx). Bloques separados por una línea fina, como Datos. */
+/* Ajustes › Sincronización (M4; SyncPanel.tsx). Bloques separados por una línea fina, como Datos.
+   Los nombres de dispositivo los escribe el usuario (hasta 60 caracteres, quizá sin espacios): se
+   parten donde haga falta, también en las confirmaciones y los avisos, para que nada se salga a
+   320 px (WCAG 1.4.10). Los códigos no: sus grupos llevan `white-space: nowrap`. */
 .sync {
   display: flex;
   flex-direction: column;
   gap: 20px;
   min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 /* Vacía, fuera del flujo pero en el árbol de accesibilidad: así se anuncia lo que llegue. */
@@ -322,6 +326,12 @@
   min-width: 0;
 }
 
+/* La línea de cambios pendientes tiene su hueco aunque no haya ninguno (§9.5, regla 3); sin
+   cambios no se ve y queda fuera del árbol de accesibilidad. */
+.sync__pending:not([data-shown]) {
+  visibility: hidden;
+}
+
 .sync__dot {
   flex: none;
   width: 8px;
@@ -416,6 +426,16 @@
   gap: 4px 8px;
   font-weight: 600;
   overflow-wrap: anywhere;
+}
+
+/* Esqueleto de la lista: la fila de este dispositivo, con sus dos líneas (§9.5, regla 4). */
+.sync__loading {
+  font-weight: 400;
+}
+
+.sync__skeleton {
+  display: inline-block;
+  width: min(14rem, 100%);
 }
 
 .sync__badge {

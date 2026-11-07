@@ -87,6 +87,10 @@ export function createApiClient(options: ApiClientOptions = {}): SyncApi {
       method,
       credentials: 'same-origin',
       cache: 'no-store',
+      // Sin `Referer`: con la política del documento (`strict-origin-when-cross-origin`), una
+      // petición al mismo origen llevaría la ruta y la consulta de la página (lo buscado, los
+      // filtros, la ficha abierta), y la micro-API no lo necesita: valida `Origin` (§11.2).
+      referrerPolicy: 'no-referrer',
       headers: method === 'POST' ? { 'Content-Type': 'application/json' } : {},
     };
     if (method === 'POST') init.body = JSON.stringify(body ?? {});

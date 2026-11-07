@@ -20,6 +20,7 @@ export {
   DEVICE_KINDS,
   DEVICE_LABEL_MAX,
   type DeviceKind,
+  EPOCH_MAX,
   MAX_SYNC_BODY,
   MAX_SYNC_OPS,
   PAIRING_TTL_MS,

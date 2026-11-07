@@ -573,8 +573,12 @@
   animation: toast-in var(--motion) ease-out;
 }
 
+/* Puede llevar un nombre que escribe el usuario (un dispositivo, hasta 60 caracteres sin espacios):
+   se parte en vez de salirse del aviso (WCAG 1.4.10). */
 .toast__message {
   flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .toast__undo,

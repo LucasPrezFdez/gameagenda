@@ -17,6 +17,81 @@ export function syncViewOf(state: SyncState): SyncView {
   return 'paired';
 }
 
+/** La vista de la sección: la del estado o, con un código de recuperación recién creado, `reveal`. */
+export type PanelView = SyncView | 'reveal';
+
+/** El encabezado de cada vista (su clave en los `id` de la sección), que puede recibir el foco. */
+export type ViewHeading = 'off' | 'status' | 'unpaired' | 'reveal';
+
+export function viewHeading(view: PanelView): ViewHeading | null {
+  switch (view) {
+    case 'off':
+      return 'off';
+    case 'paired':
+      return 'status';
+    case 'unpaired':
+      return 'unpaired';
+    case 'reveal':
+      return 'reveal';
+    default:
+      return null;
+  }
+}
+
+/**
+ * Si el foco se ha perdido al cambiar de vista: en `body` (el botón que lo tenía ya no existe) o en
+ * ninguna parte. Si está en otro sitio de la página (la navegación, por ejemplo), no se toca.
+ */
+export function focusLost(
+  active: { readonly isConnected: boolean } | null,
+  body: unknown,
+): boolean {
+  return active === null || active === body || !active.isConnected;
+}
+
+/** El código de `/emparejar#…` y la vista en que se abrió (`null` hasta leer el estado). */
+export interface PairingLink {
+  readonly code: string;
+  readonly view: PanelView | null;
+}
+
+/**
+ * El enlace solo vale en la vista en que se abrió. Al cambiar de vista (se ha usado, se ha activado
+ * otra agenda o el servidor ha desemparejado este dispositivo) se olvida: ya no rellena el campo,
+ * ni lleva el foco al botón, ni sale la nota del enlace.
+ */
+export function nextPairingLink(link: PairingLink | null, view: PanelView): PairingLink | null {
+  if (link === null || view === 'loading') return link;
+  if (link.view === null) return { code: link.code, view };
+  return link.view === view ? link : null;
+}
+
+/** El aviso de arriba de la sección, tras un gesto que cambia de vista (unirse, desemparejarse). */
+export interface PanelMessage {
+  /** Cambia con cada aviso: el mismo texto otra vez se vuelve a pintar y a anunciar. */
+  readonly id: number;
+  readonly text: string;
+  /** La vista a la que lleva el gesto: el aviso solo se ve en ella. */
+  readonly view: PanelView;
+}
+
+/** Al cambiar de vista, el aviso de otra vista se borra: no se queda viejo encima de la nueva. */
+export function messageAfterViewChange(
+  message: PanelMessage | null,
+  view: PanelView,
+): PanelMessage | null {
+  return message !== null && message.view !== view ? null : message;
+}
+
+/**
+ * Safari de iPhone o iPad fuera de la pantalla de inicio: `navigator.standalone` solo existe en iOS
+ * y iPadOS, y vale `false` en una pestaña de Safari (`true` en la app de la pantalla de inicio,
+ * que tiene sus propias cookies y su propio almacenamiento).
+ */
+export function isIosBrowserTab(nav: object | undefined): boolean {
+  return (nav as { standalone?: unknown } | undefined)?.standalone === false;
+}
+
 /**
  * La app de escritorio (Tauri 2; ADR-010) define `window.isTauri = true` en cada página que abre
  * (comprobado en `tauri` 2.12.5, `manager/webview.rs`). La web no le habla (CA3.8): solo lo mira
@@ -71,6 +146,19 @@ export type SyncOperation =
   | 'devices'
   | 'revoke'
   | 'leave';
+
+/**
+ * Por qué «Borrar todos mis datos» no ha borrado nada: con la sincronización activada, no borra lo
+ * local si no puede borrar también la agenda del servidor (ver `Data` en `SettingsScreen.tsx`).
+ * Un 401 no prueba que la agenda ya no exista: puede que solo se haya revocado este dispositivo.
+ */
+export function deleteServerErrorText(code: SyncErrorCode | null): string {
+  const t = es.settings;
+  if (code === 'network') return t.deleteServerOffline;
+  if (code === 'sync_disabled') return t.deleteServerDisabled;
+  if (code === 'unauthorized') return t.deleteServerUnpaired;
+  return t.deleteServerFailed;
+}
 
 export function syncErrorText(code: SyncErrorCode, operation: SyncOperation): string {
   const t = es.syncPanel.errors;
@@ -193,15 +281,34 @@ export function deviceDetails(device: DeviceInfo, now: number): string {
   return parts.join(' · ');
 }
 
+/**
+ * Si en la lista no hay otro dispositivo con la agenda (`app`; el buzón del Atajo de iOS no la
+ * guarda): al desemparejar este, la copia sincronizada se queda en el servidor sin nadie que la use.
+ * `false` si la lista aún no ha llegado.
+ */
+export function isLastAppDevice(devices: readonly DeviceInfo[] | null): boolean {
+  if (devices === null || !devices.some((d) => d.current)) return false;
+  return !devices.some((d) => !d.current && d.kind === 'app');
+}
+
 /** Primero este dispositivo y después los demás, por fecha de alta (como los da el servidor). */
 export function sortDevices(devices: readonly DeviceInfo[]): DeviceInfo[] {
   return [...devices].sort((a, b) => Number(b.current) - Number(a.current));
 }
 
-/** Lo que queda de un código de emparejamiento, en ms (0 si ya ha caducado o no se entiende). */
-export function remainingMs(expiresAt: string, now: number): number {
-  const end = Date.parse(expiresAt);
-  return Number.isFinite(end) ? Math.max(0, end - now) : 0;
+/**
+ * Hasta cuándo vale un código de emparejamiento, con el reloj de este dispositivo: lo que dura desde
+ * que se pidió. No se usa el `expiresAt` del servidor, que va con el reloj del servidor: con el de
+ * este dispositivo desviado, daría el código por caducado nada más crearlo, o lo alargaría. Como el
+ * servidor lo crea después de recibir la petición, este plazo nunca acaba más tarde que el real.
+ */
+export function pairingDeadline(sentAt: number): number {
+  return sentAt + PAIRING_TTL_MS;
+}
+
+/** Lo que queda hasta `deadline` (ms del reloj local), sin bajar de 0. */
+export function remainingMs(deadline: number, now: number): number {
+  return Number.isFinite(deadline) ? Math.max(0, deadline - now) : 0;
 }
 
 /** «9:41»: minutos y segundos que quedan, redondeando hacia arriba. */
@@ -212,9 +319,8 @@ export function formatCountdown(ms: number): string {
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
-/** «18:52»: la hora local a la que caduca el código. */
-export function formatClock(iso: string): string {
-  const ms = Date.parse(iso);
+/** «18:52»: la hora local a la que caduca el código (`ms` del reloj de este dispositivo). */
+export function formatClock(ms: number): string {
   return Number.isFinite(ms) ? clockFormat.format(ms) : '';
 }
 

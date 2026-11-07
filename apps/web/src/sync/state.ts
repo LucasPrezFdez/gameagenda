@@ -54,6 +54,11 @@ export interface SyncCursorState {
    * pueda tener, aunque bajar la parte física del reloj la hubiera dejado atrás.
    */
   readonly maxSeen: string;
+  /**
+   * La época de la agenda en la última respuesta (ausente hasta la primera). Si llega otra, D1 ha
+   * vuelto atrás y este cursor ya no vale: el motor lo vuelve a subir todo y baja desde 0.
+   */
+  readonly epoch?: string;
 }
 
 export const INITIAL_CURSOR: SyncCursorState = {
@@ -69,10 +74,12 @@ const isTimeOrNull = (v: unknown): v is number | null => v === null || isCount(v
 
 export function parseSyncCursor(value: unknown): SyncCursorState | null {
   if (typeof value !== 'object' || value === null) return null;
-  const { cursor, purgedSeq, reset, maxSeen } = value as Record<string, unknown>;
+  const { cursor, purgedSeq, reset, maxSeen, epoch } = value as Record<string, unknown>;
   if (!isCount(cursor) || !isCount(purgedSeq) || typeof reset !== 'boolean') return null;
   if (maxSeen !== '' && !isHlc(maxSeen)) return null;
-  return { cursor, purgedSeq, reset, maxSeen: maxSeen as string };
+  if (epoch !== undefined && typeof epoch !== 'string') return null;
+  const state = { cursor, purgedSeq, reset, maxSeen: maxSeen as string };
+  return epoch === undefined ? state : { ...state, epoch };
 }
 
 /** `meta.syncState`: este navegador está (o estaba) emparejado. */
@@ -85,28 +92,24 @@ export interface SyncRecord {
   readonly lastError: SyncErrorCode | null;
   /** El servidor respondió 401: desemparejado por el servidor (ver `SyncState.unpairedReason`). */
   readonly unpairedBy: 'server' | null;
-  /** Última purga local de lápidas y esqueletos (como mucho una al día). */
-  readonly lastPurgeAt: number | null;
 }
 
 export function newRecord(deviceId: string | null, restore: boolean): SyncRecord {
-  return {
-    deviceId,
-    restore,
-    lastSyncAt: null,
-    lastError: null,
-    unpairedBy: null,
-    lastPurgeAt: null,
-  };
+  return { deviceId, restore, lastSyncAt: null, lastError: null, unpairedBy: null };
 }
 
+/**
+ * Lo guardado en `meta.syncState`, o `null` si no tiene la forma esperada. Los campos de más se
+ * ignoran y no vuelven a guardarse: así se lee el `lastPurgeAt` de antes de que la app dejara de
+ * purgar por su cuenta (la purga es solo de D1), y desaparece con la siguiente escritura.
+ */
 export function parseSyncRecord(value: unknown): SyncRecord | null {
   if (typeof value !== 'object' || value === null) return null;
   const v = value as Record<string, unknown>;
-  const { deviceId, restore, lastSyncAt, lastError, unpairedBy, lastPurgeAt } = v;
+  const { deviceId, restore, lastSyncAt, lastError, unpairedBy } = v;
   if (deviceId !== null && typeof deviceId !== 'string') return null;
   if (typeof restore !== 'boolean') return null;
-  if (!isTimeOrNull(lastSyncAt) || !isTimeOrNull(lastPurgeAt)) return null;
+  if (!isTimeOrNull(lastSyncAt)) return null;
   if (lastError !== null && typeof lastError !== 'string') return null;
   if (unpairedBy !== null && unpairedBy !== 'server') return null;
   return {
@@ -115,6 +118,5 @@ export function parseSyncRecord(value: unknown): SyncRecord | null {
     lastSyncAt,
     lastError: lastError as SyncErrorCode | null,
     unpairedBy,
-    lastPurgeAt,
   };
 }

@@ -3,7 +3,7 @@
 
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { addEntry, type Entry, setFlag } from '../src/entries/index.ts';
+import { addEntry, type Entry, removeEntry, setFlag } from '../src/entries/index.ts';
 import {
   applyOps,
   createHlcClock,
@@ -23,6 +23,7 @@ import {
   purgeCutoff,
   resealEntry,
   resealOps,
+  uploadOf,
 } from '../src/sync/index.ts';
 import { hlc, NODE_A, NODE_B, op, TODAY, uuids } from './helpers.ts';
 
@@ -206,7 +207,7 @@ describe('cambios del servidor', () => {
   });
 });
 
-describe('purga local', () => {
+describe('el criterio de la purga de D1', () => {
   const cutoff = purgeCutoff(NOW);
   const ctx = (ms: number, n = 0) => ({ hlc: hlc(ms, n), today: TODAY, newOpId: uuids(9) });
 
@@ -241,5 +242,44 @@ describe('purga local', () => {
     // Vivo y sin tocar en 100 días: no es esqueleto, se queda.
     const flagged = setFlag(live, 'owned', true, ctx(old, 1))?.entry as Entry;
     expect(isPurgeable(flagged, cutoff)).toBe(false);
+  });
+});
+
+describe('lo que sube una entrada al unirse a una agenda', () => {
+  const cutoff = purgeCutoff(NOW);
+  const old = NOW - 100 * DAY;
+  const ctx = (ms: number) => ({ hlc: hlc(ms), today: TODAY, newOpId: uuids(12), lastRank: null });
+  const live = addEntry(undefined, { id: 'steam:1', title: 'Uno', note: 'nota' }, ctx(old))
+    ?.entry as Entry;
+
+  it('lo vivo y lo reciente, entero y sin cambiar en local', () => {
+    const up = uploadOf(live, cutoff, uuids(13));
+    expect(up.local).toBe(live);
+    expect(up.ops.map((o) => o.field).sort()).toEqual(Object.keys(live.hlc).sort());
+    const recent = removeEntry(live, ctx(NOW - DAY))?.entry as Entry;
+    expect(uploadOf(recent, cutoff, uuids(14)).local).toBe(recent);
+  });
+
+  it('una lápida de más de 90 días, solo deletedAt (y mergedInto): la nota no sale', () => {
+    const tomb = removeEntry(live, ctx(old + 1))?.entry as Entry;
+    const up = uploadOf(tomb, cutoff, uuids(15));
+    expect(up.ops.map((o) => [o.field, o.hlc])).toEqual([['deletedAt', tomb.hlc.deletedAt]]);
+    expect(up.local).toEqual(merge(undefined, up.ops, uuids(16)).entry);
+    expect(up.local?.note).toBe('');
+    const linked = merge(
+      tomb,
+      [op('steam:1', 'mergedInto', 'steam:2', hlc(old + 1))],
+      uuids(17),
+    ).entry;
+    expect(
+      uploadOf(linked, cutoff, uuids(18))
+        .ops.map((o) => o.field)
+        .sort(),
+    ).toEqual(['deletedAt', 'mergedInto']);
+  });
+
+  it('un esqueleto de más de 90 días no sube nada y se borra en local', () => {
+    const skeleton = merge(undefined, [op('steam:3', 'note', 'x', hlc(old))], uuids(19)).entry;
+    expect(uploadOf(skeleton, cutoff, uuids(20))).toEqual({ ops: [], local: null });
   });
 });

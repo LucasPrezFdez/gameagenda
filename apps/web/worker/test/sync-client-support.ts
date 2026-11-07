@@ -90,22 +90,41 @@ export class FakeEnv implements SchedulerEnv {
   }
 }
 
-/** Web Locks entre pestañas del mismo navegador: con `ifAvailable`, `null` si está cogido. */
+/**
+ * Web Locks entre pestañas del mismo navegador. Con `ifAvailable`, `null` si está cogido; sin él,
+ * espera su turno en una cola, por orden de llegada (como `navigator.locks`).
+ */
 export class FakeLocks implements LockManagerLike {
-  private held = new Set<string>();
+  /** Por candado cogido, quién espera su turno. */
+  private readonly queues = new Map<string, Array<() => void>>();
 
   async request<T>(
     name: string,
-    _options: { ifAvailable: true },
+    options: { ifAvailable?: boolean },
     callback: (lock: unknown) => Promise<T>,
   ): Promise<T> {
-    if (this.held.has(name)) return callback(null);
-    this.held.add(name);
+    const queue = this.queues.get(name);
+    if (queue === undefined) this.queues.set(name, []);
+    else if (options.ifAvailable === true) return callback(null);
+    else await new Promise<void>((resolve) => queue.push(resolve));
     try {
       return await callback({ name });
     } finally {
-      this.held.delete(name);
+      // Pasa el candado al siguiente de la cola, sin soltarlo entre medias.
+      const next = this.queues.get(name)?.shift();
+      if (next === undefined) this.queues.delete(name);
+      else next();
     }
+  }
+
+  /** ¿Lo tiene alguien? */
+  isHeld(name: string): boolean {
+    return this.queues.has(name);
+  }
+
+  /** Peticiones esperando su turno. */
+  waiting(name: string): number {
+    return this.queues.get(name)?.length ?? 0;
   }
 }
 
@@ -129,6 +148,11 @@ export interface ReplicaOptions {
   readonly copyReminder?: CopyReminderStore;
   /** Otra pestaña del mismo navegador (misma IndexedDB y mismas cookies). */
   readonly sameBrowserAs?: Replica;
+  /**
+   * Las primeras N cargas del motor (`import()` del *chunk*) fallan, como en una pestaña vieja tras
+   * un despliegue: el *hash* que pide ya no está.
+   */
+  readonly failRuntimeLoads?: number;
 }
 
 let replicas = 0;
@@ -154,8 +178,20 @@ export class Replica {
   syncCalls = 0;
   /** Lo que llevaban esas peticiones. */
   readonly requests: Array<{ cursor: number; purgedSeq: number; ops: number }> = [];
+  /**
+   * Si está, la respuesta de la siguiente petición a `/sync` (ya procesada por el servidor) espera
+   * a esta promesa antes de llegar a la app: una respuesta lenta.
+   */
+  holdNextSync: Promise<void> | null = null;
+  /**
+   * Si está, cada petición a la micro-API (con la red puesta) lo espera antes de llegar al
+   * servidor: para retener una petición antes de que se procese, o fallarla lanzando.
+   */
+  beforeRequest: ((path: string) => Promise<void> | void) | null = null;
   /** Lo que el motor manda al registro de errores (IndexedDB): las pruebas esperan que no haya. */
   readonly errors: unknown[] = [];
+  /** Veces que la pestaña ha intentado cargar el motor. */
+  runtimeLoads = 0;
 
   private constructor(harness: Harness, options: ReplicaOptions) {
     this.harness = harness;
@@ -189,6 +225,7 @@ export class Replica {
   private fetch: FetchLike = async (input, init) => {
     if (this.offline) throw new TypeError('Failed to fetch');
     const path = input.replace(/^https?:\/\/[^/]+/, '');
+    if (this.beforeRequest !== null) await this.beforeRequest(path);
     if (path.endsWith('/sync')) {
       const fault = this.faults.shift();
       if (fault === 'network') throw new TypeError('Failed to fetch');
@@ -201,6 +238,11 @@ export class Replica {
     }
     const body = typeof init.body === 'string' ? init.body : undefined;
     const response = await this.client.call(init.method ?? 'GET', path, { body });
+    if (path.endsWith('/sync') && this.holdNextSync !== null) {
+      const hold = this.holdNextSync;
+      this.holdNextSync = null;
+      await hold;
+    }
     return new Response(response.json === null ? null : JSON.stringify(response.json), {
       status: response.status,
       headers: { 'Content-Type': 'application/json' },
@@ -249,7 +291,13 @@ export class Replica {
         ...(this.options.maxRequests ? { maxRequests: this.options.maxRequests } : {}),
         yieldToMain: () => Promise.resolve(),
       },
-      loadRuntime: () => import('../../src/sync/runtime.ts'),
+      loadRuntime: () => {
+        this.runtimeLoads += 1;
+        if (this.runtimeLoads <= (this.options.failRuntimeLoads ?? 0)) {
+          return Promise.reject(new TypeError('Failed to fetch dynamically imported module'));
+        }
+        return import('../../src/sync/runtime.ts');
+      },
       whenStartup: () => Promise.resolve(),
       onError: (error) => this.errors.push(error),
     });
@@ -277,6 +325,20 @@ export class Replica {
     await this.closeTab();
     this.idb = new IDBFactory();
     await this.openTab();
+  }
+
+  /**
+   * Borra solo IndexedDB con la pestaña abierta (DevTools): Dexie cierra la base al recibir
+   * `versionchange` y la vuelve a crear vacía con la operación siguiente, con un `storagemutated`
+   * de todas las tablas. La agenda en memoria y las cookies se quedan.
+   */
+  async wipeIndexedDbOpen(): Promise<void> {
+    await this.settle();
+    await new Promise<void>((resolve, reject) => {
+      const request = this.idb.deleteDatabase(this.name);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
   }
 
   setOffline(offline: boolean): void {
@@ -349,7 +411,7 @@ export class Replica {
         entries: [...entries.values()],
         ops: [...ops, ...derived],
         before,
-        clock: this.clock.snapshot(),
+        clock: () => this.clock.snapshot(),
       });
       return;
     }

@@ -255,6 +255,43 @@ describe('páginas, reset y cursor', () => {
     expect(json).toMatchObject({ reset: false, more: false, cursor: 4 });
     expect(json.changes).toHaveLength(4);
   });
+
+  it('con el cursor por delante y un lote, no lo escribe: nada aceptado, baja desde 0 y el cursor baja', async () => {
+    const h = createHarness();
+    const { pc } = await pair(h);
+    await sync(pc, addOps('steam:1', 'Uno', hlc(T0)));
+    // El lote escribiría 8 filas: con la seq de después (12), nadie notaría el cursor 10.
+    const ops = [
+      ...addOps('steam:2', 'Dos', hlc(T0 + 1)),
+      ...addOps('steam:3', 'Tres', hlc(T0 + 2)),
+    ];
+    const ahead = { ...op('steam:4', 'title', 'Adelantado', hlc(T0 + 6 * MINUTE)) };
+    const { json } = await sync(pc, [...ops, ahead], 10);
+    expect(json).toMatchObject({ reset: false, more: false, cursor: 4, accepted: [] });
+    expect(json.rejected).toEqual([{ index: 8, opId: ahead.opId, reason: 'clock' }]);
+    expect(json.changes).toHaveLength(4);
+    expect(h.db.rows('SELECT seq FROM agenda')).toEqual([{ seq: 4 }]);
+    expect(serverEntries(h.db).map((e) => e.id)).toEqual(['steam:1']);
+    // Con el cursor nuevo, el mismo lote sí se escribe.
+    expect((await sync(pc, ops, 4)).json.accepted).toHaveLength(8);
+  });
+
+  it('cada respuesta lleva la época de la agenda, que el restore cambia', async () => {
+    const h = createHarness();
+    const { pc, phone } = await pair(h);
+    const first = (await sync(pc, addOps('steam:1', 'Uno', hlc(T0)))).json.epoch;
+    expect(first).toMatch(/^[0-9a-f]{16}$/);
+    expect((await sync(phone, [])).json.epoch).toBe(first);
+    // Otra agenda, otra época.
+    const other = h.client();
+    await createAgenda(other);
+    expect((await sync(other, [])).json.epoch).not.toBe(first);
+    // El runbook del restore con Time Travel.
+    h.db.rows('UPDATE agenda SET epoch = lower(hex(randomblob(8)))');
+    const after = (await sync(pc, [], 4)).json.epoch;
+    expect(after).toMatch(/^[0-9a-f]{16}$/);
+    expect(after).not.toBe(first);
+  });
 });
 
 describe('cookie y retención', () => {

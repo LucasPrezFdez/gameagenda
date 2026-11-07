@@ -159,6 +159,8 @@ export function createSyncService(options: SyncServiceOptions): SyncController {
   let work: Promise<unknown> = Promise.resolve();
   /** El motor está reanudado (o se reanudará al cargar). */
   let engaged = false;
+  /** La última carga del motor falló estando enganchado: la actividad lo dice (`error`). */
+  let loadFailed = false;
 
   function compute(): SyncState {
     let status: SyncStatus;
@@ -189,16 +191,42 @@ export function createSyncService(options: SyncServiceOptions): SyncController {
     return promise;
   }
 
+  /** Lo que no es un `SyncError` (ese ya lo ha apuntado `ensureRuntime`), al registro de errores. */
+  function logUnexpected(cause: unknown): void {
+    if (!(cause instanceof SyncError)) onError(cause);
+  }
+
+  /**
+   * Carga el motor (una vez) y, si está enganchado, lo reanuda: también cuando lo carga otra
+   * operación tras fallar la carga de `reconcile` («Sincronizar ahora»).
+   */
   function ensureRuntime(): Promise<SyncRuntime> {
     if (db === null) return Promise.reject(new SyncError('unavailable'));
     loading ??= (options.loadRuntime ?? (() => import('./runtime.ts')))().then(
       (mod) => {
-        runtime = mod.createRuntime(host(db));
-        return runtime;
+        const rt = mod.createRuntime(host(db));
+        runtime = rt;
+        if (loadFailed) {
+          loadFailed = false;
+          activity = 'idle';
+          error = null;
+          update();
+        }
+        if (engaged) rt.resume();
+        return rt;
       },
       (cause: unknown) => {
         loading = null;
         onError(cause);
+        // Sin motor no hay rondas (una pestaña vieja tras un despliegue: su *chunk* ya no está).
+        // La interfaz lo dice, y «Sincronizar ahora» lo vuelve a cargar. Sin reintentos solos: con
+        // un 404 fallaría siempre. (`engaged` no cambia: `update()` no vuelve a llamar aquí.)
+        if (engaged) {
+          loadFailed = true;
+          activity = 'error';
+          error = 'network';
+          update();
+        }
         throw new SyncError('network');
       },
     );
@@ -218,13 +246,9 @@ export function createSyncService(options: SyncServiceOptions): SyncController {
       runtime?.pause();
       return;
     }
-    void track(
-      ensureRuntime()
-        .then((rt) => {
-          if (engaged) rt.resume();
-        })
-        .catch(onError),
-    );
+    // Ya cargado, se reanuda; si no, al cargar (`ensureRuntime`).
+    if (runtime !== null) runtime.resume();
+    else void track(ensureRuntime().catch(logUnexpected));
   }
 
   function update(): void {
@@ -274,11 +298,15 @@ export function createSyncService(options: SyncServiceOptions): SyncController {
   async function readRecord(): Promise<void> {
     if (db === null) return;
     const row = await db.meta.get(META_KEYS.syncState);
+    const had = record !== null;
     record = parseSyncRecord(row?.value);
     hint = readHint();
     if (record !== null || hint) pending = await countPendingEntries(db);
     ready = true;
     update();
+    // Sin estado y con el indicio, con el motor en marcha: han borrado IndexedDB con la app
+    // abierta (CA4.3). La ronda lo restaura; que sea ya, sin esperar a otro disparador.
+    if (had && record === null && hint && engaged) void track(service.syncNow());
   }
 
   function refreshHint(): void {
@@ -382,7 +410,7 @@ export function createSyncService(options: SyncServiceOptions): SyncController {
       try {
         await (await ensureRuntime()).syncNow();
       } catch (cause) {
-        onError(cause);
+        logUnexpected(cause);
       }
     },
     async forget() {

@@ -9,6 +9,9 @@
 // - Ajustes › Sincronización: un código de emparejamiento usado no vale; un código de recuperación
 //   nuevo anula el anterior; desemparejar otro dispositivo lo deja fuera en su siguiente ronda
 //   (401) y desemparejar este conserva la agenda; «Borrar todos mis datos» vacía D1 (CA4.7).
+// - D1: la purga semanal hace que cada dispositivo reciba un `reset` (una vez) y quede igual que D1
+//   sin esconder nada vivo; un restore con Time Travel (época nueva) hace que cada uno lo vuelva a
+//   subir todo, y no se pierde nada.
 // - Quien no sincroniza no hace ninguna petición a `/api` ni descarga el motor.
 //
 // Las rondas las disparan el motor y sus disparadores (arranque, `online`, foco, escritura local),
@@ -19,14 +22,17 @@
 import { DEFAULT_MIN_AGE } from '@gameagenda/core/api';
 import type { BrowserContext, Page } from '@playwright/test';
 import { capture, setup, toast, waitForSearch } from './helpers.ts';
-import { expectStored, storedMeta } from './storage.ts';
+import { expectStored, storedEntry, storedKeys, storedMeta } from './storage.ts';
 import {
   deviceCookies,
   expect,
   joinWorld,
   pageCookies,
+  restoreServer,
+  runServerMaintenance,
   SYNC_HINT_COOKIE_NAME,
   serverAgenda,
+  snapshotServer,
   test,
 } from './sync-server.ts';
 
@@ -448,10 +454,10 @@ test('CA4.3: borrar IndexedDB con la app abierta y sincronizar antes de recargar
   await openList(page);
   await waitForRound(page, 0);
 
-  // Dexie vuelve a abrir la base, ya vacía, con la siguiente operación. Si antes de recargar hay
-  // una ronda (aquí, al volver a la ventana), lee el cursor de esa base vacía: baja desde 0 y
-  // vuelve a guardar toda la agenda. Al recargar, o la encuentra guardada o, si la fachada ya no
-  // encontró `meta.syncState` (lo relee cuando cambia `meta`), la restaura como sin estado.
+  // Dexie vuelve a abrir la base, ya vacía, con la siguiente operación. La siguiente ronda (aquí,
+  // al volver a la ventana) se encuentra sin `meta.syncState` y, con el indicio puesto, restaura
+  // como al arrancar: baja desde 0, vuelve a guardar toda la agenda y su estado, y la pestaña pasa
+  // a «emparejado» sin recargar (no se queda en «restaurando»).
   const origin = new URL(page.url()).origin;
   const cdp = await context.newCDPSession(page);
   await cdp.send('Storage.clearDataForOrigin', { origin, storageTypes: 'indexeddb' });
@@ -460,6 +466,9 @@ test('CA4.3: borrar IndexedDB con la app abierta y sincronizar antes de recargar
   await waitForRound(page, before);
   await expectStored(page, CELESTE, { title: 'Celeste' });
   await expectStored(page, TERRARIA, { title: 'Terraria' });
+  await waitForSynced(page);
+  await expect.poll(() => storedMeta(page, 'syncState')).toMatchObject({ restore: false });
+  expect((await syncState(page))?.status).toBe('paired');
 
   await page.reload();
   await waitForRound(page, 0);
@@ -595,7 +604,8 @@ test('Ajustes: desemparejar otro lo deja fuera en su siguiente ronda (401) con s
   await expect(devices.getByRole('listitem')).toHaveCount(2, { timeout: 15_000 });
   await devices.getByRole('button', { name: 'Desemparejar: Móvil' }).click();
   await devices.getByRole('button', { name: 'Desemparejar: Móvil' }).click();
-  await expect(section.getByText('Hemos desemparejado «Móvil».')).toBeVisible();
+  // En el aviso de la app, que no empuja nada (§9.5).
+  await expect(toast(a)).toContainText('Hemos desemparejado «Móvil».');
 
   // B apunta otro juego: su siguiente ronda (2 s después de escribir) recibe 401. Se queda con
   // toda su agenda y con lo que no ha podido subir.
@@ -618,11 +628,15 @@ test('Ajustes: desemparejar otro lo deja fuera en su siguiente ronda (401) con s
   await openSync(b);
   await expect(syncSection(b).locator('[data-sync-unpaired="server"]')).toBeVisible();
 
-  // A se desempareja a sí mismo: deja de sincronizar y conserva la agenda.
+  // A se desempareja a sí mismo: deja de sincronizar y conserva la agenda. Ya es el último con la
+  // agenda, y la pregunta dice que la copia sincronizada se queda en el servidor.
   await section.getByRole('button', { name: 'Desemparejar este dispositivo' }).click();
-  const confirm = section
-    .getByRole('group', { name: '¿Desemparejar este dispositivo?', exact: false })
-    .getByRole('button', { name: 'Desemparejar este dispositivo' });
+  const group = section.getByRole('group', {
+    name: '¿Desemparejar este dispositivo?',
+    exact: false,
+  });
+  await expect(group).toContainText('Es el último que sincroniza tu agenda');
+  const confirm = group.getByRole('button', { name: 'Desemparejar este dispositivo' });
   await expect(confirm).toBeFocused();
   await confirm.click();
   await expect(
@@ -691,6 +705,201 @@ test('«Borrar todos mis datos» emparejado vacía D1 (CA4.7), y el otro disposi
     .toBe('unpaired:server');
   await expect(row(b, 'Celeste')).toHaveCount(1);
   await expectStored(b, CELESTE, { title: 'Celeste' });
+});
+
+/** Los `reset` de las respuestas de `POST /api/v1/sync` que recibe la pestaña, en orden. */
+function watchResets(page: Page): boolean[] {
+  const resets: boolean[] = [];
+  page.on('response', (response) => {
+    if (!response.url().endsWith('/api/v1/sync') || response.status() !== 200) return;
+    response
+      .json()
+      .then((json: { reset?: unknown }) => resets.push(json.reset === true))
+      .catch(() => undefined);
+  });
+  return resets;
+}
+
+/** Empareja `b` (nuevo, con sus juegos ya apuntados) con el código que enseña `a`. */
+async function pairWith(a: Page, b: Page, label: string): Promise<void> {
+  const pairing = await newPairingCode(a);
+  await openSync(b);
+  await enterCode(b, pairing, 'pair', label);
+  await expectJoined(b);
+  await waitForSynced(b);
+}
+
+test('purga semanal de D1: cada dispositivo recibe un reset y queda igual que D1, sin esconder nada vivo', async ({
+  page: a,
+  context,
+  newDevice,
+}) => {
+  test.setTimeout(150_000);
+  await allowQuickRefocus(context);
+  await setup(a);
+  const checksA = watchErrors(a);
+  await openList(a);
+  await capture(a, 'celeste', 'Celeste');
+  await capture(a, 'terraria', 'Terraria');
+  await capture(a, 'hades ii', 'Hades II');
+  await expectStored(a, HADES_II, { title: 'Hades II' });
+  await catalogSettled(a);
+  await activate(a, 'PC');
+
+  const b = await newDevice();
+  await allowQuickRefocus(b.context());
+  await setup(b);
+  const checksB = watchErrors(b);
+  await pairWith(a, b, 'Móvil');
+
+  // A quita Terraria: su lápida sube a D1 y B la baja.
+  await catalogSettled(a);
+  await openList(a);
+  await waitForRound(a, 0);
+  const removed = await successes(a);
+  await a.getByRole('button', { name: 'Más acciones: Terraria' }).click();
+  await a.getByRole('menuitem', { name: 'Quitar de mi lista' }).click();
+  await expect(toast(a)).toContainText('Quitado de tu lista: Terraria');
+  await expectStored(a, TERRARIA, { deletedAt: expect.any(String) });
+  await waitForRound(a, removed);
+  await waitForSynced(a);
+  await openList(b);
+  await waitForRound(b, 0);
+  await expectStored(b, TERRARIA, { deletedAt: expect.any(String) });
+  await expect(b.getByRole('heading', { name: 'Quiero jugar (2)' })).toBeVisible();
+
+  // El mantenimiento de un lunes, pasados más de 90 días: D1 purga la lápida, y la `seq` y
+  // `purged_seq` suben juntas.
+  const deviceId = (await syncState(a))?.deviceId ?? '';
+  const before = await serverAgenda(a, { device: deviceId });
+  await runServerMaintenance(a, { afterDays: 91 });
+  const server = await serverAgenda(a, { device: deviceId }, { entries: true });
+  expect(server?.seq).toBe((before?.seq ?? 0) + 1);
+  expect(server?.purgedSeq).toBe(server?.seq);
+  const serverIds = (server?.entries ?? []).map((e) => e.id);
+  expect(serverIds).toEqual([HADES_II, CELESTE]);
+
+  // Cada uno, en su siguiente ronda, recibe un reset (una vez) y queda como D1: sin la lápida, y
+  // con todo lo vivo a la vista.
+  for (const page of [a, b]) {
+    const resets = watchResets(page);
+    const rounds = await successes(page);
+    await refocus(page);
+    await waitForRound(page, rounds);
+    await expect.poll(() => resets.includes(true)).toBe(true);
+    await expect.poll(() => storedEntry(page, TERRARIA)).toBeNull();
+    expect(await storedKeys(page, 'entries')).toEqual(serverIds);
+    await expect(page.getByRole('heading', { name: 'Quiero jugar (2)' })).toBeVisible();
+    await expect(row(page, 'Celeste')).toHaveCount(1);
+    await expect(row(page, 'Hades II')).toHaveCount(1);
+    await expect(row(page, 'Terraria')).toHaveCount(0);
+    expect(await storedMeta(page, 'syncCursor')).toMatchObject({
+      cursor: server?.seq,
+      purgedSeq: server?.purgedSeq,
+      reset: false,
+      epoch: server?.epoch,
+    });
+    await waitForSynced(page);
+
+    // Y no se repite.
+    const seen = resets.length;
+    const again = await successes(page);
+    await refocus(page);
+    await waitForRound(page, again);
+    await expect.poll(() => resets.length).toBeGreaterThan(seen);
+    expect(resets.slice(seen)).not.toContain(true);
+  }
+  await checksA.expectClean();
+  await checksB.expectClean();
+});
+
+test('D1 vuelta atrás (restore con Time Travel y época nueva): cada dispositivo lo vuelve a subir todo y no se pierde nada', async ({
+  page: a,
+  context,
+  newDevice,
+}) => {
+  test.setTimeout(150_000);
+  await allowQuickRefocus(context);
+  await setup(a);
+  const checksA = watchErrors(a);
+  await openList(a);
+  await capture(a, 'celeste', 'Celeste');
+  await expectStored(a, CELESTE, { title: 'Celeste' });
+  await catalogSettled(a);
+  await activate(a, 'PC');
+
+  const b = await newDevice();
+  await allowQuickRefocus(b.context());
+  await setup(b);
+  const checksB = watchErrors(b);
+  await openList(b);
+  await capture(b, 'terraria', 'Terraria');
+  await expectStored(b, TERRARIA, { title: 'Terraria' });
+  await catalogSettled(b);
+  await pairWith(a, b, 'Móvil');
+  for (const page of [b, a]) {
+    await catalogSettled(page);
+    await openList(page);
+    await waitForRound(page, 0);
+    await expect(page.getByRole('heading', { name: 'Quiero jugar (2)' })).toBeVisible();
+    await waitForSynced(page);
+  }
+
+  // La copia de D1 a la que volverá el restore.
+  const deviceId = (await syncState(a))?.deviceId ?? '';
+  await snapshotServer(a);
+  const saved = await serverAgenda(a, { device: deviceId });
+
+  // Después de la copia: A apunta Hades II, que sube a D1 y baja a B.
+  const captured = await successes(a);
+  await capture(a, 'hades ii', 'Hades II');
+  await expectStored(a, HADES_II, { title: 'Hades II' });
+  await waitForRound(a, captured);
+  await waitForSynced(a);
+  const roundsB = await successes(b);
+  await refocus(b);
+  await waitForRound(b, roundsB);
+  await expectStored(b, HADES_II, { title: 'Hades II' });
+
+  // El restore: D1 vuelve a la copia (sin Hades II) y, como dice el *runbook*, con época nueva.
+  await restoreServer(a);
+  const restored = await serverAgenda(a, { device: deviceId }, { entries: true });
+  expect(restored?.seq).toBe(saved?.seq);
+  expect(restored?.epoch).toMatch(/^[0-9a-f]{16}$/);
+  expect(restored?.epoch).not.toBe(saved?.epoch);
+  expect((restored?.entries ?? []).map((e) => e.id)).not.toContain(HADES_II);
+
+  // B apunta Stardew: su ronda lleva operaciones y ve otra época, así que lo vuelve a subir todo y
+  // baja desde 0. A, al volver a su ventana, igual.
+  const capturedB = await successes(b);
+  await capture(b, 'stardew', 'Stardew Valley');
+  await expectStored(b, STARDEW, { title: 'Stardew Valley' });
+  await waitForRound(b, capturedB);
+  await waitForSynced(b);
+  const roundsA = await successes(a);
+  await refocus(a);
+  await waitForRound(a, roundsA);
+  // Y B otra vez, por si la subida de A ha escrito algo.
+  const lastB = await successes(b);
+  await refocus(b);
+  await waitForRound(b, lastB);
+
+  const server = await serverAgenda(a, { device: deviceId }, { entries: true });
+  expect((server?.entries ?? []).map((e) => e.id)).toEqual([TERRARIA, HADES_II, STARDEW, CELESTE]);
+  for (const page of [a, b]) {
+    await waitForSynced(page);
+    await expect(page.getByRole('heading', { name: 'Quiero jugar (4)' })).toBeVisible();
+    for (const title of ['Celeste', 'Terraria', 'Hades II', 'Stardew Valley']) {
+      await expect(row(page, title)).toHaveCount(1);
+    }
+    expect(await storedMeta(page, 'syncCursor')).toMatchObject({
+      cursor: server?.seq,
+      reset: false,
+      epoch: restored?.epoch,
+    });
+  }
+  await checksA.expectClean();
+  await checksB.expectClean();
 });
 
 test('quien no sincroniza no hace ninguna petición a /api ni descarga el motor', async ({

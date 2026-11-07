@@ -45,3 +45,32 @@ export async function storedMeta(page: Page, key: string): Promise<unknown> {
   const row = (await storedRow(page, 'meta', key)) as { value: unknown } | null;
   return row?.value ?? null;
 }
+
+/** La entrada `id` tal como está guardada, o `null` si no está (tampoco como lápida). */
+export function storedEntry(page: Page, id: string): Promise<unknown> {
+  return storedRow(page, 'entries', id);
+}
+
+/** Las claves guardadas en la tabla `table`, en orden. */
+export function storedKeys(page: Page, table: string): Promise<string[]> {
+  return page.evaluate(
+    (store) =>
+      new Promise<string[]>((resolve, reject) => {
+        const request = indexedDB.open('gameagenda');
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+          const db = request.result;
+          const keys = db.transaction(store, 'readonly').objectStore(store).getAllKeys();
+          keys.onsuccess = () => {
+            db.close();
+            resolve(keys.result.map(String));
+          };
+          keys.onerror = () => {
+            db.close();
+            reject(keys.error);
+          };
+        };
+      }),
+    table,
+  );
+}

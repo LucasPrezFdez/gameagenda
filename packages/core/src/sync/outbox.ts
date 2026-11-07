@@ -34,24 +34,38 @@ export function compactOutbox(ops: readonly Op[]): { keep: Op[]; drop: Op[] } {
   return { keep, drop };
 }
 
+/** Orden de subida: HLC ascendente y, a igual HLC, `opId`. */
+function uploadOrder(a: Op, b: Op): number {
+  return a.hlc < b.hlc ? -1 : a.hlc > b.hlc ? 1 : a.opId < b.opId ? -1 : a.opId > b.opId ? 1 : 0;
+}
+
+/** Una copia de `ops` en orden de subida (el de `takeBatch`). */
+export function sortForUpload(ops: readonly Op[]): Op[] {
+  return [...ops].sort(uploadOrder);
+}
+
+/**
+ * El lote que empieza en `start` de una lista ya en orden de subida (`sortForUpload`), con las
+ * reglas de `takeBatch` y sin reordenar nada: quien sube muchos lotes ordena la `outbox` una vez,
+ * no en cada lote (subirla entera tras activar o emparejar sería cuadrático).
+ */
+export function takeSortedBatch(sorted: readonly Op[], max = SYNC_BATCH_SIZE, start = 0): Op[] {
+  let end = start;
+  while (end < sorted.length) {
+    const hlc = (sorted[end] as Op).hlc;
+    let j = end;
+    while (j < sorted.length && (sorted[j] as Op).hlc === hlc) j++;
+    if (end > start && j - start > max) break;
+    end = j;
+    if (end - start >= max) break;
+  }
+  return sorted.slice(start, end);
+}
+
 /**
  * Primer lote de la `outbox`: por HLC ascendente y sin partir nunca una acción (todas sus
  * operaciones comparten HLC). Si una sola acción supera `max`, va entera en su lote.
  */
 export function takeBatch(ops: readonly Op[], max = SYNC_BATCH_SIZE): Op[] {
-  const sorted = [...ops].sort((a, b) =>
-    a.hlc < b.hlc ? -1 : a.hlc > b.hlc ? 1 : a.opId < b.opId ? -1 : a.opId > b.opId ? 1 : 0,
-  );
-  const batch: Op[] = [];
-  let i = 0;
-  while (i < sorted.length) {
-    const hlc = (sorted[i] as Op).hlc;
-    let j = i;
-    while (j < sorted.length && (sorted[j] as Op).hlc === hlc) j++;
-    if (batch.length > 0 && batch.length + (j - i) > max) break;
-    batch.push(...sorted.slice(i, j));
-    i = j;
-    if (batch.length >= max) break;
-  }
-  return batch;
+  return takeSortedBatch(sortForUpload(ops), max);
 }

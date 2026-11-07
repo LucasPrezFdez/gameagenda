@@ -45,7 +45,8 @@ export function createDexieAgendaStorage(db: GameAgendaDb, newOpId: NewOpId): Ag
         await db.entries.bulkPut(written);
         const ops = derived.length > 0 ? [...batch.ops, ...derived] : batch.ops;
         if (ops.length > 0) await db.outbox.bulkAdd([...ops]);
-        await db.meta.put({ key: META_KEYS.hlcClock, value: batch.clock });
+        // La instantánea de ahora, no la de la acción (ver `WriteBatch.clock`).
+        await db.meta.put({ key: META_KEYS.hlcClock, value: batch.clock() });
         return written;
       });
     },

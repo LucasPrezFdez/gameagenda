@@ -122,6 +122,15 @@ textarea {
   border-style: dashed;
 }
 
+/* Ocupado mientras espera (`aria-disabled`, que conserva el foco; ver SyncPanel.tsx): el borde de
+   trazos en el color de su propio texto, sin colores nuevos, así que no cambia ningún par de
+   contraste. El texto también cambia («Desemparejando…»). */
+.btn[aria-disabled="true"] {
+  cursor: progress;
+  border-style: dashed;
+  border-color: currentcolor;
+}
+
 .btn--primary {
   border-color: var(--accent);
   background: var(--accent);

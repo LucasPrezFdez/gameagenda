@@ -1,5 +1,6 @@
-import { manualEntryId } from '@gameagenda/core/entries';
-import { createHlcClock } from '@gameagenda/core/sync';
+import { addEntry, manualEntryId, removeEntry } from '@gameagenda/core/entries';
+import { importCsv } from '@gameagenda/core/schemas';
+import { createHlcClock, formatHlc } from '@gameagenda/core/sync';
 import { v7 as uuidv7 } from 'uuid';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createDexieAgendaStorage } from '../db/agenda-storage.ts';
@@ -337,6 +338,47 @@ describe('guardado fallido', () => {
     expect(errors).toHaveLength(2);
     expect(await t.db.entries.get('steam:1')).toEqual(agenda.get('steam:1'));
     expect((await t.db.entries.get('steam:1'))?.status).toBe('playing');
+    agenda.dispose();
+  });
+});
+
+describe('el reloj, si la sincronización lo baja', () => {
+  it('refrescar el catálogo e importar un CSV no fallan con una entrada por delante del reloj', () => {
+    const now = Date.UTC(2026, 10, 7, 12);
+    const at = (minutes: number) =>
+      formatHlc({ ms: now + minutes * 60_000, counter: 0, node: 'aaaaaaaa' });
+    const base = { today: '2026-11-07', newOpId: uuidv7, lastRank: null };
+    // Apuntadas con el reloj 6 min adelantado (y una, quitada después).
+    const ten = addEntry(undefined, { id: 'steam:10', title: 'Diez' }, { ...base, hlc: at(6) });
+    const added = addEntry(undefined, { id: 'steam:11', title: 'Once' }, { ...base, hlc: at(6) });
+    const gone = removeEntry(added?.entry, { ...base, hlc: at(7) });
+    if (!ten || !gone) throw new Error('acciones');
+    const clock = createHlcClock({ now: () => now, node: 'cccccccc' });
+    const agenda = createAgenda({
+      entries: [ten.entry, gone.entry],
+      clock,
+      newId: uuidv7,
+      storage: null,
+      now: () => TODAY,
+    });
+    // El motor corrige el desfase y la parte física del reloj baja a la hora buena.
+    clock.setOffset(0);
+    expect(clock.snapshot().ms).toBe(now);
+    expect(() =>
+      agenda.refreshFromCatalog([{ id: 'steam:10', title: 'Diez (nuevo)' }]),
+    ).not.toThrow();
+    expect(agenda.get('steam:10')?.title).toBe('Diez (nuevo)');
+    const ctx = agenda.importContext();
+    // La lápida de steam:11 va por delante del reloj: sin recibirla, la fila haría fallar todo.
+    const csv = ['id;title', 'steam:11;Once', ''].join('\r\n');
+    const result = importCsv(csv, agenda.get, {
+      today: ctx.today,
+      lastRank: ctx.lastRank,
+      nextHlc: ctx.nextHlc,
+      newOpId: ctx.newOpId,
+      newManualId: ctx.newManualId,
+    });
+    expect(result).toMatchObject({ ok: true, counts: { added: 1 } });
     agenda.dispose();
   });
 });

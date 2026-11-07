@@ -76,17 +76,29 @@ describe('purga semanal (los lunes)', () => {
       .map((r) => r.entry_id);
   }
 
-  it('se lleva las lápidas de más de 90 días y los esqueletos viejos, y sube purged_seq', async () => {
+  it('se lleva las lápidas de más de 90 días y los esqueletos viejos; purged_seq, a la seq nueva', async () => {
     const { h } = await scenario();
     const [{ seq: before } = { seq: 0 }] = h.db.rows<{ seq: number }>('SELECT seq FROM agenda');
-    const [{ top } = { top: 0 }] = h.db.rows<{ top: number }>(
-      "SELECT MAX(seq) AS top FROM op WHERE entry_id IN ('steam:1', 'steam:5')",
-    );
     await runMaintenance(h.db, MONDAY);
     expect(entryIds(h)).toEqual(['steam:2', 'steam:3', 'steam:4', 'steam:6']);
     expect(h.db.rows('SELECT seq, purged_seq FROM agenda')).toEqual([
-      { seq: before + 1, purged_seq: top },
+      { seq: before + 1, purged_seq: before + 1 },
     ]);
+  });
+
+  it('una agenda sin nada que purgar no cambia', async () => {
+    const { h } = await scenario();
+    const other = h.client();
+    await createAgenda(other, 'Otra');
+    await sync(other, addOps('steam:1', 'Uno', hlc(MONDAY - 100 * DAY)));
+    const otherSeq = () =>
+      h.db.rows<{ seq: number; purged_seq: number }>(
+        "SELECT seq, purged_seq FROM agenda WHERE id IN (SELECT agenda_id FROM device WHERE label = 'Otra')",
+      );
+    const before = otherSeq();
+    await runMaintenance(h.db, MONDAY);
+    expect(otherSeq()).toEqual(before);
+    expect(before).toEqual([{ seq: 4, purged_seq: 0 }]);
   });
 
   it('fuera de los lunes no purga nada', async () => {
@@ -96,18 +108,24 @@ describe('purga semanal (los lunes)', () => {
     expect(h.db.rows('SELECT purged_seq FROM agenda')).toEqual([{ purged_seq: 0 }]);
   });
 
-  it('una app que no vio la purga recibe reset; la que ya estaba al día, no', async () => {
+  it('toda app que sincronizó antes de la purga recibe reset, también la que estaba al día', async () => {
     const { h, a } = await scenario();
     const [{ seq: synced } = { seq: 0 }] = h.db.rows<{ seq: number }>('SELECT seq FROM agenda');
     expect(a.cursor).toBe(synced);
     await runMaintenance(h.db, MONDAY);
-    // La réplica estaba al día: ya tiene las lápidas y no le hace falta reset.
+    // Al día: tiene las lápidas que D1 ya no tiene, y el reset hace que las quite.
     const upToDate = await sync(a.client, [], a.cursor, a.purgedSeq);
-    expect(upToDate.json.reset).toBe(false);
-    // Una copia que se quedó en la primera página no vio la lápida de steam:1.
-    const behind = await sync(a.client, [], 2, 0);
-    expect(behind.json.reset).toBe(true);
-    expect(behind.json.changes.map((c) => c.entryId)).not.toContain('steam:1');
+    expect(upToDate.json).toMatchObject({ reset: true, purgedSeq: synced + 1, cursor: synced + 1 });
+    expect(upToDate.json.changes.map((c) => c.entryId)).not.toContain('steam:1');
+    // Una copia que se quedó en la primera página, igual.
+    expect((await sync(a.client, [], 2, 0)).json.reset).toBe(true);
+    // Tras el reset no se repite: el cursor llega a la seq nueva con el purgedSeq nuevo.
+    const after = await sync(a.client, [], upToDate.json.cursor, upToDate.json.purgedSeq);
+    expect(after.json).toMatchObject({ reset: false, changes: [] });
+    // Ni con el purgedSeq viejo, porque el cursor ya no está por debajo de la purga.
+    expect((await sync(a.client, [], upToDate.json.cursor, 0)).json.reset).toBe(false);
+    // Una app que nunca ha sincronizado (cursor 0) lo baja todo sin reset.
+    expect((await sync(a.client, [], 0, 0)).json.reset).toBe(false);
   });
 
   it('repetirla no cambia nada', async () => {

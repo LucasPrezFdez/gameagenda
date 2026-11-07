@@ -46,6 +46,7 @@ describe('cliente de la micro-API', () => {
       cache: 'no-store',
       headers: { 'Content-Type': 'application/json' },
     });
+    expect(call?.init.referrerPolicy).toBe('no-referrer');
     expect(JSON.parse(String(call?.init.body))).toEqual({
       ageConfirmed: true,
       minAge: 14,
@@ -73,12 +74,15 @@ describe('cliente de la micro-API', () => {
       ['POST', '/api/v1/devices/a%2Fb%20c/revoke', '{}'],
       ['POST', '/api/v1/agenda/delete', '{"confirm":true}'],
     ]);
+    // Ninguna manda en `Referer` la ruta ni la consulta de la página (lo buscado, los filtros).
+    expect(calls.map((c) => c.init.referrerPolicy)).toEqual(Array(5).fill('no-referrer'));
   });
 
   it('sync lleva el cursor, el purgedSeq y las operaciones', async () => {
     const response = {
       cursor: 4,
       purgedSeq: 0,
+      epoch: 'a1b2c3d4e5f60718',
       reset: false,
       more: false,
       serverTime: 1,

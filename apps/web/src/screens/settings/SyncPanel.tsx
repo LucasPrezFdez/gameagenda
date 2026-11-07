@@ -10,9 +10,20 @@
 //   un código de recuperación nuevo y «Desemparejar este dispositivo»;
 // - desemparejada (por el servidor o sin cookies): lo dice y ofrece el código de recuperación.
 // La sincronización en sí nunca pregunta (RF-26): aquí solo hay gestos explícitos. Las
-// confirmaciones van en el sitio, nunca en un modal (§9.6), y el foco sigue a cada cambio de vista.
+// confirmaciones van en el sitio, nunca en un modal (§9.6), y el foco sigue a cada cambio de vista,
+// también cuando la cambia el servidor (un 401). Lo que llega solo, sin un gesto (otro dispositivo
+// se ha emparejado), sale en el aviso de la app (`NoticeCenter`), que no empuja nada (§9.5).
 import { CODE_INPUT_MAX, DEFAULT_MIN_AGE } from '@gameagenda/core/api';
-import { type ReactNode, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useServices, useSyncState } from '../../app/services.tsx';
 import { logError } from '../../errors/error-log.ts';
 import { es } from '../../i18n/es.ts';
@@ -31,10 +42,19 @@ import {
   cleanDeviceLabel,
   codeGroups,
   deviceDetails,
+  focusLost,
   formatClock,
   formatCountdown,
   isDesktopApp,
+  isIosBrowserTab,
+  isLastAppDevice,
+  messageAfterViewChange,
   newDevices,
+  nextPairingLink,
+  type PairingLink,
+  type PanelMessage,
+  type PanelView,
+  pairingDeadline,
   pendingText,
   readCode,
   remainingMs,
@@ -44,6 +64,7 @@ import {
   syncErrorText,
   syncedWhen,
   syncViewOf,
+  viewHeading,
 } from './sync-model.ts';
 
 const t = es.syncPanel;
@@ -139,7 +160,7 @@ function CodeBox({ code, expired = false }: { code: string; expired?: boolean })
   );
 }
 
-interface LabelProps {
+export interface LabelProps {
   readonly labelId: string;
   readonly label: string;
   readonly labelError: string | null;
@@ -180,10 +201,27 @@ function DeviceNameField({ labelId: id, label, labelError: error, onLabel }: Lab
 type JoinKind = 'pair' | 'recover';
 
 /**
+ * Qué se guarda, las dos cookies que crea el gesto y el hueco de los textos legales (§11.2): junto
+ * a cada forma de crearlas (activar, emparejar o recuperar), sin sincronizar y desemparejado.
+ */
+function SyncDisclosure() {
+  return (
+    <>
+      <p>{t.stored}</p>
+      <p>{t.cookie}</p>
+      {/* El hueco de los textos legales (CA4.7): aquí irá el enlace a la política. */}
+      <p className="muted" data-sync-legal="">
+        {t.legal}
+      </p>
+    </>
+  );
+}
+
+/**
  * Canjear un código de emparejamiento o el de recuperación (sin sincronizar o desemparejado).
  * `idPrefix` da los `id` estables: `-title`, `-code`, `-pair` y `-recover`.
  */
-function JoinForm({
+export function JoinForm({
   sync,
   idPrefix,
   title,
@@ -191,6 +229,7 @@ function JoinForm({
   primary,
   initialCode,
   fromLink,
+  iosTab,
   takeLabel,
   onJoined,
 }: {
@@ -201,6 +240,8 @@ function JoinForm({
   primary: JoinKind;
   initialCode: string;
   fromLink: boolean;
+  /** Safari de iPhone o iPad fuera de la pantalla de inicio (`isIosBrowserTab`). */
+  iosTab: boolean;
   takeLabel: () => string | null;
   onJoined: () => void;
 }) {
@@ -256,7 +297,8 @@ function JoinForm({
       <p>{intro}</p>
       {fromLink && (
         <p id={noteId} className="sync__note">
-          {t.fromLink}
+          {/* La cámara del iPhone abre el enlace en Safari, no en la app de la pantalla de inicio. */}
+          {iosTab ? `${t.fromLink} ${t.fromLinkSafari}` : t.fromLink}
         </p>
       )}
       <form
@@ -334,10 +376,11 @@ function JoinForm({
 }
 
 /** Sin sincronizar: qué hace y qué guarda, activar y unirse a una agenda que ya existe. */
-function OffView({
+export function OffView({
   sync,
   ids,
   linkCode,
+  iosTab,
   labelProps,
   onActivating,
   onActivated,
@@ -346,6 +389,7 @@ function OffView({
   sync: SyncService;
   ids: PanelIds;
   linkCode: string | null;
+  iosTab: boolean;
   labelProps: LabelProps;
   onActivating: (busy: boolean) => void;
   onActivated: (recoveryCode: string) => void;
@@ -381,12 +425,7 @@ function OffView({
     <>
       <div className="sync__block">
         <p>{t.intro}</p>
-        <p>{t.stored}</p>
-        <p>{t.cookie}</p>
-        {/* El hueco de los textos legales (CA4.7): aquí irá el enlace a la política. */}
-        <p className="muted" data-sync-legal="">
-          {t.legal}
-        </p>
+        <SyncDisclosure />
       </div>
       <DeviceNameField {...labelProps} />
       <section className="sync__block" aria-labelledby={ids.off}>
@@ -438,6 +477,7 @@ function OffView({
         primary="pair"
         initialCode={linkCode ?? ''}
         fromLink={linkCode !== null}
+        iosTab={iosTab}
         takeLabel={labelProps.takeLabel}
         onJoined={onJoined}
       />
@@ -482,7 +522,7 @@ type DevicesState =
   | { readonly kind: 'error'; readonly message: string };
 
 /** La línea de estado (§9.6), en `role="status"`, y «Sincronizar ahora». */
-function StatusSection({
+export function StatusSection({
   sync,
   state,
   headingId,
@@ -514,7 +554,11 @@ function StatusSection({
           ) : (
             <p>{line.text}</p>
           )}
-          {pending !== null && <p className="muted">{pending}</p>}
+          {/* Siempre montada, con su hueco: si no, «Sincronizar ahora» subiría y bajaría con cada
+              subida (§9.5, regla 3). Sin cambios pendientes no se ve ni se anuncia. */}
+          <p className="muted sync__pending" data-shown={pending !== null ? '' : undefined}>
+            {pending ?? t.pending(1)}
+          </p>
         </div>
       </div>
       <div className="settings__buttons">
@@ -528,7 +572,8 @@ function StatusSection({
 
 interface ShownCode {
   readonly code: string;
-  readonly expiresAt: string;
+  /** Hasta cuándo vale, con el reloj de este dispositivo (`pairingDeadline`), no el del servidor. */
+  readonly deadline: number;
   readonly drawing: QrDrawing | null;
 }
 
@@ -550,15 +595,21 @@ function PairingSection({
   headingId: string;
   /** Los dispositivos de la lista, o `null` si aún no ha llegado. */
   knownIds: ReadonlySet<string> | null;
-  onPaired: (devices: readonly DeviceInfo[], added: readonly DeviceInfo[]) => void;
+  /** `moveFocus`: el foco estaba en el código, que desaparece (o ya se había perdido). */
+  onPaired: (
+    devices: readonly DeviceInfo[],
+    added: readonly DeviceInfo[],
+    moveFocus: boolean,
+  ) => void;
 }) {
   const id = useId();
   const [pairing, setPairing] = useState<PairingState>({ shown: null, busy: false, error: null });
   const generation = useRef(0);
+  const codeBlock = useRef<HTMLDivElement>(null);
   /** Los dispositivos que había al crear el código: uno nuevo es el que lo ha canjeado. */
   const baseline = useRef<ReadonlySet<string> | null>(null);
   const { shown } = pairing;
-  const left = shown ? remainingMs(shown.expiresAt, Date.now()) : 0;
+  const left = shown ? remainingMs(shown.deadline, Date.now()) : 0;
   const expired = shown !== null && left === 0;
   useTick(1000, shown !== null && !expired);
 
@@ -568,6 +619,8 @@ function PairingSection({
     const first = pairing.shown === null;
     setPairing((prev) => ({ ...prev, busy: true, error: null }));
     const qr = loadQr();
+    // Antes de pedirlo: el plazo, con el reloj de este dispositivo, empieza a contar aquí.
+    const sentAt = Date.now();
     const result = await attempt(() => sync.createPairingCode());
     if (current !== generation.current) return;
     if (!result.ok) {
@@ -578,9 +631,13 @@ function PairingSection({
       }));
       return;
     }
-    const { code, expiresAt } = result.value;
+    const { code } = result.value;
     baseline.current = knownIds;
-    setPairing({ shown: { code, expiresAt, drawing: null }, busy: false, error: null });
+    setPairing({
+      shown: { code, deadline: pairingDeadline(sentAt), drawing: null },
+      busy: false,
+      error: null,
+    });
     // La primera vez, el botón desaparece: el foco va al código. Con «Otro código», se queda.
     if (first) focusWhenReady(`${id}-code-title`);
     try {
@@ -616,9 +673,13 @@ function PairingSection({
         }
         const added = newDevices(baseline.current, result.value);
         if (added.length === 0) return;
+        // Llega sin un gesto: solo se mueve el foco si estaba en el código, que desaparece.
+        const active = document.activeElement;
+        const moveFocus =
+          focusLost(active, document.body) || codeBlock.current?.contains(active) === true;
         generation.current += 1;
         setPairing({ shown: null, busy: false, error: null });
-        onPaired(result.value, added);
+        onPaired(result.value, added, moveFocus);
       });
     }, PAIRING_POLL_MS);
     return () => clearInterval(timer);
@@ -652,7 +713,7 @@ function PairingSection({
           {status}
         </>
       ) : (
-        <div className="sync__pairing">
+        <div className="sync__pairing" ref={codeBlock}>
           <div className="sync__qr-slot">
             {shown.drawing !== null && !expired ? (
               <svg
@@ -690,7 +751,7 @@ function PairingSection({
                   <span aria-hidden="true" data-sync-countdown="">
                     {t.pairExpiresIn(formatCountdown(left))}.
                   </span>{' '}
-                  <span className="muted">{t.pairValidUntil(formatClock(shown.expiresAt))}</span>
+                  <span className="muted">{t.pairValidUntil(formatClock(shown.deadline))}</span>
                 </p>
               )}
             </div>
@@ -713,6 +774,28 @@ function PairingSection({
       )}
       <p className="muted">{t.pairHome}</p>
     </section>
+  );
+}
+
+/**
+ * Mientras llega la lista: la fila de este dispositivo, que siempre está, con su altura (dos
+ * líneas), para que lo de debajo no baje al llegar (§9.5, reglas 3 y 4). Los demás, si los hay,
+ * añaden su fila al llegar.
+ */
+function DevicesSkeleton() {
+  return (
+    <div className="sync__devices" aria-busy="true">
+      <div className="sync__device">
+        <div className="sync__device-main">
+          <p className="sync__device-name">
+            <span className="muted sync__loading">{t.devicesLoading}</span>
+          </p>
+          <p className="muted" aria-hidden="true">
+            <span className="skeleton sync__skeleton">&nbsp;</span>
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -757,15 +840,19 @@ function DevicesSection({
       <h3 id={headingId} tabIndex={-1} className="settings__subtitle">
         {t.devicesTitle}
       </h3>
-      {devices.kind === 'loading' && (
-        <p className="muted" aria-busy="true">
-          {t.devicesLoading}
-        </p>
-      )}
+      {devices.kind === 'loading' && <DevicesSkeleton />}
       {devices.kind === 'error' && (
         <div className="settings__import-result" role="status">
           <p className="sync__error">{devices.message}</p>
-          <button type="button" className="btn" onClick={onReload}>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => {
+              // El botón desaparece mientras recarga: el foco va antes al encabezado.
+              focusWhenReady(headingId);
+              onReload();
+            }}
+          >
             {t.devicesRetry}
           </button>
         </div>
@@ -811,10 +898,11 @@ function DevicesSection({
                           type="button"
                           className="btn btn--danger"
                           aria-disabled={busy}
-                          aria-label={t.unpairLabel(device.label)}
+                          // Ocupado, el nombre es el texto visible, «Desemparejando…» (2.5.3).
+                          aria-label={busy ? undefined : t.unpairLabel(device.label)}
                           onClick={() => void revoke(device)}
                         >
-                          {t.unpair}
+                          {busy ? t.unpairing : t.unpair}
                         </button>
                       </div>
                       <div className="settings__import-result" role="status">
@@ -853,6 +941,7 @@ function ConfirmAction({
   action,
   question,
   confirm,
+  busyLabel,
   danger,
   run,
 }: {
@@ -862,6 +951,8 @@ function ConfirmAction({
   action: string;
   question: string;
   confirm: string;
+  /** El texto del botón de confirmar mientras espera («Desemparejando…»). */
+  busyLabel: string;
   danger: boolean;
   run: () => Promise<string | null>;
 }) {
@@ -909,7 +1000,7 @@ function ConfirmAction({
               aria-disabled={busy}
               onClick={() => void go()}
             >
-              {confirm}
+              {busy ? busyLabel : confirm}
             </button>
           </div>
           <div className="settings__import-result" role="status">
@@ -936,14 +1027,14 @@ function ConfirmAction({
 }
 
 /** Emparejada (o restaurando, CA4.3): estado, emparejar otro, dispositivos y lo demás. */
-function PairedView({
+export function PairedView({
   sync,
   state,
   ids,
   fromLink,
   onNewRecovery,
   onLeft,
-  onMessage,
+  notify,
 }: {
   sync: SyncService;
   state: SyncState;
@@ -951,7 +1042,8 @@ function PairedView({
   fromLink: boolean;
   onNewRecovery: (code: string) => void;
   onLeft: () => void;
-  onMessage: (message: string) => void;
+  /** El aviso de la app (`NoticeCenter`): no empuja nada y repite el mismo texto si llega dos veces. */
+  notify: (message: string) => void;
 }) {
   const [devices, setDevices] = useState<DevicesState>({ kind: 'loading' });
   const loads = useRef(0);
@@ -975,13 +1067,14 @@ function PairedView({
   const knownIds = useMemo(() => (list === null ? null : new Set(list.map((d) => d.id))), [list]);
 
   const onPaired = useCallback(
-    (all: readonly DeviceInfo[], added: readonly DeviceInfo[]) => {
+    (all: readonly DeviceInfo[], added: readonly DeviceInfo[], moveFocus: boolean) => {
       loads.current += 1;
       setDevices({ kind: 'ready', devices: all });
-      onMessage(added.map((d) => t.paired(d.label)).join(' '));
-      focusWhenReady(ids.devices);
+      // Llega solo, mientras se mira el código: en el aviso de la app, sin empujar el panel.
+      notify(added.map((d) => t.paired(d.label)).join(' '));
+      if (moveFocus) focusWhenReady(ids.devices);
     },
-    [onMessage, ids.devices],
+    [notify, ids.devices],
   );
 
   return (
@@ -998,7 +1091,7 @@ function PairedView({
           void load();
         }}
         onRevoked={(device) => {
-          onMessage(t.unpaired(device.label));
+          notify(t.unpaired(device.label));
           if (list) setDevices({ kind: 'ready', devices: list.filter((d) => d.id !== device.id) });
           void load();
         }}
@@ -1010,6 +1103,7 @@ function PairedView({
         action={t.newRecovery}
         question={t.newRecoveryConfirm}
         confirm={t.newRecoveryDo}
+        busyLabel={t.newRecoveryCreating}
         danger={false}
         run={async () => {
           const result = await attempt(() => sync.createRecoveryCode());
@@ -1023,8 +1117,10 @@ function PairedView({
         title={t.leaveTitle}
         intro={t.leaveIntro}
         action={t.leave}
-        question={t.leaveConfirm}
+        // El último con la agenda: su copia sincronizada se queda en el servidor, y se dice.
+        question={isLastAppDevice(list) ? t.leaveConfirmLast : t.leaveConfirm}
         confirm={t.leave}
+        busyLabel={t.unpairing}
         danger
         run={async () => {
           // El propio id: el de la lista o, si aún no ha llegado, el que se guardó al emparejar.
@@ -1047,11 +1143,12 @@ function PairedView({
 }
 
 /** Desemparejado (§11.4): lo dice, ofrece el código de recuperación y dejarlo así. */
-function UnpairedView({
+export function UnpairedView({
   sync,
   state,
   ids,
   linkCode,
+  iosTab,
   labelProps,
   onJoined,
   onForgot,
@@ -1060,6 +1157,7 @@ function UnpairedView({
   state: SyncState;
   ids: PanelIds;
   linkCode: string | null;
+  iosTab: boolean;
   labelProps: LabelProps;
   onJoined: () => void;
   onForgot: () => void;
@@ -1074,6 +1172,10 @@ function UnpairedView({
           {state.unpairedReason === 'cookies' ? t.unpairedCookies : t.unpairedServer}
         </p>
       </section>
+      {/* Volver a emparejar o recuperar crea otra vez las cookies: se avisa aquí también (§11.2). */}
+      <div className="sync__block">
+        <SyncDisclosure />
+      </div>
       <DeviceNameField {...labelProps} />
       <JoinForm
         sync={sync}
@@ -1083,6 +1185,7 @@ function UnpairedView({
         primary="recover"
         initialCode={linkCode ?? ''}
         fromLink={linkCode !== null}
+        iosTab={iosTab}
         takeLabel={labelProps.takeLabel}
         onJoined={onJoined}
       />
@@ -1093,6 +1196,7 @@ function UnpairedView({
         action={t.forget}
         question={t.forgetConfirm}
         confirm={t.forget}
+        busyLabel={t.forgetting}
         danger
         run={async () => {
           const result = await attempt(() => sync.forget());
@@ -1105,7 +1209,7 @@ function UnpairedView({
   );
 }
 
-interface PanelIds {
+export interface PanelIds {
   readonly off: string;
   readonly join: string;
   readonly status: string;
@@ -1119,33 +1223,42 @@ interface PanelIds {
 }
 
 export function SyncPanel() {
-  const { sync } = useServices();
+  const { sync, notices } = useServices();
   const state = useSyncState();
   const base = useId();
-  const ids: PanelIds = {
-    off: `${base}-off`,
-    join: `${base}-join`,
-    status: `${base}-status`,
-    pairing: `${base}-pairing`,
-    devices: `${base}-devices`,
-    recovery: `${base}-recovery`,
-    leave: `${base}-leave`,
-    unpaired: `${base}-unpaired`,
-    forget: `${base}-forget`,
-    reveal: `${base}-reveal`,
-  };
-  // El código de `/emparejar#…`: se lee al pintar y se gasta al montar (una sola vez).
-  const [linkCode] = useState(() => peekPendingPairingCode());
+  const ids = useMemo<PanelIds>(
+    () => ({
+      off: `${base}-off`,
+      join: `${base}-join`,
+      status: `${base}-status`,
+      pairing: `${base}-pairing`,
+      devices: `${base}-devices`,
+      recovery: `${base}-recovery`,
+      leave: `${base}-leave`,
+      unpaired: `${base}-unpaired`,
+      forget: `${base}-forget`,
+      reveal: `${base}-reveal`,
+    }),
+    [base],
+  );
+  // El código de `/emparejar#…`: se lee al pintar y se gasta al montar (una sola vez). Solo vale en
+  // la vista en que se abrió: al cambiar de vista se olvida (`nextPairingLink`).
+  const [link, setLink] = useState<PairingLink | null>(() => {
+    const code = peekPendingPairingCode();
+    return code === null ? null : { code, view: null };
+  });
   useEffect(() => {
     takePendingPairingCode();
   }, []);
+  const [iosTab] = useState(() => isIosBrowserTab(globalThis.navigator));
   const [label, setLabel] = useState(() =>
     suggestedDeviceLabel(globalThis.navigator?.userAgent ?? '', isDesktopApp()),
   );
   const [labelError, setLabelError] = useState<string | null>(null);
   const [revealed, setRevealed] = useState<string | null>(null);
   const [activating, setActivating] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<PanelMessage | null>(null);
+  const messageCount = useRef(0);
 
   const labelId = `${base}-label`;
   const labelProps: LabelProps = {
@@ -1165,9 +1278,56 @@ export function SyncPanel() {
     },
   };
 
-  const onMessage = useCallback((text: string) => setMessage(text), []);
+  /** El aviso de arriba, para la vista a la que lleva el gesto; con otro `id`, se repite. */
+  function show(text: string, target: PanelView): void {
+    messageCount.current += 1;
+    setMessage({ id: messageCount.current, text, view: target });
+  }
+  const notify = useCallback((text: string) => notices.notify(text), [notices]);
   // Mientras se activa, la vista no cambia: al acabar sale el código de recuperación.
-  const view = revealed !== null ? 'reveal' : activating ? 'off' : syncViewOf(state);
+  const view: PanelView = revealed !== null ? 'reveal' : activating ? 'off' : syncViewOf(state);
+
+  // Al cambiar de vista, durante el pintado (así la vista nueva ya no ve lo viejo): el aviso de
+  // otra vista se borra y el enlace se olvida (ni rellena el campo ni mueve el foco).
+  const [lastView, setLastView] = useState(view);
+  if (lastView !== view) {
+    setLastView(view);
+    const kept = messageAfterViewChange(message, view);
+    if (kept !== message) setMessage(kept);
+  }
+  const currentLink = nextPairingLink(link, view);
+  if (currentLink !== link) setLink(currentLink);
+  const linkCode = currentLink?.view === view ? currentLink.code : null;
+  const shownMessage = message?.view === view ? message : null;
+
+  // Si la vista cambia y el foco se ha perdido (estaba en lo que ya no existe; p. ej., un 401 del
+  // servidor en una ronda o en una operación), va al encabezado de la vista nueva, que el lector
+  // lee. Si estaba fuera de la sección, no se toca. Los gestos de la sección lo llevan al mismo
+  // sitio por su cuenta.
+  const committedView = useRef(view);
+  useLayoutEffect(() => {
+    const from = committedView.current;
+    if (from === view) return;
+    committedView.current = view;
+    // De «cargando» a la primera vista: al abrir la sección, el foco lo pone la pantalla (o el
+    // enlace del QR, en «Emparejar este dispositivo»).
+    if (from === 'loading') return;
+    const heading = viewHeading(view);
+    if (heading !== null && focusLost(document.activeElement, document.body)) {
+      focusWhenReady(ids[heading]);
+    }
+  }, [view, ids]);
+
+  const onJoined = () => {
+    // El código del enlace ya está gastado.
+    setLink(null);
+    show(t.joined, 'paired');
+    focusWhenReady(ids.status);
+  };
+  const onLeft = () => {
+    show(t.left, 'off');
+    focusWhenReady(ids.off);
+  };
 
   let content: ReactNode;
   switch (view) {
@@ -1196,16 +1356,14 @@ export function SyncPanel() {
           sync={sync}
           ids={ids}
           linkCode={linkCode}
+          iosTab={iosTab}
           labelProps={labelProps}
           onActivating={setActivating}
           onActivated={(code) => {
             setMessage(null);
             setRevealed(code);
           }}
-          onJoined={() => {
-            setMessage(t.joined);
-            focusWhenReady(ids.status);
-          }}
+          onJoined={onJoined}
         />
       );
       break;
@@ -1220,11 +1378,8 @@ export function SyncPanel() {
             setMessage(null);
             setRevealed(code);
           }}
-          onLeft={() => {
-            setMessage(t.left);
-            focusWhenReady(ids.off);
-          }}
-          onMessage={onMessage}
+          onLeft={onLeft}
+          notify={notify}
         />
       );
       break;
@@ -1235,15 +1390,10 @@ export function SyncPanel() {
           state={state}
           ids={ids}
           linkCode={linkCode}
+          iosTab={iosTab}
           labelProps={labelProps}
-          onJoined={() => {
-            setMessage(t.joined);
-            focusWhenReady(ids.status);
-          }}
-          onForgot={() => {
-            setMessage(t.left);
-            focusWhenReady(ids.off);
-          }}
+          onJoined={onJoined}
+          onForgot={onLeft}
         />
       );
       break;
@@ -1252,7 +1402,12 @@ export function SyncPanel() {
   return (
     <div className="sync" data-sync-view={view}>
       <div className="sync__message" role="status">
-        {message !== null && view !== 'reveal' && <p className="sync__note">{message}</p>}
+        {/* Con `key`, el mismo texto otra vez se vuelve a montar y el lector lo anuncia. */}
+        {shownMessage !== null && (
+          <p key={shownMessage.id} className="sync__note">
+            {shownMessage.text}
+          </p>
+        )}
       </div>
       {content}
     </div>

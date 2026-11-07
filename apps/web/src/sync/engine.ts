@@ -4,36 +4,46 @@
 // (relee las entradas cambiadas) y, si tenía una escritura pendiente de la misma entrada, la
 // fusiona sobre lo guardado con `merge()` (`db/agenda-storage.ts`): nada se pisa.
 //
-// Quien llama tiene el Web Lock (una ronda a la vez entre pestañas; ver `runtime.ts`).
+// Quien llama tiene el Web Lock (una ronda a la vez entre pestañas; ver `runtime.ts`). Si falta
+// `meta.syncState` (otra pestaña, o esta, ha desemparejado, olvidado o borrado todos los datos), la
+// ronda no escribe nada más ni manda más peticiones: acaba con `aborted`.
 import type { SyncResponse } from '@gameagenda/core/api';
 import type { Entry } from '@gameagenda/core/entries';
 import {
   applyOps,
   canon,
   compactOutbox,
+  formatHlc,
   groupByEntry,
   type HlcClock,
   isHlc,
-  isPurgeable,
   isTooFarAhead,
+  MAX_COUNTER,
+  MAX_DRIFT_MS,
   maxHlc,
   merge,
   nextOffset,
   type Op,
   opsFromChanges,
-  opsFromEntry,
   planReseal,
   purgeCutoff,
   resealEntry,
   resealOps,
   SYNC_BATCH_SIZE,
-  takeBatch,
+  sortForUpload,
+  takeSortedBatch,
+  uploadOf,
 } from '@gameagenda/core/sync';
+import { Dexie } from 'dexie';
 import { type GameAgendaDb, META_KEYS } from '../db/database.ts';
 import type { SyncCall } from './api-client.ts';
 import { INITIAL_CURSOR, parseSyncCursor, type SyncCursorState, type SyncRecord } from './state.ts';
 
-/** Peticiones por ronda, como mucho: con lotes de 200, 20 000 operaciones. */
+/**
+ * Peticiones por ronda, como mucho: con lotes de 200, 20 000 operaciones. Las páginas de un `reset`
+ * que avanzan (el cursor sube) no cuentan: el servidor ya acota cada página, y cortar el `reset` lo
+ * haría empezar otra vez desde 0 en la ronda siguiente, sin acabar nunca si tiene más páginas.
+ */
 export const MAX_REQUESTS_PER_ROUND = 100;
 /** Saltos de reenvío entre entradas, como `applyOps()` (ADR-004). */
 const MAX_HOPS = 8;
@@ -58,32 +68,40 @@ export interface EngineOptions {
 }
 
 export interface RoundResult {
+  /** Peticiones hechas (también las páginas de un `reset`, que no cuentan para el tope). */
   readonly requests: number;
   /** `false` si se llegó al tope de peticiones con trabajo pendiente: hace falta otra ronda. */
   readonly complete: boolean;
   /** Operaciones que quedan en la `outbox`. */
   readonly pending: number;
-  /** Entradas cambiadas por lo que ha llegado del servidor. */
+  /** Entradas cambiadas (o borradas, al acabar un `reset`) por lo que ha llegado del servidor. */
   readonly changed: number;
   /** Operaciones que se han vuelto a sellar por reloj. */
   readonly resealed: number;
+  /**
+   * `true` si la ronda ha parado porque `meta.syncState` ya no estaba: antes de una petición, o
+   * al ir a aplicar su respuesta. De esa respuesta no se ha escrito nada (ni entradas, ni
+   * `outbox`, ni cursor, ni reloj) y no se han mandado más peticiones; `complete` es `false`.
+   * Quien llama no la trata como una ronda correcta: nada de `onRoundOk`, aviso ni
+   * `meta.syncState` (lo borraron a propósito).
+   */
+  readonly aborted: boolean;
 }
 
 export interface SyncEngine {
-  /** Una ronda completa. Lanza `SyncError` si falla una petición (lo aplicado se queda). */
+  /**
+   * Una ronda completa. Lanza `SyncError` si falla una petición (lo aplicado se queda) y acaba con
+   * `aborted` si falta `meta.syncState` (ver `RoundResult.aborted`).
+   */
   round(): Promise<RoundResult>;
   /**
    * Al activar, emparejar, recuperar o restaurar: todas las entradas locales (lápidas incluidas) a
-   * la `outbox` con `opsFromEntry()` (idempotente: la `outbox` se compacta al subir), el cursor a
-   * 0 y `record` en `meta.syncState`, en una transacción. Así un dispositivo que se une a una
-   * agenda con entradas suyas las fusiona en vez de perderlas.
+   * la `outbox` con `uploadOf()` (idempotente: la `outbox` se compacta al subir), el cursor a 0 y
+   * `record` en `meta.syncState`, en una transacción. Así un dispositivo que se une a una agenda
+   * con entradas suyas las fusiona en vez de perderlas. Lo que D1 purgaría (lápidas y esqueletos
+   * de más de 90 días) no sube su contenido, y en local queda como quedará en el servidor.
    */
   join(record: SyncRecord): Promise<void>;
-  /**
-   * Purga local (§7.7): las lápidas de más de 90 días y los esqueletos sin cambios en 90 días que
-   * no estén en la `outbox`, con el criterio del servidor. Devuelve cuántas entradas ha borrado.
-   */
-  purge(): Promise<number>;
   /** Operaciones en la `outbox`. */
   pending(): Promise<number>;
 }
@@ -103,13 +121,47 @@ function sameContent(a: Entry | undefined, b: Entry): boolean {
   return a !== undefined && (a === b || canon(a) === canon(b));
 }
 
-interface Applied {
+type Change = SyncResponse['changes'][number];
+
+/** Por dónde va la ronda. */
+interface Progress {
+  /** Lo que queda guardado en `meta.syncCursor`. */
   readonly state: SyncCursorState;
+  /** El cursor de la petición siguiente (en un `reset`, el de su página siguiente). */
   readonly pageCursor: number;
-  readonly seen: Set<string> | null;
-  readonly pending: number;
-  readonly changed: number;
-  readonly resealed: number;
+  /**
+   * Los cambios de un `reset` en marcha, de todas sus páginas, o `null` si no hay `reset`. Se
+   * aplican juntos en la transacción de la última página (ver `finishReset`).
+   */
+  readonly changes: Change[] | null;
+}
+
+/** La `outbox` compactada y en orden de subida, leída una vez por ronda; `head`: lo ya enviado. */
+interface Queue {
+  readonly ops: readonly Op[];
+  head: number;
+}
+
+type Applied =
+  | { readonly aborted: true }
+  | {
+      readonly aborted: false;
+      readonly progress: Progress;
+      readonly pending: number;
+      readonly changed: number;
+      readonly resealed: number;
+      /** La `outbox` ha cambiado más allá de quitar lo aceptado: hay que volver a leerla. */
+      readonly requeue: boolean;
+      /** Hay que volver a bajar desde 0 en esta ronda aunque no queden páginas (otra época). */
+      readonly again: boolean;
+    };
+
+const ABORTED: Applied = { aborted: true };
+
+function startOf(state: SyncCursorState): Progress {
+  return state.reset
+    ? { state, pageCursor: 0, changes: [] }
+    : { state, pageCursor: state.cursor, changes: null };
 }
 
 export function createSyncEngine(options: EngineOptions): SyncEngine {
@@ -123,14 +175,36 @@ export function createSyncEngine(options: EngineOptions): SyncEngine {
     return parseSyncCursor(row?.value) ?? INITIAL_CURSOR;
   }
 
-  /** Compacta la `outbox` (borra lo que sobra) y toma el primer lote, sin partir acciones. */
-  function nextBatch(): Promise<Op[]> {
+  /** ¿Sigue este navegador emparejado? (Ver `RoundResult.aborted`.) */
+  async function isPaired(): Promise<boolean> {
+    return (await db.meta.get(META_KEYS.syncState)) !== undefined;
+  }
+
+  /**
+   * Compacta la `outbox` (borra lo que sobra) y la deja en orden de subida. Una vez por ronda: los
+   * lotes salen de esta cola, y solo se vuelve a leer si cambia más allá de lo que quita `apply`.
+   */
+  function loadQueue(): Promise<Queue> {
     return db.transaction('rw', db.outbox, async () => {
       const all = await db.outbox.toArray();
       const { keep, drop } = compactOutbox(all);
       if (drop.length > 0) await db.outbox.bulkDelete(drop.map((o) => o.opId));
-      return takeBatch(keep, batchSize);
+      return { ops: sortForUpload(keep), head: 0 };
     });
+  }
+
+  /**
+   * Tras bajar el reloj (`setOffset`), lo vuelve a poner por delante de lo legítimo de la agenda:
+   * la mayor `lastHlc` que no va más de 5 min por delante (con el índice `lastHlc`). Si no, una
+   * entrada propia reciente que aún no ha vuelto en una página iría por delante del reloj, y core
+   * rechazaría la acción siguiente sobre ella. Lo que va más lejos está en la `outbox` y se vuelve a
+   * sellar.
+   */
+  async function catchUpClock(): Promise<void> {
+    const ms = Math.max(0, Math.floor(now() + clock.offset + MAX_DRIFT_MS));
+    const limit = formatHlc({ ms, counter: MAX_COUNTER, node: 'zzzzzzzz' });
+    const top = await db.entries.where('lastHlc').belowOrEqual(limit).last();
+    if (top !== undefined && isHlc(top.lastHlc)) clock.receive(top.lastHlc);
   }
 
   /**
@@ -168,20 +242,37 @@ export function createSyncEngine(options: EngineOptions): SyncEngine {
     return ops.length;
   }
 
+  /** Las operaciones de la `outbox`, por entrada. */
+  async function pendingByEntry(): Promise<Map<string, Op[]>> {
+    return groupByEntry(await db.outbox.toArray());
+  }
+
+  /**
+   * Una entrada solo con lo que tiene pendiente en la `outbox` (`undefined` si nada): así empieza
+   * en un `reset` (ver `finishReset`).
+   */
+  function rebuilt(id: string, pending: ReadonlyMap<string, Op[]>): Entry | undefined {
+    const ops = pending.get(id);
+    return ops === undefined ? undefined : merge(undefined, ops, newOpId).entry;
+  }
+
   /**
    * Fusiona los cambios con `applyOps()` de core sobre lo guardado (LWW, Platinado ⇒ Completado y
-   * reenvío de los manuales vinculados, siguiendo los reenvíos a entradas que haya que leer).
+   * reenvío de los manuales vinculados, siguiendo los reenvíos a entradas que haya que leer). Con
+   * `rebuildFrom` (fin de un `reset`), cada entrada de los cambios empieza solo con lo que tiene
+   * pendiente (`rebuilt`), no con lo guardado.
+   *
    * Las derivadas NO van a la `outbox`: el servidor ya las ha calculado con la misma `applyOps()`
    * sobre su estado, que cumple las reglas tras cada petición (CA4.1), y lo que esta réplica tenga
    * pendiente lo sube su `outbox`, y el servidor vuelve a derivar al aplicarlo.
    */
   async function mergeChanges(
-    changes: SyncResponse['changes'],
-    rebuild: ReadonlySet<string>,
+    changes: readonly Change[],
+    rebuildFrom: ReadonlyMap<string, Op[]> | null,
   ): Promise<number> {
     if (changes.length === 0) return 0;
     const ops = opsFromChanges(changes, newOpId);
-    const pendingOps = rebuild.size > 0 ? await pendingByEntry() : null;
+    const rebuild = rebuildFrom === null ? null : new Set(ops.map((o) => o.entryId));
     const stored = new Map<string, Entry>();
     const base = new Map<string, Entry>();
     const loaded = new Set<string>();
@@ -192,7 +283,8 @@ export function createSyncEngine(options: EngineOptions): SyncEngine {
         loaded.add(id);
         const row = rows[i];
         if (row !== undefined) stored.set(id, row);
-        const start = pendingOps !== null && rebuild.has(id) ? rebuilt(id, pendingOps) : row;
+        const start =
+          rebuildFrom !== null && rebuild?.has(id) === true ? rebuilt(id, rebuildFrom) : row;
         if (start !== undefined) base.set(id, start);
       });
       const { entries } = applyOps((id) => base.get(id), ops, newOpId);
@@ -206,36 +298,21 @@ export function createSyncEngine(options: EngineOptions): SyncEngine {
     throw new Error('sync: demasiados saltos de reenvío');
   }
 
-  /** Las operaciones de la `outbox`, por entrada. */
-  async function pendingByEntry(): Promise<Map<string, Op[]>> {
-    return groupByEntry(await db.outbox.toArray());
-  }
-
   /**
-   * En un `reset`, una entrada empieza solo con lo que tiene pendiente en la `outbox` (y encima
-   * va lo que mande el servidor): lo demás ya lo tenía el servidor o lo ha purgado. Si se
-   * conservara la entrada local entera, una lápida purgada que esta réplica tocó sin red
-   * resucitaría aquí y en el servidor quedaría como esqueleto.
+   * Fin de un `reset` (§7.7), en la transacción de su última página: los cambios de TODAS sus
+   * páginas, de una vez. Mientras duran las páginas no se toca ninguna entrada, así que nada se
+   * queda a medias ni deja de verse (las filas bajan por `seq`, no por entrada), y un `reset`
+   * cortado deja lo local como estaba.
+   * - Cada entrada que manda el servidor se reconstruye: lo pendiente en su `outbox` y, encima, lo
+   *   del servidor. Si se conservara la local entera, una lápida purgada que esta réplica tocó sin
+   *   red resucitaría aquí y en el servidor quedaría como esqueleto.
+   * - Las que no manda se borran (una copia vieja no resucita lo purgado), salvo lo que sigue en la
+   *   `outbox`, que se queda solo con eso: es lo que tendrá el servidor cuando lo suba.
    */
-  function rebuilt(id: string, pending: ReadonlyMap<string, Op[]>): Entry | undefined {
-    const ops = pending.get(id);
-    return ops === undefined ? undefined : merge(undefined, ops, newOpId).entry;
-  }
-
-  /** D1 vuelto atrás (cursor menor sin `reset`): todo lo local otra vez a la `outbox`. */
-  async function reuploadAll(): Promise<void> {
-    const entries = await db.entries.toArray();
-    const ops = entries.flatMap((e) => opsFromEntry(e, newOpId));
-    if (ops.length > 0) await db.outbox.bulkAdd(ops);
-  }
-
-  /**
-   * Fin de un `reset`: fuera lo que el servidor ya no tiene (una copia vieja no resucita lo
-   * borrado), salvo lo que sigue en la `outbox`, que se queda solo con eso: es lo que tendrá el
-   * servidor cuando lo suba.
-   */
-  async function dropUnseen(seen: ReadonlySet<string>): Promise<void> {
+  async function finishReset(changes: readonly Change[]): Promise<number> {
     const pending = await pendingByEntry();
+    const changed = await mergeChanges(changes, pending);
+    const seen = new Set(changes.map((c) => c.entryId));
     const rows = await db.entries.toArray();
     const gone: string[] = [];
     const kept: Entry[] = [];
@@ -247,6 +324,44 @@ export function createSyncEngine(options: EngineOptions): SyncEngine {
     }
     if (gone.length > 0) await db.entries.bulkDelete(gone);
     if (kept.length > 0) await db.entries.bulkPut(kept);
+    return changed + gone.length + kept.length;
+  }
+
+  /**
+   * Todas las entradas locales a la `outbox`, con `uploadOf()`: lo que D1 purgaría no sube su
+   * contenido, y en local queda como quedará en el servidor. Tampoco sube lo que esas entradas ya
+   * tuvieran en la `outbox` (la agenda la llena desde M1, aunque no se sincronice).
+   */
+  async function uploadAll(): Promise<void> {
+    const cutoff = purgeCutoff(now() + clock.offset);
+    const entries = await db.entries.toArray();
+    const ops: Op[] = [];
+    const put: Entry[] = [];
+    const gone: string[] = [];
+    const reduced: string[] = [];
+    for (const e of entries) {
+      const upload = uploadOf(e, cutoff, newOpId);
+      for (const o of upload.ops) ops.push(o);
+      if (upload.local === e) continue;
+      reduced.push(e.id);
+      if (upload.local === null) gone.push(e.id);
+      else put.push(upload.local);
+    }
+    if (reduced.length > 0) {
+      const stale = await Promise.all(
+        reduced.map((id) =>
+          db.outbox
+            .where('[entryId+field]')
+            .between([id, Dexie.minKey], [id, Dexie.maxKey])
+            .primaryKeys(),
+        ),
+      );
+      const keys = stale.flat() as string[];
+      if (keys.length > 0) await db.outbox.bulkDelete(keys);
+    }
+    if (ops.length > 0) await db.outbox.bulkAdd(ops);
+    if (gone.length > 0) await db.entries.bulkDelete(gone);
+    if (put.length > 0) await db.entries.bulkPut(put);
   }
 
   function apply(
@@ -254,10 +369,12 @@ export function createSyncEngine(options: EngineOptions): SyncEngine {
     sent: SyncCall,
     response: SyncResponse,
     sample: { sentAt: number; receivedAt: number },
-    state: SyncCursorState,
-    seenBefore: Set<string> | null,
+    progress: Progress,
   ): Promise<Applied> {
     return db.transaction('rw', db.entries, db.outbox, db.meta, async () => {
+      // 0. Si ya no está emparejado, nada: ni entradas, ni `outbox`, ni cursor, ni reloj.
+      if (!(await isPaired())) return ABORTED;
+
       // 1. Fuera de la `outbox` lo aceptado (ganara o no) y lo rechazado por inválido, si sigue
       //    siendo lo que se envió.
       const byId = new Map(batch.map((o) => [o.opId, o]));
@@ -274,101 +391,137 @@ export function createSyncEngine(options: EngineOptions): SyncEngine {
       const remove = ids.filter((id, i) => stored[i]?.hlc === byId.get(id)?.hlc);
       if (remove.length > 0) await db.outbox.bulkDelete(remove);
 
-      // 2. El reloj: desfase con `serverTime` y todo lo visto del servidor.
+      // 2. El reloj: desfase con `serverTime` (si eso lo baja, otra vez por delante de lo
+      //    legítimo de la agenda) y todo lo visto del servidor.
+      const before = clock.snapshot().ms;
       clock.setOffset(nextOffset(clock.offset, { ...sample, serverTime: response.serverTime }));
+      if (clock.snapshot().ms < before) await catchUpClock();
+      const { state } = progress;
       const maxSeen = maxHlc([state.maxSeen, ...response.changes.map((c) => c.hlc)]);
       if (isHlc(maxSeen)) clock.receive(maxSeen);
 
       // 3. Volver a sellar lo rechazado por reloj (con el desfase ya corregido).
       const resealed = clockRejected.length > 0 ? await reseal(clockRejected) : 0;
 
-      // 4. Los cambios. Con `reset`, empiezan desde 0: se cuentan las entradas vistas, y cada una
-      //    se reconstruye la primera vez que llega (ver `rebuilt`).
-      let reset = state.reset || response.reset;
-      let seen = response.reset ? new Set<string>() : seenBefore;
-      const firstSeen = new Set<string>();
-      if (reset) {
-        seen ??= new Set();
-        for (const c of response.changes) {
-          if (!seen.has(c.entryId)) firstSeen.add(c.entryId);
-          seen.add(c.entryId);
-        }
-      }
-      const changed = await mergeChanges(response.changes, firstSeen);
-
-      // 5. El cursor. Menor que el enviado sin `reset`: D1 ha vuelto atrás y no tiene lo nuestro.
-      if (!reset && response.cursor < sent.cursor) await reuploadAll();
-      if (reset && !response.more && seen !== null) {
-        await dropUnseen(seen);
-        reset = false;
-        seen = null;
-      }
-      const next: SyncCursorState = {
-        // A medias de un `reset`, la ronda siguiente vuelve a empezar desde 0.
-        cursor: reset ? 0 : response.cursor,
-        purgedSeq: response.purgedSeq,
+      // 4. Los cambios y el cursor.
+      const { purgedSeq, epoch } = response;
+      const at = (cursor: number, reset = false): SyncCursorState => ({
+        cursor,
+        purgedSeq,
         reset,
         maxSeen,
-      };
+        epoch,
+      });
+      let changed = 0;
+      let requeue = false;
+      let again = false;
+      let next: Progress;
+      if (state.epoch !== undefined && epoch !== state.epoch) {
+        // Otra época: D1 ha vuelto atrás (restore) y el cursor ya no vale; con varios
+        // dispositivos, la `seq` nueva puede haberlo alcanzado. Lo de esta página es del servidor
+        // y se fusiona; luego todo lo local vuelve a subir y se baja desde 0, sin `reset` (lo que
+        // el restore perdió no se borra aquí: vuelve con lo que se sube).
+        changed = await mergeChanges(response.changes, null);
+        await uploadAll();
+        requeue = true;
+        again = true;
+        next = { state: at(0), pageCursor: 0, changes: null };
+      } else if (!response.reset && response.cursor < sent.cursor) {
+        // El cursor baja sin `reset`: D1 ha vuelto atrás y no tiene lo nuestro (el servidor baja
+        // desde 0 y no ha escrito el lote). También corta un `reset` en marcha: sus páginas de
+        // antes eran del D1 de antes.
+        changed = await mergeChanges(response.changes, null);
+        await uploadAll();
+        requeue = true;
+        next = { state: at(response.cursor), pageCursor: response.cursor, changes: null };
+      } else if (progress.changes !== null || response.reset) {
+        // `reset` (§7.7): desde 0, y las páginas se juntan hasta la última (ver `finishReset`).
+        // Otro `reset` en medio (una purga entre páginas) vuelve a empezar.
+        const changes = response.reset || progress.changes === null ? [] : progress.changes;
+        for (const c of response.changes) changes.push(c);
+        if (response.more) {
+          // A medias de un `reset`, la ronda siguiente vuelve a empezar desde 0.
+          next = { state: at(0, true), pageCursor: response.cursor, changes };
+        } else {
+          changed = await finishReset(changes);
+          next = { state: at(response.cursor), pageCursor: response.cursor, changes: null };
+        }
+      } else {
+        changed = await mergeChanges(response.changes, null);
+        next = { state: at(response.cursor), pageCursor: response.cursor, changes: null };
+      }
+
       await db.meta.bulkPut([
-        { key: META_KEYS.syncCursor, value: next },
+        { key: META_KEYS.syncCursor, value: next.state },
         { key: META_KEYS.hlcClock, value: clock.snapshot() },
       ]);
       const pending = await db.outbox.count();
-      return { state: next, pageCursor: response.cursor, seen, pending, changed, resealed };
+      return { aborted: false, progress: next, pending, changed, resealed, requeue, again };
     });
   }
 
   return {
     async round() {
-      let state = await readCursor();
-      let pageCursor = state.reset ? 0 : state.cursor;
-      let seen: Set<string> | null = state.reset ? new Set() : null;
+      let progress = startOf(await readCursor());
+      let queue: Queue | null = null;
       let requests = 0;
+      let counted = 0;
       let changed = 0;
       let resealed = 0;
       let pending = 0;
-      while (requests < maxRequests) {
-        const batch = await nextBatch();
-        const sent: SyncCall = { cursor: pageCursor, purgedSeq: state.purgedSeq, ops: batch };
+      const end = (complete: boolean, aborted = false): RoundResult => ({
+        requests,
+        complete,
+        pending,
+        changed,
+        resealed,
+        aborted,
+      });
+      for (;;) {
+        if (!(await isPaired())) return end(false, true);
+        // En un `reset`, las peticiones solo bajan: lo pendiente sube cuando acaba.
+        let batch: Op[] = [];
+        if (progress.changes === null) {
+          queue ??= await loadQueue();
+          batch = takeSortedBatch(queue.ops, batchSize, queue.head);
+        }
+        const sent: SyncCall = {
+          cursor: progress.pageCursor,
+          purgedSeq: progress.state.purgedSeq,
+          ops: batch,
+        };
         const sentAt = now();
         const response = await transport.sync(sent);
         const receivedAt = now();
         requests += 1;
-        const applied = await apply(batch, sent, response, { sentAt, receivedAt }, state, seen);
-        ({ state, pageCursor, seen, pending } = applied);
+        const applied = await apply(batch, sent, response, { sentAt, receivedAt }, progress);
+        if (applied.aborted) return end(false, true);
+        // Una página de un `reset` que avanza no cuenta para el tope (ver `MAX_REQUESTS_PER_ROUND`).
+        const advancing =
+          applied.progress.changes !== null && !response.reset && response.cursor > sent.cursor;
+        if (!advancing) counted += 1;
+        ({ progress, pending } = applied);
         changed += applied.changed;
         resealed += applied.resealed;
-        if (!response.more && pending === 0) {
-          return { requests, complete: true, pending, changed, resealed };
+        if (queue !== null) {
+          queue.head += batch.length;
+          // La agenda ha escrito, algo no se ha quitado o se ha vuelto a sellar: se vuelve a leer.
+          const stale = pending !== queue.ops.length - queue.head;
+          if (applied.requeue || applied.resealed > 0 || stale) queue = null;
         }
+        if (!response.more && !applied.again && pending === 0) return end(true);
+        if (counted >= maxRequests) return end(false);
         await pause();
       }
-      return { requests, complete: false, pending, changed, resealed };
     },
 
     join(record) {
       return db.transaction('rw', db.entries, db.outbox, db.meta, async () => {
-        const entries = await db.entries.toArray();
-        const ops = entries.flatMap((e) => opsFromEntry(e, newOpId));
-        if (ops.length > 0) await db.outbox.bulkAdd(ops);
+        await uploadAll();
         await db.meta.bulkPut([
           { key: META_KEYS.syncCursor, value: INITIAL_CURSOR },
           { key: META_KEYS.syncState, value: record },
         ]);
-      });
-    },
-
-    purge() {
-      return db.transaction('rw', db.entries, db.outbox, async () => {
-        const cutoff = purgeCutoff(now() + clock.offset);
-        // Lo que sigue en la `outbox` no se purga: aún no lo tiene el servidor.
-        const keep = await pendingByEntry();
-        const victims = (await db.entries
-          .filter((e) => !keep.has(e.id) && isPurgeable(e, cutoff))
-          .primaryKeys()) as string[];
-        if (victims.length > 0) await db.entries.bulkDelete(victims);
-        return victims.length;
       });
     },
 

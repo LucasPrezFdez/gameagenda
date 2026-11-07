@@ -233,7 +233,7 @@ export function createAgenda(options: AgendaOptions): AgendaStore {
     }
     emit();
     if (!storage) return Promise.resolve();
-    return enqueue({ batch: { entries, ops, before, clock: clock.snapshot() }, seq });
+    return enqueue({ batch: { entries, ops, before, clock: () => clock.snapshot() }, seq });
   }
 
   /**
@@ -477,6 +477,9 @@ export function createAgenda(options: AgendaOptions): AgendaStore {
     for (const copy of copies) {
       const prev = live(copy.id);
       if (!prev || !isSteamEntryId(copy.id) || prev.title === copy.title) continue;
+      // El reloj, por delante de la entrada: si la sincronización acaba de bajarlo (`setOffset`),
+      // core rechazaría la acción y el lote entero se perdería (no hay reintento, como en `run`).
+      receive(prev.lastHlc);
       const result = refreshCatalogCopy(prev, { title: copy.title, cover: prev.cover }, context());
       if (!result) continue;
       entries.push(...result.entries);
@@ -540,15 +543,20 @@ export function createAgenda(options: AgendaOptions): AgendaStore {
 
     allEntries: () => [...all.values()],
     get: (id) => all.get(id),
-    importContext: () => ({
-      nowMs: Date.now(),
-      offsetMs: clock.offset,
-      today: localDay(now()),
-      lastRank: lastRank(),
-      nextHlc: () => clock.next(),
-      newOpId,
-      newManualId: newId,
-    }),
+    importContext: () => {
+      // El reloj, por delante de todo lo conocido: la sincronización puede haberlo bajado
+      // (`setOffset`), y una fila sobre una entrada con una HLC posterior haría fallar el CSV.
+      receive(maxHlc([...all.values()].map((entry) => entry.lastHlc)));
+      return {
+        nowMs: Date.now(),
+        offsetMs: clock.offset,
+        today: localDay(now()),
+        lastRank: lastRank(),
+        nextHlc: () => clock.next(),
+        newOpId,
+        newManualId: newId,
+      };
+    },
     async backup(copy) {
       await writes;
       await storage?.backup(copy);

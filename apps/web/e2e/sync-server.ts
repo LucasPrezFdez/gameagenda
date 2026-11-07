@@ -224,6 +224,48 @@ export function runServerMaintenance(
 }
 
 /**
+ * Retiene en la vista previa la siguiente petición a la micro-API cuya ruta case con `pattern`,
+ * antes de que llegue a ella, hasta `releaseServer()`; con `mode: 'fail'`, todas las que casen
+ * cortan la conexión (como sin servidor) hasta entonces. A diferencia de `page.route()`, vale
+ * también en WebKit con el Service Worker.
+ */
+export async function holdServer(
+  target: WithRequest,
+  pattern: RegExp,
+  mode: 'hold' | 'fail' = 'hold',
+): Promise<void> {
+  await e2eOk(target, 'POST', '/__e2e/hold', { pattern: pattern.source, mode });
+}
+
+/** Espera a que la petición de `holdServer()` haya llegado y esté retenida. */
+export async function serverHolding(target: WithRequest): Promise<void> {
+  await expect
+    .poll(async () => (await e2eOk<{ waiting: boolean }>(target, 'GET', '/__e2e/hold')).waiting)
+    .toBe(true);
+}
+
+/** Suelta lo que retiene `holdServer()`. */
+export async function releaseServer(target: WithRequest): Promise<void> {
+  await e2eOk(target, 'POST', '/__e2e/release');
+}
+
+/** Guarda una copia de la D1 del mundo, para volver a ella con `restoreServer()`. */
+export async function snapshotServer(target: WithRequest): Promise<void> {
+  await e2eOk(target, 'POST', '/__e2e/snapshot');
+}
+
+/**
+ * Vuelve la D1 del mundo a la copia de `snapshotServer()`, como un restore con Time Travel: lo
+ * escrito después desaparece. Por defecto, con el paso del *runbook* que cambia la época.
+ */
+export async function restoreServer(
+  target: WithRequest,
+  options: { newEpoch?: boolean } = {},
+): Promise<void> {
+  await e2eOk(target, 'POST', '/__e2e/restore', options);
+}
+
+/**
  * La agenda de un dispositivo (o por su id) en D1, o `null` si no la encuentra. Tras «Borrar
  * todos mis datos» el dispositivo ya no existe: hay que buscarla por `agenda`.
  */

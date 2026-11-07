@@ -176,6 +176,10 @@ test('rutas de apoyo: dos dispositivos, reloj, interruptor, purga y «Borrar tod
   const purged = await serverAgenda(page, { device: deviceId });
   expect(purged?.rows.op).toBe(0);
   expect(purged?.purgedSeq).toBeGreaterThan(0);
+  // La seq sube con la purga y purged_seq pasa a ser esa seq nueva: todo dispositivo que sincronizó
+  // antes recibe reset. La época, de 16 cifras hexadecimales, no cambia.
+  expect(purged?.purgedSeq).toBe(purged?.seq);
+  expect(purged?.epoch).toMatch(/^[0-9a-f]{16}$/);
 
   // Otro mundo (un contexto sin la *cookie* del mundo) no ve esta agenda.
   const outsider = await browser.newContext();
@@ -193,6 +197,7 @@ test('rutas de apoyo: dos dispositivos, reloj, interruptor, purga y «Borrar tod
     exists: false,
     seq: null,
     purgedSeq: null,
+    epoch: null,
     rows: { device: 0, op: 0, pairingToken: 0, inboxItem: 0 },
   });
 });

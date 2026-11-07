@@ -478,3 +478,23 @@ Resueltos a partir de las mediciones y de los conflictos detectados entre seccio
     - **Mantenimiento diario** (Cron Trigger a las 03:17 UTC): *tokens* caducados y agendas sin sincronizar en 13 meses; los lunes, la purga de lápidas y esqueletos de más de 90 días.
     - **La cookie y `last_sync_at`** se renuevan al sincronizar, como mucho una vez al día.
     - **Pruebas:** 14 de ejemplo, 6 del mantenimiento y las 3 propiedades de CA4.1 con 1 000 casos cada una, con los generadores de `core`. Fallan las tres con un servidor en el que gana lo último que llega. Comprobado también en `workerd` local, con la purga de un lunes lanzada por la API local de `wrangler dev`.
+36. **Cliente de la sincronización tal como se ha construido (07-11-2026, en la rama `m4-sincronizacion`; cambia §5.3, §7.2, §7.4, §7.7, §9.6 y §11.4; CA4.2 y CA4.3):** lo que el plan no decía. El detalle está en el ADR-011, «Cliente».
+    - **Fachada en el *chunk* inicial y motor diferido** (`apps/web/src/sync/`). Quien no sincroniza no hace ninguna petición a `/api` ni descarga Zod. `"sideEffects"` en `packages/core` mantiene el inicial en un solo *chunk*: 136,9 KB brotli.
+    - **Disparadores** (amplían RF-26): arranque, foco, `online`, volver a la vista, ocultarse con `outbox` y 2 s tras escribir. Hay Web Lock `gameagenda-sync` y espera exponencial de 5 s a 5 min. El aviso «Sincronización fallida» sale tras 3 fallos.
+    - **Arreglos tras una revisión independiente con verificación adversarial**, sobre la primera versión (`0d8b9ba`):
+      - El *reset* no deja entradas a medias: las páginas solo bajan, se acumulan y se aplican juntas al final. Las páginas que avanzan no cuentan para el tope de 100 peticiones.
+      - **La app ya no purga por su cuenta.** La purga de D1 fuerza un *reset* en todos los dispositivos (`purged_seq = seq + 1`). Antes, una escritura vieja subida tras una purga dejaba réplicas distintas a la vista.
+      - D1 vuelto atrás: el servidor no escribe un lote con el cursor por delante de su `seq`. Hay además una **época** por agenda (migración `0002_epoca.sql`); el *runbook* del restore la cambia.
+      - Sin `meta.syncState`, el motor no escribe nada (ronda `aborted`), y `updateRecord()` no resucita estados. Así no quedan carreras al desemparejar o borrar con una ronda en vuelo.
+      - «Borrar todos mis datos» espera el Web Lock. Con un 401 no da por borrada la agenda del servidor: lo dice y no borra nada.
+      - La `outbox` se lee y se compacta una vez por ronda; con 1 000 juegos se pasa de 1 246 ms a 33 ms.
+      - `join()` no sube el contenido de lápidas de más de 90 días.
+      - `referrerPolicy: 'no-referrer'` en las peticiones a la micro-API.
+      - El reloj se guarda al escribir.
+37. **Ajustes › Sincronización (07-11-2026, en la rama `m4-sincronizacion`; cambia §6, §9.1, §9.5–§9.9, §11.2 y §11.4):** lo que el plan no decía. El detalle está en el ADR-011.
+    - Sección `sincronizacion`, entre Privacidad y Rendimiento, con cuatro vistas: sin sincronizar, código de recuperación una vez, emparejada y desemparejada. El aviso de las dos cookies y el hueco de los textos legales van en las vistas que las crean.
+    - El QR lleva `<origen>/emparejar#código` y usa **`uqr` 0.1.3** (MIT, sin dependencias) en su propio *chunk*. `/emparejar` quita el código de la URL antes de pintar, y canjear exige pulsar.
+    - La cuenta atrás va con un plazo local y el foco sigue a cada cambio de vista, también al 401. Hay huecos reservados (§9.5, regla 3).
+38. **E2E de sincronización contra la micro-API real (07-11-2026; cambia §12.1 y §12.3):** `vite preview --mode e2e` sirve `createApp()` con la D1 de `node:sqlite`. Cada prueba tiene su «mundo», elegido con la *cookie* `ga-e2e-api`, y hay rutas de apoyo en `/__e2e/*`.
+    - El WebKit de Playwright guarda las cookies `__Host-` por HTTP, pero no las envía. Por eso hay un espejo HTTPS en el puerto + 10 000, con un certificado de `node:crypto`. Chromium va por HTTP: no registra el Service Worker con un certificado autofirmado.
+    - Los E2E de CA4.2 y CA4.3 (`e2e/sync.spec.ts`) usan dos contextos y los disparadores naturales.

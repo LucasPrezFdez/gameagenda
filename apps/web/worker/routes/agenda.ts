@@ -41,9 +41,10 @@ export function agendaRoutes(api: Hono<AppEnv>, deps: Deps): void {
     const token = newDeviceToken();
     const recovery = newCode();
     await c.env.DB.batch([
+      // La época, aleatoria (migración 0002): la cambia el *runbook* del restore.
       c.env.DB.prepare(
-        `INSERT INTO agenda (id, recovery_hash, created_at, last_sync_at)
-         VALUES (?1, ?2, ?3, ?3)`,
+        `INSERT INTO agenda (id, recovery_hash, created_at, last_sync_at, epoch)
+         VALUES (?1, ?2, ?3, ?3, lower(hex(randomblob(8))))`,
       ).bind(agendaId, await sha256Hex(recovery), at),
       c.env.DB.prepare(
         `INSERT INTO device (id, agenda_id, kind, label, token_hash, created_at, last_seen_at)

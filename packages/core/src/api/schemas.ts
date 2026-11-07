@@ -10,6 +10,7 @@ import {
   CODE_INPUT_MAX,
   DEVICE_KINDS,
   DEVICE_LABEL_MAX,
+  EPOCH_MAX,
   MAX_SYNC_OPS,
   SYNC_REJECTIONS,
 } from './constants.ts';
@@ -72,6 +73,11 @@ export const syncResponseSchema = z.object({
   /** El cursor que guarda la app cuando aplica esta página. */
   cursor: z.int().min(0),
   purgedSeq: z.int().min(0),
+  /**
+   * Época de la agenda: cambia cuando D1 vuelve atrás (el *runbook* del restore la cambia). Si no
+   * es la que tenía la app, su cursor ya no vale: lo vuelve a subir todo y baja desde 0.
+   */
+  epoch: z.string().max(EPOCH_MAX),
   /**
    * La app se quedó atrás de una purga: estos cambios empiezan desde 0, y al acabar las páginas
    * borra las entradas que el servidor ya no tiene (salvo las que aún tiene en la `outbox`).

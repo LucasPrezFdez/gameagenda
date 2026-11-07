@@ -9,6 +9,12 @@
 // 4. Un `batch()` reserva las `seq` y escribe las filas solo si la `seq` sigue siendo la leída
 //    (concurrencia optimista con `write_id`); si otro dispositivo escribió entre medias, se repite.
 //    En el mismo `batch()` se lee la página de cambios, así que nadie ve la `seq` N+1 sin la N.
+//
+// D1 vuelto atrás (Time Travel): si el cursor de la app va por delante de la `seq` leída en el
+// paso 2, el lote no se escribe (`accepted` vacío: sigue en su `outbox`) y se baja desde 0. Así el
+// cursor de la respuesta es menor que el enviado y la app lo vuelve a subir todo, también cuando la
+// petición lleva operaciones (si se escribieran antes, la `seq` podría alcanzar al cursor y nadie
+// lo notaría). Con varios dispositivos eso no basta, y por eso está la época (`agenda.epoch`).
 
 import {
   MAX_SYNC_BODY,
@@ -108,15 +114,20 @@ async function readSnapshot(
   return { seq, rows: (rows?.results ?? []) as unknown as OpRow[] };
 }
 
-/** Pasos 2 y 3: las filas que escribir y la `seq` sobre la que se calcularon. */
+/**
+ * Pasos 2 y 3: las filas que escribir y la `seq` sobre la que se calcularon, o `rewound` si el
+ * cursor de la app va por delante de esa `seq` (D1 vuelto atrás: no se escribe nada).
+ */
 async function plan(
   db: D1Database,
   agendaId: string,
   ops: readonly Op[],
-): Promise<{ writes: RowWrite[]; seq: number } | 'gone' | 'conflict'> {
+  cursor: number,
+): Promise<{ writes: RowWrite[]; seq: number } | 'gone' | 'conflict' | 'rewound'> {
   const ids = [...new Set(ops.map((o) => o.entryId))];
   const snapshot = await readSnapshot(db, agendaId, ids);
   if (snapshot === null) return 'gone';
+  if (cursor > snapshot.seq) return 'rewound';
   const rows = [...snapshot.rows];
   const loaded = new Set(ids);
   for (let hop = 0; ; hop++) {
@@ -131,7 +142,11 @@ async function plan(
   }
 }
 
-type Page = Pick<SyncResponse, 'cursor' | 'purgedSeq' | 'reset' | 'more' | 'changes'>;
+interface Page
+  extends Pick<SyncResponse, 'cursor' | 'purgedSeq' | 'epoch' | 'reset' | 'more' | 'changes'> {
+  /** D1 vuelto atrás: el lote no se ha escrito, así que no se acepta ninguna operación. */
+  rewound: boolean;
+}
 
 /** Paso 4. `null` si otro dispositivo escribió entre la lectura y la escritura. */
 async function attempt(
@@ -146,11 +161,13 @@ async function attempt(
   const { agendaId, deviceId } = c.var.device;
   let writes: RowWrite[] = [];
   let seq = 0;
+  let rewound = false;
   if (ops.length > 0) {
-    const planned = await plan(db, agendaId, ops);
+    const planned = await plan(db, agendaId, ops, request.cursor);
     if (planned === 'gone') return 'gone';
     if (planned === 'conflict') return null;
-    ({ writes, seq } = planned);
+    if (planned === 'rewound') rewound = true;
+    else ({ writes, seq } = planned);
   }
 
   const at = iso(nowMs);
@@ -178,21 +195,25 @@ async function attempt(
   }
   const readAt = statements.length;
   statements.push(
-    db.prepare('SELECT seq, purged_seq FROM agenda WHERE id = ?1').bind(agendaId),
+    db.prepare('SELECT seq, purged_seq, epoch FROM agenda WHERE id = ?1').bind(agendaId),
     db.prepare(CHANGES_SQL).bind(agendaId, request.cursor, request.purgedSeq, pageSize + 1),
   );
 
   const results = await db.batch(statements);
   if (writes.length > 0 && results[0]?.meta.changes !== 1) return null;
-  const agenda = results[readAt]?.results[0] as { seq: number; purged_seq: number } | undefined;
+  const agenda = results[readAt]?.results[0] as
+    | { seq: number; purged_seq: number; epoch: string }
+    | undefined;
   if (agenda === undefined) return 'gone';
   const rows = (results[readAt + 1]?.results ?? []) as unknown as Array<OpRow & { seq: number }>;
   const more = rows.length > pageSize;
   const page = more ? rows.slice(0, pageSize) : rows;
   const { cursor, purgedSeq } = request;
   return {
+    rewound,
     cursor: more ? (page[page.length - 1]?.seq ?? 0) : agenda.seq,
     purgedSeq: agenda.purged_seq,
+    epoch: agenda.epoch,
     reset:
       cursor > 0 &&
       cursor <= agenda.seq &&
@@ -234,10 +255,11 @@ export function syncRoutes(api: Hono<AppEnv>, deps: Deps): void {
       }
       if (page === null) continue;
       if (renew) setDeviceCookies(c, device.token);
+      const { rewound, ...rest } = page;
       const response: SyncResponse = {
-        ...page,
+        ...rest,
         serverTime: nowMs,
-        accepted: screened.accepted,
+        accepted: rewound ? [] : screened.accepted,
         rejected: screened.rejected,
       };
       return c.json(response);

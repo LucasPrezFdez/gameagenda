@@ -35,13 +35,13 @@ export const META_KEYS = {
   /** Muestras del panel de rendimiento (Ajustes › Rendimiento, M3). */
   perfSamples: 'perfSamples',
   /**
-   * Sincronización (M4, §7.7): `{cursor, purgedSeq, reset, maxSeen}`. Lo escribe el motor en la
-   * misma transacción en que aplica cada página (ver `src/sync/state.ts`).
+   * Sincronización (M4, §7.7): `{cursor, purgedSeq, reset, maxSeen, epoch?}`. Lo escribe el
+   * motor en la misma transacción en que aplica cada página (ver `src/sync/state.ts`).
    */
   syncCursor: 'syncCursor',
   /**
    * Sincronización (M4): el emparejamiento visto desde este navegador, para Ajustes:
-   * `{deviceId, restore, lastSyncAt, lastError, unpairedBy, lastPurgeAt}` (ver `src/sync/state.ts`).
+   * `{deviceId, restore, lastSyncAt, lastError, unpairedBy}` (ver `src/sync/state.ts`).
    * Sin esta clave y sin el indicio `__Host-ga_sync`, la sincronización está apagada.
    */
   syncState: 'syncState',

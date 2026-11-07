@@ -428,6 +428,10 @@ export const es = {
       'La sincronización no está disponible ahora mismo y no podemos borrar tu agenda sincronizada, así que no hemos borrado nada. Vuelve a intentarlo más tarde.',
     deleteServerFailed:
       'No hemos podido borrar tu agenda sincronizada, así que no hemos borrado nada. Vuelve a intentarlo dentro de un rato.',
+    // El servidor responde 401: este dispositivo ya no está emparejado (revocado desde otro, o la
+    // agenda ya no existe). No se da por borrada: puede seguir en D1 con los demás.
+    deleteServerUnpaired:
+      'Este dispositivo ya no está emparejado y no podemos borrar tu agenda sincronizada desde aquí, así que no hemos borrado nada. Bórrala desde otro dispositivo emparejado, o recupérala antes con tu código en Ajustes › Sincronización. Para borrar solo lo de este dispositivo, pulsa otra vez «Borrar todo».',
     deletedAllSynced:
       'Hemos borrado todos tus datos de este dispositivo y tu agenda sincronizada del servidor.',
     deleteConfirmLabel: 'Escribe BORRAR para confirmar',
@@ -592,13 +596,14 @@ export const es = {
   /** Ajustes › Sincronización (M4; §9.1, §11.2 y §11.4). */
   syncPanel: {
     loading: 'Cargando el estado de la sincronización…',
-    // Sin sincronizar. La cookie la crea el gesto de activar o emparejar, y se avisa aquí (§11.2).
+    // Sin sincronizar o desemparejado. Las cookies las crea el gesto de activar, emparejar o
+    // recuperar, y se avisa junto a él (§11.2).
     intro:
       'Ten la misma agenda en el móvil y en el PC, con una copia fuera de este dispositivo. Se sincroniza sola, también cuando vuelve la conexión.',
     stored:
       'Guardamos tu agenda (juegos, estados, marcas, fechas y notas) y el nombre de cada dispositivo en servidores de Cloudflare en la Unión Europea. No pedimos email, nombre ni contraseña.',
     cookie:
-      'Al activar o emparejar, este dispositivo guarda una cookie que lo identifica ante el servidor. Solo sirve para sincronizar, y se borra al desemparejarlo.',
+      'Al activar o emparejar (también con el código de recuperación), este dispositivo guarda dos cookies: una lo identifica ante el servidor y la otra, sin datos, indica que está emparejado. Solo sirven para sincronizar, y se borran al desemparejarlo o al borrar la agenda sincronizada.',
     /** Hueco de los textos legales (CA4.7): aquí irá el enlace cuando se publiquen. */
     legal:
       'Política de privacidad y condiciones: las publicaremos antes de abrir la sincronización.',
@@ -625,6 +630,9 @@ export const es = {
     joining: 'Uniendo este dispositivo a tu agenda…',
     fromLink:
       'Has abierto un enlace para emparejar. Pulsa «Emparejar este dispositivo» para unirlo a tu agenda.',
+    /** En Safari de iPhone o iPad (`navigator.standalone === false`): la app de inicio es otra. */
+    fromLinkSafari:
+      'Este enlace se ha abierto en Safari, que guarda sus datos aparte. Si usas GameAgenda desde la pantalla de inicio, ábrela allí y escribe el código: solo sirve una vez.',
     fromLinkPaired: 'Este dispositivo ya sincroniza: no necesita el código del enlace.',
     joined: 'Este dispositivo ya está emparejado. Estamos trayendo tu agenda.',
 
@@ -647,9 +655,9 @@ export const es = {
     syncing: 'Sincronizando…',
     synced: (ago: string) => `Sincronizado ${ago}.`,
     justNow: 'hace un momento',
-    /** Para el lector de pantalla, sin cuenta que avance: «a las 18:42», «el 3 nov a las 18:42». */
-    atTime: (time: string) => `a las ${time}`,
-    onDay: (day: string, time: string) => `el ${day} a las ${time}`,
+    /** Para el lector de pantalla, sin cuenta que avance: «a las 18:42», «el 3 nov a la 01:05». */
+    atTime: (time: string) => `a ${hourArticle(time)} ${time}`,
+    onDay: (day: string, time: string) => `el ${day} a ${hourArticle(time)} ${time}`,
     never: 'Aún no se ha sincronizado.',
     offline: 'Sin conexión. Sincronizaremos en cuanto vuelva.',
     disabled: 'La sincronización no está disponible ahora mismo. Lo intentaremos más tarde.',
@@ -674,7 +682,7 @@ export const es = {
     pairCode: 'Código de emparejamiento',
     pairQr: 'Código QR para emparejar otro dispositivo',
     pairExpiresIn: (time: string) => `Caduca en ${time}`,
-    pairValidUntil: (clock: string) => `Sirve una sola vez, hasta las ${clock}.`,
+    pairValidUntil: (clock: string) => `Sirve una sola vez, hasta ${hourArticle(clock)} ${clock}.`,
     pairExpired: 'Este código ha caducado. Pide otro.',
     pairAnother: 'Otro código',
     pairHide: 'Ocultar el código',
@@ -688,6 +696,8 @@ export const es = {
     deviceSince: (date: string) => `Desde el ${date}`,
     deviceLastSeen: (when: string) => `Última vez: ${when}`,
     unpair: 'Desemparejar',
+    /** Mientras espera al servidor (también «Desemparejar este dispositivo»). */
+    unpairing: 'Desemparejando…',
     unpairLabel: (label: string) => `Desemparejar: ${label}`,
     unpairConfirm: (label: string) =>
       `¿Desemparejar «${label}»? Dejará de sincronizar, pero conservará su lista.`,
@@ -702,11 +712,15 @@ export const es = {
     newRecovery: 'Código de recuperación nuevo',
     newRecoveryConfirm: 'El código anterior dejará de valer. ¿Crear uno nuevo?',
     newRecoveryDo: 'Crear código nuevo',
+    newRecoveryCreating: 'Creando el código…',
 
     leaveTitle: 'Desemparejar este dispositivo',
     leaveIntro: 'Dejará de sincronizar. Tu agenda se queda en este dispositivo y en los demás.',
     leave: 'Desemparejar este dispositivo',
     leaveConfirm: '¿Desemparejar este dispositivo? Podrás volver a emparejarlo con un código.',
+    /** Si la lista no tiene otro dispositivo con la agenda (`app`): su copia se queda en D1. */
+    leaveConfirmLast:
+      '¿Desemparejar este dispositivo? Es el último que sincroniza tu agenda: la copia sincronizada se quedará en el servidor, y podrás recuperarla con tu código de recuperación. Para borrarla, usa antes «Borrar todos mis datos» en Ajustes › Datos, que borra también lo de este dispositivo.',
     left: 'Este dispositivo ya no sincroniza. Tu agenda sigue aquí.',
 
     // Desemparejado (§11.4): por el servidor (401) o porque se borraron las cookies.
@@ -722,14 +736,16 @@ export const es = {
       'Si no vas a volver a sincronizar, quita la sincronización de este dispositivo. Tu agenda se queda.',
     forget: 'Dejar de sincronizar',
     forgetConfirm: '¿Dejar de sincronizar en este dispositivo? Tu agenda se queda aquí.',
+    forgetting: 'Quitando la sincronización…',
 
     errors: {
       network:
         'No hemos podido conectar con el servidor. Comprueba tu conexión y vuelve a intentarlo.',
       rateLimited: 'Demasiados intentos seguidos. Espera un minuto y vuelve a intentarlo.',
       disabled: 'La sincronización aún no está disponible. Vuelve a intentarlo más adelante.',
+      // Recargar no basta: el Service Worker nuevo espera a que se cierren todas las ventanas.
       ageChanged:
-        'Ha cambiado la edad mínima para sincronizar. Recarga la página para ver la declaración nueva.',
+        'Ha cambiado la edad mínima para sincronizar. Cierra GameAgenda, todas sus ventanas y pestañas, y vuelve a abrirla para ver la declaración nueva.',
       alreadyPaired:
         'Este dispositivo ya está emparejado con una agenda. Para unirlo a otra, desemparéjalo antes.',
       invalidPairing: (minutes: number) =>
@@ -756,6 +772,11 @@ export const es = {
     body: 'Puede que el enlace esté mal escrito o que la página ya no exista.',
   },
 } as const;
+
+/** «la 01:05» (es la una), pero «las 00:05» y «las 13:05». */
+function hourArticle(clock: string): string {
+  return /^0?1:/.test(clock) ? 'la' : 'las';
+}
 
 /** «1 alta», «3 altas», «12 000 altas» (millares con espacio fino desde cinco cifras). */
 function plural(count: number, one: string, many: string): string {

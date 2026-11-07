@@ -16,8 +16,12 @@ export interface WriteBatch {
   readonly ops: readonly Op[];
   /** Cada entrada tal como estaba en memoria antes de las acciones. */
   readonly before: ReadonlyMap<string, Entry | undefined>;
-  /** Estado del reloj para `meta.hlcClock`. */
-  readonly clock: HlcClockSnapshot;
+  /**
+   * Estado del reloj para `meta.hlcClock`, tomado al escribir (dentro de la transacción), no al
+   * hacer la acción: si entretanto el motor de la sincronización ha corregido el desfase, una
+   * instantánea vieja lo pisaría.
+   */
+  readonly clock: () => HlcClockSnapshot;
 }
 
 /** Claves cambiadas en el almacén (también por otra pestaña), o `all` si no se saben. */

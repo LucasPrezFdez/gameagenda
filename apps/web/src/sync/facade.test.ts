@@ -80,7 +80,9 @@ function fakeRuntime() {
   };
 }
 
-function setup(options: { cookie?: string; idb?: IDBFactory; name?: string } = {}) {
+function setup(
+  options: { cookie?: string; idb?: IDBFactory; name?: string; failLoads?: number } = {},
+) {
   const db = openDatabase({
     name: options.name ?? `facade-${open.length}`,
     indexedDB: options.idb ?? new IDBFactory(),
@@ -90,6 +92,8 @@ function setup(options: { cookie?: string; idb?: IDBFactory; name?: string } = {
   const runtime = fakeRuntime();
   const env = fakeEnv();
   const fetches: string[] = [];
+  const errors: unknown[] = [];
+  let attempts = 0;
   const sync = createSyncService({
     db,
     clock: createHlcClock({ now: Date.now, node: 'abcdabcd' }),
@@ -101,12 +105,33 @@ function setup(options: { cookie?: string; idb?: IDBFactory; name?: string } = {
       fetches.push(url);
       return new Response('{}');
     },
-    loadRuntime: () => runtime.load(),
+    loadRuntime: () => {
+      attempts += 1;
+      if (attempts <= (options.failLoads ?? 0)) {
+        return Promise.reject(new TypeError('Failed to fetch dynamically imported module'));
+      }
+      return runtime.load();
+    },
     whenStartup: () => Promise.resolve(),
+    onError: (error) => errors.push(error),
   });
   open.push({ db, sync });
-  return { db, sync, jar, runtime, env, fetches };
+  return {
+    db,
+    sync,
+    jar,
+    runtime,
+    env,
+    fetches,
+    errors,
+    get attempts() {
+      return attempts;
+    },
+  };
 }
+
+/** Deja que lleguen los `storagemutated` de Dexie. */
+const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe('estado y carga del motor', () => {
   it('sin indicio ni estado: apagado, sin cargar el motor ni pedir nada', async () => {
@@ -192,7 +217,7 @@ describe('estado y carga del motor', () => {
     const other = openDatabase({ name: 'tabs', indexedDB: idb, IDBKeyRange });
     await other.meta.put({ key: META_KEYS.syncState, value: newRecord('d2', false) });
     other.close();
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await tick();
     await tab.sync.whenIdle();
     expect(tab.sync.getSnapshot()).toMatchObject({ status: 'paired', deviceId: 'd2' });
     expect(tab.runtime.calls).toEqual(['resume']);
@@ -221,6 +246,79 @@ describe('estado y carga del motor', () => {
     });
     expect(runtime.loads).toBe(1);
     expect(runtime.calls).toEqual(['activate']);
+  });
+
+  it('si falla la carga del motor, la interfaz lo dice, y «Sincronizar ahora» lo carga y lo reanuda', async () => {
+    const s = setup({ cookie: '__Host-ga_sync=1', failLoads: 1 });
+    await s.db.meta.put({ key: META_KEYS.syncState, value: newRecord('d1', false) });
+    s.sync.start();
+    await s.sync.whenIdle();
+    expect(s.sync.getSnapshot()).toMatchObject({
+      status: 'paired',
+      activity: 'error',
+      error: 'network',
+    });
+    // Al registro de errores, una vez y con la causa.
+    expect(s.errors).toEqual([expect.any(TypeError)]);
+    // Ningún disparador lo reintenta solo (con un 404 fallaría siempre).
+    s.env.win.dispatchEvent(new Event('focus'));
+    s.sync.notifyLocalWrite();
+    await s.sync.whenIdle();
+    expect(s.attempts).toBe(1);
+
+    await s.sync.syncNow();
+    await s.sync.whenIdle();
+    expect(s.attempts).toBe(2);
+    expect(s.runtime.calls).toEqual(['resume', 'syncNow']);
+    expect(s.sync.getSnapshot()).toMatchObject({ status: 'paired', activity: 'idle', error: null });
+    expect(s.errors).toHaveLength(1);
+  });
+
+  it('si otra operación carga el motor tras el fallo, también lo reanuda', async () => {
+    const s = setup({ cookie: '__Host-ga_sync=1', failLoads: 1 });
+    await s.db.meta.put({ key: META_KEYS.syncState, value: newRecord('d1', false) });
+    s.sync.start();
+    await s.sync.whenIdle();
+    await s.sync.listDevices();
+    expect(s.runtime.calls).toEqual(['resume']);
+    expect(s.sync.getSnapshot()).toMatchObject({ activity: 'idle', error: null });
+  });
+
+  it('sin enganchar, un fallo de carga no cambia la actividad (lo dice la operación)', async () => {
+    const s = setup({ failLoads: 1 });
+    s.sync.start();
+    await s.sync.whenIdle();
+    const error = await s.sync.activate({ label: 'L', minAge: 14 }).catch((e: unknown) => e);
+    expect(error).toMatchObject({ code: 'network' });
+    expect(s.sync.getSnapshot()).toMatchObject({ status: 'off', activity: 'idle', error: null });
+  });
+
+  it('IndexedDB borrada con la app abierta (con el indicio): restaurando, y sincroniza ya', async () => {
+    const s = setup({ cookie: '__Host-ga_sync=1' });
+    await s.db.meta.put({ key: META_KEYS.syncState, value: newRecord('d1', false) });
+    s.sync.start();
+    await s.sync.whenIdle();
+    expect(s.runtime.calls).toEqual(['resume']);
+    await s.db.meta.delete(META_KEYS.syncState);
+    await tick();
+    await s.sync.whenIdle();
+    expect(s.sync.getSnapshot()).toMatchObject({ status: 'restoring' });
+    // La ronda restaura (el motor ve que falta `meta.syncState`, con el indicio).
+    expect(s.runtime.calls).toEqual(['resume', 'syncNow']);
+  });
+
+  it('sin el indicio, que falte el estado es que lo han quitado a propósito: apagado', async () => {
+    const s = setup({ cookie: '__Host-ga_sync=1' });
+    await s.db.meta.put({ key: META_KEYS.syncState, value: newRecord('d1', false) });
+    s.sync.start();
+    await s.sync.whenIdle();
+    // Otra pestaña desempareja: el servidor quita las cookies y luego el estado.
+    s.jar.cookie = '';
+    await s.db.meta.delete(META_KEYS.syncState);
+    await tick();
+    await s.sync.whenIdle();
+    expect(s.sync.getSnapshot()).toMatchObject({ status: 'off' });
+    expect(s.runtime.calls).toEqual(['resume', 'pause']);
   });
 
   it('sin IndexedDB no se puede sincronizar', async () => {
@@ -257,7 +355,7 @@ describe('escrituras locales', () => {
       entries: [],
       ops: [],
       before: new Map(),
-      clock: { ms: 0, counter: 0, offset: 0 },
+      clock: () => ({ ms: 0, counter: 0, offset: 0 }),
     };
     await tracked.write(empty);
     expect(notified).toBe(0);

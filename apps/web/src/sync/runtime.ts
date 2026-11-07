@@ -1,8 +1,13 @@
 // El motor de la sincronización tal como lo carga la fachada (`facade.ts`) con `import()`: el
 // cliente HTTP (con Zod), la ronda (`engine.ts`), el planificador (`scheduler.ts`), el Web Lock,
 // el aviso «Sincronización fallida» (§9.6), el aviso de copia (RNF-08: una ronda correcta lo
-// reinicia), la purga local diaria (§7.7) y las operaciones de Ajustes. Va en un *chunk* diferido:
-// quien no sincroniza no lo descarga.
+// reinicia) y las operaciones de Ajustes. Va en un *chunk* diferido: quien no sincroniza no lo
+// descarga. (La app no purga lápidas por su cuenta: le llega la purga de D1 con un `reset`.)
+//
+// Una ronda puede acabar después de desemparejar o de borrar los datos, en esta pestaña o en otra.
+// Por eso `meta.syncState` solo cambia con `updateRecord`, que relee lo guardado y no lo vuelve a
+// crear si ya no está; la ronda que se encuentra sin él acaba con `aborted` y no se trata como
+// buena; y borrar la agenda del servidor espera su turno en el Web Lock.
 import { parseCode } from '@gameagenda/core/api';
 import type { HlcClock } from '@gameagenda/core/sync';
 import type { CopyReminderStore } from '../data/copy-reminder.ts';
@@ -19,7 +24,7 @@ import {
   type SchedulerTimings,
   type SyncTrigger,
 } from './scheduler.ts';
-import { countPendingEntries, newRecord, type SyncRecord } from './state.ts';
+import { countPendingEntries, newRecord, parseSyncRecord, type SyncRecord } from './state.ts';
 import {
   type ActivateInput,
   type DeviceInfo,
@@ -33,8 +38,6 @@ import {
 export const SYNC_LOCK = 'gameagenda-sync';
 /** El aviso «Sincronización fallida» sale tras estos fallos seguidos (unos 15 s reintentando). */
 export const NOTICE_AFTER_FAILURES = 3;
-/** Purga local, como mucho una vez al día. */
-const PURGE_EVERY_MS = 86_400_000;
 /** El aviso de copia se reinicia como mucho cada hora (cada reinicio escribe `meta`). */
 const COPY_EVERY_MS = 3_600_000;
 /** Errores tras los que se reintenta con espera exponencial. */
@@ -47,11 +50,14 @@ const RETRYABLE: ReadonlySet<SyncErrorCode> = new Set([
   'storage',
 ]);
 
-/** Lo que se usa de `navigator.locks`. */
+/**
+ * Lo que se usa de `navigator.locks`: con `ifAvailable`, `lock` es `null` si otra pestaña lo
+ * tiene; sin él, espera su turno.
+ */
 export interface LockManagerLike {
   request<T>(
     name: string,
-    options: { ifAvailable: true },
+    options: { ifAvailable?: boolean },
     callback: (lock: unknown) => Promise<T>,
   ): Promise<T>;
 }
@@ -105,13 +111,24 @@ export interface SyncRuntime {
   createPairingCode(): Promise<{ code: string; expiresAt: string }>;
   createRecoveryCode(): Promise<{ recoveryCode: string }>;
   listDevices(): Promise<readonly DeviceInfo[]>;
+  /** Ver `SyncService.revokeDevice`. */
   revokeDevice(id: string): Promise<{ self: boolean }>;
+  /** Ver `SyncService.deleteServerAgenda` (con un 401, rechaza con `unauthorized`). */
   deleteServerAgenda(): Promise<void>;
   forget(): Promise<void>;
 }
 
 function asSyncError(error: unknown): SyncError | null {
   return error instanceof SyncError ? error : null;
+}
+
+interface UpdateOptions {
+  /**
+   * Si ya no hay `meta.syncState` y está el indicio, lo crea: una ronda buena prueba que el
+   * dispositivo sigue emparejado (IndexedDB borrada con la app abierta, CA4.3). Sin indicio, nunca:
+   * revocar este dispositivo, borrar la agenda y el 401 quitan el indicio antes que el estado.
+   */
+  readonly createIfHint?: boolean;
 }
 
 const BUSY = Symbol('busy');
@@ -136,26 +153,41 @@ export function createRuntime(host: RuntimeHost): SyncRuntime {
   let resumed = false;
   let removeOffline: (() => void) | null = null;
 
-  async function saveRecord(record: SyncRecord | null): Promise<void> {
-    if (record === null) await db.meta.bulkDelete([META_KEYS.syncState, META_KEYS.syncCursor]);
-    else await db.meta.put({ key: META_KEYS.syncState, value: record });
-    host.setRecord(record);
+  /** Ya no sincroniza: fuera el estado y el cursor. */
+  async function clearRecord(): Promise<void> {
+    await db.meta.bulkDelete([META_KEYS.syncState, META_KEYS.syncCursor]);
+    host.setRecord(null);
   }
 
-  async function patchRecord(patch: Partial<SyncRecord>): Promise<void> {
-    const current = host.getRecord();
-    if (current === null) return;
-    const next = { ...current, ...patch };
-    const changed = (Object.keys(patch) as (keyof SyncRecord)[]).some(
-      (k) => current[k] !== next[k],
-    );
-    if (changed) await saveRecord(next);
+  /**
+   * Cambia `meta.syncState` en una transacción: parte de lo guardado, no de la copia de la
+   * fachada, que puede estar vieja (otra pestaña lo ha cambiado o borrado). Si ya no está, no lo
+   * vuelve a crear (salvo con `createIfHint`): así una ronda que acaba tras desemparejar o borrar
+   * los datos, en esta pestaña o en otra, no deja un estado nuevo. Después corrige la copia de la
+   * fachada con lo que haya quedado, también `null`.
+   */
+  async function updateRecord(
+    patch: Partial<SyncRecord>,
+    { createIfHint = false }: UpdateOptions = {},
+  ): Promise<void> {
+    const saved = await db.transaction('rw', db.meta, async () => {
+      const stored = parseSyncRecord((await db.meta.get(META_KEYS.syncState))?.value);
+      const current = stored ?? (createIfHint && host.readHint() ? newRecord(null, false) : null);
+      if (current === null) return null;
+      const next: SyncRecord = { ...current, ...patch };
+      const same =
+        stored !== null &&
+        (Object.keys(patch) as (keyof SyncRecord)[]).every((k) => current[k] === next[k]);
+      if (!same) await db.meta.put({ key: META_KEYS.syncState, value: next });
+      return next;
+    });
+    host.setRecord(saved);
   }
 
+  /** 401: el servidor ya no reconoce este dispositivo (y ha quitado sus cookies). */
   async function markUnpairedByServer(): Promise<void> {
     scheduler.stop();
-    const current = host.getRecord() ?? newRecord(null, false);
-    await saveRecord({ ...current, unpairedBy: 'server', lastError: 'unauthorized' });
+    await updateRecord({ unpairedBy: 'server', lastError: 'unauthorized' });
     host.setActivity('idle', null);
   }
 
@@ -185,7 +217,15 @@ export function createRuntime(host: RuntimeHost): SyncRuntime {
     if (first !== BUSY || env.document.visibilityState !== 'visible') return first;
     // Puede que la otra pestaña leyera la `outbox` antes de nuestra escritura.
     await wait(timings.lockRetryMs);
+    // Mientras tanto se ha desemparejado (o se han borrado las cookies): ya no toca.
+    if (!resumed) return BUSY;
     return attempt();
+  }
+
+  /** `fn` con el Web Lock, esperando su turno: antes acaba la ronda de otra pestaña. */
+  function exclusive<T>(fn: () => Promise<T>): Promise<T> {
+    const { locks } = host;
+    return locks === null ? fn() : locks.request(SYNC_LOCK, {}, fn);
   }
 
   async function notifyFailure(): Promise<void> {
@@ -204,18 +244,10 @@ export function createRuntime(host: RuntimeHost): SyncRuntime {
     const now = env.now();
     failures = 0;
     noticeShown = false;
-    const record = host.getRecord();
-    let lastPurgeAt = record?.lastPurgeAt ?? null;
-    if (lastPurgeAt === null || now - lastPurgeAt >= PURGE_EVERY_MS) {
-      // Si falla, la ronda sigue siendo buena: se intentará con la siguiente.
-      try {
-        await engine.purge();
-        lastPurgeAt = now;
-      } catch (error) {
-        host.onError(error);
-      }
-    }
-    await patchRecord({ lastSyncAt: now, lastError: null, restore: false, lastPurgeAt });
+    await updateRecord(
+      { lastSyncAt: now, lastError: null, restore: false },
+      { createIfHint: true },
+    );
     const copy = host.copyReminder;
     const lastCopy = copy?.getSnapshot()?.lastCopy ?? null;
     if (copy && (lastCopy === null || now - lastCopy >= COPY_EVERY_MS)) copy.copied(now);
@@ -237,6 +269,7 @@ export function createRuntime(host: RuntimeHost): SyncRuntime {
         host.setActivity('idle', null);
         return { kind: 'skipped' };
       }
+      if (result.aborted) return onAborted();
       await onRoundOk(result);
       return { kind: 'ok', complete: result.complete };
     } catch (error) {
@@ -256,7 +289,7 @@ export function createRuntime(host: RuntimeHost): SyncRuntime {
         host.setActivity('offline', 'network');
         return { kind: 'offline' };
       }
-      await patchRecord({ lastError: code }).catch(host.onError);
+      await updateRecord({ lastError: code }).catch(host.onError);
       if (code === 'sync_disabled') {
         host.setActivity('disabled', code);
         return { kind: 'stop' };
@@ -269,12 +302,36 @@ export function createRuntime(host: RuntimeHost): SyncRuntime {
     }
   }
 
+  /**
+   * La ronda ha parado porque ya no está `meta.syncState` (ver `RoundResult.aborted`): no es una
+   * ronda buena, así que nada de `onRoundOk`, aviso ni registro. Sin indicio, lo han quitado a
+   * propósito (desemparejar, borrar los datos) y la fachada pausará el motor. Con el indicio, han
+   * borrado IndexedDB con la app abierta: se restaura como al arrancar sin estado (CA4.3).
+   */
+  function onAborted(): RoundOutcome {
+    host.setActivity('idle', null);
+    if (resumed && host.readHint()) restore(() => void scheduler.syncNow());
+    return { kind: 'stop' };
+  }
+
   /** Activar, emparejar, recuperar o restaurar: todo lo local a la `outbox` y cursor a 0. */
   async function join(deviceId: string | null, restore: boolean): Promise<void> {
     const record = newRecord(deviceId, restore);
     await engine.join(record);
     host.setRecord(record);
     host.setPending(await countPendingEntries(db));
+  }
+
+  /** Indicio sin estado (CA4.3): restaura desde 0, subiendo lo que haya en local; luego, `then`. */
+  function restore(then: () => void): void {
+    joining ??= join(null, true)
+      .then(() => {
+        if (resumed) then();
+      })
+      .catch(host.onError)
+      .finally(() => {
+        joining = null;
+      });
   }
 
   async function redeem(kind: 'pairing' | 'recovery', input: RedeemInput): Promise<void> {
@@ -299,19 +356,8 @@ export function createRuntime(host: RuntimeHost): SyncRuntime {
       resumed = true;
       watchOffline();
       if (!env.isOnline()) host.setActivity('offline', 'network');
-      if (host.getRecord() !== null) {
-        scheduler.start();
-        return;
-      }
-      // Indicio sin estado (CA4.3): restaurar desde 0, subiendo lo que haya en local.
-      joining ??= join(null, true)
-        .then(() => {
-          if (resumed) scheduler.start();
-        })
-        .catch(host.onError)
-        .finally(() => {
-          joining = null;
-        });
+      if (host.getRecord() !== null) scheduler.start();
+      else restore(() => scheduler.start());
     },
     pause() {
       resumed = false;
@@ -322,8 +368,11 @@ export function createRuntime(host: RuntimeHost): SyncRuntime {
     syncNow: () => scheduler.syncNow(),
     localWrite: () => scheduler.localWrite(),
     async idle() {
-      await joining;
-      await scheduler.idle();
+      // Una ronda puede acabar restaurando (`onAborted`), y la restauración lanza otra ronda.
+      do {
+        await joining;
+        await scheduler.idle();
+      } while (joining !== null);
     },
 
     async activate({ label, minAge }) {
@@ -339,36 +388,52 @@ export function createRuntime(host: RuntimeHost): SyncRuntime {
       const { devices } = await authed(() => api.devices());
       const current = devices.find((d) => d.current);
       if (current && host.getRecord()?.deviceId === null)
-        await patchRecord({ deviceId: current.id });
+        await updateRecord({ deviceId: current.id });
       return devices;
     },
     async revokeDevice(id) {
-      await authed(() => api.revokeDevice(id));
-      const self = id === host.getRecord()?.deviceId || !host.readHint();
+      // Desemparejar este dispositivo: sin rondas nuevas durante la llamada. La que ya esté en
+      // marcha acaba, y su 401 (o su 200) tardío ya no vuelve a crear el estado (`updateRecord`).
+      const mine = id === host.getRecord()?.deviceId;
+      if (mine) scheduler.stop();
+      try {
+        await authed(() => api.revokeDevice(id));
+      } catch (error) {
+        if (mine && resumed && asSyncError(error)?.code !== 'unauthorized') scheduler.start();
+        throw error;
+      }
+      // Tras restaurar no se sabe el id propio; revocarse quita el indicio.
+      const self = mine || !host.readHint();
       if (self) {
         scheduler.stop();
-        await saveRecord(null);
+        await clearRecord();
       }
       return { self };
     },
     async deleteServerAgenda() {
       if (host.getRecord() === null && !host.readHint()) return;
+      // Ni restauración ni rondas de esta pestaña mientras tanto; la de otra acaba antes (el Web
+      // Lock, esperando turno), con su respuesta aplicada. Lo que llegue después ya no se escribe:
+      // falta `meta.syncState` (`aborted`) o el servidor da 401 (`updateRecord` no lo crea).
+      await joining;
       scheduler.stop();
       await scheduler.idle();
       try {
-        await api.deleteAgenda();
+        await exclusive(async () => {
+          // 401: revocado desde otro dispositivo, o la agenda ya no existe. El servidor no los
+          // distingue, así que no se da por borrada: queda desemparejado por el servidor y se
+          // relanza (`authed`). Lo local no se toca.
+          await authed(() => api.deleteAgenda());
+          await clearRecord();
+        });
       } catch (error) {
-        // 401: la agenda ya no existe o el dispositivo no está emparejado; no queda nada que borrar.
-        if (asSyncError(error)?.code !== 'unauthorized') {
-          if (resumed) scheduler.start();
-          throw error;
-        }
+        if (resumed && asSyncError(error)?.code !== 'unauthorized') scheduler.start();
+        throw error;
       }
-      await saveRecord(null);
     },
     async forget() {
       scheduler.stop();
-      await saveRecord(null);
+      await clearRecord();
     },
   };
 }

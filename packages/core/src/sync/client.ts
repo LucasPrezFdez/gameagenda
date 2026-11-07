@@ -1,9 +1,10 @@
 // Lo que hace la app con la respuesta de `POST /api/v1/sync` (§7.4 y §7.7; ADR-011), sin E/S:
-// convertir los cambios en operaciones, volver a sellar las acciones rechazadas por reloj y
-// decidir qué lápidas y esqueletos se purgan, con el mismo criterio que el servidor.
+// convertir los cambios en operaciones, volver a sellar las acciones rechazadas por reloj, el
+// criterio de la purga de D1 y qué sube una entrada al unirse a una agenda.
 
 import type { Entry, EntryFields } from '../entries/model.ts';
 import { formatHlc, maxHlc } from './hlc.ts';
+import { merge, opsFromEntry } from './merge.ts';
 import type { JsonValue, NewOpId, Op } from './op.ts';
 
 /**
@@ -86,9 +87,14 @@ export function resealEntry(entry: Entry, plan: ReadonlyMap<string, string>): En
   return { ...entry, flags: { ...entry.flags }, hlc, lastHlc: maxHlc(Object.values(hlc)) };
 }
 
-// --- Purga local de lápidas y esqueletos (§7.7) ---
+// --- Purga de lápidas y esqueletos (§7.7) ---
+//
+// Solo purga D1, los lunes (`apps/web/worker/maintenance.ts`); la app no purga por su cuenta, y la
+// purga le llega con un `reset`: si purgara con su propio calendario, una escritura vieja subida
+// después dejaría réplicas distintas a la vista. La app usa el criterio para no subir al unirse a
+// una agenda el contenido de lo que D1 purgaría (`uploadOf`).
 
-/** Días tras los que se purgan las lápidas y los esqueletos sin cambios, como en el servidor. */
+/** Días tras los que se purgan las lápidas y los esqueletos sin cambios. */
 export const PURGE_AFTER_DAYS = 90;
 const DAY_MS = 86_400_000;
 
@@ -108,16 +114,50 @@ export function purgeCutoff(nowMs: number, days = PURGE_AFTER_DAYS): PurgeCutoff
   };
 }
 
+/** ¿Una lápida borrada antes del corte? */
+function isOldTombstone(e: Pick<EntryFields, 'deletedAt'>, cutoff: PurgeCutoff): boolean {
+  return e.deletedAt !== null && e.deletedAt < cutoff.deletedBefore;
+}
+
 /**
- * ¿Se purga? El mismo criterio que la purga semanal de D1 (`apps/web/worker/maintenance.ts`):
- * una lápida con `deletedAt` anterior al corte, o un esqueleto (sin HLC de `status` o de `title`)
- * cuya mayor HLC es anterior al corte. Quien llama excluye lo que siga en la `outbox`.
+ * ¿Se purga? El criterio de la purga semanal de D1 (`apps/web/worker/maintenance.ts`, que usa
+ * `purgeCutoff`): una lápida con `deletedAt` anterior al corte, o un esqueleto (sin HLC de
+ * `status` o de `title`) cuya mayor HLC es anterior al corte.
  */
 export function isPurgeable(
   e: Pick<EntryFields, 'deletedAt' | 'hlc'>,
   cutoff: PurgeCutoff,
 ): boolean {
-  if (e.deletedAt !== null && e.deletedAt < cutoff.deletedBefore) return true;
+  if (isOldTombstone(e, cutoff)) return true;
   const skeleton = e.hlc.status === undefined || e.hlc.title === undefined;
   return skeleton && maxHlc(Object.values(e.hlc)) < cutoff.unchangedBefore;
+}
+
+/** Lo que sube una lápida purgable: lo que decide el borrado y el reenvío de un manual vinculado. */
+const TOMBSTONE_UPLOAD: ReadonlySet<string> = new Set(['deletedAt', 'mergedInto']);
+
+export interface Upload {
+  /** Operaciones para la `outbox`. */
+  ops: Op[];
+  /** La entrada en local: la misma, reducida a lo que sube o `null` (se borra). */
+  local: Entry | null;
+}
+
+/**
+ * Lo que sube una entrada al unirse a una agenda (activar, emparejar, recuperar o restaurar) o al
+ * volver a subirlo todo tras un D1 vuelto atrás (§7.7 y §11.2), con el corte de `purgeCutoff`:
+ * - Una lápida purgable sube solo `deletedAt` y, si lo tiene, `mergedInto`, con sus HLC. Basta
+ *   para que el borrado gane por LWW y para que el servidor reenvíe a la entrada de Steam lo que
+ *   otro dispositivo aún tenga en el manual vinculado. Su contenido (la nota, el título…) no sale
+ *   del dispositivo: D1 lo purgaría el lunes siguiente.
+ * - Un esqueleto purgable no sube nada.
+ * - Lo demás sube entero (`opsFromEntry`).
+ * En local, la entrada queda como quedará en el servidor (la app ya no purga por su cuenta).
+ */
+export function uploadOf(e: Entry, cutoff: PurgeCutoff, newOpId: NewOpId): Upload {
+  if (!isPurgeable(e, cutoff)) return { ops: opsFromEntry(e, newOpId), local: e };
+  const ops = isOldTombstone(e, cutoff)
+    ? opsFromEntry(e, newOpId).filter((o) => TOMBSTONE_UPLOAD.has(o.field))
+    : [];
+  return { ops, local: ops.length === 0 ? null : merge(undefined, ops, newOpId).entry };
 }

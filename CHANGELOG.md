@@ -8,6 +8,7 @@ Cambios de GameAgenda por versión. Cada hito cierra una versión SemVer 0.x (§
 
 #### Para el usuario
 
+- **Sincronización entre dispositivos** (07-11-2026, en la rama `m4-sincronizacion`, sin publicar; ADR-011, DECISIONES §10.36–§10.37): en Ajustes › Sincronización se activa con la declaración de edad y se guarda una vez un código de recuperación. Otro dispositivo se empareja con un código o un QR de 10 min. Los cambios se sincronizan solos al abrir la app, al volver a ella, al recuperar la red y poco después de apuntar algo. Hay lista de dispositivos para desemparejarlos, y «Borrar todos mis datos» borra también la copia del servidor. Si se borran los datos del navegador, la agenda vuelve sola o con el código de recuperación.
 - **Buscar antes en la primera visita** (06-11-2026; ADR-009, DECISIONES §10.30): mientras llega el catálogo completo, la paleta ya busca en los 20 000 juegos más populares. Lo dice junto a los resultados y, si no encuentra el juego, no da por hecho que no está en Steam ni resalta la fila «a mano», porque puede llegar unos segundos después. Al llegar el catálogo entero, repite la búsqueda abierta. El Catálogo y la ficha esperan al catálogo completo.
   - Con CPU ×4, en local, se puede buscar a los 556 ms (presupuesto: 1 500 ms, RNF-05). En producción, con la fibra del PC, a los 0,9 s, y el catálogo completo llega a los 2,0 s (`smoke:web`, 06-11-2026).
   - Si el catálogo completo falla, se sigue buscando en el de arranque, con «Reintentar», y la carga se repite sola.

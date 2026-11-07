@@ -6,7 +6,9 @@ import {
   merge,
   type Op,
   opsFromEntry,
+  sortForUpload,
   takeBatch,
+  takeSortedBatch,
 } from '../src/sync/index.ts';
 import { hlc, MANUAL_1, NODE_B, op, uuids, withoutOpId } from './helpers.ts';
 
@@ -273,5 +275,23 @@ describe('outbox', () => {
     expect(takeBatch(ops, 3)).toEqual([c1, a1, a2]);
     expect(takeBatch([a1, a2], 1)).toEqual([a1, a2]);
     expect(takeBatch([], 10)).toEqual([]);
+  });
+
+  it('sobre una lista ya ordenada, los lotes salen de la cabeza sin reordenar, como takeBatch', () => {
+    const ops = [b1, a1, c1, a2];
+    const sorted = sortForUpload(ops);
+    expect(sorted).not.toBe(ops);
+    expect(takeSortedBatch(sorted, 2)).toEqual(takeBatch(ops, 2));
+    expect(takeSortedBatch(sorted, 3)).toEqual(takeBatch(ops, 3));
+    // Lote a lote desde `start`, hasta vaciarla, sin partir acciones.
+    const batches: Op[][] = [];
+    for (let head = 0; head < sorted.length; ) {
+      const batch = takeSortedBatch(sorted, 2, head);
+      batches.push(batch);
+      head += batch.length;
+    }
+    expect(batches).toEqual([[c1], [a1, a2], [b1]]);
+    expect(batches.flat()).toEqual(sorted);
+    expect(takeSortedBatch(sorted, 2, sorted.length)).toEqual([]);
   });
 });

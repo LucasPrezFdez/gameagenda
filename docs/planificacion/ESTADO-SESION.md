@@ -1,6 +1,6 @@
 # Estado del proyecto — punto de partida de la próxima sesión
 
-**Actualizado:** 06-11-2026, en la sesión 10 (M4 empezado en la rama `m4-sincronizacion`: la base de la micro-API y el ADR-011). Antes, en la sesión 9 (el cliente del núcleo de arranque, en `main` y desplegado: el núcleo de arranque, entero en producción). Antes, el 05-11-2026, en la sesión 8 (CA2.1 cumplido: M2 cerrado con `v0.2.0`; la parte del pipeline del núcleo de arranque, en `main`; y el rediseño visual «Tinta», en `main` y desplegado).
+**Actualizado:** 07-11-2026, en la sesión 11 (M4 parte 3: el cliente de sincronización, Ajustes › Sincronización y los E2E de CA4.2 y CA4.3, en la rama `m4-sincronizacion`). Antes, el 06-11-2026, en la sesión 10 (M4 empezado en la rama `m4-sincronizacion`: la base de la micro-API y el ADR-011). Antes, en la sesión 9 (el cliente del núcleo de arranque, en `main` y desplegado: el núcleo de arranque, entero en producción). Antes, el 05-11-2026, en la sesión 8 (CA2.1 cumplido: M2 cerrado con `v0.2.0`; la parte del pipeline del núcleo de arranque, en `main`; y el rediseño visual «Tinta», en `main` y desplegado).
 **Cómo retomar:** escribe *«Retoma GameAgenda desde docs/planificacion/ESTADO-SESION.md»*.
 
 ## 0. Lo primero en la próxima sesión
@@ -17,10 +17,22 @@ Lo de M3 está en `main` y subido, con el CI y el despliegue en verde y sin agen
   - El LWW lo decide la `applyOps()` de `core` en el servidor (`worker/sync-plan.ts`), con concurrencia optimista (`write_id`). Rechazos por acción, `purgedSeq` en la petición para el `reset`, renovación diaria de la cookie y lotes de 200 (`SYNC_BATCH_SIZE`; con 500, 8,5 ms de CPU en frío).
   - Cron Trigger `17 3 * * *`: *tokens* caducados y agendas de más de 13 meses; los lunes, la purga de lápidas y esqueletos de 90 días.
   - CA4.1: 3 propiedades con 1 000 casos cada una, por la micro-API (`sync.properties.test.ts`). `check` da 1 031 pruebas. Comprobado en `workerd` local, también la purga (API local: `POST /cdn-cgi/local/explorer/api/local/scheduled?worker=ga-web` con `cron` y `scheduled_time`).
+- **Parte 3, hecha** (07-11-2026, sesión 11; `0d8b9ba` y el commit siguiente): el cliente. ADR-011 («Cliente», «Ajustes › Sincronización» y «Pruebas») y DECISIONES §10.36–§10.38.
+  - Motor en `apps/web/src/sync/`: fachada en el *chunk* inicial y motor diferido (quien no sincroniza no pide nada a `/api`). Ajustes › Sincronización con QR (`uqr` 0.1.3) y `/emparejar#código`. «Borrar todos mis datos» borra también D1.
+  - Una revisión independiente, con 6 lentes y verificación adversarial (y una prueba real en `workerd`), encontró unos 30 fallos, todos arreglados con su prueba de regresión. Los más serios:
+    - *reset* a medias;
+    - la purga local, quitada: ahora la purga de D1 fuerza un *reset*;
+    - D1 vuelto atrás con operaciones en la petición, con época nueva (migración `0002_epoca.sql`);
+    - carreras al borrar o desemparejar con una ronda en vuelo;
+    - el 401 tomado por «agenda borrada».
+  - `check` en verde: 1 221 pruebas; JS inicial de 136,9 KB y chunk del motor de 5,7 KB. E2E en verde: Chromium 130 y WebKit 101; los de sincronización, también con `--repeat-each=3`. CA4.2 y CA4.3 comprobados en E2E con dos contextos.
+  - **Pendiente de esta parte:**
+    - llevar a las secciones del plan (§5.3, §6, §7.2, §7.4, §7.7, §9, §11, §12, §14 y §15.7) lo que ya recogen el ADR-011 y las §10.36–§10.38, y volver a montar `prototipe.md`;
+    - la segunda revisión de los arreglos se paró a medias, a petición del usuario: conviene repetirla;
+    - `boot.spec.ts:273` falla a veces con la máquina cargada (anterior a M4).
 - **Siguientes partes, por este orden:**
-  3. el cliente: Ajustes › Sincronización (activar con la edad, código de recuperación, QR y texto para emparejar, dispositivos), el motor (Web Locks, foco, red y visibilidad; cursor; desfase de la HLC) y los E2E con dos contextos (CA4.2 y CA4.3);
   4. buzón y Atajo de iOS, `resolve` (CA4.5), textos legales (CA4.7) y CA4.6;
-  5. desplegar: crear D1 con `--jurisdiction=eu` (y ver si el plan gratuito la admite, igual que `ratelimits`), el permiso de D1 del *token*, las migraciones en `deploy-web` y las pruebas en el iPhone.
+  5. desplegar: aplicar las migraciones `0001` y `0002`, crear D1 con `--jurisdiction=eu` (y ver si el plan gratuito la admite, igual que `ratelimits`), el permiso de D1 del *token*, las migraciones en `deploy-web` y las pruebas en el iPhone.
 - **Le tocará al usuario:** el nombre o alias y el correo de contacto del responsable para los textos legales; dar permiso de D1 al *token* `CLOUDFLARE_API_TOKEN`; y probar en el iPhone (CA4.3 y CA4.5).
 
 

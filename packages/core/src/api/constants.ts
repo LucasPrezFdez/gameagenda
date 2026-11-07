@@ -54,6 +54,8 @@ export const MAX_SYNC_OPS = 1000;
 export const MAX_SYNC_BODY = 1024 * 1024;
 /** Cambios por página de la respuesta (§7.7). */
 export const SYNC_PAGE_SIZE = 1000;
+/** Época de la agenda (`agenda.epoch`): 16 cifras hexadecimales; la app admite hasta esto. */
+export const EPOCH_MAX = 64;
 
 /**
  * Por qué se rechaza una operación: `invalid` (no pasa Zod, o lo hace otra de su acción: se

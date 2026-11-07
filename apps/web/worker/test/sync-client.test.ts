@@ -38,6 +38,10 @@ async function pairOf(h: Harness, options: ReplicaOptions = {}, optionsB = optio
   return { a, b, recovery };
 }
 
+function serverSeqOf(h: Harness): number {
+  return h.db.rows<{ seq: number }>('SELECT seq FROM agenda')[0]?.seq ?? -1;
+}
+
 function agendaIdOf(h: Harness, r: Replica): string {
   const deviceId = r.sync.getSnapshot().deviceId;
   if (deviceId === null) throw new Error('sin deviceId');
@@ -307,8 +311,14 @@ describe('§7.7: cursor, purga y D1 vuelto atrás', () => {
     await b.settle();
     expect(b.get('steam:2')).toBeUndefined();
     expect(b.get('steam:1')?.note).toBe('Sin red');
-    // A purga en local su lápida, con el mismo criterio que el servidor.
+    // A no purga por su cuenta: también sincronizó antes de la purga, así que recibe reset y quita
+    // su lápida.
+    expect(a.get('steam:2')?.deletedAt).not.toBeNull();
     await a.syncNow();
+    expect((await a.db.meta.get('syncCursor'))?.value).toMatchObject({
+      cursor: serverSeqOf(h),
+      reset: false,
+    });
     expect(a.get('steam:2')).toBeUndefined();
     await expectConverged(h, a, b);
   });
@@ -339,6 +349,7 @@ describe('§7.7: cursor, purga y D1 vuelto atrás', () => {
     expect(b.agenda.getSnapshot().map((e) => e.id)).toEqual(['steam:1']);
     await a.syncNow();
     expect(a.agenda.getSnapshot().map((e) => e.id)).toEqual(['steam:1']);
+    await expectConverged(h, a, b);
   });
 
   it('una ronda de reset interrumpida vuelve a empezar desde 0', async () => {
