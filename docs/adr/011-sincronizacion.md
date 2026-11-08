@@ -1,7 +1,7 @@
 # ADR-011 · Sincronización: micro-API, D1 en la UE y emparejamiento
 
 - **Estado:** propuesta. Pasa a «aceptada» con CA4.1–CA4.7 cumplidos en producción.
-- **Fecha:** 06-11-2026 (al empezar M4); el cliente y Ajustes › Sincronización, el 07-11-2026
+- **Fecha:** 06-11-2026 (al empezar M4); el cliente y Ajustes › Sincronización, el 07-11-2026; el buzón, `resolve` y los textos legales, el 08-11-2026
 - **Deciden:** el usuario y el asistente
 
 ## Contexto y problema
@@ -29,15 +29,15 @@ Desde M1 el cliente ya está preparado: ids naturales, HLC por campo, `outbox` y
 
 ## Decisión
 
-Opción elegida: **1**, porque es la del plan (D-13), mantiene la cookie de primera parte y la CSP con `connect-src 'self'`, y D1 se prueba en Node con el mismo SQL. Lo que sigue es lo construido el 06 y el 07-11-2026 en la rama `m4-sincronizacion`:
+Opción elegida: **1**, porque es la del plan (D-13), mantiene la cookie de primera parte y la CSP con `connect-src 'self'`, y D1 se prueba en Node con el mismo SQL. Lo que sigue es lo construido del 06 al 08-11-2026 en la rama `m4-sincronizacion`:
 
 - la base (DECISIONES §10.34);
 - `POST /api/v1/sync` con la purga (§10.35);
 - el cliente, con los arreglos de la revisión (§10.36);
 - Ajustes › Sincronización (§10.37);
-- los E2E contra la micro-API real (§10.38).
-
-El buzón y `resolve` se añadirán aquí al hacerlos.
+- los E2E contra la micro-API real (§10.38);
+- el buzón del Atajo de iOS (§10.39) y `resolve` (§10.40);
+- los textos legales (§10.41) y la estimación de CA4.6 (§10.42).
 
 ### Encaminamiento
 
@@ -75,6 +75,7 @@ El buzón y `resolve` se añadirán aquí al hacerlos.
 ### Límites (§11.4)
 
 - Con el *binding* `ratelimits`: `RL_AGENDA`, 5 por minuto, para crear agendas, y `RL_REDEEM`, 10 por minuto, para canjear códigos. Los dos van por IP, y al *binding* le llega el SHA-256 de la IP, no la IP.
+- Desde el 08-11-2026, también `RL_RESOLVE`, 30 por minuto y por IP, para `resolve`, y `RL_INBOX`, 30 por minuto y por *token* (su SHA-256), para el buzón.
 - Son aproximados y por ubicación de Cloudflare. Protegen la cuota: adivinar 140 bits es inviable igual.
 - En `workerd` local, la quinta alta del mismo minuto dio 429.
 
@@ -138,7 +139,7 @@ Va en `apps/web/src/sync/`, con lo que necesita de `core` en `@gameagenda/core/s
 **Fachada y carga diferida:**
 
 - La fachada (`facade.ts`, `state.ts` y `types.ts`) va en el *chunk* inicial, sin Zod ni red. Lee el indicio y `meta.syncState`, da el estado a la interfaz (`AppServices.sync` y `useSyncState()`, con `useSyncExternalStore`) y carga el motor con `import()`.
-- El motor (`runtime.ts`, `engine.ts`, `scheduler.ts` y `api-client.ts`) solo se descarga si el navegador está emparejado, tras el primer pintado y en un rato ocioso (§9.5, regla 6), o al activar, emparejar o recuperar. Quien no sincroniza no hace ninguna petición a `/api`, no crea cookies y no descarga Zod.
+- El motor (`runtime.ts`, `engine.ts`, `scheduler.ts` y `api-client.ts`) solo se descarga si el navegador está emparejado, tras el primer pintado y en un rato ocioso (§9.5, regla 6), o al activar, emparejar o recuperar. Quien no sincroniza no hace ninguna petición a `/api`, no crea cookies y no descarga Zod. La excepción, desde el 08-11-2026, es `resolve`, sin cookies, solo para un juego que no está en el catálogo (ver «`resolve`»).
 - `"sideEffects": ["./src/zod-config.ts"]` en `packages/core/package.json`. Sin él, Rolldown partía el *chunk* inicial en cinco al compartir con el motor módulos de `core`, y subía de 132,0 a 137,3 KB brotli. De paso, el Worker de búsqueda baja de 39,0 a 37,3 KB.
 - Estados para la interfaz: `off`, `paired`, `restoring` (indicio sin `meta.syncState`: CA4.3) y `unpaired` (estado sin indicio, por cookies; o un 401, por el servidor). La actividad: `idle`, `syncing`, `offline`, `error` y `disabled`.
 
@@ -234,10 +235,10 @@ Sección `sync` (`/ajustes/sincronizacion`), entre Privacidad y Rendimiento, en 
 
 **Cuatro vistas** (`[data-sync-view]`):
 
-- **Sin sincronizar (`off`):** qué se guarda y dónde, el aviso de las dos cookies en el propio gesto, el hueco de los textos legales (`[data-sync-legal]`), el nombre del dispositivo prellenado (`defaultDeviceLabel()`, «Chrome en Windows»; «App de escritorio» si `window.isTauri === true`), la casilla de edad con `DEFAULT_MIN_AGE` y «Activar sincronización». Aparte, «Emparejar este dispositivo» y «Usar código de recuperación».
+- **Sin sincronizar (`off`):** qué se guarda y dónde, el aviso de las dos cookies en el propio gesto, la primera capa de los textos legales (`[data-sync-legal]`, desde el 08-11-2026), el nombre del dispositivo prellenado (`defaultDeviceLabel()`, «Chrome en Windows»; «App de escritorio» si `window.isTauri === true`), la casilla de edad con `DEFAULT_MIN_AGE` y «Activar sincronización». Aparte, «Emparejar este dispositivo» y «Usar código de recuperación».
 - **Código de recuperación (`reveal`):** se muestra una sola vez, en grupos de 4 y monoespaciado, con «Copiar» y «Ya lo he guardado».
 - **Emparejada (`paired`):** estado (`role="status"`) con «Sincronizar ahora» y los juegos pendientes; «Emparejar otro dispositivo»; la lista de dispositivos con «Desemparejar» y confirmación en el sitio; «Código de recuperación nuevo» y «Desemparejar este dispositivo».
-- **Desemparejada (`unpaired`):** dice por qué (servidor o cookies) y ofrece el código de recuperación o «Dejar de sincronizar». Lleva el mismo aviso de las cookies y el hueco legal que la vista sin sincronizar, porque canjear un código vuelve a crearlas.
+- **Desemparejada (`unpaired`):** dice por qué (servidor o cookies) y ofrece el código de recuperación o «Dejar de sincronizar». Lleva el mismo aviso de las cookies y la primera capa de los textos legales que la vista sin sincronizar, porque canjear un código vuelve a crearlas.
 
 **Emparejar otro dispositivo:**
 
@@ -270,6 +271,79 @@ Sección `sync` (`/ajustes/sincronizacion`), entre Privacidad y Rendimiento, en 
 - La línea de pendientes tiene siempre su hueco y la lista de dispositivos empieza con un esqueleto de una fila.
 - Arriba de la sección (`.sync__message`) solo van los avisos de un cambio de vista provocado por un gesto («Este dispositivo ya está emparejado…» y «Este dispositivo ya no sincroniza…»), y se borran al cambiar de vista. Lo que llega sin un gesto, y «Hemos desemparejado «X».», va al aviso de la app.
 - Los nombres largos se parten (`overflow-wrap: anywhere`) en la sección y en el aviso de la app.
+
+### Buzón del Atajo de iOS (08-11-2026; CA4.5)
+
+El Atajo de iOS deja enlaces de Steam en D1, y la siguiente sincronización de cualquier app de la agenda los apunta (DECISIONES §10.39).
+
+- **El *token*:**
+  - es un `device` de tipo `inbox`. `POST /api/v1/inbox/token` lo crea con la cookie y un nombre (`Atajo de iOS` por defecto) y devuelve el *token* una sola vez;
+  - son 256 bits en base64url, como la credencial de la app, y D1 guarda su SHA-256;
+  - sale en la lista de dispositivos y se revoca como los demás. Revocarlo no desempareja la app que lo creó. Puede haber varios;
+  - no vale como cookie de la app: `readDevice()` solo busca `kind = 'app'`.
+- **`POST /api/v1/inbox`** (`worker/routes/inbox.ts`):
+  - el *token* va en `Authorization: Bearer …`. No mira `Origin` ni acepta la cookie (§11.4), pero sigue exigiendo JSON;
+  - un *token* sin forma de *token* da 401 sin tocar D1 ni el límite. Uno con forma pasa por `RL_INBOX` (por su SHA-256) y después se busca. Inventado o revocado, 401;
+  - acepta `{ "url": "…" }` con un texto de hasta 2 KiB que lleve un enlace de Steam (`findSteamLink` de core: el que comparte la app de Steam lleva el título delante). Guarda solo el enlace canónico de la tienda (`canonicalStoreUrl`, `https://store.steampowered.com/app/<appid>/<slug>`);
+  - sin enlace, 400 `invalid_link`;
+  - un juego que ya espera en el buzón (con cualquier *slug*) no se repite: 200. Si no, 201. Con 200 pendientes en la agenda, 409 `inbox_full`;
+  - las respuestas llevan, además del código, un `message` en español, porque es lo que enseña el Atajo, que no tiene la app para traducir.
+- **En `sync`:**
+  - la respuesta trae `inbox` (`{ id, url }`, 50 como mucho, por orden de llegada), solo en la última página (`more: false`). Con más páginas por bajar, la app aún no sabe si el juego ya está en la agenda, y apuntarlo pisaría su estado;
+  - la petición lleva `inboxAck` (opcional, 200 ids como mucho), y el mismo `batch()` los borra, solo los de esa agenda.
+- **En la app** (`engine.ts` y `links/inbox-capture.ts`):
+  - con todo bajado (sin `more`, sin otra época y sin un *reset* en marcha), la ronda pasa los enlaces nuevos a `options.inbox`. Fuera de la transacción, la agenda de la pestaña los apunta como un enlace pegado. El título sale del catálogo local si llega en 500 ms; si no, el juego queda provisional con el del *slug*. Van en Quiero jugar, y lo que ya está en la lista no se toca (una lápida vuelve). Espera a `whenIdle()`;
+  - después, la ronda confirma (en la petición siguiente) lo que está vivo en IndexedDB y lo que no es un enlace de Steam. Lo que no se haya guardado no se confirma y vuelve en la ronda siguiente;
+  - en la misma ronda no se repite;
+  - sin `inbox` (una pestaña sin agenda), no se confirma nada de Steam y se queda para otro dispositivo;
+  - el aviso de la app dice qué ha llegado («Hemos apuntado «Hades» desde el Atajo de iOS.»), si no tapa otro.
+- **Ajustes › Sincronización, «Atajo de iOS»** (`InboxSection`, entre «Dispositivos» y el código de recuperación):
+  - el nombre y «Crear un token para el atajo»;
+  - después, una sola vez, la dirección (`<origen>/api/v1/inbox`) y el valor del encabezado (`Bearer …`), cada uno con «Copiar», y los 7 pasos para crear el atajo en la app Atajos: hoja de compartir con URL y texto, «Obtener contenido de URL» con POST, el encabezado, el JSON con `url` y la notificación con `message`;
+  - «Ya he creado el atajo» lo oculta.
+- **A verificar en el iPhone:** los pasos, que el Atajo no envía `Origin` (si lo enviara, da igual: no se mira) y lo que comparte la app de Steam.
+
+### `resolve` (08-11-2026; CA4.5)
+
+`GET /api/v1/resolve/<appid>` (`worker/routes/resolve.ts`) da el nombre de un juego que no está en el catálogo local (DECISIONES §10.40).
+
+- **El servidor:**
+  - valida el `appid`: de 1 a 10 cifras, sin ceros delante y de 32 bits; si no, 404 sin llamar a nadie. Después pasa por `RL_RESOLVE`;
+  - mira `resolve_cache`: un nombre vale 30 días (`RESOLVE_TTL_MS`), y «Steam no lo conoce» (`name = ''`), 1 día (`RESOLVE_MISS_TTL_MS`);
+  - si no, pregunta a `IStoreBrowseService/GetItems/v1` sin clave y sin `data_request` (el nombre llega igual; comprobado el 08-11-2026: ≈0,3 s), en español y para España. Si está bloqueado en España, pregunta para EE. UU.;
+  - Zod valida la respuesta de Steam (`steamItemsResponseSchema` de core), y el nombre se limpia: sin caracteres de control y 200 caracteres como mucho;
+  - el tiempo de espera es de 2 s. Si Steam falla, vale lo que haya en la caché, aunque sea viejo; sin nada, 502 `steam_unavailable`;
+  - es un GET que escribe en la caché. Son datos públicos, y nada de un usuario cambia (§11.4).
+- **La respuesta es `{ appid, name }`, con `name: null` si Steam no lo conoce.** No es un 404: el navegador anotaría un error en la consola por cada juego que aún no existe.
+- **Sin Cache API:** la caché es la tabla de D1, como decía la §5.2, porque `workers.dev` no la garantiza.
+- **La app** (`agenda/resolve-client.ts` y `agenda/catalog-refresh.ts`, en el *chunk* inicial, sin Zod):
+  - `catalog-refresh` busca también los juegos que se apuntan después (enlace pegado, buzón u otro dispositivo), 50 ms después de llegar, no solo al cambiar el catálogo;
+  - lo que no está en el catálogo entero (en `scan` o `full`: en `boot` puede estar en el núcleo) pregunta a `resolve`, de uno en uno y una vez por sesión y juego;
+  - con un nombre, `refreshFromCatalog` lo pone (se sincroniza como cualquier cambio de título). Con `null`, se queda provisional;
+  - la petición va sin cookies (`credentials: 'omit'`), sin `Referer` y sin caché, con 5 s de espera;
+  - sin red, se espera a `online`. Con 429, 5xx o una respuesta rara, se para 1 minuto; con 503 `sync_disabled`, 1 hora. Lo quitado de la lista ya no se pregunta.
+- **Quien no sincroniza también lo usa:** la ruta no tiene credencial (§5.2), y el juego provisional es de cualquiera. Así que «quien no sincroniza no hace ninguna petición a `/api`» deja de ser cierto para `resolve`, y lo dice la política. Viaja el `appid`, y la IP llega a Cloudflare como con cualquier fichero de la app.
+- **CA4.5, en E2E:** el nombre llega en ≤1,5 s desde que se apunta (`e2e/inbox.spec.ts`).
+
+### Textos legales (08-11-2026; CA4.7)
+
+Lo detalla DECISIONES §10.41.
+
+- **Qué hay:**
+  - la política de privacidad (`/privacidad`), por capas;
+  - el aviso legal y las condiciones de uso (`/aviso-legal`);
+  - la primera capa en `[data-sync-legal]`.
+- **Dónde está:** los textos son datos en `apps/web/src/legal/` (`texts.ts`, `first-layer.ts` y `controller.ts`), y la pantalla los pinta como texto, en el *chunk* de Ajustes.
+- **El responsable, pendiente:** el nombre o alias y el correo los da el usuario. Hasta entonces los textos dicen «pendiente», y `scripts/legal-guard.test.ts` no deja `SYNC_ENABLED` a `"1"` sin ellos.
+- **El registro de actividades:** `docs/legal/registro-actividades.md`.
+- **El interruptor:** `SYNC_ENABLED` sigue a `"0"` en `wrangler.jsonc`. Se pone a `"1"` al desplegar (parte 5), con el responsable puesto.
+
+### CPU por petición (08-11-2026; CA4.6)
+
+- **Estimación local:** `node scripts/api-cpu.ts` le resta a cada petición el tiempo de D1 (`docs/medidas/ca4.6-20261108.md`).
+  - En caliente, el peor p99 es 2,38 ms, en `sync` con 200 operaciones. Bajar 1 000 cambios se queda en 2,22 ms, y el resto no pasa de 1,6 ms.
+  - La primera petición de un *isolate* nuevo cuesta ≈6 ms, porque Hono y Zod preparan cosas la primera vez.
+- **Lo que cierra CA4.6** es el p99 del panel de Workers en producción (parte 5).
 
 ### Pruebas
 
@@ -309,9 +383,11 @@ Sección `sync` (`/ajustes/sincronizacion`), entre Privacidad y Rendimiento, en 
 - Bien, porque la purga semanal deja cada dispositivo igual que D1, y lo que pierda un restore con Time Travel vuelve con la época.
 - Mal, porque cada purga cuesta un *reset* por dispositivo, que baja la agenda entera y la guarda en memoria.
 - Mal, porque los E2E de WebKit van por un espejo HTTPS y con sus propias trampas: no son el Safari de un iPhone.
+- Bien, porque el Atajo de iOS apunta sin abrir la app con un *token* que solo puede dejar enlaces, y lo apuntado pasa por la misma agenda que un enlace pegado.
+- Mal, porque `resolve` hace que quien no sincroniza pueda llamar a `/api`, aunque solo para un juego que no está en el catálogo, sin cookies.
 - **Pendiente:**
-  - **parte 4:** el buzón y `resolve` (CA4.5), con sus límites `RL_INBOX` y `RL_RESOLVE`; los textos legales en `[data-sync-legal]` y `SYNC_ENABLED` a `"1"` (CA4.7); y medir CA4.6;
-  - **parte 5, desplegar:** crear D1 con `--jurisdiction=eu`; el permiso de D1 del *token* de `deploy-web`; las migraciones 0001 y 0002 en el flujo, antes del Worker; y las pruebas en el iPhone (CA4.3 con los datos de Safari, CA4.5 y el QR con la app en la pantalla de inicio).
+  - **el responsable** de los textos legales (nombre o alias y correo), que da el usuario, en `legal/controller.ts`;
+  - **parte 5, desplegar:** crear D1 con `--jurisdiction=eu`; el permiso de D1 del *token* de `deploy-web`; las migraciones 0001 y 0002 en el flujo, antes del Worker; `SYNC_ENABLED` a `"1"`; medir CA4.6 en el panel de Workers; y las pruebas en el iPhone (CA4.3 con los datos de Safari, CA4.5 con el Atajo de verdad y el QR con la app en la pantalla de inicio).
 - **A verificar al desplegar:**
   - que el plan gratuito admite la jurisdicción UE de D1 y el *binding* `ratelimits`, porque la documentación no lo dice;
   - el id real de D1 en `wrangler.jsonc`;
@@ -319,10 +395,11 @@ Sección `sync` (`/ajustes/sincronizacion`), entre Privacidad y Rendimiento, en 
 
 ### Confirmación
 
-- `apps/web/worker/test/` (`rules`, `agenda`, `pairing`, `sync`, `sync.properties`, `maintenance` y los cuatro `sync-client*`), `packages/core/test/api.codes.test.ts` y `sync.client.test.ts`, y las pruebas de `apps/web/src/sync/` y de `screens/settings/`, dentro de `npm run check`. El 07-11-2026, `npm test` da 88 ficheros y 1 221 pruebas.
-- E2E: `e2e/sync-api.spec.ts`, `e2e/sync.spec.ts` y `e2e/sync-settings.spec.ts`, en Chromium y en WebKit en local; los tres con `--repeat-each=3` en verde el 07-11-2026.
+- `apps/web/worker/test/` (`rules`, `agenda`, `pairing`, `sync`, `sync.properties`, `maintenance`, `inbox`, `resolve` y los cinco `sync-client*`), `packages/core/test/api.codes.test.ts` y `sync.client.test.ts`, y las pruebas de `apps/web/src/sync/`, `agenda/` (`catalog-refresh` y `resolve-client`), `legal/` y `screens/settings/`, y `scripts/legal-guard.test.ts`, dentro de `npm run check`. El 08-11-2026, `npm test` da 94 ficheros y 1 264 pruebas.
+- E2E: `e2e/sync-api.spec.ts`, `e2e/sync.spec.ts` y `e2e/sync-settings.spec.ts`, en Chromium y en WebKit en local; los tres con `--repeat-each=3` en verde el 07-11-2026. `e2e/inbox.spec.ts` (el Atajo, `resolve` y los textos legales), con `--repeat-each=3` en verde el 08-11-2026.
 - Biome: la micro-API no importa `apps/web/src/`, `node:*`, React, Dexie ni `pipeline/`, y la SPA no importa `worker/` (comprobado con un fichero que lo incumple).
 - `wrangler dev` el 06-11-2026: alta, cookies, lista, código de un solo uso, 404 de la API, *fallback* de la SPA, límite y borrado en cascada; `sync` con la derivada de Platinado, el rechazo de una acción entera, texto con ñ y emoji y la repetición idempotente; y la purga de un lunes. El 07-11-2026, el recorrido del cliente con el *build* de producción (ver «Pruebas»).
+- `wrangler dev` el 08-11-2026, con las migraciones 0001 y 0002 en una D1 local nueva: el buzón (enlace canónico, sin repetir el juego, un `appid` que empieza igual sí entra, `invalid_link`, el orden en `sync`, la confirmación y el 401 tras revocar) y `resolve` con Steam de verdad (322 ms; de la caché, 9 ms; `name: null` para un `appid` que no existe; 404 si está mal formado).
 - CA4.1–CA4.7, al cerrar M4.
 
 ## Pros y contras de las opciones
