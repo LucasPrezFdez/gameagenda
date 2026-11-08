@@ -37,7 +37,8 @@ Opción elegida: **1**, porque es la del plan (D-13), mantiene la cookie de prim
 - Ajustes › Sincronización (§10.37);
 - los E2E contra la micro-API real (§10.38);
 - el buzón del Atajo de iOS (§10.39) y `resolve` (§10.40);
-- los textos legales (§10.41) y la estimación de CA4.6 (§10.42).
+- los textos legales (§10.41) y la estimación de CA4.6 (§10.42);
+- la revisión de los arreglos de la parte 3 y de la parte 4 (§10.43).
 
 ### Encaminamiento
 
@@ -139,7 +140,7 @@ Va en `apps/web/src/sync/`, con lo que necesita de `core` en `@gameagenda/core/s
 **Fachada y carga diferida:**
 
 - La fachada (`facade.ts`, `state.ts` y `types.ts`) va en el *chunk* inicial, sin Zod ni red. Lee el indicio y `meta.syncState`, da el estado a la interfaz (`AppServices.sync` y `useSyncState()`, con `useSyncExternalStore`) y carga el motor con `import()`.
-- El motor (`runtime.ts`, `engine.ts`, `scheduler.ts` y `api-client.ts`) solo se descarga si el navegador está emparejado, tras el primer pintado y en un rato ocioso (§9.5, regla 6), o al activar, emparejar o recuperar. Quien no sincroniza no hace ninguna petición a `/api`, no crea cookies y no descarga Zod. La excepción, desde el 08-11-2026, es `resolve`, sin cookies, solo para un juego que no está en el catálogo (ver «`resolve`»).
+- El motor (`runtime.ts`, `engine.ts`, `scheduler.ts` y `api-client.ts`) solo se descarga si el navegador está emparejado, tras el primer pintado y en un rato ocioso (§9.5, regla 6), o al activar, emparejar o recuperar. Quien no sincroniza no hace ninguna petición a `/api`, no crea cookies y no descarga Zod. Tampoco pregunta a `resolve` (ver «`resolve`»).
 - `"sideEffects": ["./src/zod-config.ts"]` en `packages/core/package.json`. Sin él, Rolldown partía el *chunk* inicial en cinco al compartir con el motor módulos de `core`, y subía de 132,0 a 137,3 KB brotli. De paso, el Worker de búsqueda baja de 39,0 a 37,3 KB.
 - Estados para la interfaz: `off`, `paired`, `restoring` (indicio sin `meta.syncState`: CA4.3) y `unpaired` (estado sin indicio, por cookies; o un 401, por el servidor). La actividad: `idle`, `syncing`, `offline`, `error` y `disabled`.
 
@@ -284,15 +285,15 @@ El Atajo de iOS deja enlaces de Steam en D1, y la siguiente sincronización de c
 - **`POST /api/v1/inbox`** (`worker/routes/inbox.ts`):
   - el *token* va en `Authorization: Bearer …`. No mira `Origin` ni acepta la cookie (§11.4), pero sigue exigiendo JSON;
   - un *token* sin forma de *token* da 401 sin tocar D1 ni el límite. Uno con forma pasa por `RL_INBOX` (por su SHA-256) y después se busca. Inventado o revocado, 401;
-  - acepta `{ "url": "…" }` con un texto de hasta 2 KiB que lleve un enlace de Steam (`findSteamLink` de core: el que comparte la app de Steam lleva el título delante). Guarda solo el enlace canónico de la tienda (`canonicalStoreUrl`, `https://store.steampowered.com/app/<appid>/<slug>`);
+  - acepta `{ "url": "…" }` con un texto de hasta 2 KiB que lleve un enlace de Steam (`findSteamLink` de core: el que comparte la app de Steam lleva el título delante). Guarda solo el enlace canónico de la tienda (`canonicalStoreUrl`, `https://store.steampowered.com/app/<appid>/<slug>`), y sin *slug* si pasaría de `INBOX_URL_MAX` (512): `encodeURIComponent` multiplica un *slug* raro, y un enlace demasiado largo rompería el esquema de la respuesta de `sync` para toda la agenda;
   - sin enlace, 400 `invalid_link`;
   - un juego que ya espera en el buzón (con cualquier *slug*) no se repite: 200. Si no, 201. Con 200 pendientes en la agenda, 409 `inbox_full`;
-  - las respuestas llevan, además del código, un `message` en español, porque es lo que enseña el Atajo, que no tiene la app para traducir.
+  - todas las respuestas llevan, además del código, un `message` en español, porque es lo que enseña el Atajo, que no tiene la app para traducir. También las de error que salen antes de la ruta: el interruptor, el tipo de contenido, el tamaño y el cuerpo (`INBOX_MESSAGES` y `apiError` de `http.ts`).
 - **En `sync`:**
   - la respuesta trae `inbox` (`{ id, url }`, 50 como mucho, por orden de llegada), solo en la última página (`more: false`). Con más páginas por bajar, la app aún no sabe si el juego ya está en la agenda, y apuntarlo pisaría su estado;
   - la petición lleva `inboxAck` (opcional, 200 ids como mucho), y el mismo `batch()` los borra, solo los de esa agenda.
 - **En la app** (`engine.ts` y `links/inbox-capture.ts`):
-  - con todo bajado (sin `more`, sin otra época y sin un *reset* en marcha), la ronda pasa los enlaces nuevos a `options.inbox`. Fuera de la transacción, la agenda de la pestaña los apunta como un enlace pegado. El título sale del catálogo local si llega en 500 ms; si no, el juego queda provisional con el del *slug*. Van en Quiero jugar, y lo que ya está en la lista no se toca (una lápida vuelve). Espera a `whenIdle()`;
+  - con todo bajado (sin `more`, sin otra época y sin un *reset* en marcha), la ronda mira antes qué juegos ya están vivos en IndexedDB, también los que acaba de traer esta misma página: esos se confirman sin apuntar, porque la agenda de la pestaña los relee un poco después y apuntarlos otra vez pisaría su estado. Los demás pasan a `options.inbox`, que espera a `agenda.whenIdle()`. Fuera de la transacción, la agenda de la pestaña los apunta como un enlace pegado. El título sale del catálogo local si llega en 500 ms; si no, el juego queda provisional con el del *slug*. Van en Quiero jugar, y lo que ya está en la lista no se toca (una lápida vuelve). Espera a `whenIdle()`;
   - después, la ronda confirma (en la petición siguiente) lo que está vivo en IndexedDB y lo que no es un enlace de Steam. Lo que no se haya guardado no se confirma y vuelve en la ronda siguiente;
   - en la misma ronda no se repite;
   - sin `inbox` (una pestaña sin agenda), no se confirma nada de Steam y se queda para otro dispositivo;
@@ -311,18 +312,19 @@ El Atajo de iOS deja enlaces de Steam en D1, y la siguiente sincronización de c
   - valida el `appid`: de 1 a 10 cifras, sin ceros delante y de 32 bits; si no, 404 sin llamar a nadie. Después pasa por `RL_RESOLVE`;
   - mira `resolve_cache`: un nombre vale 30 días (`RESOLVE_TTL_MS`), y «Steam no lo conoce» (`name = ''`), 1 día (`RESOLVE_MISS_TTL_MS`);
   - si no, pregunta a `IStoreBrowseService/GetItems/v1` sin clave y sin `data_request` (el nombre llega igual; comprobado el 08-11-2026: ≈0,3 s), en español y para España. Si está bloqueado en España, pregunta para EE. UU.;
-  - Zod valida la respuesta de Steam (`steamItemsResponseSchema` de core), y el nombre se limpia: sin caracteres de control y 200 caracteres como mucho;
+  - la respuesta de Steam se lee con tope (64 KiB, `readCapped` de `http.ts`: deja de leer en cuanto se pasa), Zod la valida (`steamItemsResponseSchema` de core) y el nombre se limpia: sin caracteres de control y 200 caracteres como mucho;
   - el tiempo de espera es de 2 s. Si Steam falla, vale lo que haya en la caché, aunque sea viejo; sin nada, 502 `steam_unavailable`;
   - es un GET que escribe en la caché. Son datos públicos, y nada de un usuario cambia (§11.4).
 - **La respuesta es `{ appid, name }`, con `name: null` si Steam no lo conoce.** No es un 404: el navegador anotaría un error en la consola por cada juego que aún no existe.
 - **Sin Cache API:** la caché es la tabla de D1, como decía la §5.2, porque `workers.dev` no la garantiza.
 - **La app** (`agenda/resolve-client.ts` y `agenda/catalog-refresh.ts`, en el *chunk* inicial, sin Zod):
-  - `catalog-refresh` busca también los juegos que se apuntan después (enlace pegado, buzón u otro dispositivo), 50 ms después de llegar, no solo al cambiar el catálogo;
-  - lo que no está en el catálogo entero (en `scan` o `full`: en `boot` puede estar en el núcleo) pregunta a `resolve`, de uno en uno y una vez por sesión y juego;
+  - `catalog-refresh` busca también los juegos que se apuntan después (enlace pegado, buzón u otro dispositivo), 50 ms después de que la agenda crezca, no solo al cambiar el catálogo. Un cambio de estado, de orden o de nota no la vuelve a recorrer;
+  - lo que no está en el catálogo entero (en `scan` o `full`: en `boot` puede estar en el núcleo) pregunta a `resolve`, de uno en uno. Lo que llega mientras tanto también se pregunta;
+  - cada juego, como mucho una vez cada 7 días (`ASK_AGAIN_MS`), también entre sesiones: `meta.resolveAsked` (`db/resolve-memory-storage.ts`), de este dispositivo, con los 2 000 más recientes como mucho;
   - con un nombre, `refreshFromCatalog` lo pone (se sincroniza como cualquier cambio de título). Con `null`, se queda provisional;
   - la petición va sin cookies (`credentials: 'omit'`), sin `Referer` y sin caché, con 5 s de espera;
-  - sin red, se espera a `online`. Con 429, 5xx o una respuesta rara, se para 1 minuto; con 503 `sync_disabled`, 1 hora. Lo quitado de la lista ya no se pregunta.
-- **Quien no sincroniza también lo usa:** la ruta no tiene credencial (§5.2), y el juego provisional es de cualquiera. Así que «quien no sincroniza no hace ninguna petición a `/api`» deja de ser cierto para `resolve`, y lo dice la política. Viaja el `appid`, y la IP llega a Cloudflare como con cualquier fichero de la app.
+  - sin red, se espera a `online`. Con 429, otro 5xx o una respuesta rara, todo espera 1 minuto; con 503 `sync_disabled`, 1 hora. Con 502 `steam_unavailable`, solo ese juego espera 1 minuto, y los demás siguen. Lo quitado de la lista ya no se pregunta.
+- **Solo quien sincroniza** (decisión del usuario, 08-11-2026). La app pregunta con el estado `paired` o `restoring` (`canResolve`) y, al pasar a uno de ellos, pregunta lo que esperaba. Sin sincronizar, el provisional espera al catálogo, y no hay ninguna petición a `/api` (lo comprueba `sync.spec.ts`). La ruta sigue sin credencial (§5.2) y con `RL_RESOLVE`. Viaja el `appid`, y la IP llega a Cloudflare como con cualquier fichero de la app.
 - **CA4.5, en E2E:** el nombre llega en ≤1,5 s desde que se apunta (`e2e/inbox.spec.ts`).
 
 ### Textos legales (08-11-2026; CA4.7)
@@ -379,12 +381,12 @@ Lo detalla DECISIONES §10.41.
 - Bien, porque el servidor y la app fusionan con el mismo código: lo que comprueban las propiedades de `merge()` vale también para D1.
 - Mal, porque el *bundle* lleva Zod entero: 309 KiB (69 KiB con gzip) con `sync`. Cabe de sobra, pero cuenta en el arranque en frío.
 - Mal, porque `sync` lee antes de escribir: dos dispositivos que sincronizan a la vez pueden repetir la petición, y con más de 3 choques seguidos la app recibe 503 y reintenta más tarde.
-- Bien, porque quien no sincroniza no paga nada: el JS inicial sube de 132,0 a 136,9 KB brotli (de 150) con la fachada y los textos, y el motor (5,7 KB brotli), Zod y el QR van en *chunks* diferidos.
+- Bien, porque quien no sincroniza no paga nada: el JS inicial sube de 132,0 a 136,9 KB brotli (de 150) con la fachada y los textos, y el motor (5,7 KB brotli), Zod y el QR van en *chunks* diferidos. Con la parte 4 (el cliente de `resolve`, el apuntador del buzón y sus textos), 139,2 KB el 08-11-2026, en un solo fichero.
 - Bien, porque la purga semanal deja cada dispositivo igual que D1, y lo que pierda un restore con Time Travel vuelve con la época.
 - Mal, porque cada purga cuesta un *reset* por dispositivo, que baja la agenda entera y la guarda en memoria.
 - Mal, porque los E2E de WebKit van por un espejo HTTPS y con sus propias trampas: no son el Safari de un iPhone.
 - Bien, porque el Atajo de iOS apunta sin abrir la app con un *token* que solo puede dejar enlaces, y lo apuntado pasa por la misma agenda que un enlace pegado.
-- Mal, porque `resolve` hace que quien no sincroniza pueda llamar a `/api`, aunque solo para un juego que no está en el catálogo, sin cookies.
+- Mal, porque sin sincronizar un juego recién publicado se queda con el título del enlace hasta que llega al catálogo (normalmente, al día siguiente).
 - **Pendiente:**
   - **el responsable** de los textos legales (nombre o alias y correo), que da el usuario, en `legal/controller.ts`;
   - **parte 5, desplegar:** crear D1 con `--jurisdiction=eu`; el permiso de D1 del *token* de `deploy-web`; las migraciones 0001 y 0002 en el flujo, antes del Worker; `SYNC_ENABLED` a `"1"`; medir CA4.6 en el panel de Workers; y las pruebas en el iPhone (CA4.3 con los datos de Safari, CA4.5 con el Atajo de verdad y el QR con la app en la pantalla de inicio).
@@ -399,6 +401,7 @@ Lo detalla DECISIONES §10.41.
 - E2E: `e2e/sync-api.spec.ts`, `e2e/sync.spec.ts` y `e2e/sync-settings.spec.ts`, en Chromium y en WebKit en local; los tres con `--repeat-each=3` en verde el 07-11-2026. `e2e/inbox.spec.ts` (el Atajo, `resolve` y los textos legales), con `--repeat-each=3` en verde el 08-11-2026.
 - Biome: la micro-API no importa `apps/web/src/`, `node:*`, React, Dexie ni `pipeline/`, y la SPA no importa `worker/` (comprobado con un fichero que lo incumple).
 - `wrangler dev` el 06-11-2026: alta, cookies, lista, código de un solo uso, 404 de la API, *fallback* de la SPA, límite y borrado en cascada; `sync` con la derivada de Platinado, el rechazo de una acción entera, texto con ñ y emoji y la repetición idempotente; y la purga de un lunes. El 07-11-2026, el recorrido del cliente con el *build* de producción (ver «Pruebas»).
+- `code-review` (nivel alto) sobre `4b46155^..HEAD` el 08-11-2026: los arreglos de la parte 3, que su segunda revisión dejó a medias, y la parte 4. Dio 10 hallazgos y se arreglan 9 (DECISIONES §10.43).
 - `wrangler dev` el 08-11-2026, con las migraciones 0001 y 0002 en una D1 local nueva: el buzón (enlace canónico, sin repetir el juego, un `appid` que empieza igual sí entra, `invalid_link`, el orden en `sync`, la confirmación y el 401 tras revocar) y `resolve` con Steam de verdad (322 ms; de la caché, 9 ms; `name: null` para un `appid` que no existe; 404 si está mal formado).
 - CA4.1–CA4.7, al cerrar M4.
 

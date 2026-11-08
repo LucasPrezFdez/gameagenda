@@ -40,7 +40,8 @@ db.version(1).stores({              // Dexie 4.4.7, base 'gameagenda'
   entries: 'id, [view+rank], lastHlc, deletedAt',
   outbox: 'opId, [entryId+field]',
   settings: 'key',
-  meta: 'key', // hlcClock, catalog, searchIndex, syncCursor, backup, errorLog, copyReminder
+  meta: 'key', // hlcClock, catalog, searchIndex, syncCursor, syncState,
+               // resolveAsked, backup, errorLog, copyReminder…
 });
 ```
 
@@ -74,6 +75,10 @@ interface Entry {
 - `navigator.storage.persist()` en la primera escritura; antes de migrar o importar, copia JSON en `meta.backup`.
 - `meta.errorLog`: búfer circular con los 100 últimos errores, sin datos personales (ver §12.7); se exporta en JSON desde Ajustes › Datos a partir de M1 y, desde M3, también desde el panel de rendimiento.
 - `meta.copyReminder` (desde M1): `{lastCopy, since, snoozedUntil}` en ms, para el aviso de copia de la §9.6 (RNF-08). Es de este dispositivo y no va en la copia exportada.
+- **Sincronización (M4; DECISIONES §10.36 y §10.43).** Las tres claves son de este dispositivo y no van en la copia exportada:
+  - `meta.syncCursor`: `{cursor, purgedSeq, reset, maxSeen, epoch}`. El motor la escribe en la misma transacción en que aplica cada página (ver §7.7).
+  - `meta.syncState`: el emparejamiento visto desde este navegador (`deviceId`, `restore`, `lastSyncAt`, `lastError`, `unpairedBy`). Sin ella y sin el indicio `__Host-ga_sync`, la sincronización está apagada; con el indicio y sin ella, la app restaura la agenda (CA4.3). Solo cambia con `updateRecord()`, que lee y escribe en una transacción a partir de lo guardado, y no se vuelve a crear salvo tras una ronda buena con el indicio puesto: así, una ronda que acaba después de desemparejar o de borrar los datos no deja un estado nuevo.
+  - `meta.resolveAsked`: `{ "<appid>": ms }`, cuándo se preguntó a `resolve` por cada juego, con los 2 000 más recientes como mucho (ver §7.3).
 
 ### 7.3 Identificadores naturales y vinculación
 
@@ -81,7 +86,12 @@ Formatos: `steam:<appid>` (catálogo o provisional; Zod: `^steam:[1-9][0-9]{0,9}
 
 - **El `id` es el juego y nunca cambia.** Un id derivado de otro campo (UUIDv5 de `game_id`) deja de corresponder al juego si una fusión reescribe ese campo, y se duplican filas o se atasca la sincronización. Con ids naturales, dos dispositivos que apuntan el mismo juego sin conexión producen la misma fila.
 - **Solo se construye en TypeScript** (`steamEntryId(appid)` exige `Number.isSafeInteger(appid) && appid > 0`): `node:sqlite` enlaza los `number` como REAL (comprobado el 28-10-2026) y [D1 puede hacerlo](https://developers.cloudflare.com/d1/worker-api/), así que en SQL `'steam:' || ?` daría `'steam:730.0'` (el `CHECK` de §7.7 lo rechaza).
-- **Provisional**: `steam:<appid>` con `title` del *slug*; se resuelve sin cambiar de id cuando el catálogo local trae el `appid` o, en M4, con `/api/v1/resolve/<appid>`.
+- **Provisional**: `steam:<appid>` con `title` del *slug*; se resuelve sin cambiar de id cuando el catálogo local trae el `appid` o, desde M4 y solo si este dispositivo sincroniza, con `/api/v1/resolve/<appid>` (decisión del usuario del 08-11-2026; DECISIONES §10.40 y §10.43):
+  - pregunta `catalog-refresh.ts`, con la sincronización emparejada o restaurándose (`canResolve`), y al pasar a uno de esos estados pregunta lo que esperaba. Sin sincronizar, el provisional espera al catálogo y no hay ninguna petición a `/api`;
+  - solo por lo que no está en el catálogo entero (`scan` o `full`; en `boot` puede estar en el núcleo), de uno en uno, también por lo que se apunta después (enlace pegado, buzón u otro dispositivo), 50 ms después de que la agenda crezca;
+  - cada juego, como mucho una vez cada 7 días, también entre sesiones (`meta.resolveAsked`, ver §7.2). Lo quitado de la lista ya no se pregunta;
+  - con un nombre, `refreshFromCatalog` lo pone y se sincroniza como cualquier cambio de título; con `name: null`, se queda provisional;
+  - sin red, espera a `online`; con 429, otro 5xx o una respuesta rara, todo espera 1 minuto, y con 503 `sync_disabled`, 1 hora; con 502 `steam_unavailable`, solo ese juego espera 1 minuto.
 - **Vincular** el manual M con T = `steam:<appid>` es una acción explícita con una HLC *h*. T recibe los campos de usuario de M (todos salvo `title`, `cover`, `deletedAt` y `mergedInto`) con su valor y su HLC originales, y LWW decide campo a campo; con *h*, `deletedAt = null`, `title` y `cover` del catálogo y, si ambas notas tienen texto, su concatenación. M recibe `deletedAt` y `mergedInto = T` con *h*; lo que llegue después para M se reenvía a T (§7.4). Solo se propone si el título normalizado (ver §8) coincide con un único juego («Hades» ≠ «Hades II»).
 
 ### 7.4 HLC por campo, `outbox` y `merge()`
@@ -91,7 +101,13 @@ Formatos: `steam:<appid>` (catálogo o provisional; Zod: `^steam:[1-9][0-9]{0,9}
 ^\d{13}-[0-9a-f]{4}-[0-9a-z]{8}$  ms desde 1970 · contador hex · nodo
 ```
 
-Con 27 caracteres fijos, la [HLC](https://cse.buffalo.edu/tech-reports/2014-04.pdf) se compara como texto (también en SQLite). Nodo: 8 caracteres aleatorios por sesión (uno por pestaña). Evento local: `ms = max(ms, Date.now() + desfase)` y, si no avanza, contador + 1 (tras `ffff`, ms + 1); el desfase vale 0 hasta M4. Al recibir, algoritmo estándar. La micro-API rechaza las HLC más de 5 min por delante de su reloj, y la importación, las que van más de 5 min por delante de `Date.now() + desfase`. Cada respuesta de `sync` trae la hora del servidor (`serverTime`): con ella el cliente recalcula el desfase, corrige la parte física de su HLC (si iba más de 5 min por delante, la baja a la hora corregida) y sella de nuevo las operaciones rechazadas. Reloj y desfase se guardan en `meta.hlcClock`.
+Con 27 caracteres fijos, la [HLC](https://cse.buffalo.edu/tech-reports/2014-04.pdf) se compara como texto (también en SQLite). Nodo: 8 caracteres aleatorios por sesión (uno por pestaña). Evento local: `ms = max(ms, Date.now() + desfase)` y, si no avanza, contador + 1 (tras `ffff`, ms + 1); el desfase vale 0 hasta M4. Al recibir, algoritmo estándar. La micro-API rechaza las HLC más de 5 min por delante de su reloj, y la importación, las que van más de 5 min por delante de `Date.now() + desfase`. Cada respuesta de `sync` trae la hora del servidor (`serverTime`), y con ella el cliente (DECISIONES §10.36):
+
+- calcula el desfase como `serverTime − (envío + recepción) / 2`, y solo lo cambia si la diferencia supera max(500 ms, media ida y vuelta);
+- lo aplica con `HlcClock.setOffset()`, que baja la parte física si iba más de 5 min por delante. Entonces el reloj recibe la mayor `lastHlc` legítima de la agenda (≤ ahora + desfase + 5 min, con el índice `lastHlc`);
+- vuelve a sellar las acciones rechazadas por `clock` y todas las de la `outbox` que van más de 5 min por delante, en el orden de su HLC vieja y con HLC nuevas por delante de la mayor vista del servidor (`meta.syncCursor.maxSeen`) y de lo legítimo de sus entradas. Se conserva el `opId`.
+
+Reloj y desfase se guardan en `meta.hlcClock`, con la instantánea tomada al escribir y dentro de la transacción. No se comparte el desfase entre pestañas: cada una lo corrige en su primera ronda.
 
 **Operación de `outbox`**: `{ opId, entryId, field, value, hlc }` (`opId` en uuidv7; `field`, p. ej. `'flags.owned'`; `value` en JSON). Cada acción es una transacción de Dexie que actualiza la entrada y añade sus operaciones, **todas con la misma HLC**; Deshacer es otra acción. Aplicar es conmutativo e idempotente, sin claves foráneas: una operación de una entrada desconocida crea un esqueleto (invisible sin `status` y `title`), así que el orden de llegada da igual: no hay padres que deban ir antes que sus hijos. La `outbox` se compacta por (`entryId`, `field`); un lote nunca parte una acción.
 
@@ -127,7 +143,7 @@ function merge(prev: Entry | undefined, ops: Op[]) {   // packages/core
 - **Reenvío de un manual vinculado:** cuando `mergedInto` cambia en esa fusión, se reenvía al destino el estado actual de todos los campos de usuario del manual, no solo las operaciones del lote. También se reenvía la derivada de Platinado. Con el reenvío de solo el lote, el resultado en el destino dependía de si las operaciones del manual llegaban antes o después de la vinculación. `applyOps()` sigue las derivadas entre entradas hasta 8 saltos (ADR-004).
 
 - «Marcar Platinado» escribe siempre `status` con la HLC de la marca, aunque ya fuera Completado: con datos completos la reparación no cambia nada y, con datos incompletos (lote partido, copia antigua), todas las réplicas derivan la misma operación. Un cambio de estado posterior gana y no quita Platinado. Las fechas no se reparan: sería inventarlas. Pruebas de propiedades: ver §12.
-- **Lápidas**: borrar es `deletedAt = <instante>` y conserva el resto. Un cambio concurrente no resucita la entrada; solo lo hace `deletedAt = null`. Deshacer un «Quitar» escribe solo eso y la recupera tal como estaba; apuntarla de nuevo es una acción que escribe además los valores por defecto de todos los campos de usuario (`want_to_play`, cada marca a `false`, fechas vacías salvo `addedAt` = hoy, `note` y `platform` vacíos y `rank` al final): empieza de cero. No se purgan antes de M4.
+- **Lápidas**: borrar es `deletedAt = <instante>` y conserva el resto. Un cambio concurrente no resucita la entrada; solo lo hace `deletedAt = null`. Deshacer un «Quitar» escribe solo eso y la recupera tal como estaba; apuntarla de nuevo es una acción que escribe además los valores por defecto de todos los campos de usuario (`want_to_play`, cada marca a `false`, fechas vacías salvo `addedAt` = hoy, `note` y `platform` vacíos y `rank` al final): empieza de cero. El dispositivo no las purga por su cuenta: desde M4, la purga semanal de D1 le llega con un *reset* (ver §7.7).
 - **Fechas parciales**: validar solo la forma acepta `'2019-02-30'`, así que Zod exige además que la fecha exista (ida y vuelta por `Date.UTC`, años 1900–2100): acepta `'2019'`, `'2019-05'` y `'2020-02-29'`; rechaza `'2019-00'` y `'2019-02-29'`.
 
 ### 7.5 Exportación e importación
@@ -199,13 +215,16 @@ IndexedDB guarda `meta.catalog` (`{version, checkedAt}`: la versión cuyo *manif
 
 ### 7.7 Esquema de D1 (M4)
 
-D1 en la jurisdicción UE; cada `*_hash` (tokens y código de recuperación) es el SHA-256 de un secreto aleatorio de ≥128 bits. El esquema vigente es `apps/web/worker/migrations/0001_inicial.sql`; respecto al primer borrador, lleva `created_at`, `label` y `last_seen_at` para la lista de dispositivos, `recovery_hash` único, índices para las cascadas y `write_id` para la concurrencia optimista de `sync`, y no tiene `revoked_at` ni `used_at`: revocar y canjear borran la fila (ADR-011).
+D1 en la jurisdicción UE; cada `*_hash` (tokens y código de recuperación) es el SHA-256 de un secreto aleatorio de ≥128 bits. El esquema vigente es `apps/web/worker/migrations/0001_inicial.sql`; respecto al primer borrador, lleva `created_at`, `label` y `last_seen_at` para la lista de dispositivos, `recovery_hash` único, índices para las cascadas y `write_id` para la concurrencia optimista de `sync`, y no tiene `revoked_at` ni `used_at`: revocar y canjear borran la fila (ADR-011). `0002_epoca.sql` (07-11-2026) añade `agenda.epoch` y se la da a las agendas que ya había; hay que aplicarla antes de desplegar el Worker que la lee.
 
 ```sql
 CREATE TABLE agenda (id TEXT PRIMARY KEY, seq INTEGER NOT NULL DEFAULT 0,
   purged_seq INTEGER NOT NULL DEFAULT 0, write_id TEXT NOT NULL DEFAULT '',
   recovery_hash TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL,
   last_sync_at TEXT NOT NULL) STRICT;  -- en cada sync; retención (§11.2)
+-- 0002_epoca.sql: época de la agenda (ver abajo)
+ALTER TABLE agenda ADD COLUMN epoch TEXT NOT NULL DEFAULT '';
+UPDATE agenda SET epoch = lower(hex(randomblob(8))) WHERE epoch = '';
 CREATE TABLE device (id TEXT PRIMARY KEY,
   agenda_id TEXT NOT NULL REFERENCES agenda (id) ON DELETE CASCADE,
   kind TEXT NOT NULL CHECK (kind IN ('app', 'inbox')), -- inbox: Atajo de iOS
@@ -227,7 +246,8 @@ CREATE TABLE inbox_item (id TEXT PRIMARY KEY, url TEXT NOT NULL,  -- buzón
   created_at TEXT NOT NULL) STRICT;
 -- Y un índice por agenda_id en device, pairing_token e inbox_item.
 CREATE TABLE resolve_cache (appid INTEGER PRIMARY KEY,  -- datos públicos
-  name TEXT NOT NULL, fetched_at TEXT NOT NULL) STRICT;
+  name TEXT NOT NULL,                   -- '': Steam no lo conoce (1 día)
+  fetched_at TEXT NOT NULL) STRICT;
 ```
 
 **Sincronización** (`POST /api/v1/sync`, flujo en la §5; ADR-011): lotes de hasta 200 operaciones (`SYNC_BATCH_SIZE`), sin partir acciones. El servidor decide el LWW con la misma `applyOps()` de `core` que la app, no en SQL: lee en una transacción la `seq` de la agenda y las filas de las entradas tocadas, reconstruye cada entrada, le aplica el lote (con las derivadas y los reenvíos) y escribe las filas que cambian. En SQL, el desempate por valor compararía UTF-8, y en JavaScript se compara UTF-16. La escritura reserva *n* secuencias con concurrencia optimista ([JSON](https://developers.cloudflare.com/d1/sql-api/query-json/)):
@@ -243,11 +263,16 @@ ON CONFLICT (agenda_id, entry_id, field) DO UPDATE
   SET value = excluded.value, hlc = excluded.hlc, seq = excluded.seq;
 ```
 
-- D1 ejecuta los `batch()` [en serie y de forma atómica](https://developers.cloudflare.com/d1/worker-api/d1-database/): nadie ve la secuencia N+1 sin la N. Si otro dispositivo escribió entre la lectura y la escritura, `write_id` ya no es el suyo, no se escribe nada y se repite (hasta 3 veces; después, 503 `busy`). Un reenvío a otra entrada lee sus filas y repite el cálculo, hasta 8 saltos. Son 3 consultas por petición, y una más por salto, frente a las [50 por invocación](https://developers.cloudflare.com/d1/platform/limits/) del plan gratuito (cada `batch()` cuenta como una; verificado el 28-10-2026). Al emparejarse, un dispositivo sube todas sus entradas.
+- D1 ejecuta los `batch()` [en serie y de forma atómica](https://developers.cloudflare.com/d1/worker-api/d1-database/): nadie ve la secuencia N+1 sin la N. Si otro dispositivo escribió entre la lectura y la escritura, `write_id` ya no es el suyo, no se escribe nada y se repite (hasta 3 veces; después, 503 `busy`). Un reenvío a otra entrada lee sus filas y repite el cálculo, hasta 8 saltos. Son 3 consultas por petición, y una más por salto, frente a las [50 por invocación](https://developers.cloudflare.com/d1/platform/limits/) del plan gratuito (cada `batch()` cuenta como una; verificado el 28-10-2026).
+- **Unirse** (activar, emparejar o recuperar) y volver a subirlo todo usan `uploadOf()` de `core`, con el corte de la purga de D1 (`purgeCutoff(ahora + desfase)`): lo no purgable sube entero, una lápida de más de 90 días sube solo `deletedAt` y, si lo tiene, `mergedInto`, y un esqueleto de más de 90 días no sube nada. En local quedan como quedarán en el servidor. Antes, activar subía a D1 lápidas viejas con todo su contenido, nota incluida (DECISIONES §10.36).
 - `value` es el JSON canónico (`canon()`). Cada operación pasa por Zod (estricto) y por el reloj; si una no vale, se rechazan con ella todas las de su HLC (`invalid`, se descartan), y las que van más de 5 min por delante, como `clock` (el cliente las vuelve a sellar: ver §7.4).
-- La petición lleva `cursor` y el `purgedSeq` de la última respuesta. La respuesta trae `cursor`, `purgedSeq`, `reset`, `more`, `serverTime` (ms UTC), las filas de `op` con `seq` mayor que el cursor (1 000 por página, también las propias), las operaciones aceptadas y las rechazadas. Más adelante, a los dispositivos `app`, también los enlaces del buzón: el cliente los apunta como un enlace pegado y los confirma en la llamada siguiente. Las páginas se aplican en una transacción y el cursor va a `meta.syncCursor`.
-- **Mantenimiento** (Cron Trigger diario a las 03:17 UTC, un `batch()`): los *tokens* caducados y las agendas sin sincronizar en 13 meses; los lunes, la purga semanal: `purged_seq` pasa a la mayor `seq` de las entradas con `deletedAt` (o esqueletos) de más de 90 días, se borran sus filas y la `seq` sube 1. Los clientes purgan igual sus lápidas sincronizadas.
-- **Cliente atrasado** (`0 < cursor < purged_seq`, y su `purgedSeq` es anterior): recibe `reset: true`; tras subir su `outbox` en esa llamada, baja el estado completo desde 0 y borra las entradas que el servidor no tiene y que no están en su `outbox`: una copia vieja no resucita lo borrado. Las páginas siguientes llevan el `purgedSeq` nuevo y ya no son *reset*. Un cursor por delante del servidor (D1 vuelto atrás con Time Travel) también baja desde 0, y el cliente, al ver un cursor menor, vuelve a subirlo todo.
+- La petición lleva `cursor`, el `purgedSeq` de la última respuesta y, si hace falta, `inboxAck`. La respuesta trae `cursor`, `purgedSeq`, `epoch`, `reset`, `more`, `serverTime` (ms UTC), las filas de `op` con `seq` mayor que el cursor (1 000 por página, también las propias), las operaciones aceptadas, las rechazadas y, en la última página, `inbox`. Cada página se aplica en una transacción de Dexie (`entries`, `outbox` y `meta`), y el cursor va a `meta.syncCursor`.
+- **Buzón** (DECISIONES §10.39 y §10.43): `inbox` (`{ id, url }`, 50 como mucho, por orden de llegada) solo va en la última página (`more: false`): con más páginas, la app aún no sabe si el juego ya está en la agenda, y apuntarlo pisaría su estado. Con todo bajado (sin otra época ni un *reset* en marcha), la app confirma sin apuntar lo que ya está vivo en IndexedDB, también lo que ha traído esa misma página. Lo demás lo apunta la agenda de la pestaña, fuera de la transacción, como un enlace pegado (`links/inbox-capture.ts`, ver §9.2). La petición siguiente confirma con `inboxAck` (200 ids como mucho) lo que está vivo y lo que no es un enlace de Steam, y el mismo `batch()` los borra, solo los de esa agenda. Lo que no se ha guardado vuelve en la ronda siguiente; una pestaña sin agenda no confirma nada de Steam.
+- **Mantenimiento** (Cron Trigger diario a las 03:17 UTC, un `batch()`): los *tokens* caducados y las agendas sin sincronizar en 13 meses; los lunes, la purga semanal de las entradas con `deletedAt` (o esqueletos) de más de 90 días. En cada agenda con algo purgado se borran sus filas, la `seq` sube 1 y `purged_seq` pasa a ser esa `seq` nueva; una agenda sin nada que purgar no cambia. Así, toda app que sincronizó antes de la purga recibe `reset` en su siguiente `sync` y queda igual que D1, lápidas incluidas. Cuesta un *reset* por dispositivo cada semana en que su agenda purga algo: con 1 000 juegos, unas 15 000 filas leídas, frente a 5 M al día de cuota gratuita.
+- **La app no purga por su cuenta** (DECISIONES §10.36). La primera versión purgaba sus lápidas una vez al día, con su propio calendario, y una escritura vieja subida tras una purga dejaba réplicas distintas para siempre. Ahora la purga solo llega de D1, con el *reset*.
+- ***Reset*** (`0 < cursor ≤ seq`, `cursor < purged_seq` y la app no ha visto esa purga: `purgedSeq < purged_seq`): la respuesta lleva `reset: true` y la app baja el estado completo desde 0. Mientras dura, las peticiones van con `ops: []` y los cambios se acumulan en memoria; todo se aplica en la transacción de la última página: cada entrada vista se reconstruye con lo pendiente en su `outbox` más lo del servidor, y las no vistas se borran o se quedan solo con lo pendiente. Una copia vieja no resucita lo borrado, y un *reset* cortado deja lo local como estaba. Las páginas siguientes llevan el `purgedSeq` nuevo y ya no son *reset*; las que avanzan no cuentan para el tope de 100 peticiones por ronda. Después, la ronda sigue subiendo la `outbox`.
+- **D1 vuelto atrás** (un restore con Time Travel): si el cursor de la petición va por delante de la `seq`, el servidor no escribe el lote (`accepted: []`) y baja desde 0. La app, al ver un cursor menor que el enviado, vuelve a subirlo todo en la misma transacción. Con varios dispositivos no basta: otro puede escribir hasta que la `seq` alcance el cursor.
+- **Época** (`agenda.epoch`): 16 cifras hexadecimales aleatorias, creadas con la agenda y enviadas en cada respuesta. La app la guarda en `meta.syncCursor.epoch`; si llega otra, en la misma transacción fusiona la página, vuelve a subirlo todo y pone el cursor a 0 sin *reset*. El *runbook* del restore cambia la época de todas las agendas (`UPDATE agenda SET epoch = lower(hex(randomblob(8)))`), así que nada de lo que el restore perdió se queda fuera (ADR-011).
 
 ### 7.8 Volumen de datos y minimización
 
@@ -258,4 +283,4 @@ ON CONFLICT (agenda_id, entry_id, field) DO UPDATE
 | Red | *manifest*, `recent` (≈52 KB al día con brotli) y el índice de *shards* (≈9 KB, si cambió); núcleo, como mucho semanal |
 | D1 (M4) | ≈2–3 KB por entrada (9–13 filas): ≈2–3 MB por agenda de 1 000 juegos (500 MB por base gratuita) |
 
-Solo se guarda lo que el usuario apunta, sin email, nombre, IP ni identificador del hardware. En D1 solo hay agenda, *hashes* de tokens y la caché de `resolve` (ver §5.2), con nombres públicos del catálogo y ningún dato personal; las notas solo salen del dispositivo con la sincronización (ver §11). «Borrar todos mis datos» vacía Dexie y Cache Storage y, en M4, la agenda en cascada (retención: ver §11).
+Solo se guarda lo que el usuario apunta, sin email, nombre, IP ni identificador del hardware. En D1 solo hay agenda, *hashes* de tokens, los enlaces del buzón hasta que se apuntan y la caché de `resolve` (ver §5.2), con nombres públicos del catálogo y ningún dato personal; las notas solo salen del dispositivo con la sincronización (ver §11). «Borrar todos mis datos» vacía Dexie y Cache Storage y, en M4, la agenda en cascada (retención: ver §11).

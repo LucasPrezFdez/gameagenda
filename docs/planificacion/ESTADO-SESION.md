@@ -26,23 +26,28 @@ Lo de M3 está en `main` y subido, con el CI y el despliegue en verde y sin agen
     - carreras al borrar o desemparejar con una ronda en vuelo;
     - el 401 tomado por «agenda borrada».
   - `check` en verde: 1 221 pruebas; JS inicial de 136,9 KB y chunk del motor de 5,7 KB. E2E en verde: Chromium 130 y WebKit 101; los de sincronización, también con `--repeat-each=3`. CA4.2 y CA4.3 comprobados en E2E con dos contextos.
-  - **Pendiente de esta parte:**
-    - llevar a las secciones del plan (§5.3, §6, §7.2, §7.4, §7.7, §9, §11, §12, §14 y §15.7) lo que ya recogen el ADR-011 y las §10.36–§10.38, y volver a montar `prototipe.md`;
-    - la segunda revisión de los arreglos se paró a medias, a petición del usuario: conviene repetirla;
-    - `boot.spec.ts:273` falla a veces con la máquina cargada (anterior a M4).
-- **Parte 4, hecha** (08-11-2026, sesión 12): el buzón, `resolve`, los textos legales y CA4.6 en local. ADR-011 (cuatro secciones nuevas) y DECISIONES §10.39–§10.42.
+  - **Lo que quedaba, cerrado el 08-11-2026 (sesión 12):**
+    - la segunda revisión de los arreglos, repetida con la de la parte 4 (DECISIONES §10.43, abajo);
+    - las secciones del plan, al día con las §10.36–§10.43 y `prototipe.md` montado otra vez;
+    - `boot.spec.ts:273` no se reproduce en 40 ejecuciones, ni con 8 *workers*: se deja como está.
+- **Parte 4, hecha** (08-11-2026, sesión 12): el buzón, `resolve`, los textos legales y CA4.6 en local. ADR-011 (cuatro secciones nuevas) y DECISIONES §10.39–§10.43.
   - **Buzón del Atajo de iOS** (§10.39): `POST /api/v1/inbox/token` (con la cookie: un `device` `inbox`, se ve una vez) y `POST /api/v1/inbox` (`Authorization: Bearer`, sin `Origin` ni cookie, solo enlaces de Steam, `RL_INBOX` y tope de 200). `sync` lo entrega en la última página (`inbox`) y la petición siguiente lo confirma (`inboxAck`). La app lo apunta como un enlace pegado (`links/inbox-capture.ts`) y solo confirma lo guardado. Ajustes › Sincronización tiene la sección «Atajo de iOS», con la dirección, el encabezado y los 7 pasos.
-  - **`resolve`** (§10.40): `GET /api/v1/resolve/<appid>` con `GetItems` sin clave, caché en D1 y `RL_RESOLVE`. Si Steam no lo conoce, 200 con `name: null`, porque un 404 dejaría un error en la consola. La app (`agenda/resolve-client.ts`, desde `catalog-refresh.ts`) lo pide sin cookies, solo para lo que no está en el catálogo entero. **Lo usa también quien no sincroniza**, y lo dice la política.
+  - **`resolve`** (§10.40): `GET /api/v1/resolve/<appid>` con `GetItems` sin clave, caché en D1 y `RL_RESOLVE`. Si Steam no lo conoce, 200 con `name: null`, porque un 404 dejaría un error en la consola. La app (`agenda/resolve-client.ts`, desde `catalog-refresh.ts`) lo pide sin cookies, solo para lo que no está en el catálogo entero y **solo si este dispositivo sincroniza** (decisión del usuario, 08-11-2026).
   - **Textos legales** (§10.41): `/privacidad` y `/aviso-legal` (datos en `apps/web/src/legal/`, pantalla en el *chunk* de Ajustes) y la primera capa en `[data-sync-legal]`. El registro de actividades está en `docs/legal/registro-actividades.md`. **El responsable está sin rellenar** (`legal/controller.ts`): los textos dicen «pendiente», y `scripts/legal-guard.test.ts` no deja `SYNC_ENABLED` a `"1"` sin él.
   - **CA4.6 en local** (§10.42): `node scripts/api-cpu.ts` da un peor p99 de 2,38 ms, de 5 (`docs/medidas/ca4.6-20261108.md`). La primera petición de un *isolate* nuevo, ≈6 ms. Lo que cierra CA4.6 es el panel de Workers.
   - `check`: 1 264 pruebas, y el JS inicial en un solo fichero de 138,9 KB brotli (+2,0). Con la pantalla legal en un *chunk* propio, Rolldown partía el inicial en tres (140,7 KB).
   - E2E: `inbox.spec.ts` (6), con `--repeat-each=3`; la batería entera, 234 en verde y 37 omitidas, con dos fallos ya arreglados (una prueba de Ajustes que encontraba dos textos con «Cloudflare en la Unión Europea»).
   - **Ojo:** `data.spec.ts:50` falla en WebKit en local unas 4 de cada 12 veces, también en `HEAD` sin la parte 4 (comprobado con un *stash*). Una navegación corta la descarga de `recent.tsv` del Worker de búsqueda y WebKit lo anota como error («access control checks»). El CI solo corre Chromium. Se arreglaría esperando al catálogo antes de navegar (`catalogSettled`, como en `sync.spec.ts`).
   - `wrangler dev` (`workerd` y D1 locales): el buzón y `resolve` con Steam de verdad, en verde (ADR-011, «Confirmación»).
-  - **Pendiente de esta parte:**
-    - el responsable (nombre o alias y correo), en `legal/controller.ts` y en el registro de actividades;
-    - los pasos del Atajo, en un iPhone de verdad;
-    - llevar a las secciones del plan (§5.2, §7.3, §9.2, §11.2 y §11.4) lo de las §10.39–§10.42, con lo que ya quedaba de la parte 3.
+  - **Revisión del 08-11-2026** (`code-review` de nivel alto sobre `4b46155^..HEAD`, DECISIONES §10.43): 10 hallazgos, verificados uno a uno.
+    - Se arreglan 9, cada uno con su prueba (`460f361`): el enlace del buzón con tope; lo que llega vivo en la misma página se confirma sin volver a apuntarlo; `message` en todos los errores del buzón; la respuesta de Steam leída con tope; y `resolve` en la app (un juego que falla no para a los demás, lo que llega mientras tanto, 7 días de memoria en `meta.resolveAsked` y la agenda solo se recorre al crecer).
+    - Se descarta acotar el `receive()` de la agenda: `core` rechazaría las acciones.
+  - **`resolve`, solo con la sincronización activada** (decisión del usuario, 08-11-2026): quien no sincroniza no hace ninguna petición a `/api`, y lo comprueba `sync.spec.ts` con un juego provisional.
+  - **`data.spec.ts:50`, arreglada:** espera al catálogo antes de navegar, y pasa 12 de 12 en WebKit.
+  - **Tras los arreglos:** `check` con 1 275 pruebas y el JS inicial en 139,2 KB brotli; la batería E2E entera, 237 en verde y 37 omitidas, ninguna en rojo; y `wrangler dev`, en verde, también con el enlace enorme y los mensajes del Atajo.
+  - **Pendiente de esta parte (lo hace el usuario):**
+    - el responsable (nombre o alias y correo), en `legal/controller.ts` y en el registro de actividades. El usuario decidió el 08-11-2026 dejarlo para el despliegue (parte 5): sin él no se puede encender la sincronización;
+    - los pasos del Atajo, en un iPhone de verdad.
 - **Siguiente parte:**
   5. desplegar: aplicar las migraciones `0001` y `0002`, crear D1 con `--jurisdiction=eu` (y ver si el plan gratuito la admite, igual que `ratelimits`), el permiso de D1 del *token*, las migraciones en `deploy-web`, `SYNC_ENABLED` a `"1"` (con el responsable puesto), medir CA4.6 en el panel de Workers y las pruebas en el iPhone.
 - **Le tocará al usuario:** el nombre o alias y el correo de contacto del responsable para los textos legales; dar permiso de D1 al *token* `CLOUDFLARE_API_TOKEN`; y probar en el iPhone (CA4.3, CA4.5 con el Atajo de verdad y el QR).

@@ -125,6 +125,8 @@ Sin colchón: para planificar se suma un 20 % (ver §16, R-13). Aparte van las e
 - CA4.6 CPU del Worker ≤5 ms por petición en el p99 (el límite gratuito es 10 ms).
 - CA4.7 Los textos legales se publican antes de activar la sincronización, que pide la declaración de edad (≥14 años, configurable a 16); «Borrar todos mis datos» vacía la agenda en D1 (comprobado con una consulta) y en local.
 
+**Decidido al construirlo** (rama `m4-sincronizacion`; ADR-011): `resolve` solo lo usan los dispositivos que sincronizan (decisión del usuario del 08-11-2026; DECISIONES §10.40). El nombre en ≤1,5 s de CA4.5 vale, por tanto, con la sincronización activada, y así lo comprueba `e2e/inbox.spec.ts`; sin ella, el provisional espera al catálogo.
+
 **Esfuerzo:** micro-API, D1 y límites 1–1,5; emparejar y recuperación 1–1,5; protocolo y pruebas 1,5–2; buzón, `resolve` y textos legales 0,5–1. **Depende de:** M1 (HLC, `outbox` y `merge()`), los textos legales (ver §11) y un iPhone.
 
 ### 15.8 Fase 2

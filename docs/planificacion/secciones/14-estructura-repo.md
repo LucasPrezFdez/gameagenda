@@ -8,13 +8,19 @@ Monorepo con *workspaces* de npm (sin pnpm). `packages/core` no se compila: Vite
 gameagenda/
 ├─ apps/web/               @gameagenda/web: la app (React + Vite, PWA)
 │  ├─ src/
-│  │  ├─ screens/          Mi lista, Catálogo, ficha, Ajustes, paleta
+│  │  ├─ screens/          Mi lista, Catálogo, ficha, Ajustes, paleta;
+│  │  │                    legal/, los textos legales (M4)
 │  │  ├─ router/           router propio sobre la History API
 │  │  ├─ db/               Dexie: entries, outbox, settings, meta
+│  │  ├─ sync/             M4: fachada (chunk inicial) y motor diferido
+│  │  ├─ legal/            M4: textos legales como datos y responsable
 │  │  ├─ search-worker/    Web Worker de búsqueda (chunk aparte)
 │  │  ├─ i18n/es.ts        todas las cadenas de la interfaz
 │  │  └─ sw.ts             Service Worker (vite-plugin-pwa)
 │  ├─ worker/              M4: micro-API Hono en /api/v1/* y D1
+│  │  ├─ routes/           agenda, pairing, devices, inbox, sync, resolve
+│  │  ├─ migrations/       0001_inicial.sql y 0002_epoca.sql (época)
+│  │  └─ test/             D1 sobre node:sqlite, propiedades y cliente
 │  ├─ e2e/                 Playwright, incluido el proyecto perf
 │  ├─ public/_headers      CSP y cabeceras de ga-web (ver §11)
 │  └─ wrangler.jsonc       Worker ga-web (assets; /api/* desde M4)
@@ -36,8 +42,10 @@ gameagenda/
 │  ├─ catalog/             mini-catálogo en el formato publicado
 │  ├─ catalog-frozen/      núcleo real congelado (≈3 MB gzip) y sus alias
 │  └─ keys/                clave de firma de desarrollo (dev y e2e)
-├─ scripts/                setup, puertas de tamaño, búsqueda de clave
+├─ scripts/                setup, puertas de tamaño, búsqueda de clave;
+│                          M4: CPU de la micro-API y guarda legal
 ├─ docs/adr/               NNN-titulo.md (MADR, en español)
+├─ docs/legal/             M4: registro-actividades.md (interno)
 ├─ docs/planificacion/prototipo-busqueda/
 │                          prototipo de búsqueda medido (ver §8.11)
 ├─ .github/workflows/      ci.yml, deploy-web.yml, catalog.yml
@@ -53,7 +61,7 @@ Ya existen dos carpetas: `fixtures/catalog-frozen/`, con `core.20261028.1.tsv.gz
 
 | Paquete | Contenido | Depende de |
 |---|---|---|
-| `apps/web` | Pantallas, *router*, Dexie, Worker de búsqueda, Service Worker; en M4, micro-API y migraciones de D1 | `core`, React, Dexie, `@tanstack/react-virtual`, `workbox-window`, `uuid`; Hono en M4 |
+| `apps/web` | Pantallas, *router*, Dexie, Worker de búsqueda, Service Worker; en M4, el cliente de la sincronización, los textos legales, la micro-API y las migraciones de D1 | `core`, React, Dexie, `@tanstack/react-virtual`, `workbox-window`, `uuid`; en M4, Hono y `uqr` (el QR de emparejar) |
 | `apps/desktop` | Desde M3: ventana Tauri que carga `ga-web`, atajo global, icono en la bandeja, una sola instancia y arranque con Windows opcional; ningún código de la web (ver §17.3) | `@tauri-apps/cli` y los *crates* de la §6; ningún paquete del repositorio |
 | `packages/core` | Normalización y sus vectores; claves, índice y *ranking*; parser de enlaces; códecs TSV y *shards*; JSON canónico del *manifest*; reglas de estados y marcas; HLC y `merge()`; esquemas Zod (Steam, exportación, micro-API) | Zod; uFuzzy, solo en el nivel difuso (carga diferida) |
 | `pipeline/` | Cliente HTTP de Steam, etapas, puertas, firma ed25519 (`node:crypto`), grabador de *fixtures* | `core`, Zod; `wrangler` para publicar |

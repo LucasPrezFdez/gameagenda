@@ -10,7 +10,7 @@ Prioridad (MoSCoW): **Imprescindible** (sin ello el prototipo no cumple su fin),
 | RF-01 | Paleta única para buscar y apuntar: `Ctrl+K` o `/` en escritorio; barra «Apunta un juego…» fija abajo en móvil; resultados en cada tecla (ver §8) | Imprescindible | M1 |
 | RF-02 | `Intro` o tocar la fila apunta en Quiero jugar (al final), con aviso y Deshacer; `Ctrl+Intro` apunta y sigue. Un juego ya apuntado muestra su estado y nunca se duplica | Imprescindible | M1 |
 | RF-03 | La última fila siempre permite apuntar el texto escrito como juego manual, también sin red y antes de que el índice esté listo | Imprescindible | M1 |
-| RF-04 | Pegar en la paleta un enlace de la tienda o `appid:<n>` apunta ese juego; si no está en el catálogo local, queda como juego provisional (título del enlace) hasta que el catálogo lo incluya o lo resuelva la micro-API (M4) | Importante | M1 |
+| RF-04 | Pegar en la paleta un enlace de la tienda o `appid:<n>` apunta ese juego; si no está en el catálogo local, queda como juego provisional (título del enlace) hasta que el catálogo lo incluya o, si el dispositivo sincroniza, lo resuelva la micro-API (M4; ver §7.3) | Importante | M1 |
 | RF-05 | Vincular un juego manual con Steam (ver §7): solo se propone ante una única coincidencia exacta tras normalizar | Importante | M1 |
 | RF-06 | `Alt+Intro` (M1) o pulsación larga (M3): apuntar con otro estado o con marcas | Importante | M1 · M3 |
 | RF-07 | Más vías: `Ctrl+V` con un enlace en cualquier pantalla; en Android, «Compartir» y acceso directo «Apuntar juego»; en iOS, chip «Pegar enlace» | Importante | M3 |

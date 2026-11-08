@@ -69,19 +69,19 @@ Las flechas discontinuas llegan en M4; la Fase 2 no aparece. El navegador solo h
 
 | Ruta | Para qué | Credencial | Límite |
 |---|---|---|---|
-| `POST /api/v1/agenda` | Al activar la sincronización: crea la agenda, pone la cookie y devuelve el código de recuperación (se muestra una vez) | Ninguna | Por IP |
+| `POST /api/v1/agenda` | Al activar la sincronización: crea la agenda, pone la cookie y devuelve el código de recuperación (se muestra una vez) | Ninguna | Por IP (`RL_AGENDA`, 5/min) |
 | `POST /api/v1/pairing` | Genera un *token* de emparejamiento (un uso, 10 min) | Cookie | — |
-| `POST /api/v1/pairing/redeem` | Lo canjea desde la app nueva y pone la cookie | *Token* en el cuerpo | Por IP |
-| `POST /api/v1/recovery/redeem` | Canjea el código de recuperación y pone la cookie; el código sigue valiendo | Código en el cuerpo | Por IP |
+| `POST /api/v1/pairing/redeem` | Lo canjea desde la app nueva y pone la cookie | *Token* en el cuerpo | Por IP (`RL_REDEEM`, 10/min) |
+| `POST /api/v1/recovery/redeem` | Canjea el código de recuperación y pone la cookie; el código sigue valiendo | Código en el cuerpo | Por IP (`RL_REDEEM`) |
 | `POST /api/v1/recovery` | Crea otro código de recuperación y anula el anterior (ADR-011) | Cookie | — |
 | `GET /api/v1/devices` · `POST /api/v1/devices/<id>/revoke` | Lista y revoca dispositivos, incluido el *token* del buzón; revocar borra la fila | Cookie | — |
-| `POST /api/v1/inbox/token` | Crea el *token* del buzón para el Atajo de iOS (se muestra una vez) | Cookie | — |
-| `POST /api/v1/inbox` | Deja un enlace de la tienda en el buzón | `Authorization` | Por *token* |
-| `POST /api/v1/sync` | Sube `outbox` y baja cambios (ver §7.7) | Cookie | — |
-| `GET /api/v1/resolve/<appid>` | Nombre de un `appid` desconocido o retirado, con `GetItems` sin clave | Ninguna | Por IP |
+| `POST /api/v1/inbox/token` | Crea un *token* del buzón para el Atajo de iOS (un `device` de tipo `inbox`; se muestra una vez). Puede haber varios | Cookie | — |
+| `POST /api/v1/inbox` | Deja en el buzón un enlace de Steam, o un texto de ≤2 KiB que lo lleve; guarda solo el enlace canónico de la tienda y no repite un juego que ya espera (ver §11.4) | `Authorization: Bearer` | Por *token* (`RL_INBOX`, 30/min) |
+| `POST /api/v1/sync` | Sube `outbox` y baja cambios y, en la última página, los enlaces del buzón; la petición siguiente los confirma con `inboxAck` (ver §7.7) | Cookie | — |
+| `GET /api/v1/resolve/<appid>` | Nombre de un `appid` que no está en el catálogo local, con `GetItems` sin clave: `{ appid, name }` | Ninguna | Por IP (`RL_RESOLVE`, 30/min) |
 | `POST /api/v1/agenda/delete` | Borra la agenda en cascada («Borrar todos mis datos») | Cookie | — |
 
-La caché de `resolve` es una tabla de D1 (`appid`, nombre, `fetched_at`) con nombres públicos del catálogo, nunca datos de usuarios: Cloudflare solo garantiza una [Cache API](https://developers.cloudflare.com/workers/runtime-apis/cache/) funcional en dominios propios y el prototipo usa `workers.dev` (a verificar en M4).
+**`resolve`** (DECISIONES §10.40). Si Steam no conoce el `appid`, responde 200 con `name: null`, no 404: el navegador anotaría un error en la consola por cada juego que aún no existe. Un `appid` mal formado sí da 404, sin llamar a Steam. Su caché es una tabla de D1 (`resolve_cache`: `appid`, nombre y `fetched_at`) con nombres públicos del catálogo, nunca datos de usuarios, y no la [Cache API](https://developers.cloudflare.com/workers/runtime-apis/cache/): Cloudflare solo la garantiza en dominios propios y el prototipo usa `workers.dev`. Un nombre vale 30 días, y «Steam no lo conoce», 1 día. Si Steam falla, vale lo que haya en la caché aunque sea viejo; sin nada, 502 `steam_unavailable`. Solo la llaman los dispositivos que sincronizan (ver §7.3).
 
 ### 5.3 Flujos principales
 
@@ -184,24 +184,36 @@ sequenceDiagram
   end
 ```
 
-**Sincronización (M4).** Requiere un dispositivo emparejado (credencial en la §11; protocolo y `merge()` en la §7).
+**Sincronización (M4).** Requiere un dispositivo emparejado (credencial en la §11; protocolo y `merge()` en la §7). Tal como se ha construido (07-11-2026; DECISIONES §10.36 y ADR-011):
+
+- **Fachada y motor** (`apps/web/src/sync/`): la fachada va en el *chunk* inicial, sin Zod ni red; lee el indicio `__Host-ga_sync` y `meta.syncState` y da el estado a la interfaz. El motor solo se descarga si el navegador está emparejado, tras el primer pintado y en un rato ocioso, o al activar, emparejar o recuperar. Quien no sincroniza no hace ninguna petición a `/api`, no crea cookies y no descarga Zod.
+- **Disparadores** (amplían RF-26): al arrancar, al ganar el foco, al volver la red, al volver a la vista, al ocultarse (solo con `outbox`) y 2 s después de la última escritura local. Con la página oculta no hay temporizadores.
+- **Una ronda a la vez** entre pestañas, con el Web Lock `gameagenda-sync`. La `outbox` se lee y se compacta una vez por ronda y sube en lotes de 200 sin partir acciones. Cada respuesta se aplica en una transacción de Dexie; si falta `meta.syncState` (esta pestaña u otra ha desemparejado o borrado los datos), la ronda acaba sin escribir nada.
+- **Errores:** con 429, 503 `busy`, 5xx o una respuesta que no pasa Zod, espera exponencial de 5 s a 5 min, solo con la página visible. Con `sync_disabled` y los demás 4xx, solo el siguiente disparador. Un 401 deja el dispositivo desemparejado sin tocar la agenda ni la `outbox`. Tras 3 fallos seguidos sale «Sincronización fallida» (ver §9.6).
+- Las peticiones van con `referrerPolicy: 'no-referrer'`, y cada respuesta se valida con Zod.
 
 ```mermaid
 sequenceDiagram
   participant UI as Interfaz
+  participant M as Motor de sincronización
   participant DB as Dexie
   participant API as micro-API
   participant D1 as D1 (UE)
-  Note over UI: foco, red recuperada o cambio de visibilidad
-  UI->>UI: Web Lock, una sola pestaña
-  UI->>DB: outbox pendiente y última secuencia
-  UI->>API: POST /api/v1/sync con la cookie __Host-
-  API->>API: hash del token, Zod y rechazo de HLC a más de 5 min por delante
-  API->>D1: merge() de las operaciones y secuencias nuevas
-  API->>D1: cambios posteriores a la secuencia del cliente
-  API-->>UI: confirmaciones, rechazos, cambios, secuencia y hora del servidor
-  UI->>DB: merge() de los cambios, limpieza de outbox y secuencia nueva
-  UI->>UI: corrige el desfase de su HLC y resella lo rechazado por reloj
+  Note over UI,M: arranque, foco, red, vuelta a la vista, ocultarse o 2 s tras escribir
+  M->>M: Web Lock gameagenda-sync
+  M->>DB: outbox, una vez por ronda, compactada y ordenada por HLC
+  loop Lotes de 200 operaciones y páginas de 1 000 cambios
+    M->>API: POST /api/v1/sync con la cookie: ops, cursor, purgedSeq e inboxAck
+    API->>API: hash de la cookie, Zod y reloj (rechazo por acción)
+    API->>D1: seq de la agenda y filas de las entradas tocadas
+    API->>API: applyOps() de core (LWW, derivadas y reenvíos)
+    API->>D1: batch() si la seq no ha cambiado, buzón confirmado y página de cambios
+    API-->>M: cursor, purgedSeq, epoch, reset, more, serverTime, changes, rechazos e inbox
+    M->>DB: una transacción (entries, outbox y meta), solo si sigue meta.syncState
+    M->>M: corrige el desfase y vuelve a sellar lo rechazado por reloj
+  end
+  M->>UI: enlaces del buzón de la última página
+  UI->>DB: los apunta como un enlace pegado (ver §9.2)
 ```
 
 ### 5.4 Principios de diseño

@@ -19,6 +19,7 @@ Versiones exactas comprobadas en el registro de npm el 28-10-2026 (Biome y `wran
 | Ids | `uuid` (v7) | 14.0.3 | `manual:<uuidv7>` y `opId` ordenables por tiempo | UUID v4 |
 | Hosting | Cloudflare Workers Static Assets, `wrangler` | — / 4.155.0 | *Assets* gratuitos e ilimitados (ver §5.4) | Vercel Hobby, Netlify Free |
 | Micro-API (M4) | Hono + D1 en la UE | 4.13.16 / — | Mínima y hecha para Workers, sin dependencias; se prueba con `app.request()` y D1 sobre `node:sqlite`. Los tipos del entorno de Workers que usa van escritos a mano, sin `@cloudflare/workers-types` (ADR-011) | Prisma, Drizzle |
+| QR de emparejar (M4) | `uqr` | 0.1.3 | MIT y sin dependencias (comprobado en npm el 07-11-2026). Va en su propio *chunk* (3,5 KB brotli), que se descarga al pedir un código (DECISIONES §10.37) | Codificador propio: unas 400 líneas difíciles de verificar sin un decodificador |
 | Login con Steam (Fase 2) | `steam-signin` | 1.0.5 | OpenID 2.0 verificado en el servidor (ver §10) | `passport-steam` |
 | Lint y formato | Biome | 2.6.4 | Una sola herramienta, sin la API de TS | ESLint con tipos |
 | Pruebas | Vitest, fast-check, `@playwright/test` | 5.0.5 / 4.10.2 / 1.64.1 | Nativo de Vite; propiedades de `merge()`; CPU ×4 y WebKit en Windows (ver §12) | `@cloudflare/vitest-pool-workers` |
@@ -41,7 +42,7 @@ Medido el 28-10-2026 con Vite 8.3.5 (*build* de producción):
 |---|---|---|
 | Inicial | ≤150 KB | Lo necesario para pintar Mi lista y abrir la paleta |
 | Worker de búsqueda | ≤40 KB | Normalización, índice, *ranking* y códecs; sin React ni Dexie (ver §5.2) |
-| Diferidos | — | Catálogo (con `@tanstack/react-virtual`), Ajustes, exportar/importar y uFuzzy (lo importa el Worker) |
+| Diferidos | — | Catálogo (con `@tanstack/react-virtual`), Ajustes (desde M4, con los textos legales), exportar/importar y uFuzzy (lo importa el Worker); desde M4, el motor de la sincronización (5,7 KB brotli, más Zod) y el QR de emparejar. La fachada de la sincronización va en el inicial (ver §5.3) |
 
 - Quedan ≥55 KB brotli para el código propio y `workbox-window` (algo más, porque la lista virtual va en el *chunk* del Catálogo).
 - El Worker se crea con `new Worker(new URL('./search-worker/index.ts', import.meta.url), { type: 'module' })` y `vite.config` fija `worker: { format: 'es' }`: el formato por defecto de Vite, `iife`, no admite *chunks* diferidos ([`worker.format`](https://vite.dev/config/worker-options)). Así uFuzzy se carga con `import()` dentro del Worker, en un *chunk* propio que queda fuera de sus 40 KB y entra en la precaché; la puerta mide el *chunk* de entrada del Worker (comprobado con Vite 8.3.5: 32,7 KB brotli, con uFuzzy en su propio *chunk* de la precaché).

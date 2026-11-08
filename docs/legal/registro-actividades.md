@@ -56,6 +56,7 @@ Registro del art. 30 RGPD. Es obligatorio aunque el proyecto sea pequeño, porqu
 | Campo | Contenido |
 |---|---|
 | Finalidad | Completar el nombre de un juego apuntado con un enlace cuando el catálogo local no lo tiene |
+| Interesados | Usuarios con la sincronización activada (sin ella, la app no pregunta; decisión del 08-11-2026) |
 | Base jurídica | Art. 6.1.b RGPD: forma parte de apuntar el juego, que es lo que pide el usuario |
 | Datos | El `appid` y la IP de la petición, que llegan a Cloudflare. La app pide sin cookies, y la IP solo pasa por el límite como SHA-256. En D1 se guarda el nombre público del juego, sin saber quién lo pidió |
 | Destinatarios | Cloudflare, como encargado. Valve recibe el `appid` desde el servidor, nunca la IP del usuario |

@@ -131,7 +131,7 @@ Prioridad (MoSCoW): **Imprescindible** (sin ello el prototipo no cumple su fin),
 | RF-01 | Paleta única para buscar y apuntar: `Ctrl+K` o `/` en escritorio; barra «Apunta un juego…» fija abajo en móvil; resultados en cada tecla (ver §8) | Imprescindible | M1 |
 | RF-02 | `Intro` o tocar la fila apunta en Quiero jugar (al final), con aviso y Deshacer; `Ctrl+Intro` apunta y sigue. Un juego ya apuntado muestra su estado y nunca se duplica | Imprescindible | M1 |
 | RF-03 | La última fila siempre permite apuntar el texto escrito como juego manual, también sin red y antes de que el índice esté listo | Imprescindible | M1 |
-| RF-04 | Pegar en la paleta un enlace de la tienda o `appid:<n>` apunta ese juego; si no está en el catálogo local, queda como juego provisional (título del enlace) hasta que el catálogo lo incluya o lo resuelva la micro-API (M4) | Importante | M1 |
+| RF-04 | Pegar en la paleta un enlace de la tienda o `appid:<n>` apunta ese juego; si no está en el catálogo local, queda como juego provisional (título del enlace) hasta que el catálogo lo incluya o, si el dispositivo sincroniza, lo resuelva la micro-API (M4; ver §7.3) | Importante | M1 |
 | RF-05 | Vincular un juego manual con Steam (ver §7): solo se propone ante una única coincidencia exacta tras normalizar | Importante | M1 |
 | RF-06 | `Alt+Intro` (M1) o pulsación larga (M3): apuntar con otro estado o con marcas | Importante | M1 · M3 |
 | RF-07 | Más vías: `Ctrl+V` con un enlace en cualquier pantalla; en Android, «Compartir» y acceso directo «Apuntar juego»; en iOS, chip «Pegar enlace» | Importante | M3 |
@@ -512,19 +512,19 @@ Las flechas discontinuas llegan en M4; la Fase 2 no aparece. El navegador solo h
 
 | Ruta | Para qué | Credencial | Límite |
 |---|---|---|---|
-| `POST /api/v1/agenda` | Al activar la sincronización: crea la agenda, pone la cookie y devuelve el código de recuperación (se muestra una vez) | Ninguna | Por IP |
+| `POST /api/v1/agenda` | Al activar la sincronización: crea la agenda, pone la cookie y devuelve el código de recuperación (se muestra una vez) | Ninguna | Por IP (`RL_AGENDA`, 5/min) |
 | `POST /api/v1/pairing` | Genera un *token* de emparejamiento (un uso, 10 min) | Cookie | — |
-| `POST /api/v1/pairing/redeem` | Lo canjea desde la app nueva y pone la cookie | *Token* en el cuerpo | Por IP |
-| `POST /api/v1/recovery/redeem` | Canjea el código de recuperación y pone la cookie; el código sigue valiendo | Código en el cuerpo | Por IP |
+| `POST /api/v1/pairing/redeem` | Lo canjea desde la app nueva y pone la cookie | *Token* en el cuerpo | Por IP (`RL_REDEEM`, 10/min) |
+| `POST /api/v1/recovery/redeem` | Canjea el código de recuperación y pone la cookie; el código sigue valiendo | Código en el cuerpo | Por IP (`RL_REDEEM`) |
 | `POST /api/v1/recovery` | Crea otro código de recuperación y anula el anterior (ADR-011) | Cookie | — |
 | `GET /api/v1/devices` · `POST /api/v1/devices/<id>/revoke` | Lista y revoca dispositivos, incluido el *token* del buzón; revocar borra la fila | Cookie | — |
-| `POST /api/v1/inbox/token` | Crea el *token* del buzón para el Atajo de iOS (se muestra una vez) | Cookie | — |
-| `POST /api/v1/inbox` | Deja un enlace de la tienda en el buzón | `Authorization` | Por *token* |
-| `POST /api/v1/sync` | Sube `outbox` y baja cambios (ver §7.7) | Cookie | — |
-| `GET /api/v1/resolve/<appid>` | Nombre de un `appid` desconocido o retirado, con `GetItems` sin clave | Ninguna | Por IP |
+| `POST /api/v1/inbox/token` | Crea un *token* del buzón para el Atajo de iOS (un `device` de tipo `inbox`; se muestra una vez). Puede haber varios | Cookie | — |
+| `POST /api/v1/inbox` | Deja en el buzón un enlace de Steam, o un texto de ≤2 KiB que lo lleve; guarda solo el enlace canónico de la tienda y no repite un juego que ya espera (ver §11.4) | `Authorization: Bearer` | Por *token* (`RL_INBOX`, 30/min) |
+| `POST /api/v1/sync` | Sube `outbox` y baja cambios y, en la última página, los enlaces del buzón; la petición siguiente los confirma con `inboxAck` (ver §7.7) | Cookie | — |
+| `GET /api/v1/resolve/<appid>` | Nombre de un `appid` que no está en el catálogo local, con `GetItems` sin clave: `{ appid, name }` | Ninguna | Por IP (`RL_RESOLVE`, 30/min) |
 | `POST /api/v1/agenda/delete` | Borra la agenda en cascada («Borrar todos mis datos») | Cookie | — |
 
-La caché de `resolve` es una tabla de D1 (`appid`, nombre, `fetched_at`) con nombres públicos del catálogo, nunca datos de usuarios: Cloudflare solo garantiza una [Cache API](https://developers.cloudflare.com/workers/runtime-apis/cache/) funcional en dominios propios y el prototipo usa `workers.dev` (a verificar en M4).
+**`resolve`** (DECISIONES §10.40). Si Steam no conoce el `appid`, responde 200 con `name: null`, no 404: el navegador anotaría un error en la consola por cada juego que aún no existe. Un `appid` mal formado sí da 404, sin llamar a Steam. Su caché es una tabla de D1 (`resolve_cache`: `appid`, nombre y `fetched_at`) con nombres públicos del catálogo, nunca datos de usuarios, y no la [Cache API](https://developers.cloudflare.com/workers/runtime-apis/cache/): Cloudflare solo la garantiza en dominios propios y el prototipo usa `workers.dev`. Un nombre vale 30 días, y «Steam no lo conoce», 1 día. Si Steam falla, vale lo que haya en la caché aunque sea viejo; sin nada, 502 `steam_unavailable`. Solo la llaman los dispositivos que sincronizan (ver §7.3).
 
 ### 5.3 Flujos principales
 
@@ -627,24 +627,36 @@ sequenceDiagram
   end
 ```
 
-**Sincronización (M4).** Requiere un dispositivo emparejado (credencial en la §11; protocolo y `merge()` en la §7).
+**Sincronización (M4).** Requiere un dispositivo emparejado (credencial en la §11; protocolo y `merge()` en la §7). Tal como se ha construido (07-11-2026; DECISIONES §10.36 y ADR-011):
+
+- **Fachada y motor** (`apps/web/src/sync/`): la fachada va en el *chunk* inicial, sin Zod ni red; lee el indicio `__Host-ga_sync` y `meta.syncState` y da el estado a la interfaz. El motor solo se descarga si el navegador está emparejado, tras el primer pintado y en un rato ocioso, o al activar, emparejar o recuperar. Quien no sincroniza no hace ninguna petición a `/api`, no crea cookies y no descarga Zod.
+- **Disparadores** (amplían RF-26): al arrancar, al ganar el foco, al volver la red, al volver a la vista, al ocultarse (solo con `outbox`) y 2 s después de la última escritura local. Con la página oculta no hay temporizadores.
+- **Una ronda a la vez** entre pestañas, con el Web Lock `gameagenda-sync`. La `outbox` se lee y se compacta una vez por ronda y sube en lotes de 200 sin partir acciones. Cada respuesta se aplica en una transacción de Dexie; si falta `meta.syncState` (esta pestaña u otra ha desemparejado o borrado los datos), la ronda acaba sin escribir nada.
+- **Errores:** con 429, 503 `busy`, 5xx o una respuesta que no pasa Zod, espera exponencial de 5 s a 5 min, solo con la página visible. Con `sync_disabled` y los demás 4xx, solo el siguiente disparador. Un 401 deja el dispositivo desemparejado sin tocar la agenda ni la `outbox`. Tras 3 fallos seguidos sale «Sincronización fallida» (ver §9.6).
+- Las peticiones van con `referrerPolicy: 'no-referrer'`, y cada respuesta se valida con Zod.
 
 ```mermaid
 sequenceDiagram
   participant UI as Interfaz
+  participant M as Motor de sincronización
   participant DB as Dexie
   participant API as micro-API
   participant D1 as D1 (UE)
-  Note over UI: foco, red recuperada o cambio de visibilidad
-  UI->>UI: Web Lock, una sola pestaña
-  UI->>DB: outbox pendiente y última secuencia
-  UI->>API: POST /api/v1/sync con la cookie __Host-
-  API->>API: hash del token, Zod y rechazo de HLC a más de 5 min por delante
-  API->>D1: merge() de las operaciones y secuencias nuevas
-  API->>D1: cambios posteriores a la secuencia del cliente
-  API-->>UI: confirmaciones, rechazos, cambios, secuencia y hora del servidor
-  UI->>DB: merge() de los cambios, limpieza de outbox y secuencia nueva
-  UI->>UI: corrige el desfase de su HLC y resella lo rechazado por reloj
+  Note over UI,M: arranque, foco, red, vuelta a la vista, ocultarse o 2 s tras escribir
+  M->>M: Web Lock gameagenda-sync
+  M->>DB: outbox, una vez por ronda, compactada y ordenada por HLC
+  loop Lotes de 200 operaciones y páginas de 1 000 cambios
+    M->>API: POST /api/v1/sync con la cookie: ops, cursor, purgedSeq e inboxAck
+    API->>API: hash de la cookie, Zod y reloj (rechazo por acción)
+    API->>D1: seq de la agenda y filas de las entradas tocadas
+    API->>API: applyOps() de core (LWW, derivadas y reenvíos)
+    API->>D1: batch() si la seq no ha cambiado, buzón confirmado y página de cambios
+    API-->>M: cursor, purgedSeq, epoch, reset, more, serverTime, changes, rechazos e inbox
+    M->>DB: una transacción (entries, outbox y meta), solo si sigue meta.syncState
+    M->>M: corrige el desfase y vuelve a sellar lo rechazado por reloj
+  end
+  M->>UI: enlaces del buzón de la última página
+  UI->>DB: los apunta como un enlace pegado (ver §9.2)
 ```
 
 ### 5.4 Principios de diseño
@@ -743,6 +755,7 @@ Versiones exactas comprobadas en el registro de npm el 28-10-2026 (Biome y `wran
 | Ids | `uuid` (v7) | 14.0.3 | `manual:<uuidv7>` y `opId` ordenables por tiempo | UUID v4 |
 | Hosting | Cloudflare Workers Static Assets, `wrangler` | — / 4.155.0 | *Assets* gratuitos e ilimitados (ver §5.4) | Vercel Hobby, Netlify Free |
 | Micro-API (M4) | Hono + D1 en la UE | 4.13.16 / — | Mínima y hecha para Workers, sin dependencias; se prueba con `app.request()` y D1 sobre `node:sqlite`. Los tipos del entorno de Workers que usa van escritos a mano, sin `@cloudflare/workers-types` (ADR-011) | Prisma, Drizzle |
+| QR de emparejar (M4) | `uqr` | 0.1.3 | MIT y sin dependencias (comprobado en npm el 07-11-2026). Va en su propio *chunk* (3,5 KB brotli), que se descarga al pedir un código (DECISIONES §10.37) | Codificador propio: unas 400 líneas difíciles de verificar sin un decodificador |
 | Login con Steam (Fase 2) | `steam-signin` | 1.0.5 | OpenID 2.0 verificado en el servidor (ver §10) | `passport-steam` |
 | Lint y formato | Biome | 2.6.4 | Una sola herramienta, sin la API de TS | ESLint con tipos |
 | Pruebas | Vitest, fast-check, `@playwright/test` | 5.0.5 / 4.10.2 / 1.64.1 | Nativo de Vite; propiedades de `merge()`; CPU ×4 y WebKit en Windows (ver §12) | `@cloudflare/vitest-pool-workers` |
@@ -765,7 +778,7 @@ Medido el 28-10-2026 con Vite 8.3.5 (*build* de producción):
 |---|---|---|
 | Inicial | ≤150 KB | Lo necesario para pintar Mi lista y abrir la paleta |
 | Worker de búsqueda | ≤40 KB | Normalización, índice, *ranking* y códecs; sin React ni Dexie (ver §5.2) |
-| Diferidos | — | Catálogo (con `@tanstack/react-virtual`), Ajustes, exportar/importar y uFuzzy (lo importa el Worker) |
+| Diferidos | — | Catálogo (con `@tanstack/react-virtual`), Ajustes (desde M4, con los textos legales), exportar/importar y uFuzzy (lo importa el Worker); desde M4, el motor de la sincronización (5,7 KB brotli, más Zod) y el QR de emparejar. La fachada de la sincronización va en el inicial (ver §5.3) |
 
 - Quedan ≥55 KB brotli para el código propio y `workbox-window` (algo más, porque la lista virtual va en el *chunk* del Catálogo).
 - El Worker se crea con `new Worker(new URL('./search-worker/index.ts', import.meta.url), { type: 'module' })` y `vite.config` fija `worker: { format: 'es' }`: el formato por defecto de Vite, `iife`, no admite *chunks* diferidos ([`worker.format`](https://vite.dev/config/worker-options)). Así uFuzzy se carga con `import()` dentro del Worker, en un *chunk* propio que queda fuera de sus 40 KB y entra en la precaché; la puerta mide el *chunk* de entrada del Worker (comprobado con Vite 8.3.5: 32,7 KB brotli, con uFuzzy en su propio *chunk* de la precaché).
@@ -854,7 +867,8 @@ db.version(1).stores({              // Dexie 4.4.7, base 'gameagenda'
   entries: 'id, [view+rank], lastHlc, deletedAt',
   outbox: 'opId, [entryId+field]',
   settings: 'key',
-  meta: 'key', // hlcClock, catalog, searchIndex, syncCursor, backup, errorLog, copyReminder
+  meta: 'key', // hlcClock, catalog, searchIndex, syncCursor, syncState,
+               // resolveAsked, backup, errorLog, copyReminder…
 });
 ```
 
@@ -888,6 +902,10 @@ interface Entry {
 - `navigator.storage.persist()` en la primera escritura; antes de migrar o importar, copia JSON en `meta.backup`.
 - `meta.errorLog`: búfer circular con los 100 últimos errores, sin datos personales (ver §12.7); se exporta en JSON desde Ajustes › Datos a partir de M1 y, desde M3, también desde el panel de rendimiento.
 - `meta.copyReminder` (desde M1): `{lastCopy, since, snoozedUntil}` en ms, para el aviso de copia de la §9.6 (RNF-08). Es de este dispositivo y no va en la copia exportada.
+- **Sincronización (M4; DECISIONES §10.36 y §10.43).** Las tres claves son de este dispositivo y no van en la copia exportada:
+  - `meta.syncCursor`: `{cursor, purgedSeq, reset, maxSeen, epoch}`. El motor la escribe en la misma transacción en que aplica cada página (ver §7.7).
+  - `meta.syncState`: el emparejamiento visto desde este navegador (`deviceId`, `restore`, `lastSyncAt`, `lastError`, `unpairedBy`). Sin ella y sin el indicio `__Host-ga_sync`, la sincronización está apagada; con el indicio y sin ella, la app restaura la agenda (CA4.3). Solo cambia con `updateRecord()`, que lee y escribe en una transacción a partir de lo guardado, y no se vuelve a crear salvo tras una ronda buena con el indicio puesto: así, una ronda que acaba después de desemparejar o de borrar los datos no deja un estado nuevo.
+  - `meta.resolveAsked`: `{ "<appid>": ms }`, cuándo se preguntó a `resolve` por cada juego, con los 2 000 más recientes como mucho (ver §7.3).
 
 ### 7.3 Identificadores naturales y vinculación
 
@@ -895,7 +913,12 @@ Formatos: `steam:<appid>` (catálogo o provisional; Zod: `^steam:[1-9][0-9]{0,9}
 
 - **El `id` es el juego y nunca cambia.** Un id derivado de otro campo (UUIDv5 de `game_id`) deja de corresponder al juego si una fusión reescribe ese campo, y se duplican filas o se atasca la sincronización. Con ids naturales, dos dispositivos que apuntan el mismo juego sin conexión producen la misma fila.
 - **Solo se construye en TypeScript** (`steamEntryId(appid)` exige `Number.isSafeInteger(appid) && appid > 0`): `node:sqlite` enlaza los `number` como REAL (comprobado el 28-10-2026) y [D1 puede hacerlo](https://developers.cloudflare.com/d1/worker-api/), así que en SQL `'steam:' || ?` daría `'steam:730.0'` (el `CHECK` de §7.7 lo rechaza).
-- **Provisional**: `steam:<appid>` con `title` del *slug*; se resuelve sin cambiar de id cuando el catálogo local trae el `appid` o, en M4, con `/api/v1/resolve/<appid>`.
+- **Provisional**: `steam:<appid>` con `title` del *slug*; se resuelve sin cambiar de id cuando el catálogo local trae el `appid` o, desde M4 y solo si este dispositivo sincroniza, con `/api/v1/resolve/<appid>` (decisión del usuario del 08-11-2026; DECISIONES §10.40 y §10.43):
+  - pregunta `catalog-refresh.ts`, con la sincronización emparejada o restaurándose (`canResolve`), y al pasar a uno de esos estados pregunta lo que esperaba. Sin sincronizar, el provisional espera al catálogo y no hay ninguna petición a `/api`;
+  - solo por lo que no está en el catálogo entero (`scan` o `full`; en `boot` puede estar en el núcleo), de uno en uno, también por lo que se apunta después (enlace pegado, buzón u otro dispositivo), 50 ms después de que la agenda crezca;
+  - cada juego, como mucho una vez cada 7 días, también entre sesiones (`meta.resolveAsked`, ver §7.2). Lo quitado de la lista ya no se pregunta;
+  - con un nombre, `refreshFromCatalog` lo pone y se sincroniza como cualquier cambio de título; con `name: null`, se queda provisional;
+  - sin red, espera a `online`; con 429, otro 5xx o una respuesta rara, todo espera 1 minuto, y con 503 `sync_disabled`, 1 hora; con 502 `steam_unavailable`, solo ese juego espera 1 minuto.
 - **Vincular** el manual M con T = `steam:<appid>` es una acción explícita con una HLC *h*. T recibe los campos de usuario de M (todos salvo `title`, `cover`, `deletedAt` y `mergedInto`) con su valor y su HLC originales, y LWW decide campo a campo; con *h*, `deletedAt = null`, `title` y `cover` del catálogo y, si ambas notas tienen texto, su concatenación. M recibe `deletedAt` y `mergedInto = T` con *h*; lo que llegue después para M se reenvía a T (§7.4). Solo se propone si el título normalizado (ver §8) coincide con un único juego («Hades» ≠ «Hades II»).
 
 ### 7.4 HLC por campo, `outbox` y `merge()`
@@ -905,7 +928,13 @@ Formatos: `steam:<appid>` (catálogo o provisional; Zod: `^steam:[1-9][0-9]{0,9}
 ^\d{13}-[0-9a-f]{4}-[0-9a-z]{8}$  ms desde 1970 · contador hex · nodo
 ```
 
-Con 27 caracteres fijos, la [HLC](https://cse.buffalo.edu/tech-reports/2014-04.pdf) se compara como texto (también en SQLite). Nodo: 8 caracteres aleatorios por sesión (uno por pestaña). Evento local: `ms = max(ms, Date.now() + desfase)` y, si no avanza, contador + 1 (tras `ffff`, ms + 1); el desfase vale 0 hasta M4. Al recibir, algoritmo estándar. La micro-API rechaza las HLC más de 5 min por delante de su reloj, y la importación, las que van más de 5 min por delante de `Date.now() + desfase`. Cada respuesta de `sync` trae la hora del servidor (`serverTime`): con ella el cliente recalcula el desfase, corrige la parte física de su HLC (si iba más de 5 min por delante, la baja a la hora corregida) y sella de nuevo las operaciones rechazadas. Reloj y desfase se guardan en `meta.hlcClock`.
+Con 27 caracteres fijos, la [HLC](https://cse.buffalo.edu/tech-reports/2014-04.pdf) se compara como texto (también en SQLite). Nodo: 8 caracteres aleatorios por sesión (uno por pestaña). Evento local: `ms = max(ms, Date.now() + desfase)` y, si no avanza, contador + 1 (tras `ffff`, ms + 1); el desfase vale 0 hasta M4. Al recibir, algoritmo estándar. La micro-API rechaza las HLC más de 5 min por delante de su reloj, y la importación, las que van más de 5 min por delante de `Date.now() + desfase`. Cada respuesta de `sync` trae la hora del servidor (`serverTime`), y con ella el cliente (DECISIONES §10.36):
+
+- calcula el desfase como `serverTime − (envío + recepción) / 2`, y solo lo cambia si la diferencia supera max(500 ms, media ida y vuelta);
+- lo aplica con `HlcClock.setOffset()`, que baja la parte física si iba más de 5 min por delante. Entonces el reloj recibe la mayor `lastHlc` legítima de la agenda (≤ ahora + desfase + 5 min, con el índice `lastHlc`);
+- vuelve a sellar las acciones rechazadas por `clock` y todas las de la `outbox` que van más de 5 min por delante, en el orden de su HLC vieja y con HLC nuevas por delante de la mayor vista del servidor (`meta.syncCursor.maxSeen`) y de lo legítimo de sus entradas. Se conserva el `opId`.
+
+Reloj y desfase se guardan en `meta.hlcClock`, con la instantánea tomada al escribir y dentro de la transacción. No se comparte el desfase entre pestañas: cada una lo corrige en su primera ronda.
 
 **Operación de `outbox`**: `{ opId, entryId, field, value, hlc }` (`opId` en uuidv7; `field`, p. ej. `'flags.owned'`; `value` en JSON). Cada acción es una transacción de Dexie que actualiza la entrada y añade sus operaciones, **todas con la misma HLC**; Deshacer es otra acción. Aplicar es conmutativo e idempotente, sin claves foráneas: una operación de una entrada desconocida crea un esqueleto (invisible sin `status` y `title`), así que el orden de llegada da igual: no hay padres que deban ir antes que sus hijos. La `outbox` se compacta por (`entryId`, `field`); un lote nunca parte una acción.
 
@@ -941,7 +970,7 @@ function merge(prev: Entry | undefined, ops: Op[]) {   // packages/core
 - **Reenvío de un manual vinculado:** cuando `mergedInto` cambia en esa fusión, se reenvía al destino el estado actual de todos los campos de usuario del manual, no solo las operaciones del lote. También se reenvía la derivada de Platinado. Con el reenvío de solo el lote, el resultado en el destino dependía de si las operaciones del manual llegaban antes o después de la vinculación. `applyOps()` sigue las derivadas entre entradas hasta 8 saltos (ADR-004).
 
 - «Marcar Platinado» escribe siempre `status` con la HLC de la marca, aunque ya fuera Completado: con datos completos la reparación no cambia nada y, con datos incompletos (lote partido, copia antigua), todas las réplicas derivan la misma operación. Un cambio de estado posterior gana y no quita Platinado. Las fechas no se reparan: sería inventarlas. Pruebas de propiedades: ver §12.
-- **Lápidas**: borrar es `deletedAt = <instante>` y conserva el resto. Un cambio concurrente no resucita la entrada; solo lo hace `deletedAt = null`. Deshacer un «Quitar» escribe solo eso y la recupera tal como estaba; apuntarla de nuevo es una acción que escribe además los valores por defecto de todos los campos de usuario (`want_to_play`, cada marca a `false`, fechas vacías salvo `addedAt` = hoy, `note` y `platform` vacíos y `rank` al final): empieza de cero. No se purgan antes de M4.
+- **Lápidas**: borrar es `deletedAt = <instante>` y conserva el resto. Un cambio concurrente no resucita la entrada; solo lo hace `deletedAt = null`. Deshacer un «Quitar» escribe solo eso y la recupera tal como estaba; apuntarla de nuevo es una acción que escribe además los valores por defecto de todos los campos de usuario (`want_to_play`, cada marca a `false`, fechas vacías salvo `addedAt` = hoy, `note` y `platform` vacíos y `rank` al final): empieza de cero. El dispositivo no las purga por su cuenta: desde M4, la purga semanal de D1 le llega con un *reset* (ver §7.7).
 - **Fechas parciales**: validar solo la forma acepta `'2019-02-30'`, así que Zod exige además que la fecha exista (ida y vuelta por `Date.UTC`, años 1900–2100): acepta `'2019'`, `'2019-05'` y `'2020-02-29'`; rechaza `'2019-00'` y `'2019-02-29'`.
 
 ### 7.5 Exportación e importación
@@ -1013,13 +1042,16 @@ IndexedDB guarda `meta.catalog` (`{version, checkedAt}`: la versión cuyo *manif
 
 ### 7.7 Esquema de D1 (M4)
 
-D1 en la jurisdicción UE; cada `*_hash` (tokens y código de recuperación) es el SHA-256 de un secreto aleatorio de ≥128 bits. El esquema vigente es `apps/web/worker/migrations/0001_inicial.sql`; respecto al primer borrador, lleva `created_at`, `label` y `last_seen_at` para la lista de dispositivos, `recovery_hash` único, índices para las cascadas y `write_id` para la concurrencia optimista de `sync`, y no tiene `revoked_at` ni `used_at`: revocar y canjear borran la fila (ADR-011).
+D1 en la jurisdicción UE; cada `*_hash` (tokens y código de recuperación) es el SHA-256 de un secreto aleatorio de ≥128 bits. El esquema vigente es `apps/web/worker/migrations/0001_inicial.sql`; respecto al primer borrador, lleva `created_at`, `label` y `last_seen_at` para la lista de dispositivos, `recovery_hash` único, índices para las cascadas y `write_id` para la concurrencia optimista de `sync`, y no tiene `revoked_at` ni `used_at`: revocar y canjear borran la fila (ADR-011). `0002_epoca.sql` (07-11-2026) añade `agenda.epoch` y se la da a las agendas que ya había; hay que aplicarla antes de desplegar el Worker que la lee.
 
 ```sql
 CREATE TABLE agenda (id TEXT PRIMARY KEY, seq INTEGER NOT NULL DEFAULT 0,
   purged_seq INTEGER NOT NULL DEFAULT 0, write_id TEXT NOT NULL DEFAULT '',
   recovery_hash TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL,
   last_sync_at TEXT NOT NULL) STRICT;  -- en cada sync; retención (§11.2)
+-- 0002_epoca.sql: época de la agenda (ver abajo)
+ALTER TABLE agenda ADD COLUMN epoch TEXT NOT NULL DEFAULT '';
+UPDATE agenda SET epoch = lower(hex(randomblob(8))) WHERE epoch = '';
 CREATE TABLE device (id TEXT PRIMARY KEY,
   agenda_id TEXT NOT NULL REFERENCES agenda (id) ON DELETE CASCADE,
   kind TEXT NOT NULL CHECK (kind IN ('app', 'inbox')), -- inbox: Atajo de iOS
@@ -1041,7 +1073,8 @@ CREATE TABLE inbox_item (id TEXT PRIMARY KEY, url TEXT NOT NULL,  -- buzón
   created_at TEXT NOT NULL) STRICT;
 -- Y un índice por agenda_id en device, pairing_token e inbox_item.
 CREATE TABLE resolve_cache (appid INTEGER PRIMARY KEY,  -- datos públicos
-  name TEXT NOT NULL, fetched_at TEXT NOT NULL) STRICT;
+  name TEXT NOT NULL,                   -- '': Steam no lo conoce (1 día)
+  fetched_at TEXT NOT NULL) STRICT;
 ```
 
 **Sincronización** (`POST /api/v1/sync`, flujo en la §5; ADR-011): lotes de hasta 200 operaciones (`SYNC_BATCH_SIZE`), sin partir acciones. El servidor decide el LWW con la misma `applyOps()` de `core` que la app, no en SQL: lee en una transacción la `seq` de la agenda y las filas de las entradas tocadas, reconstruye cada entrada, le aplica el lote (con las derivadas y los reenvíos) y escribe las filas que cambian. En SQL, el desempate por valor compararía UTF-8, y en JavaScript se compara UTF-16. La escritura reserva *n* secuencias con concurrencia optimista ([JSON](https://developers.cloudflare.com/d1/sql-api/query-json/)):
@@ -1057,11 +1090,16 @@ ON CONFLICT (agenda_id, entry_id, field) DO UPDATE
   SET value = excluded.value, hlc = excluded.hlc, seq = excluded.seq;
 ```
 
-- D1 ejecuta los `batch()` [en serie y de forma atómica](https://developers.cloudflare.com/d1/worker-api/d1-database/): nadie ve la secuencia N+1 sin la N. Si otro dispositivo escribió entre la lectura y la escritura, `write_id` ya no es el suyo, no se escribe nada y se repite (hasta 3 veces; después, 503 `busy`). Un reenvío a otra entrada lee sus filas y repite el cálculo, hasta 8 saltos. Son 3 consultas por petición, y una más por salto, frente a las [50 por invocación](https://developers.cloudflare.com/d1/platform/limits/) del plan gratuito (cada `batch()` cuenta como una; verificado el 28-10-2026). Al emparejarse, un dispositivo sube todas sus entradas.
+- D1 ejecuta los `batch()` [en serie y de forma atómica](https://developers.cloudflare.com/d1/worker-api/d1-database/): nadie ve la secuencia N+1 sin la N. Si otro dispositivo escribió entre la lectura y la escritura, `write_id` ya no es el suyo, no se escribe nada y se repite (hasta 3 veces; después, 503 `busy`). Un reenvío a otra entrada lee sus filas y repite el cálculo, hasta 8 saltos. Son 3 consultas por petición, y una más por salto, frente a las [50 por invocación](https://developers.cloudflare.com/d1/platform/limits/) del plan gratuito (cada `batch()` cuenta como una; verificado el 28-10-2026).
+- **Unirse** (activar, emparejar o recuperar) y volver a subirlo todo usan `uploadOf()` de `core`, con el corte de la purga de D1 (`purgeCutoff(ahora + desfase)`): lo no purgable sube entero, una lápida de más de 90 días sube solo `deletedAt` y, si lo tiene, `mergedInto`, y un esqueleto de más de 90 días no sube nada. En local quedan como quedarán en el servidor. Antes, activar subía a D1 lápidas viejas con todo su contenido, nota incluida (DECISIONES §10.36).
 - `value` es el JSON canónico (`canon()`). Cada operación pasa por Zod (estricto) y por el reloj; si una no vale, se rechazan con ella todas las de su HLC (`invalid`, se descartan), y las que van más de 5 min por delante, como `clock` (el cliente las vuelve a sellar: ver §7.4).
-- La petición lleva `cursor` y el `purgedSeq` de la última respuesta. La respuesta trae `cursor`, `purgedSeq`, `reset`, `more`, `serverTime` (ms UTC), las filas de `op` con `seq` mayor que el cursor (1 000 por página, también las propias), las operaciones aceptadas y las rechazadas. Más adelante, a los dispositivos `app`, también los enlaces del buzón: el cliente los apunta como un enlace pegado y los confirma en la llamada siguiente. Las páginas se aplican en una transacción y el cursor va a `meta.syncCursor`.
-- **Mantenimiento** (Cron Trigger diario a las 03:17 UTC, un `batch()`): los *tokens* caducados y las agendas sin sincronizar en 13 meses; los lunes, la purga semanal: `purged_seq` pasa a la mayor `seq` de las entradas con `deletedAt` (o esqueletos) de más de 90 días, se borran sus filas y la `seq` sube 1. Los clientes purgan igual sus lápidas sincronizadas.
-- **Cliente atrasado** (`0 < cursor < purged_seq`, y su `purgedSeq` es anterior): recibe `reset: true`; tras subir su `outbox` en esa llamada, baja el estado completo desde 0 y borra las entradas que el servidor no tiene y que no están en su `outbox`: una copia vieja no resucita lo borrado. Las páginas siguientes llevan el `purgedSeq` nuevo y ya no son *reset*. Un cursor por delante del servidor (D1 vuelto atrás con Time Travel) también baja desde 0, y el cliente, al ver un cursor menor, vuelve a subirlo todo.
+- La petición lleva `cursor`, el `purgedSeq` de la última respuesta y, si hace falta, `inboxAck`. La respuesta trae `cursor`, `purgedSeq`, `epoch`, `reset`, `more`, `serverTime` (ms UTC), las filas de `op` con `seq` mayor que el cursor (1 000 por página, también las propias), las operaciones aceptadas, las rechazadas y, en la última página, `inbox`. Cada página se aplica en una transacción de Dexie (`entries`, `outbox` y `meta`), y el cursor va a `meta.syncCursor`.
+- **Buzón** (DECISIONES §10.39 y §10.43): `inbox` (`{ id, url }`, 50 como mucho, por orden de llegada) solo va en la última página (`more: false`): con más páginas, la app aún no sabe si el juego ya está en la agenda, y apuntarlo pisaría su estado. Con todo bajado (sin otra época ni un *reset* en marcha), la app confirma sin apuntar lo que ya está vivo en IndexedDB, también lo que ha traído esa misma página. Lo demás lo apunta la agenda de la pestaña, fuera de la transacción, como un enlace pegado (`links/inbox-capture.ts`, ver §9.2). La petición siguiente confirma con `inboxAck` (200 ids como mucho) lo que está vivo y lo que no es un enlace de Steam, y el mismo `batch()` los borra, solo los de esa agenda. Lo que no se ha guardado vuelve en la ronda siguiente; una pestaña sin agenda no confirma nada de Steam.
+- **Mantenimiento** (Cron Trigger diario a las 03:17 UTC, un `batch()`): los *tokens* caducados y las agendas sin sincronizar en 13 meses; los lunes, la purga semanal de las entradas con `deletedAt` (o esqueletos) de más de 90 días. En cada agenda con algo purgado se borran sus filas, la `seq` sube 1 y `purged_seq` pasa a ser esa `seq` nueva; una agenda sin nada que purgar no cambia. Así, toda app que sincronizó antes de la purga recibe `reset` en su siguiente `sync` y queda igual que D1, lápidas incluidas. Cuesta un *reset* por dispositivo cada semana en que su agenda purga algo: con 1 000 juegos, unas 15 000 filas leídas, frente a 5 M al día de cuota gratuita.
+- **La app no purga por su cuenta** (DECISIONES §10.36). La primera versión purgaba sus lápidas una vez al día, con su propio calendario, y una escritura vieja subida tras una purga dejaba réplicas distintas para siempre. Ahora la purga solo llega de D1, con el *reset*.
+- ***Reset*** (`0 < cursor ≤ seq`, `cursor < purged_seq` y la app no ha visto esa purga: `purgedSeq < purged_seq`): la respuesta lleva `reset: true` y la app baja el estado completo desde 0. Mientras dura, las peticiones van con `ops: []` y los cambios se acumulan en memoria; todo se aplica en la transacción de la última página: cada entrada vista se reconstruye con lo pendiente en su `outbox` más lo del servidor, y las no vistas se borran o se quedan solo con lo pendiente. Una copia vieja no resucita lo borrado, y un *reset* cortado deja lo local como estaba. Las páginas siguientes llevan el `purgedSeq` nuevo y ya no son *reset*; las que avanzan no cuentan para el tope de 100 peticiones por ronda. Después, la ronda sigue subiendo la `outbox`.
+- **D1 vuelto atrás** (un restore con Time Travel): si el cursor de la petición va por delante de la `seq`, el servidor no escribe el lote (`accepted: []`) y baja desde 0. La app, al ver un cursor menor que el enviado, vuelve a subirlo todo en la misma transacción. Con varios dispositivos no basta: otro puede escribir hasta que la `seq` alcance el cursor.
+- **Época** (`agenda.epoch`): 16 cifras hexadecimales aleatorias, creadas con la agenda y enviadas en cada respuesta. La app la guarda en `meta.syncCursor.epoch`; si llega otra, en la misma transacción fusiona la página, vuelve a subirlo todo y pone el cursor a 0 sin *reset*. El *runbook* del restore cambia la época de todas las agendas (`UPDATE agenda SET epoch = lower(hex(randomblob(8)))`), así que nada de lo que el restore perdió se queda fuera (ADR-011).
 
 ### 7.8 Volumen de datos y minimización
 
@@ -1072,7 +1110,7 @@ ON CONFLICT (agenda_id, entry_id, field) DO UPDATE
 | Red | *manifest*, `recent` (≈52 KB al día con brotli) y el índice de *shards* (≈9 KB, si cambió); núcleo, como mucho semanal |
 | D1 (M4) | ≈2–3 KB por entrada (9–13 filas): ≈2–3 MB por agenda de 1 000 juegos (500 MB por base gratuita) |
 
-Solo se guarda lo que el usuario apunta, sin email, nombre, IP ni identificador del hardware. En D1 solo hay agenda, *hashes* de tokens y la caché de `resolve` (ver §5.2), con nombres públicos del catálogo y ningún dato personal; las notas solo salen del dispositivo con la sincronización (ver §11). «Borrar todos mis datos» vacía Dexie y Cache Storage y, en M4, la agenda en cascada (retención: ver §11).
+Solo se guarda lo que el usuario apunta, sin email, nombre, IP ni identificador del hardware. En D1 solo hay agenda, *hashes* de tokens, los enlaces del buzón hasta que se apuntan y la caché de `resolve` (ver §5.2), con nombres públicos del catálogo y ningún dato personal; las notas solo salen del dispositivo con la sincronización (ver §11). «Borrar todos mis datos» vacía Dexie y Cache Storage y, en M4, la agenda en cascada (retención: ver §11).
 
 ## 8. Búsqueda instantánea
 
@@ -1300,14 +1338,29 @@ Todo gira alrededor de **apuntar un juego en segundos**, en el móvil o en el PC
 | **Ajustes** | `/ajustes` | M1 |
 | Selector de estado y marcas, alta manual y avisos | — | M1 |
 | Destino de «Compartir» | `/share` | M3 |
+| Enlace del QR para emparejar | `/emparejar#<código>`, que pasa a `/ajustes/sincronizacion` | M4 |
+| Política de privacidad · aviso legal y condiciones de uso | `/privacidad` · `/aviso-legal` | M4 |
 
 - **Navegación** (desde el 06-11-2026; DECISIONES §10.33):
   - **PC:** una barra lateral de altura completa, como Linear o Notion. Arriba lleva la marca, el botón de encoger y «Más opciones», con «Apunta un juego… Ctrl+K» debajo; luego, las secciones. Debajo de las secciones van las vistas de Mi lista con su contador, que en el PC sustituyen a las pestañas de vista mientras la barra está desplegada; luego, «Jugando ahora» y «A continuación» con portadas, y un pie con los atajos y el catálogo. Se encoge a un riel de iconos de 64 px, con los nombres al pasar el puntero, y lo recuerda (`sidebarCollapsed`).
   - **Móvil:** cabecera arriba y, abajo, una cápsula flotante con las tres secciones y el buscador como botón redondo aparte, como las apps de iOS 26. En Catálogo, el filtro va arriba; en la ficha y en Ajustes, botón `(+)`. Puntos de corte en 768 y 1 280 px, sin desplazamiento horizontal a 320 px. Vista, filtros y orden van en la URL y en `settings` (enrutador propio, ver §6).
 - **Mi lista:** «Pendientes» = Jugando ahora → A continuación (marca Próximo con estado Quiero jugar o En pausa) → Quiero jugar (por `rank`; lo nuevo, al final) → En pausa (plegada). Otras vistas: Próximos (M2), una por estado y Todos. Filtros de compra («Comprados» y «Por comprar», ver §3.3) y de texto. Orden: prioridad (el único con secciones y reordenación), fecha de apuntado, lanzamiento (M2) o nombre. Por lanzamiento va de lo más antiguo a lo más nuevo; después, «Por confirmar» y, al final, lo que no tiene datos, como los juegos manuales. Mientras llegan las fechas, la lista muestra un esqueleto para que nada se reordene bajo el cursor. En Próximos no sale el menú de orden.
 - **Catálogo:** en M1, contador de lo visible (+18 oculto, sin DLC), filtro de texto y `(+)` en cada fila; chips, lanzamiento, años, «Ocultar los de mi lista» y orden son deseables en M2 (solo necesitan el núcleo y Mi lista). Los retirados van al final y «Filtrar el catálogo…» nunca apunta con `Intro`. Desde el 02-11-2026, sus filas llevan portada, como Mi lista, pero solo piden sus detalles con el desplazamiento parado (150 ms sin moverse), para no pedir un *shard* por cada fila que pasa de largo (`DECISIONES.md` §10.22). Altura: 196 577 × 72 px ≈ 14,2 Mpx, bajo el límite de Firefox (≈17,9 Mpx, **a verificar en M1**).
-- **Ficha:** en M1, núcleo y campos de la entrada (ver §3); en M2, portada, fecha o «Por confirmar» con cuenta atrás, reseñas, plataformas y Steam Deck (sin detalles, la de M1). Las reseñas usan las etiquetas en español de la tienda de Steam para `score` 1–9; con 0, «Sin reseñas» o «N reseñas». Steam Deck 0 es «Desconocido». Manual: «Vincular» si hay una única coincidencia exacta (nunca automático). Provisional: insignia hasta que lo resuelve el catálogo o, en M4, la micro-API.
-- **Ajustes:** M1, Apariencia, Contenido (+18), Teclado (solo desactivar el atajo `/` de la paleta), Datos (exportar JSON y CSV, importar, «Exportar registro de errores» —`meta.errorLog`, ver §7.2— y borrar todo) y Acerca de; M2, la edad del catálogo y «Actualizar catálogo» en Datos, y Privacidad, con «Cargar portadas» (activado por defecto) y «Datos de Steam que guardamos» (ver §11); M3, el resto de Teclado y gestos («Gestos táctiles», ver §9.4) y Rendimiento (el panel de la §12.7); M4, Sincronización (emparejar, recuperación y Atajo de iOS).
+- **Ficha:** en M1, núcleo y campos de la entrada (ver §3); en M2, portada, fecha o «Por confirmar» con cuenta atrás, reseñas, plataformas y Steam Deck (sin detalles, la de M1). Las reseñas usan las etiquetas en español de la tienda de Steam para `score` 1–9; con 0, «Sin reseñas» o «N reseñas». Steam Deck 0 es «Desconocido». Manual: «Vincular» si hay una única coincidencia exacta (nunca automático). Provisional: insignia hasta que lo resuelve el catálogo o, en M4 y si el dispositivo sincroniza, la micro-API (ver §7.3).
+- **Ajustes:** M1, Apariencia, Contenido (+18), Teclado (solo desactivar el atajo `/` de la paleta), Datos (exportar JSON y CSV, importar, «Exportar registro de errores» —`meta.errorLog`, ver §7.2— y borrar todo) y Acerca de; M2, la edad del catálogo y «Actualizar catálogo» en Datos, y Privacidad, con «Cargar portadas» (activado por defecto) y «Datos de Steam que guardamos» (ver §11); M3, el resto de Teclado y gestos («Gestos táctiles», ver §9.4) y Rendimiento (el panel de la §12.7); M4, Sincronización (emparejar, recuperación y Atajo de iOS) y los enlaces a los textos legales: a la política, en «Datos de Steam que guardamos», y a los dos, en Acerca de.
+- **Ajustes › Sincronización tal como se ha construido (07 y 08-11-2026; DECISIONES §10.37, §10.39 y §10.41):**
+  - **Sección** `/ajustes/sincronizacion`, entre Privacidad y Rendimiento, en el *chunk* de Ajustes y sin Zod. Tiene cuatro vistas:
+    - **sin sincronizar:** qué se guarda y dónde, el aviso de las dos cookies, la primera capa de los textos legales, el nombre del dispositivo ya escrito («Chrome en Windows»; «App de escritorio» en la app de Tauri), la casilla de edad y «Activar sincronización». Aparte, «Emparejar este dispositivo» y «Usar código de recuperación»;
+    - **código de recuperación:** se ve una sola vez, en grupos de 4 y monoespaciado, con «Copiar» y «Ya lo he guardado»;
+    - **emparejada:** el estado, con «Sincronizar ahora» y los juegos pendientes; «Emparejar otro dispositivo»; «Dispositivos», con «Desemparejar» y la confirmación en el sitio; «Atajo de iOS»; «Código de recuperación nuevo» y «Desemparejar este dispositivo»;
+    - **desemparejada:** dice por qué (el servidor o las cookies) y ofrece el código de recuperación o «Dejar de sincronizar». Lleva el mismo aviso de las cookies y la misma primera capa, porque canjear un código vuelve a crearlas.
+  - **Emparejar otro dispositivo:** código de 10 min en texto y en QR (`<origen>/emparejar#código`, con `uqr`; ver §6), con cuenta atrás, «Otro código» y «Ocultar el código». La cuenta atrás va con el plazo local (envío + 10 min), no con el `expiresAt` del servidor: con el reloj adelantado, el código salía caducado. Mientras se ve, mira la lista cada 5 s y avisa ««X» ya está emparejado.». En un iPhone con la app en la pantalla de inicio hay que escribir el código: la cámara abre Safari, que guarda sus datos aparte.
+  - **`/emparejar#código`:** el código sale de la URL antes de pintar y el campo llega relleno, con el foco en «Emparejar este dispositivo». Nunca se canjea solo.
+  - **Atajo de iOS** (entre «Dispositivos» y el código de recuperación): el nombre (`Atajo de iOS` por defecto) y «Crear un token para el atajo». Después, una sola vez, la dirección (`<origen>/api/v1/inbox`) y el valor del encabezado (`Bearer …`), cada uno con «Copiar», y los 7 pasos para crear el atajo en la app Atajos. «Ya he creado el atajo» lo oculta. Los pasos están **a verificar en el iPhone**.
+  - **Textos legales:** la primera capa (`[data-sync-legal]`) va junto a «Activar sincronización», «Emparejar este dispositivo» y «Usar código de recuperación», con el enlace a `/privacidad`. Las dos pantallas pintan los textos como texto, en el *chunk* de Ajustes (ver §11.2).
+  - **«Borrar todos mis datos» con la sincronización activada:** primero borra la agenda del servidor y después la local. Si lo del servidor falla, no borra nada y lo dice en un `role="alert"`; con un 401, tampoco, y el dispositivo pasa a desemparejado. Desemparejado, borra solo lo local y explica cómo borrar la agenda del servidor.
+  - **Último dispositivo:** si no queda otro dispositivo `app` (el Atajo no cuenta), la confirmación de «Desemparejar este dispositivo» avisa de que la copia se queda en el servidor y de cómo borrarla.
+  - **Foco y anuncios:** el foco sigue a cada cambio de vista, también al de un 401. La línea de estado es `role="status"`: se ve «Sincronizado hace 5 minutos.» y el lector oye «Sincronizado a las 18:42.», que no cambia hasta otra ronda. Los botones ocupados llevan `aria-disabled`, no `disabled`, que manda el foco al `body`. La línea de pendientes y la lista de dispositivos tienen su hueco reservado (§9.5, regla 3).
 
 ### 9.2 Flujos con recuento de pasos
 
@@ -1332,13 +1385,18 @@ Todo gira alrededor de **apuntar un juego en segundos**, en el móvil o en el PC
 - **Paleta:** hasta 8 resultados en una sola lista (orden e `Intro`: ver §8), con «En tu lista: `<estado>`» si ya están. Si no bastan, debajo va el bloque «¿Quizás buscabas…?» con hasta 3 sugerencias (ver §8.4). La fila «Apuntar “…” a mano» va siempre al final. `Intro` apunta al final de Quiero jugar (o abre la ficha si ya está) y devuelve el foco. Sin catálogo cargado (estado `none`, ver §8.8), busca en Mi lista y no resalta la fila manual; en `boot` (M3, la primera visita), en los 20 000 juegos más populares, con aviso (ver §9.6); desde `scan`, ya busca en todo el catálogo.
 - **Móvil:** campo siempre montado y `focus()` síncrono en el toque (o iOS no abre el teclado); `autocomplete`, `autocorrect` y `autocapitalize` en `off`, `spellcheck="false"`, `enterkeyhint="go"` y letra ≥16 px. Tocar la fila (≥56 px) apunta.
 - **Enlaces:** `store.steampowered.com/app/<appid>[/<slug>]`, `s.team/a/<appid>`, `steamcommunity.com/app/<appid>`, `steam://store/<appid>`, `steamdb.info/app/<appid>` y `appid:730`. El chip y `Ctrl+V` fuera de la paleta (M3) apuntan directamente; un `appid` desconocido queda como juego provisional con el título del *slug* o, si no lo hay (solo lo trae la tienda), «Juego de Steam `<appid>`», que se sustituye al resolverse. El parser de `packages/core` tiene vectores de prueba de los seis formatos (el de la tienda, con y sin *slug*).
-- **Fuera de la app:** `share_target` (GET a `/share` con `title`, `text` y `url`) apunta y deja `/` en el historial; sin enlace, abre la paleta con el texto (envío en `text` desde la app de Steam: **a verificar en M3**). Acceso directo «Apuntar juego» → `/apuntar`. El Atajo de iOS manda el enlace al buzón con un *token* revocable (ver §5; **a verificar en M4**). En Windows, `Win+1` abre la PWA anclada y, desde M3, la app de escritorio se pone delante con `Ctrl+Mayús+Espacio` desde cualquier aplicación; desde el 06-11-2026 no abre la paleta, que se abre con `Ctrl+K` (ver §17.3 y DECISIONES §10.32).
+- **Fuera de la app:** `share_target` (GET a `/share` con `title`, `text` y `url`) apunta y deja `/` en el historial; sin enlace, abre la paleta con el texto (envío en `text` desde la app de Steam: **a verificar en M3**). Acceso directo «Apuntar juego» → `/apuntar`. El Atajo de iOS manda el enlace al buzón con un *token* revocable (ver §5.2 y abajo). En Windows, `Win+1` abre la PWA anclada y, desde M3, la app de escritorio se pone delante con `Ctrl+Mayús+Espacio` desde cualquier aplicación; desde el 06-11-2026 no abre la paleta, que se abre con `Ctrl+K` (ver §17.3 y DECISIONES §10.32).
 - **Captura de M3 tal como se ha construido (02-11-2026; `DECISIONES.md` §10.26):**
   - **`/share`** busca un enlace de Steam en `url`, `text` y `title`, por ese orden: la app de Steam lo manda dentro de `text`, con más texto alrededor. Si lo hay, lo apunta con su aviso y Deshacer y cambia la entrada del historial por `/`; si no, abre la paleta con el texto ya buscado.
   - **`Ctrl+V`** apunta el enlace con el evento `paste`, sin pedir permiso para leer el portapapeles. Solo actúa fuera de los campos de texto, los menús y los diálogos; en un campo se pega como siempre, y un texto sin enlace no hace nada.
   - **Chip «Pegar enlace»:** va en la paleta vacía, solo con el dedo (`pointer: coarse`). Lee el portapapeles (en iOS, con el «Pegar» del sistema) y apunta el enlace. Si no hay enlace o no se puede leer, lo dice junto al campo.
   - **Los tres**, como Intro sobre un enlace en la paleta: esperan al catálogo local como mucho 500 ms para el título; si no llega o el juego no está, queda provisional.
   - **El acceso directo «Apuntar juego»** (`/apuntar`) ya estaba desde la app de escritorio: abre la paleta con el foco.
+- **Captura con el Atajo de iOS tal como se ha construido (08-11-2026; DECISIONES §10.39; CA4.5):**
+  - **El atajo** sale en la hoja de compartir con URL y texto, hace `POST /api/v1/inbox` con el *token* en `Authorization` y el JSON `{ "url": … }`, y enseña en una notificación el `message` de la respuesta (los pasos, en Ajustes › Sincronización: ver §9.1).
+  - **El enlace espera en D1** hasta la siguiente sincronización de cualquier app de la agenda. Con todo bajado, la agenda de la pestaña lo apunta como un enlace pegado: en Quiero jugar, sin tocar lo que ya está en la lista (una lápida vuelve). Como los demás, espera al catálogo local 500 ms para el título; si no llega, queda provisional con el del *slug*, y `resolve` le pone el nombre (ver §7.3).
+  - **El aviso de la app** dice qué ha llegado («Hemos apuntado «Hades» desde el Atajo de iOS.»), si no tapa otro.
+  - **A verificar en el iPhone:** los pasos, que el Atajo no envía `Origin` (si lo enviara, da igual: no se mira) y lo que comparte la app de Steam.
 - **Próximos:** Ya disponibles (14 días) · Esta semana · por meses · Más adelante · Por confirmar; avisos en Fase 2. Reglas (M2):
   - las fechas son días de calendario en UTC;
   - **Ya disponibles:** lo que salió en los últimos 14 días; lo anterior no aparece;
@@ -1548,10 +1606,13 @@ Leyenda: `[img]` portada, `[HK ]` generada, `(+)` apuntar, `(i)` ficha, `::` asa
 | Sin copia en 30 días | Aún no has guardado ninguna copia de tu lista. Exporta una por si este navegador borra los datos de GameAgenda. (Con una copia anterior: Tu última copia de la lista es de hace 34 días. Exporta otra…) | Exportar · Ahora no | M1 |
 | Importación no válida | Este archivo no es una copia válida de GameAgenda. No hemos cambiado nada. | Elegir otro | M1 |
 | Sincronización fallida | No hemos podido sincronizar 3 cambios. Lo seguiremos intentando. | Reintentar ahora | M4 |
+| Mi lista vacía mientras se restaura (CA4.3) | Estamos trayendo tu agenda sincronizada. Tus juegos aparecerán aquí en unos segundos. (Sin conexión: Tu agenda sincronizada llegará en cuanto haya conexión. Mientras, puedes seguir apuntando.) | — | M4 |
 
 El aviso del catálogo solo sale en `none`: en cuanto el Worker pasa a `scan` (M1) o a `boot` (M3), la paleta busca en el catálogo, aunque el índice aún se esté construyendo (ver §8.8). En `boot` busca en los 20 000 juegos más populares y lo dice junto a los resultados: «De momento buscamos en los 20 000 juegos más populares; el catálogo completo está llegando.» (con un error del núcleo, el aviso de siempre y «Reintentar»). Sin resultados, no resalta la fila manual ni dice que el juego no está en Steam: `Intro` no apunta a mano un juego que quizá llega unos segundos después. El Catálogo sigue con el aviso de `none` hasta `scan`. Mensajes junto al elemento, nunca en un modal (`role="alert"` solo para los críticos). [Safari](https://webkit.org/blog/10218/full-third-party-cookie-blocking-and-more/) no aplica el límite de 7 días a las apps de la pantalla de inicio (verificado el 28-10-2026).
 
-El aviso de copia (RNF-08) cuenta 30 días desde la última exportación, en JSON o CSV, o, si nunca se ha exportado, desde que hubo algo en Mi lista. «Ahora no» lo aplaza 7 días. No sale a la vez que el de iOS sin instalar, que ya ofrece exportar. Desde M4, también lo reinicia la sincronización. Va arriba de Mi lista y se lee de `meta.copyReminder` antes de pintar, así que nunca aparece después empujando la lista (regla 3 de la §9.5).
+El aviso de copia (RNF-08) cuenta 30 días desde la última exportación, en JSON o CSV, o, si nunca se ha exportado, desde que hubo algo en Mi lista. «Ahora no» lo aplaza 7 días. No sale a la vez que el de iOS sin instalar, que ya ofrece exportar. Desde M4, también lo reinicia una sincronización correcta, como mucho una vez por hora. Va arriba de Mi lista y se lee de `meta.copyReminder` antes de pintar, así que nunca aparece después empujando la lista (regla 3 de la §9.5).
+
+El aviso «Sincronización fallida» (DECISIONES §10.36) sale tras 3 fallos seguidos que no sean falta de red, `sync_disabled` ni un 401, como mucho una vez hasta el siguiente éxito y sin tapar un aviso a la vista. Cuenta los juegos con cambios pendientes, no las operaciones. Lo que llega sin un gesto, como un emparejamiento nuevo o lo apuntado desde el Atajo de iOS, también va en el aviso de la app (ver §9.9).
 
 ### 9.7 Accesibilidad (WCAG 2.2 AA)
 
@@ -1608,12 +1669,15 @@ Tuteo, frases cortas, pretérito perfecto, sin exclamaciones y teclas con su nom
 | Contexto | Texto |
 |---|---|
 | Al apuntar o compartir | Apuntado en Quiero jugar: Baldur's Gate 3 · Deshacer |
+| Desde el Atajo de iOS (M4) | Hemos apuntado «Hades» desde el Atajo de iOS. (Con varios: Hemos apuntado 3 juegos desde el Atajo de iOS.) |
+| Otro dispositivo emparejado (M4) | «Chrome en Windows» ya está emparejado. |
 | Cambio de sección | Hades II pasa a Jugando · Deshacer |
 | Platinado | Platinado. También lo hemos marcado como Completado. · Deshacer |
 | Provisional | Apuntado: «Hollow Knight Silksong» (provisional). Lo completaremos cuando llegue al catálogo. |
 | Vincular | ¿Es «Hades II» de Steam? · Vincular |
 | Pista de la paleta con solo sugerencias (ver §8.7) | ¿Quizás buscabas…? Elige con ↓ |
 | Aviso de primera capa: portadas (M2; ver §11) | Las portadas se cargan desde servidores de Valve en EE. UU., que reciben tu dirección IP. · Más información · Entendido · Desactivar portadas |
+| Primera capa: sincronización (M4; ver §11.2) | Responsable: … Para qué: tener tu agenda en tus dispositivos y una copia fuera de ellos, porque tú lo pides al activarla. Se guarda en servidores de Cloudflare en la Unión Europea. Puedes acceder a tus datos, corregirlos, llevártelos y borrarlos desde la app. Más información en la política de privacidad. |
 
 «Más información» abre la pantalla «Datos de Steam que guardamos» (Ajustes › Privacidad, M2).
 
@@ -1728,21 +1792,28 @@ Sin email, contraseña, analítica de terceros ni cookies no necesarias: **no ha
 |---|---|
 | M1 (todo en el dispositivo) | Exportar (JSON/CSV) y «Borrar todos mis datos» |
 | M2 (la IP llega a Valve por las portadas) | Aviso de primera capa, `referrerpolicy="no-referrer"`, interruptor «Cargar portadas» y «Datos de Steam que guardamos» |
-| Antes del primer probador externo y de M4 | Política completa por capas, aviso legal y registro de actividades (Facilita RGPD, de la AEPD) |
+| Antes del primer probador externo y de M4 | Política completa por capas, aviso legal y registro de actividades (Facilita RGPD, de la AEPD): redactados el 08-11-2026, con el responsable pendiente (ver abajo) |
 | M4 (agenda en D1, UE) | Base del art. 6.1.b RGPD, declaración de edad, retención y borrado en el servidor |
 
 Quienes hacen la prueba guiada de M3 (ver §2.4) en el móvil y el PC del desarrollador, sin datos propios, no cuentan como probadores externos.
 
-- **Aviso de primera capa** (texto en la §9.9): sale la primera vez que se cargan portadas, solo informa, ofrece desactivarlas y su «Más información» abre la pantalla «Datos de Steam que guardamos» (M2), que enlazará con la política completa cuando exista. Base propuesta: interés legítimo (art. 6.1.f) con oposición en un toque, a validar al redactar la política. Precedente: condena del LG München I (3 O 17493/20, 2022) por enviar la IP a Google Fonts sin base jurídica. Cómo funciona desde M2:
+- **Aviso de primera capa** (texto en la §9.9): sale la primera vez que se cargan portadas, solo informa, ofrece desactivarlas y su «Más información» abre la pantalla «Datos de Steam que guardamos» (M2), que desde el 08-11-2026 enlaza con la política completa. Base: interés legítimo (art. 6.1.f), con oposición en un toque, como dice la política. Precedente: condena del LG München I (3 O 17493/20, 2022) por enviar la IP a Google Fonts sin base jurídica. Cómo funciona desde M2:
   - «Cargar portadas» viene activado. Las portadas esperan a que el aviso se haya pintado (`coverNotice`: `unseen` → `shown`) y el aviso sigue a la vista hasta «Entendido» o «Desactivar portadas» (`done`);
   - la paleta nunca lo hace salir, porque taparía el campo de captura: sus portadas esperan a que el aviso haya salido en Mi lista o en la ficha;
   - no sale en Ajustes › Privacidad, se oculta con la paleta abierta y desmarcar «Cargar portadas» en Ajustes cuenta como leído;
   - va fijo abajo, bajo el aviso de Deshacer, y no empuja la lista (§9.5, regla 3).
 - **Capas y derechos:** la primera capa (art. 11 LOPDGDD) da identidad y contacto del responsable, finalidad y derechos (arts. 15–22). Acceso y portabilidad = exportar; supresión = borrar en el dispositivo y, en M4, en el servidor; plazo de un mes (art. 12.3 RGPD).
-- **Cookie de dispositivo:** es persistente, y el GT29 (WP194) solo exime las de autenticación persistentes si el usuario las pide: la crea un gesto explícito («Activar sincronización» o «Emparejar»), que informa en ese momento.
+- **Cookie de dispositivo:** es persistente, y el GT29 (WP194) solo exime las de autenticación persistentes si el usuario las pide: la crea un gesto explícito («Activar sincronización», «Emparejar este dispositivo» o «Usar código de recuperación»), que informa en ese momento. El aviso de las dos cookies va junto a esos botones (ver §9.1).
 - **Menores:** al activar la sincronización se declara tener ≥14 años (art. 7 LOPDGDD); es un parámetro, porque el proyecto de ley 121/000052 la subiría a 16.
 - **Registro de actividades:** obligatorio, porque la exención del art. 30.5 RGPD no cubre tratamientos habituales.
-- **Encargados y transferencias:** Cloudflare (hosting y Workers): la jurisdicción UE de D1 fija dónde se guarda la base, no dónde se ejecuta la micro-API (en el centro de datos más cercano al usuario), y solo se elige al crearla (`--jurisdiction=eu`; plan gratuito, a verificar en M4). La IP llega a Valve en EE. UU. por las portadas. La política nombra a ambos y la base de cada transferencia a EE. UU. (Marco de Privacidad de Datos UE-EE. UU. o cláusulas tipo, a verificar). GitHub (EE. UU.) solo guarda el estado del pipeline, sin datos personales.
+- **Encargados y transferencias:** Cloudflare (hosting y Workers): la jurisdicción UE de D1 fija dónde se guarda la base, no dónde se ejecuta la micro-API (en el centro de datos más cercano al usuario), y solo se elige al crearla (`--jurisdiction=eu`; plan gratuito, a verificar en M4). La IP llega a Valve en EE. UU. por las portadas. La política nombra a ambos y la base de cada transferencia a EE. UU.: Cloudflare y Valve declaran estar adheridos al Marco de Privacidad de Datos UE-EE. UU., y el DPA de Cloudflare incluye además las cláusulas tipo (comprobado en sus páginas el 08-11-2026). GitHub (EE. UU.) solo guarda el estado del pipeline, sin datos personales.
+- **Textos legales tal como se han redactado (08-11-2026; DECISIONES §10.41; CA4.7):**
+  - la política de privacidad completa (`/privacidad`, art. 13 RGPD) y el aviso legal y las condiciones de uso (`/aviso-legal`, art. 10 LSSI) son datos en `apps/web/src/legal/texts.ts`, que la pantalla pinta como texto (§11.3), en el *chunk* de Ajustes;
+  - la primera capa (`legal/first-layer.ts`) va en Ajustes › Sincronización, junto a los botones que crean las cookies, con el enlace a la política (ver §9.1 y §9.9);
+  - bases: sincronización, buzón y `resolve`, art. 6.1.b; portadas y seguridad (los contadores de peticiones), art. 6.1.f;
+  - plazos: los de la tabla de abajo; una prueba ata los del texto a las constantes del código;
+  - **el responsable, pendiente:** el nombre o alias y el correo los decide el usuario, y van en `legal/controller.ts`. Hasta entonces los textos dicen «pendiente», y `scripts/legal-guard.test.ts` no deja poner `SYNC_ENABLED` a `"1"` sin ellos (ver §12.5);
+  - el registro de actividades (art. 30 RGPD) es interno: `docs/legal/registro-actividades.md`.
 
 **Retención.** Time Travel de D1 está siempre activo: lo borrado se puede restaurar durante 7 días (plan gratuito), y así se declara.
 
@@ -1751,9 +1822,12 @@ Quienes hacen la prueba guiada de M3 (ver §2.4) en el móvil y el PC del desarr
 | Agenda y ajustes | Dispositivo | Hasta que el usuario los borre |
 | Agenda sincronizada | D1 (UE) | Mientras exista; se borra al pedirlo |
 | *Hashes* de credenciales (dispositivo, buzón, recuperación) y de emparejamiento | D1 | Hasta revocarlas o borrar la agenda; los de emparejamiento, 10 min |
-| Lápidas | Dispositivo | No se purgan antes de M4; después, las ya sincronizadas, 90 días tras el borrado (ver §7.4 y §7.7) |
+| Lápidas | Dispositivo | El dispositivo no las purga. Con la sincronización, la purga semanal de D1 fuerza un *reset* y lo deja igual que D1; al unirse, las de más de 90 días se reducen a `deletedAt` (ver §7.7) |
 | Lápidas | D1 | 90 días tras el borrado (purga semanal, ver §7.7) |
 | Agenda sin sincronizar en 13 meses | D1 | Se borra (el mantenimiento diario, ADR-011) |
+| Enlaces del buzón | D1 | Hasta que una app de la agenda los apunta (200 pendientes como mucho) |
+| Caché de `resolve` (nombres públicos, no datos del usuario) | D1 | 30 días un nombre; 1 día «Steam no lo conoce» |
+| Contadores de peticiones (`ratelimits`, con el SHA-256 de la IP o del *token*) | Cloudflare | Unos segundos o minutos (periodos de 60 s) |
 | Ticket de login con SteamID64 (Fase 2) | D1 | ≤10 min |
 
 Fuentes: <https://www.aepd.es/guias/guia-cookies.pdf> · <https://www.boe.es/buscar/act.php?id=BOE-A-2018-16673> · <https://developers.cloudflare.com/d1/reference/time-travel/> · <https://developers.cloudflare.com/d1/configuration/data-location/>
@@ -1787,10 +1861,16 @@ Fuentes: <https://www.aepd.es/guias/guia-cookies.pdf> · <https://www.boe.es/bus
 ### 11.4 Micro-API y emparejamiento (M4)
 
 - **Credencial de dispositivo:** cookie `__Host-` `HttpOnly` `Secure` `SameSite=Lax` con 256 bits aleatorios; el servidor guarda solo su SHA-256. Ni el JavaScript ni un XSS la leen, y no le afecta la purga de 7 días de WebKit sobre lo que escriben los *scripts* (prueba en un iPhone real, ver §15). Chrome limita las cookies a 400 días: se renueva al sincronizar, como mucho una vez al día. En Ajustes se ven y se revocan los dispositivos; revocar borra la fila, y revocarse a uno mismo es desemparejar. Va con un indicio sin secreto, `__Host-ga_sync=1`, que la app sí lee: si se borra solo IndexedDB, sabe que sigue emparejada y restaura la agenda sin preguntar al servidor en cada arranque (CA4.3). Las dos se crean y se borran juntas (ADR-011).
-- **Emparejar:** *token* de un solo uso, ≥128 bits y 10 min, en QR y como texto. Se canjea con un POST desde dentro de la app, nunca con un GET (una vista previa de enlaces lo gastaría); si va en una URL, en el fragmento (`#`), que no llega al servidor. Solo se guarda su *hash*, como el del código de recuperación (se muestra una vez). Los dos son 28 símbolos de la base32 de Crockford (140 bits) en grupos de 4, sin I, L, O ni U. El canje es un `DELETE … RETURNING`, así que solo lo usa uno, y usado, caducado o inventado dan la misma respuesta. El código de recuperación sigue valiendo tras canjearlo; `POST /api/v1/recovery` crea otro y anula el anterior. Un dispositivo ya emparejado no crea agenda ni canjea códigos.
-- **Buzón:** *token* de solo escritura y revocable en la cabecera `Authorization`, nunca en la URL; solo acepta enlaces de la tienda de Steam.
-- **Peticiones:** nada cambia por GET; el resto exige `Content-Type: application/json` y `Origin` propio, salvo el buzón: el Atajo de iOS no envía `Origin` (a verificar en M4), así que esa ruta no lo comprueba ni acepta la cookie, solo su *token*. Zod rechaza campos desconocidos, cada ruta tiene tamaño máximo y no se aceptan HLC más de 5 min por delante del servidor: cada respuesta de `sync` trae la hora del servidor, con la que el cliente corrige su desfase y vuelve a sellar lo rechazado (ver §7.4). `Cache-Control: no-store` y registros sin cuerpos ni *tokens*. Solo se llama a `api.steampowered.com` (en Fase 2, también a `steamcommunity.com`): nunca es un *proxy* abierto.
-- **Rate limiting** en las rutas sin autenticar (crear agenda, canjear emparejamiento o código, `resolve`; en Fase 2, las de Steam) y por *token* en el buzón, con el *binding* `ratelimits` (10 o 60 s; contadores aproximados por ubicación; plan gratuito a verificar al desplegar: la documentación no lo dice). Crear agenda, 5 por minuto, y canjear un código, 10 por minuto; al *binding* le llega el SHA-256 de la IP, no la IP (ADR-011). Adivinar ≥128 bits es inviable: el límite protege la cuota gratuita de 100 000 peticiones/día, y si se agota, buscar y apuntar siguen funcionando (ver §5).
+- **Emparejar:** *token* de un solo uso, ≥128 bits y 10 min, en QR y como texto. Se canjea con un POST desde dentro de la app, nunca con un GET (una vista previa de enlaces lo gastaría); si va en una URL, en el fragmento (`#`), que no llega al servidor: el QR lleva `<origen>/emparejar#código`, y la app lo quita de la URL antes de pintar y no lo canjea sin pulsar «Emparejar este dispositivo» (ver §9.1). Solo se guarda su *hash*, como el del código de recuperación (se muestra una vez). Los dos son 28 símbolos de la base32 de Crockford (140 bits) en grupos de 4, sin I, L, O ni U. El canje es un `DELETE … RETURNING`, así que solo lo usa uno, y usado, caducado o inventado dan la misma respuesta. El código de recuperación sigue valiendo tras canjearlo; `POST /api/v1/recovery` crea otro y anula el anterior. Un dispositivo ya emparejado no crea agenda ni canjea códigos.
+- **Buzón:** *token* de solo escritura y revocable en la cabecera `Authorization`, nunca en la URL; solo acepta enlaces de la tienda de Steam. Tal como se ha construido (08-11-2026; DECISIONES §10.39 y §10.43):
+  - el *token* es un `device` de tipo `inbox`: 256 bits en base64url, como la credencial de la app, y D1 guarda su SHA-256. Se crea con la cookie desde Ajustes, se ve una vez, sale en la lista de dispositivos y se revoca como los demás; revocarlo no desempareja la app que lo creó. Puede haber varios, y no vale como cookie de la app (`readDevice()` solo busca `kind = 'app'`);
+  - va en `Authorization: Bearer …`. Uno sin forma de *token* da 401 sin tocar D1 ni el límite; uno con forma pasa antes por `RL_INBOX`, y si es inventado o está revocado, 401;
+  - acepta `{ "url": "…" }` con un texto de hasta 2 KiB que lleve un enlace de Steam (`findSteamLink`: el que comparte la app de Steam lleva el título delante) y guarda solo el enlace canónico de la tienda (`canonicalStoreUrl`). Si pasara de 512 caracteres (`INBOX_URL_MAX`), lo guarda sin *slug*: un enlace demasiado largo rompería el esquema de la respuesta de `sync` para toda la agenda. Sin enlace, 400 `invalid_link`;
+  - un juego que ya espera no se repite (200; si no, 201), y con 200 pendientes en la agenda responde 409 `inbox_full`;
+  - todas sus respuestas llevan un `message` en español, que es lo que enseña el Atajo, también las de error que salen antes de la ruta (interruptor, tipo de contenido, tamaño y cuerpo).
+- **`resolve`** (DECISIONES §10.40 y §10.43): valida el `appid` (1 a 10 cifras, sin ceros delante y de 32 bits; si no, 404 sin llamar a nadie) y pregunta a `IStoreBrowseService/GetItems/v1` sin clave, en español y para España (y para EE. UU. si allí está bloqueado), con 2 s de espera. La respuesta se lee con tope (64 KiB, `readCapped`), pasa por Zod y el nombre se limpia: sin caracteres de control y 200 caracteres como mucho. Es un GET que escribe en la caché, pero son datos públicos y nada de un usuario cambia. La app lo pide sin cookies (`credentials: 'omit'`), sin `Referer` y sin caché, y solo si sincroniza (ver §7.3): viaja el `appid`, y la IP llega a Cloudflare como con cualquier fichero de la app.
+- **Peticiones:** nada cambia por GET; el resto exige `Content-Type: application/json` y `Origin` propio, salvo el buzón: el Atajo de iOS no envía `Origin` (a verificar en el iPhone; si lo enviara, da igual), así que esa ruta no lo comprueba ni acepta la cookie, solo su *token*, aunque sí exige JSON. La app manda todas sus peticiones a la micro-API con `referrerPolicy: 'no-referrer'`: con la `Referrer-Policy` global, `Referer` llevaba la ruta y la consulta de la página (búsquedas, filtros, fichas). Zod rechaza campos desconocidos, cada ruta tiene tamaño máximo y no se aceptan HLC más de 5 min por delante del servidor: cada respuesta de `sync` trae la hora del servidor, con la que el cliente corrige su desfase y vuelve a sellar lo rechazado (ver §7.4). `Cache-Control: no-store` y registros sin cuerpos ni *tokens*. Solo se llama a `api.steampowered.com` (en Fase 2, también a `steamcommunity.com`): nunca es un *proxy* abierto.
+- **Rate limiting** en las rutas sin autenticar (crear agenda, canjear emparejamiento o código, `resolve`; en Fase 2, las de Steam) y por *token* en el buzón, con el *binding* `ratelimits` (10 o 60 s; contadores aproximados por ubicación; plan gratuito a verificar al desplegar: la documentación no lo dice). Crear agenda (`RL_AGENDA`), 5 por minuto, y canjear un código (`RL_REDEEM`), 10 por minuto; al *binding* le llega el SHA-256 de la IP, no la IP (ADR-011). Desde el 08-11-2026, también `resolve` (`RL_RESOLVE`), 30 por minuto y por IP, y el buzón (`RL_INBOX`), 30 por minuto y por el SHA-256 del *token*. Adivinar ≥128 bits es inviable: el límite protege la cuota gratuita de 100 000 peticiones/día, y si se agota, buscar y apuntar siguen funcionando (ver §5).
 
 Fuentes: <https://developers.cloudflare.com/workers/static-assets/headers/> · <https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/>
 
@@ -1808,11 +1888,15 @@ Nivel de prototipo de una persona: se automatiza lo que protege la captura, los 
 | Contrato | Esquemas Zod 4.6.7 de `GetAppList`, `Query` y `GetItems` contra *fixtures* grabados; formato de exportación | Vitest |
 | Pipeline | Ejecución con *fixtures*: clasificación, lógica de las puertas (ver §4), plan B sin clave y determinismo (regenerar el mini-catálogo da los mismos bytes) | Vitest |
 | E2E y rendimiento | §12.3 y §12.4, en Chromium de escritorio y móvil emulado (WebKit, en local) | Playwright 1.64.1 |
-| Micro-API (M4) | Rutas con `app.request()` de Hono; sincronización con dos contextos de navegador | Vitest, Playwright |
+| Micro-API (M4) | Rutas con `app.request()` de Hono y D1 sobre `node:sqlite` (SQLite 3.53.4) con las migraciones, las claves foráneas y `batch()` atómico (`worker/test/d1-sqlite.ts`); límites, reloj y clientes falsos, cada uno con su tarro de cookies. El cliente de verdad (Dexie sobre `fake-indexeddb` y la agenda) contra la micro-API en proceso (`worker/test/sync-client*.test.ts`). E2E contra la micro-API real (§12.3) | Vitest, Playwright |
 
 ### 12.2 Propiedades, contrato y canario
 
 - **`merge()`** (1 000 casos por propiedad): las mismas operaciones, en cualquier orden o repetidas, dan el mismo estado; `merge(a, b)` = `merge(b, a)`; la reparación de invariantes (Platinado ⇒ Completado, según los relojes) se cumple siempre; importar dos veces el mismo JSON equivale a importarlo una (ver §7).
+- **Sincronización (M4; CA4.1)**, con los generadores de `merge()` (DECISIONES §10.35 y §10.36):
+  - `sync.properties.test.ts` (1 000 casos cada una): las mismas operaciones, barajadas, repetidas, en lotes y desde dos dispositivos, dan en D1 el estado de aplicarlas de una vez; con datos incompletos, Platinado ⇒ Completado se cumple en lo que guarda D1 tras cada petición; dos réplicas que apuntan sin red y sincronizan en cualquier orden, con páginas de 7 y lotes de 1 a 30, acaban iguales entre sí y con D1. Fallan las tres con un servidor en el que gana lo último que llega;
+  - `sync-client.properties.test.ts` (200 casos): dos réplicas con el cliente de verdad convergen;
+  - `sync-client-protocol.test.ts` y `sync-client-lifecycle.test.ts`, con `runMaintenance` de verdad: el *reset* cortado y el de más páginas que el tope, las dos purgas, el restore con un lote y con varios dispositivos, dos pestañas con la petición o la respuesta retenidas, desemparejar con una ronda en vuelo e IndexedDB borrada con la app abierta. Cada arreglo de la revisión del cliente lleva su prueba de regresión.
 - **Normalización:** idempotente; la salida no tiene mayúsculas, diacríticos, apóstrofos, ™ ℠ ® © ni espacios sobrantes, y quitar apóstrofos de la entrada no la cambia.
 - **Contrato:** los esquemas solo describen los campos usados (ignoran los desconocidos, exigen los obligatorios) y el pipeline valida en vivo con ellos. `npm run fixtures:record` guarda URL, estado HTTP, fecha y cuerpo, nunca cabeceras (la clave va en `x-webapi-key`), y falla si un fichero contiene la clave. Casos: los del mini-catálogo (§13.5), `success 15`, 429 con y sin `Retry-After`, 5xx, JSON roto y lista vacía.
 - **Sin red real en CI:** con `STEAM_MODE=fixtures`, el cliente HTTP del pipeline falla ante una petición sin *fixture*; Playwright aborta lo que no vaya al origen local; `ci.yml` no tiene secretos.
@@ -1828,6 +1912,13 @@ Nivel de prototipo de una persona: se automatiza lo que protege la captura, los 
   - el de detalles (`__GA_DETAILS_TEST__`) da el índice de *shards* y los *kill switches*. WebKit no intercepta las peticiones del Worker ni las que pasan por el Service Worker, así que las pruebas no reescriben el *manifest*, y las que usan este gancho no registran el Service Worker;
   - `setup()` sirve desde una ruta del contexto todas las peticiones a `*.steamstatic.com`, de modo que ningún test llega a Valve, y apaga por defecto los *kill switches* de portadas y detalles. Las pruebas de portadas y detalles los fijan con `serveDetails`.
 - **Otros E2E:** Deshacer, juego ya apuntado, carrera de Intro (con `delay: 0`, Intro apunta el juego de la consulta final), pegar un enlace, juego manual, estado y marca en un toque, sin red, exportar e importar, Catálogo completo, solo teclado, axe-core en cada pantalla (ver §3) y `/share` (M3).
+- **E2E de la sincronización contra la micro-API real** (desde el 07-11-2026; DECISIONES §10.38):
+  - la vista previa del modo `e2e` sirve `createApp()` en `/api/*` con la D1 de `worker/test/`, y unas rutas de apoyo en `/__e2e/*` que nunca van en el Worker de producción;
+  - **un «mundo» por prueba** (D1 y reloj propios), elegido con la cookie `HttpOnly` `ga-e2e-api`;
+  - **espejo HTTPS para WebKit:** el WebKit de Playwright para Windows guarda las cookies `__Host-` por HTTP, pero ni las envía (401) ni deja leerlas en `document.cookie`. Por eso va por un espejo HTTPS de la misma vista previa (puerto + 10 000, certificado autofirmado de `node:crypto`). Chromium no registra el Service Worker con un certificado así, y va por `http://127.0.0.1`, como en el CI;
+  - **trampas de WebKit:** `page.route()` no ve las peticiones de una página con Service Worker, así que para retener o cortar la micro-API se usa `holdServer()` (`/__e2e/hold`); el foco se comprueba pulsando con `press('Enter')`, porque un clic no lo deja en el botón;
+  - **un Steam falso para todos los mundos** (`POST /__e2e/steam`): `resolve` va sin cookies, así que tampoco lleva la del mundo, y cada prueba usa sus propios `appid`. Los E2E nunca llaman al Steam de verdad: sin nombre, Steam «no lo conoce»;
+  - `sync-api.spec.ts` (cookies, cabeceras y rutas de apoyo), `sync.spec.ts` (CA4.2 y CA4.3 con dos contextos y los disparadores naturales, la purga semanal, el restore con época nueva y que quien no sincroniza no hace ninguna petición a `/api`), `sync-settings.spec.ts` (Ajustes, con axe y a 320 px) e `inbox.spec.ts` (el Atajo, `resolve` en ≤1,5 s para CA4.5 y los textos legales).
 
 ### 12.4 Rendimiento, tamaño y dónde se mide
 
@@ -1847,6 +1938,8 @@ Las medidas son las mismas en los tests y en el panel: `performance.measure` y, 
   1. **Búsqueda:** una página de prueba ejecuta la búsqueda de `packages/core` (índice y *ranking*) en el hilo principal, sobre la copia congelada del núcleo real (§12.1) o sobre `pipeline/out/`. Desde M2, `perf` necesita un catálogo firmado: `npm run catalog:frozen` lo genera desde la copia congelada con la clave `dev-1`, con ≈4 000 recientes y *shards* sintéticos, y el CI lo hace antes de cada pasada. Con un `pipeline/out/` sin firma, como el de M1, la app lo rechaza. Mide el tiempo hasta poder buscar (`scan`; en M3, `boot`) y hasta el índice completo (`full`) y, desde M3, la restauración del índice; teclea carácter a carácter el conjunto realista (ver §8.11) y calcula p50/p95 de pulsación → resultados y del nivel 4. El Worker real se valida en el Android de referencia (§13.4). En el Chromium de Playwright tampoco se estrangula, ni adjuntándolo con `Target.setAutoAttach`: lo comprueba `perf/worker-throttling.perf.ts` en cada pasada (ver §8.9).
   2. **App real**, con el mismo catálogo y 500 entradas en Mi lista: teclea 20 nombres, apunta 10 y mide INP, `ui:feedback`, `capture:palette-to-confirm`, el reinicio con caché (`app:list-visible`) y el LCP; sin estrangular, `search:keystroke-to-results` para el presupuesto de escritorio, que depende de la frecuencia de la pantalla, medida con 60 `requestAnimationFrame` (ver §8.9). Falla si un `PerformanceObserver` de `longtask` ve una tarea del hilo principal de más de 50 ms al teclear o apuntar, o si, ya calentadas las fuentes de reserva, la primera maquetación de han, kana, hangul o emoji pasa de 50 ms. Sin calentar, en Windows y con ×4, cuesta 30–130 ms por escritura y peso (medido el 30-10-2026). La app las calienta en ratos ociosos en cuanto se puede buscar.
 - **Tamaño:** `scripts/size-gate.ts` comprime con brotli (calidad 11) el JS inicial, según el `build.manifest` de Vite, y el *chunk* del Worker de búsqueda, y los compara con su presupuesto (ver §6).
+- **CPU de la micro-API (CA4.6, estimación local):** `node scripts/api-cpu.ts` mide cada ruta con `createApp()` y le resta el tiempo de D1 (`docs/medidas/ca4.6-20261108.md`). El 08-11-2026, el peor p99 en caliente es 2,38 ms, en `sync` con 200 operaciones; bajar 1 000 cambios se queda en 2,22 ms y el resto no pasa de 1,6 ms. La primera petición de un *isolate* nuevo cuesta ≈6 ms, porque Hono y Zod preparan cosas la primera vez. Lo que cierra CA4.6 es el p99 del panel de Workers en producción (DECISIONES §10.42).
+- **Subida de la `outbox` (M4):** con 1 000 juegos, leerla y compactarla una vez por ronda deja la subida en 32,7 ms en el hilo principal; antes, cada lote la leía entera y sumaba 1 246 ms, con lotes de hasta 49,1 ms (DECISIONES §10.36). Esa lectura inicial, tras unirse o volver a subirlo todo, sigue siendo una tarea larga: unos 32 ms en Node y unos 130 ms con CPU ×4 (limitación conocida, ADR-011).
 
 | Comprobación | CI | Local | Móvil real |
 |---|---|---|---|
@@ -1867,6 +1960,7 @@ Las medidas son las mismas en los tests y en el panel: `performance.measure` y, 
 - No se fusiona en rojo y solo se despliega un SHA con el CI en verde: [`workflow_run`](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows) se dispara sea cual sea el resultado, también tras el CI de una PR, y de ahí sus condiciones (verificado el 28-10-2026). *Rollback*: [`npx wrangler rollback`](https://developers.cloudflare.com/workers/configuration/versions-and-deployments/rollbacks/).
 - **Minutos:** en un repositorio público, los de los *runners* estándar no cuentan. El primer `ci.yml` tardó 2 min 52 s, con sus tres trabajos en paralelo (30-10-2026). Si pasara a privado, la estimación es ≈1 070–1 140 de los 2 000 al mes (`catalog.yml` ≈330–400: 30–31 ejecuciones × ≈11–13 min, ver §4.7; `ci.yml` ≈640 en 80 ejecuciones; despliegues ≈100).
 - **App de escritorio (M3):** el CI no compila Rust, así que sigue en ≤10 min y no gasta minutos en *runners* de Windows. Sí vigila sin Rust lo que importa para la seguridad: `apps/desktop/desktop.test.ts`, dentro de `npm run check`, falla si aparecen *capabilities* u órdenes propias, si el nombre del evento del atajo no coincide entre Rust y la web o si un *crate* no va fijado. Las pruebas de Rust (`cargo test`) y `clippy` se pasan en el PC. El instalador se genera en el PC con `npm run desktop:build` y se publica en la *Release* de la etiqueta del hito (`gh release create v0.3.0 <instalador>`); la parte nativa se prueba a mano con CA3.7 y CA3.8 (ver §15.6).
+- **Textos legales (M4; CA4.7):** `scripts/legal-guard.test.ts`, dentro de `npm run check`, falla si `apps/web/wrangler.jsonc` pone `SYNC_ENABLED` a `"1"` sin el nombre y el correo del responsable en `apps/web/src/legal/controller.ts`: si no, la política diría «pendiente» justo cuando empieza a valer (ver §11.2).
 - **Pipeline desde el PC:** si faltan minutos o los *runners* compartidos reciben 429 (ver §4), el PC construye con el estado vigente y sube las páginas crudas de Steam a la *Release* `catalog-staging` (`npm run catalog:stage`, ver §13.3). Después, `gh workflow run catalog.yml -f source=staging` las toma de ahí, sin canario ni llamadas a Steam: comprueba que el estado no ha cambiado y que el paquete tiene ≤36 h, vuelve a derivar el catálogo sin red (`--from-raw`) y hace el resto: puertas, búsqueda de la clave, firma, `ga-catalog`, estado y *dead-man switch*. La clave privada de firma solo está en el secreto `CATALOG_SIGNING_KEY`: desde M2, el PC nunca firma ni despliega `ga-catalog`.
 
 ### 12.6 Convenciones y definición de terminado
@@ -1976,13 +2070,19 @@ Monorepo con *workspaces* de npm (sin pnpm). `packages/core` no se compila: Vite
 gameagenda/
 ├─ apps/web/               @gameagenda/web: la app (React + Vite, PWA)
 │  ├─ src/
-│  │  ├─ screens/          Mi lista, Catálogo, ficha, Ajustes, paleta
+│  │  ├─ screens/          Mi lista, Catálogo, ficha, Ajustes, paleta;
+│  │  │                    legal/, los textos legales (M4)
 │  │  ├─ router/           router propio sobre la History API
 │  │  ├─ db/               Dexie: entries, outbox, settings, meta
+│  │  ├─ sync/             M4: fachada (chunk inicial) y motor diferido
+│  │  ├─ legal/            M4: textos legales como datos y responsable
 │  │  ├─ search-worker/    Web Worker de búsqueda (chunk aparte)
 │  │  ├─ i18n/es.ts        todas las cadenas de la interfaz
 │  │  └─ sw.ts             Service Worker (vite-plugin-pwa)
 │  ├─ worker/              M4: micro-API Hono en /api/v1/* y D1
+│  │  ├─ routes/           agenda, pairing, devices, inbox, sync, resolve
+│  │  ├─ migrations/       0001_inicial.sql y 0002_epoca.sql (época)
+│  │  └─ test/             D1 sobre node:sqlite, propiedades y cliente
 │  ├─ e2e/                 Playwright, incluido el proyecto perf
 │  ├─ public/_headers      CSP y cabeceras de ga-web (ver §11)
 │  └─ wrangler.jsonc       Worker ga-web (assets; /api/* desde M4)
@@ -2004,8 +2104,10 @@ gameagenda/
 │  ├─ catalog/             mini-catálogo en el formato publicado
 │  ├─ catalog-frozen/      núcleo real congelado (≈3 MB gzip) y sus alias
 │  └─ keys/                clave de firma de desarrollo (dev y e2e)
-├─ scripts/                setup, puertas de tamaño, búsqueda de clave
+├─ scripts/                setup, puertas de tamaño, búsqueda de clave;
+│                          M4: CPU de la micro-API y guarda legal
 ├─ docs/adr/               NNN-titulo.md (MADR, en español)
+├─ docs/legal/             M4: registro-actividades.md (interno)
 ├─ docs/planificacion/prototipo-busqueda/
 │                          prototipo de búsqueda medido (ver §8.11)
 ├─ .github/workflows/      ci.yml, deploy-web.yml, catalog.yml
@@ -2021,7 +2123,7 @@ Ya existen dos carpetas: `fixtures/catalog-frozen/`, con `core.20261028.1.tsv.gz
 
 | Paquete | Contenido | Depende de |
 |---|---|---|
-| `apps/web` | Pantallas, *router*, Dexie, Worker de búsqueda, Service Worker; en M4, micro-API y migraciones de D1 | `core`, React, Dexie, `@tanstack/react-virtual`, `workbox-window`, `uuid`; Hono en M4 |
+| `apps/web` | Pantallas, *router*, Dexie, Worker de búsqueda, Service Worker; en M4, el cliente de la sincronización, los textos legales, la micro-API y las migraciones de D1 | `core`, React, Dexie, `@tanstack/react-virtual`, `workbox-window`, `uuid`; en M4, Hono y `uqr` (el QR de emparejar) |
 | `apps/desktop` | Desde M3: ventana Tauri que carga `ga-web`, atajo global, icono en la bandeja, una sola instancia y arranque con Windows opcional; ningún código de la web (ver §17.3) | `@tauri-apps/cli` y los *crates* de la §6; ningún paquete del repositorio |
 | `packages/core` | Normalización y sus vectores; claves, índice y *ranking*; parser de enlaces; códecs TSV y *shards*; JSON canónico del *manifest*; reglas de estados y marcas; HLC y `merge()`; esquemas Zod (Steam, exportación, micro-API) | Zod; uFuzzy, solo en el nivel difuso (carga diferida) |
 | `pipeline/` | Cliente HTTP de Steam, etapas, puertas, firma ed25519 (`node:crypto`), grabador de *fixtures* | `core`, Zod; `wrangler` para publicar |
@@ -2175,6 +2277,8 @@ Sin colchón: para planificar se suma un 20 % (ver §16, R-13). Aparte van las e
 - CA4.5 El Atajo de iOS deja el enlace en el buzón y el juego aparece en la siguiente sincronización; un *token* revocado recibe 401; un juego ausente del núcleo se guarda al instante como provisional y su nombre llega en ≤1,5 s con red.
 - CA4.6 CPU del Worker ≤5 ms por petición en el p99 (el límite gratuito es 10 ms).
 - CA4.7 Los textos legales se publican antes de activar la sincronización, que pide la declaración de edad (≥14 años, configurable a 16); «Borrar todos mis datos» vacía la agenda en D1 (comprobado con una consulta) y en local.
+
+**Decidido al construirlo** (rama `m4-sincronizacion`; ADR-011): `resolve` solo lo usan los dispositivos que sincronizan (decisión del usuario del 08-11-2026; DECISIONES §10.40). El nombre en ≤1,5 s de CA4.5 vale, por tanto, con la sincronización activada, y así lo comprueba `e2e/inbox.spec.ts`; sin ella, el provisional espera al catálogo.
 
 **Esfuerzo:** micro-API, D1 y límites 1–1,5; emparejar y recuperación 1–1,5; protocolo y pruebas 1,5–2; buzón, `resolve` y textos legales 0,5–1. **Depende de:** M1 (HLC, `outbox` y `merge()`), los textos legales (ver §11) y un iPhone.
 
