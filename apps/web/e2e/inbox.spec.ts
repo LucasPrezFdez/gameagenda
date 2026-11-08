@@ -2,8 +2,9 @@
 // - el Atajo de iOS: el *token* se enseña una vez, con la dirección y los pasos; un enlace que deja
 //   el Atajo (sin `Origin` ni cookies, solo con el *token*) llega a Mi lista en la siguiente
 //   sincronización, y revocado desde «Dispositivos» recibe 401;
-// - `resolve`: un juego que no está en el catálogo se apunta al instante como provisional y su
-//   nombre llega en ≤1,5 s (con el Steam falso de la vista previa, `POST /__e2e/steam`);
+// - `resolve`: con la sincronización activada, un juego que no está en el catálogo se apunta al
+//   instante como provisional y su nombre llega en ≤1,5 s (con el Steam falso de la vista previa,
+//   `POST /__e2e/steam`). Sin sincronizar no se pregunta: lo comprueba `sync.spec.ts`;
 // - los textos legales: la primera capa junto a «Activar sincronización», la política y el aviso
 //   legal, con axe y a 320 px.
 import { DEFAULT_MIN_AGE } from '@gameagenda/core/api';
@@ -144,10 +145,11 @@ test('el Atajo de iOS: token una vez, el enlace llega en la siguiente sincroniza
   await checks.expectClean();
 });
 
-test('un juego que no está en el catálogo: provisional al instante y su nombre en ≤1,5 s (CA4.5)', async ({
+test('sincronizando, un juego que no está en el catálogo: provisional al instante y su nombre en ≤1,5 s (CA4.5)', async ({
   page,
 }) => {
   const checks = await setup(page);
+  await activate(page);
   // El Steam falso es uno para todas las pruebas (la app pide `resolve` sin cookies): cada
   // ejecución, con sus `appid`, que no están en el mini-catálogo.
   const known = 4_100_000 + Math.floor(Math.random() * 400_000) * 2;

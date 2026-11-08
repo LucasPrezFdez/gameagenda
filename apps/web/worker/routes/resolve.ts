@@ -19,7 +19,7 @@ import {
 } from '@gameagenda/core/api';
 import type { Context, Hono } from 'hono';
 import type { AppEnv, Deps, SteamFetch } from '../env.ts';
-import { apiError, iso, rateLimited } from '../http.ts';
+import { apiError, iso, rateLimited, readCapped } from '../http.ts';
 
 const STEAM_API = 'https://api.steampowered.com/IStoreBrowseService/GetItems/v1/';
 /** Steam suele contestar en ≈0,3 s; la app espera el nombre como mucho 1,5 s (CA4.5). */
@@ -52,21 +52,20 @@ type Lookup =
   { readonly name: string | null; readonly blocked: boolean } | 'failed';
 
 async function askSteam(appid: number, country: 'ES' | 'US', fetch: SteamFetch): Promise<Lookup> {
-  let text: string;
+  let json: unknown;
   try {
     const response = await fetch(steamUrl(appid, country), {
       headers: { Accept: 'application/json' },
       signal: AbortSignal.timeout(STEAM_TIMEOUT_MS),
     });
-    if (!response.ok) return 'failed';
-    text = await response.text();
-  } catch {
-    return 'failed';
-  }
-  if (text.length > MAX_STEAM_BYTES) return 'failed';
-  let json: unknown;
-  try {
-    json = JSON.parse(text);
+    if (!response.ok) {
+      await response.body?.cancel();
+      return 'failed';
+    }
+    // Deja de leer en cuanto pasa del tope: ni memoria ni CPU para una respuesta enorme.
+    const bytes = await readCapped(response, MAX_STEAM_BYTES);
+    if (bytes === null) return 'failed';
+    json = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
   } catch {
     return 'failed';
   }

@@ -47,6 +47,9 @@ export function createInboxSink(deps: InboxCaptureDeps): InboxSink {
   return {
     async capture(links) {
       if (links.length === 0) return;
+      // Antes, que la agenda de la pestaña relea lo que la sincronización acaba de escribir: si no,
+      // `capture` no vería un juego que ya está y lo apuntaría otra vez.
+      await agenda.whenIdle();
       const lookup = await within(
         search.lookup(links.map((l) => l.appid)).catch(() => undefined),
         deps.waitMs ?? LINK_WAIT_MS,

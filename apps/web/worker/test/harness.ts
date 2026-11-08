@@ -114,13 +114,20 @@ export class FakeSteam {
   readonly names = new Map<number, string>();
   readonly blockedInEs = new Map<number, string>();
   readonly calls: string[] = [];
-  fail: 'network' | 'status' | 'garbage' | null = null;
+  fail: 'network' | 'status' | 'garbage' | 'huge' | null = null;
 
   readonly fetch: SteamFetch = async (url) => {
     this.calls.push(url);
     if (this.fail === 'network') throw new TypeError('fetch failed');
     if (this.fail === 'status') return new Response('Bad gateway', { status: 502 });
     if (this.fail === 'garbage') return new Response('{"response":{"store_items":"no"}}');
+    if (this.fail === 'huge') {
+      // Un JSON válido de 1 MB, sin `Content-Length` (va en un *stream*).
+      const big = JSON.stringify({
+        response: { store_items: [{ success: 1, name: 'x'.repeat(1 << 20) }] },
+      });
+      return new Response(new Blob([big]).stream());
+    }
     const input = JSON.parse(new URL(url).searchParams.get('input_json') ?? '{}') as {
       ids: Array<{ appid: number }>;
       context: { country_code: string };

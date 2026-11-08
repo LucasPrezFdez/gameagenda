@@ -3,53 +3,18 @@
 // como texto (§11.3): párrafos, listas y tablas, con un índice de secciones.
 import { ScreenHeading } from '../../components/ScreenHeading.tsx';
 import { es } from '../../i18n/es.ts';
-import { type Block, type Inline, legalNotice, privacyPolicy } from '../../legal/texts.ts';
+import { LegalParts } from '../../legal/LegalParts.tsx';
+import { type Block, legalNotice, privacyPolicy } from '../../legal/texts.ts';
 import { CaptureButton } from '../../palette/palette-context.tsx';
-import { Link } from '../../router/router.tsx';
 import type { LegalDoc } from '../../router/routes.ts';
 import './legal.css';
-
-/**
- * Los trozos de un texto, con sus enlaces: las rutas de la app con el `Link` del *router*;
- * `https:` en otra pestaña y sin `Referer`; `mailto:` tal cual. Es el `LegalParts` de Ajustes:
- * compartirlo partiría el *chunk* inicial (ver `legal/controller.ts`).
- */
-function Parts({ parts }: { parts: readonly Inline[] }) {
-  return (
-    <>
-      {parts.map((part, i) => {
-        // biome-ignore lint/suspicious/noArrayIndexKey: los trozos de un texto fijo no cambian de sitio.
-        if (typeof part === 'string') return <span key={i}>{part}</span>;
-        if (part.href.startsWith('/')) {
-          return (
-            // biome-ignore lint/suspicious/noArrayIndexKey: ídem.
-            <Link key={i} to={part.href}>
-              {part.text}
-            </Link>
-          );
-        }
-        const external = part.href.startsWith('https:');
-        return (
-          <a
-            // biome-ignore lint/suspicious/noArrayIndexKey: ídem.
-            key={i}
-            href={part.href}
-            {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
-          >
-            {part.text}
-          </a>
-        );
-      })}
-    </>
-  );
-}
 
 function LegalBlock({ block }: { block: Block }) {
   switch (block.kind) {
     case 'p':
       return (
         <p>
-          <Parts parts={block.parts} />
+          <LegalParts parts={block.parts} />
         </p>
       );
     case 'list':
@@ -58,7 +23,7 @@ function LegalBlock({ block }: { block: Block }) {
           {block.items.map((item, i) => (
             // biome-ignore lint/suspicious/noArrayIndexKey: ídem.
             <li key={i}>
-              <Parts parts={item} />
+              <LegalParts parts={item} />
             </li>
           ))}
         </ul>
@@ -109,7 +74,7 @@ export default function LegalScreen({ doc }: { doc: LegalDoc }) {
       </header>
       <article className="legal__body">
         <p className="muted">
-          <Parts parts={text.intro} />
+          <LegalParts parts={text.intro} />
         </p>
         <nav className="legal__toc" aria-label={es.about.sections}>
           <ol>

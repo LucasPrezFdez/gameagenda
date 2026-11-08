@@ -217,12 +217,21 @@ export function createSyncEngine(options: EngineOptions): SyncEngine {
       else links.push({ id: item.id, appid: link.appid, title: link.title });
     }
     if (links.length === 0 || options.inbox === undefined) return acks;
-    await options.inbox.capture(links);
+    /** Los enlaces cuyo juego ya está vivo en IndexedDB, que es lo que manda. */
+    const liveIn = async (list: readonly InboxLink[]) => {
+      const rows = await db.entries.bulkGet(list.map((l) => `steam:${l.appid}`));
+      return new Set(list.filter((_, i) => isLive(rows[i])).map((l) => l.id));
+    };
+    // Lo que ya está en la agenda, también lo que acaba de llegar en esta misma página (la agenda de
+    // la pestaña aún puede no haberlo releído), se confirma sin apuntar: apuntarlo otra vez, con una
+    // HLC nueva, pisaría su estado.
+    const already = await liveIn(links);
+    const missing = links.filter((l) => !already.has(l.id));
+    for (const id of already) acks.push(id);
+    if (missing.length === 0) return acks;
+    await options.inbox.capture(missing);
     if (!(await isPaired())) return null;
-    const rows = await db.entries.bulkGet(links.map((l) => `steam:${l.appid}`));
-    links.forEach((link, i) => {
-      if (isLive(rows[i])) acks.push(link.id);
-    });
+    for (const id of await liveIn(missing)) acks.push(id);
     return acks;
   }
 

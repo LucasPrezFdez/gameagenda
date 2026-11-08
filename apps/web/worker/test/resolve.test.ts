@@ -61,7 +61,7 @@ describe('resolve', () => {
     h.steam.names.set(30, 'Guardado');
     await h.client().get('/api/v1/resolve/30');
     h.clock.ms += RESOLVE_TTL_MS + 1;
-    for (const fail of ['network', 'status', 'garbage'] as const) {
+    for (const fail of ['network', 'status', 'garbage', 'huge'] as const) {
       h.steam.fail = fail;
       expect((await h.client().get('/api/v1/resolve/30')).json.name, fail).toBe('Guardado');
       const missing = await h.client().get('/api/v1/resolve/31');

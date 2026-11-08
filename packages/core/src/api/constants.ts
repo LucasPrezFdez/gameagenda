@@ -33,6 +33,11 @@ export const DEFAULT_INBOX_LABEL = 'Atajo de iOS';
  * comparte la app de Steam lleva el título delante). Se guarda solo el enlace canónico.
  */
 export const INBOX_TEXT_MAX = 2048;
+/**
+ * El enlace que guarda el buzón, como mucho (el canónico de la tienda; sin *slug* si no cabe). Los
+ * de Steam rondan los 60 caracteres.
+ */
+export const INBOX_URL_MAX = 512;
 /** Enlaces pendientes por agenda: con más, el buzón responde 409 `inbox_full`. */
 export const INBOX_MAX_PENDING = 200;
 /** Enlaces del buzón por respuesta de `sync` (los siguientes llegan en la ronda siguiente). */

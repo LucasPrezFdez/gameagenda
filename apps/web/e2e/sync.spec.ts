@@ -21,7 +21,7 @@
 // dispositivo y sin red) no se repite aquí.
 import { DEFAULT_MIN_AGE } from '@gameagenda/core/api';
 import type { BrowserContext, Page } from '@playwright/test';
-import { capture, setup, toast, waitForSearch } from './helpers.ts';
+import { capture, openPalette, setup, toast, waitForSearch } from './helpers.ts';
 import { expectStored, storedEntry, storedKeys, storedMeta } from './storage.ts';
 import {
   deviceCookies,
@@ -932,6 +932,13 @@ test('quien no sincroniza no hace ninguna petición a /api ni descarga el motor'
   });
   await toggleFlag(page, 'Celeste', 'Comprado');
   await expectStored(page, CELESTE, { flags: { owned: true } });
+  // Un juego que no está en el catálogo se queda provisional sin preguntar su nombre a `resolve`:
+  // eso solo lo hace quien sincroniza (decisión del usuario, 08-11-2026).
+  await openPalette(page);
+  await page.keyboard.insertText('https://store.steampowered.com/app/3999990/Mi_Juego_Indie/');
+  await page.keyboard.press('Enter');
+  await expect(toast(page)).toContainText('Apuntado: «Mi Juego Indie» (provisional).');
+  await expectStored(page, 'steam:3999990', { title: 'Mi Juego Indie' });
   // Ajustes › Sincronización sin activar tampoco pregunta nada al servidor, y al volver a cargar
   // Mi lista, tampoco. Antes de cada navegación, el catálogo asentado (ver `catalogSettled`).
   await catalogSettled(page);

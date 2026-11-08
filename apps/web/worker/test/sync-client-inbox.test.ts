@@ -137,3 +137,22 @@ describe('el buzón del Atajo de iOS (CA4.5)', () => {
     expect(pc.sync.getSnapshot().status).toBe('paired');
   });
 });
+
+describe('el buzón y lo que llega en la misma ronda (revisión del 08-11-2026)', () => {
+  it('un dispositivo nuevo que recibe el juego (Completado) y su enlace a la vez no lo pisa', async () => {
+    const h = createHarness();
+    const pc = await replica(h);
+    await pc.activate();
+    pc.agenda.capture({ id: 'steam:1145360', title: 'Hades' }, { status: 'completed' });
+    await pc.syncNow();
+    await share(h, await inboxToken(pc), HADES);
+    // El teléfono se empareja sin haberlo visto: su primera ronda baja el juego y el enlace juntos.
+    const phone = await replica(h);
+    await pc.pair(phone);
+    expect(phone.agenda.get('steam:1145360')?.status).toBe('completed');
+    expect(inboxRows(h)).toEqual([]);
+    await pc.syncNow();
+    expect(pc.agenda.get('steam:1145360')?.status).toBe('completed');
+    expect(await phone.stored()).toEqual(await pc.stored());
+  });
+});

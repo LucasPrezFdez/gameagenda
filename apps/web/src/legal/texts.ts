@@ -107,7 +107,7 @@ export function privacyPolicy(c: Controller = CONTROLLER): LegalDocument {
             '.',
           ),
           p(
-            '4. Nombres de juegos que aún no están en el catálogo. Si apuntas un juego con un enlace de Steam y el catálogo de tu dispositivo no lo tiene, la app pregunta su nombre a nuestro servidor, que se lo pregunta a Steam. Solo viaja el número del juego, sin cookies ni nada que te identifique, y Steam no recibe tu IP. Guardamos el nombre en una caché de nombres públicos, sin saber quién lo pidió. Base: darte el servicio que pides al apuntar el juego (art. 6.1.b del RGPD).',
+            '4. Nombres de juegos que aún no están en el catálogo, solo con la sincronización activada. Si apuntas un juego con un enlace de Steam y el catálogo de tu dispositivo no lo tiene, la app pregunta su nombre a nuestro servidor, que se lo pregunta a Steam. Sin sincronizar, no se pregunta: el juego espera a que llegue al catálogo. Solo viaja el número del juego, sin cookies ni nada que te identifique, y Steam no recibe tu IP. Guardamos el nombre en una caché de nombres públicos, sin saber quién lo pidió. Base: darte el servicio que pides al apuntar el juego (art. 6.1.b del RGPD).',
           ),
           p(
             '5. Sincronización, si la activas. Guardamos tu agenda (juegos, estados, marcas, fechas, notas y orden, también lo que borras durante un tiempo, para que se borre en todos tus dispositivos), el nombre que le das a cada dispositivo y cuándo sincronizó por última vez, además de un resumen (hash) de cada credencial. Para qué: tener la misma agenda en tus dispositivos y una copia fuera de ellos. Base: el servicio que pides al activarla (art. 6.1.b del RGPD). No guardamos email, nombre, contraseña ni dirección IP.',

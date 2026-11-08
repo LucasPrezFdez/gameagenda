@@ -14,6 +14,7 @@ import { openDatabase } from './db/database.ts';
 import { createDexieErrorLogStorage } from './db/error-log-storage.ts';
 import { type LocalState, loadLocalState } from './db/local-state.ts';
 import { createDexiePerfSamplesStorage } from './db/perf-samples-storage.ts';
+import { createDexieResolveMemory } from './db/resolve-memory-storage.ts';
 import { createDexieSettingsStorage } from './db/settings-storage.ts';
 import { connectErrorLog, installGlobalErrorHandlers, logError } from './errors/error-log.ts';
 import { es } from './i18n/es.ts';
@@ -171,8 +172,20 @@ async function start(): Promise<void> {
 
   const services: AppServices = { agenda, search, settings, notices, copyReminder, perf, sync };
   search.init({ catalogVersion: null, showAdult });
-  // Lo que no está en el catálogo local pregunta su nombre a la micro-API (M4; CA4.5).
-  startCatalogRefresh(search, agenda, { resolve: createResolveName() });
+  // Lo que no está en el catálogo local pregunta su nombre a la micro-API (M4; CA4.5), solo si
+  // este dispositivo sincroniza: quien no sincroniza no hace ninguna petición a `/api`.
+  const syncService = sync;
+  startCatalogRefresh(search, agenda, {
+    resolve: createResolveName(),
+    canResolve: () => {
+      const { status } = syncService.getSnapshot();
+      return status === 'paired' || status === 'restoring';
+    },
+    subscribeCanResolve: (listener) => syncService.subscribe(listener),
+    ...(local
+      ? { memory: createDexieResolveMemory(local.db, (error) => logError('storage', error)) }
+      : {}),
+  });
 
   const root = document.getElementById('root');
   if (!root) throw new Error('Falta el elemento #root');

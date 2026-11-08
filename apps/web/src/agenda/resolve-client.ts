@@ -8,8 +8,11 @@ export type ResolveResult =
   | { readonly kind: 'name'; readonly name: string }
   /** Steam no conoce ese `appid` (`name: null`): se queda provisional. */
   | { readonly kind: 'unknown' }
-  /** Sin respuesta útil (sin red, límite, interruptor apagado, Steam caído): más tarde. */
-  | { readonly kind: 'later'; readonly retryAfterMs: number };
+  /**
+   * Sin respuesta útil: más tarde. `all`, todo espera (sin red, el límite, la micro-API apagada o
+   * un fallo suyo); `one`, solo este juego (Steam no ha contestado bien por él).
+   */
+  | { readonly kind: 'later'; readonly retryAfterMs: number; readonly scope: 'all' | 'one' };
 
 export type ResolveName = (appid: number) => Promise<ResolveResult>;
 
@@ -47,7 +50,7 @@ export function createResolveName(fetchImpl?: FetchLike): ResolveName {
     try {
       response = await doFetch(`${API_BASE}/resolve/${appid}`, init);
     } catch {
-      return { kind: 'later', retryAfterMs: RETRY_AFTER_MS };
+      return { kind: 'later', retryAfterMs: RETRY_AFTER_MS, scope: 'all' };
     }
     let json: unknown;
     try {
@@ -57,10 +60,18 @@ export function createResolveName(fetchImpl?: FetchLike): ResolveName {
     }
     if (response.ok) {
       const name = validName(json, appid);
-      if (name === undefined) return { kind: 'later', retryAfterMs: RETRY_AFTER_MS };
+      if (name === undefined) return { kind: 'later', retryAfterMs: RETRY_AFTER_MS, scope: 'all' };
       return name === null ? { kind: 'unknown' } : { kind: 'name', name };
     }
-    const disabled = (json as { error?: unknown } | undefined)?.error === 'sync_disabled';
-    return { kind: 'later', retryAfterMs: disabled ? RETRY_DISABLED_MS : RETRY_AFTER_MS };
+    const error = (json as { error?: unknown } | undefined)?.error;
+    if (error === 'steam_unavailable') {
+      return { kind: 'later', retryAfterMs: RETRY_AFTER_MS, scope: 'one' };
+    }
+    const disabled = error === 'sync_disabled';
+    return {
+      kind: 'later',
+      retryAfterMs: disabled ? RETRY_DISABLED_MS : RETRY_AFTER_MS,
+      scope: 'all',
+    };
   };
 }

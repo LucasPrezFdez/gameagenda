@@ -6,9 +6,8 @@
 // textos dicen «pendiente» y `scripts/legal-guard.test.ts` no deja encender la micro-API
 // (`SYNC_ENABLED` a "1" en `apps/web/wrangler.jsonc`).
 //
-// No importa nada: es lo único que comparten el *chunk* de Ajustes y el de los textos legales. Si
-// importara algo del *chunk* inicial (el *router*, por ejemplo), Rolldown partiría el inicial en
-// varios ficheros (medido el 08-11-2026: de 1 a 3, con 1,5 KB brotli más).
+// No importa nada. Los textos legales van en el *chunk* de Ajustes (ver `App.tsx`): con uno propio,
+// Rolldown partía el inicial en tres ficheros (medido el 08-11-2026: 1,8 KB brotli más).
 
 export interface Controller {
   /** Nombre o alias de quien responde de GameAgenda; `null` mientras no se haya decidido. */

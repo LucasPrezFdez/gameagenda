@@ -2,8 +2,19 @@
 // «Borrar todos mis datos», una importación no válida y el registro de errores.
 import { readFile } from 'node:fs/promises';
 import { expect, type Page, test } from '@playwright/test';
-import { capture, setup, toast } from './helpers.ts';
-import { expectStored, expectStoredSetting } from './storage.ts';
+import { capture, setup, toast, waitForSearch } from './helpers.ts';
+import { expectStored, expectStoredSetting, storedMeta } from './storage.ts';
+
+/**
+ * Antes de navegar en mitad de una prueba: el catálogo entero en la pestaña y su índice guardado.
+ * Si no, la navegación corta lo que el Worker de búsqueda aún descarga (`recent.tsv`, o el *chunk*
+ * que guarda el índice) y WebKit lo anota en la consola («access control checks»), que
+ * `expectClean()` cuenta como error. Pasaba unas 4 de cada 12 veces en WebKit (08-11-2026).
+ */
+async function catalogSettled(page: Page): Promise<void> {
+  await waitForSearch(page, 'full');
+  await expect.poll(() => storedMeta(page, 'searchIndexKey'), { timeout: 15_000 }).not.toBeNull();
+}
 
 async function openData(page: Page) {
   await page.goto('/ajustes/datos');
@@ -52,6 +63,7 @@ test('JSON: exportar → borrar → importar deja las entradas idénticas; reimp
 }) => {
   const checks = await setup(page);
   await threeGames(page);
+  await catalogSettled(page);
   await openData(page);
   const exported = await download(page, 'Exportar JSON');
   expect(exported.name).toMatch(/^gameagenda-\d{4}-\d{2}-\d{2}\.json$/);
@@ -69,6 +81,7 @@ test('JSON: exportar → borrar → importar deja las entradas idénticas; reimp
   await page.goto('/');
   await expect(page.getByText('Tu agenda está vacía', { exact: false })).toBeVisible();
 
+  await catalogSettled(page);
   await openData(page);
   await importFile(page, exported.path);
   await expect(page.getByRole('status').filter({ hasText: 'Hemos importado' })).toHaveText(
@@ -81,6 +94,7 @@ test('JSON: exportar → borrar → importar deja las entradas idénticas; reimp
   await expect(page.getByRole('status').filter({ hasText: 'Hemos importado' })).toHaveText(
     'Hemos importado la copia: 0 altas, 0 cambios, 0 bajas y 0 rechazos.',
   );
+  await catalogSettled(page);
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Jugando ahora (1)' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Quiero jugar (1)' })).toBeVisible();

@@ -5,23 +5,21 @@
 // Atajo no lo envía) ni acepta la cookie: solo su *token*. Guarda el enlace canónico de la tienda,
 // y la siguiente sincronización de una app de la agenda lo apunta y lo borra (ver `sync.ts`).
 //
-// Las respuestas llevan, además del código, un `message` en español: es lo que enseña el Atajo, que
-// no tiene la app para traducir los códigos.
+// Todas las respuestas llevan, además del código, un `message` en español: es lo que enseña el
+// Atajo, que no tiene la app para traducir los códigos (`INBOX_MESSAGES` de `http.ts`).
 
 import {
-  API_ERRORS,
-  type ApiErrorCode,
   INBOX_MAX_PENDING,
+  INBOX_URL_MAX,
   inboxRequestSchema,
   inboxTokenRequestSchema,
 } from '@gameagenda/core/api';
 import { canonicalStoreUrl, findSteamLink } from '@gameagenda/core/steam-link';
-import type { Context, Hono } from 'hono';
-import type { ContentfulStatusCode } from 'hono/utils/http-status';
+import type { Hono } from 'hono';
 import { sha256Hex } from '../crypto.ts';
 import { addDevice, requireDevice } from '../device.ts';
 import type { AppEnv, Deps } from '../env.ts';
-import { iso, parseBody } from '../http.ts';
+import { apiError, INBOX_MESSAGES, iso, parseBody } from '../http.ts';
 
 /** `{ "url": "…" }` con un texto de hasta 2 KiB: 4 KiB sobran. */
 const MAX_INBOX_BODY = 4096;
@@ -29,24 +27,15 @@ const MAX_BODY = 1024;
 /** Un *token* de verdad: 256 bits en base64url (43 caracteres), como la credencial de la app. */
 const BEARER = /^Bearer\s+([A-Za-z0-9_-]{43})$/;
 
-/** Lo que enseña el Atajo de iOS. */
-export const INBOX_MESSAGES = {
-  queued: 'Hecho. Lo apuntaremos en GameAgenda en cuanto se sincronice.',
-  unauthorized:
-    'Este atajo ya no vale. Crea un token nuevo en GameAgenda, en Ajustes › Sincronización.',
-  invalid_link: 'Eso no es un enlace de un juego de Steam.',
-  inbox_full:
-    'Hay demasiados juegos esperando. Abre GameAgenda para que se apunten y vuelve a probar.',
-  rate_limited: 'Demasiados envíos seguidos. Vuelve a probar dentro de un minuto.',
-} as const;
-
-type InboxError = Exclude<keyof typeof INBOX_MESSAGES, 'queued'> & ApiErrorCode;
-
-function inboxError(c: Context<AppEnv>, code: InboxError): Response {
-  return c.json(
-    { error: code, message: INBOX_MESSAGES[code] },
-    API_ERRORS[code] as ContentfulStatusCode,
-  );
+/**
+ * El enlace que se guarda: el canónico de la tienda, con su *slug* (para el título del juego
+ * provisional) si cabe. Un *slug* muy largo, o con caracteres que `encodeURIComponent` multiplica,
+ * se queda fuera: si el enlace pasara de `INBOX_URL_MAX`, la respuesta de `sync` no pasaría su
+ * esquema y la agenda entera dejaría de sincronizar.
+ */
+export function inboxUrl(link: { appid: number; title: string | null }): string {
+  const url = canonicalStoreUrl(link);
+  return url.length <= INBOX_URL_MAX ? url : canonicalStoreUrl({ appid: link.appid, title: null });
 }
 
 export function inboxRoutes(api: Hono<AppEnv>, deps: Deps): void {
@@ -66,11 +55,11 @@ export function inboxRoutes(api: Hono<AppEnv>, deps: Deps): void {
 
   api.post('/inbox', async (c) => {
     const token = BEARER.exec(c.req.header('Authorization') ?? '')?.[1];
-    if (token === undefined) return inboxError(c, 'unauthorized');
+    if (token === undefined) return apiError(c, 'unauthorized');
     const tokenHash = await sha256Hex(token);
     // Por *token*, antes de leer nada (§11.4).
     const { success } = await c.env.RL_INBOX.limit({ key: tokenHash });
-    if (!success) return inboxError(c, 'rate_limited');
+    if (!success) return apiError(c, 'rate_limited');
     const body = await parseBody(c, inboxRequestSchema, MAX_INBOX_BODY);
     if (!body.ok) return body.response;
 
@@ -79,12 +68,12 @@ export function inboxRoutes(api: Hono<AppEnv>, deps: Deps): void {
       .prepare("SELECT id, agenda_id FROM device WHERE token_hash = ?1 AND kind = 'inbox'")
       .bind(tokenHash)
       .first<{ id: string; agenda_id: string }>();
-    if (device === null) return inboxError(c, 'unauthorized');
+    if (device === null) return apiError(c, 'unauthorized');
     const link = findSteamLink(body.data.url);
-    if (link === null) return inboxError(c, 'invalid_link');
+    if (link === null) return apiError(c, 'invalid_link');
 
     // Un juego que ya espera en el buzón no se repite (con otro *slug* es el mismo juego).
-    const url = canonicalStoreUrl(link);
+    const url = inboxUrl(link);
     const prefix = canonicalStoreUrl({ appid: link.appid, title: null });
     const at = iso(deps.now());
     const [inserted, , queued] = await db.batch([
@@ -106,7 +95,7 @@ export function inboxRoutes(api: Hono<AppEnv>, deps: Deps): void {
         .bind(device.agenda_id, prefix),
     ]);
     if (inserted?.meta.changes !== 1 && queued?.results[0]?.queued !== 1) {
-      return inboxError(c, 'inbox_full');
+      return apiError(c, 'inbox_full');
     }
     return c.json(
       { ok: true, appid: link.appid, message: INBOX_MESSAGES.queued },

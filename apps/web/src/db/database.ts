@@ -45,6 +45,11 @@ export const META_KEYS = {
    * Sin esta clave y sin el indicio `__Host-ga_sync`, la sincronización está apagada.
    */
   syncState: 'syncState',
+  /**
+   * `resolve` (M4): a cuándo se preguntó por cada `appid` que no está en el catálogo,
+   * `{ "<appid>": ms }` (ver `db/resolve-memory-storage.ts`). Es de este dispositivo.
+   */
+  resolveAsked: 'resolveAsked',
 } as const;
 
 export type GameAgendaDb = Dexie & {

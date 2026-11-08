@@ -1,9 +1,14 @@
 // Buzón del Atajo de iOS (§5.2 y §11.4; RF-08; CA4.5): el *token* de solo escritura, el enlace que
 // deja el Atajo y su entrega a las apps en `sync`, con la confirmación en la petición siguiente.
 
-import { INBOX_MAX_PENDING, INBOX_PAGE_SIZE } from '@gameagenda/core/api';
+import {
+  INBOX_MAX_PENDING,
+  INBOX_PAGE_SIZE,
+  INBOX_TEXT_MAX,
+  INBOX_URL_MAX,
+} from '@gameagenda/core/api';
 import { describe, expect, it } from 'vitest';
-import { INBOX_MESSAGES } from '../routes/inbox.ts';
+import { INBOX_MESSAGES } from '../http.ts';
 import { type Client, createAgenda, createHarness, dumpAllText, type Harness } from './harness.ts';
 import { addOps, hlc } from './sync-support.ts';
 
@@ -157,10 +162,55 @@ describe('POST /api/v1/inbox', () => {
     expect((await shortcut(h, token, 'appid:7')).status).toBe(200);
   });
 
-  it('con el interruptor apagado, 503 como el resto de la micro-API', async () => {
+  it('con el interruptor apagado, 503 como el resto de la micro-API (con su mensaje)', async () => {
     const { h, token } = await setup();
     h.env.SYNC_ENABLED = '0';
-    expect((await shortcut(h, token, LINK)).status).toBe(503);
+    const response = await shortcut(h, token, LINK);
+    expect(response.status).toBe(503);
+    expect(response.json).toEqual({
+      error: 'sync_disabled',
+      message: INBOX_MESSAGES.sync_disabled,
+    });
+  });
+
+  it('todos sus errores llevan un mensaje para el Atajo, también los de antes de la ruta', async () => {
+    const { h, token } = await setup();
+    const headers = { Authorization: `Bearer ${token}` };
+    const cases: Array<[string, Record<string, string>, string]> = [
+      [
+        JSON.stringify({ url: LINK }),
+        { ...headers, 'Content-Type': 'text/plain' },
+        'unsupported_media_type',
+      ],
+      [JSON.stringify({ url: LINK, otro: 1 }), headers, 'invalid_body'],
+      ['no es JSON', headers, 'invalid_body'],
+      [JSON.stringify({ url: 'x'.repeat(5000) }), headers, 'payload_too_large'],
+    ];
+    for (const [body, extra, code] of cases) {
+      const response = await h
+        .client()
+        .post('/api/v1/inbox', body, { origin: null, headers: extra });
+      expect(response.json.error, code).toBe(code);
+      expect(response.json.message, code).toBe(INBOX_MESSAGES[code as keyof typeof INBOX_MESSAGES]);
+    }
+    // Las demás rutas no lo llevan.
+    expect((await h.client().get('/api/v1/devices')).json).toEqual({ error: 'unauthorized' });
+  });
+
+  it('un *slug* que no cabe se queda fuera: el enlace guardado nunca pasa de INBOX_URL_MAX', async () => {
+    const { h, pc, token } = await setup();
+    // `é` ocupa 6 caracteres codificada: 2 000 de ellas darían un enlace de unos 12 000.
+    const slug = 'é'.repeat(INBOX_TEXT_MAX - 60);
+    expect((await shortcut(h, token, `https://store.steampowered.com/app/10/${slug}`)).status).toBe(
+      201,
+    );
+    const [row] = h.db.rows<{ url: string }>('SELECT url FROM inbox_item');
+    expect(row?.url).toBe('https://store.steampowered.com/app/10/');
+    expect((row?.url.length ?? 0) <= INBOX_URL_MAX).toBe(true);
+    // Y `sync` lo entrega sin romper su esquema.
+    const page = await syncWith(pc);
+    expect(page.status).toBe(200);
+    expect(page.json.inbox).toEqual([{ id: expect.any(String), url: row?.url }]);
   });
 });
 

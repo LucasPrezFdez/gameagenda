@@ -37,33 +37,37 @@ describe('createResolveName', () => {
       // Una micro-API sin la ruta (un Worker anterior), como un fallo.
       [
         () => Response.json({ error: 'not_found' }, { status: 404 }),
-        { kind: 'later', retryAfterMs: RETRY_AFTER_MS },
+        { kind: 'later', retryAfterMs: RETRY_AFTER_MS, scope: 'all' },
       ],
       [
         () => Response.json({ error: 'sync_disabled' }, { status: 503 }),
-        { kind: 'later', retryAfterMs: RETRY_DISABLED_MS },
+        { kind: 'later', retryAfterMs: RETRY_DISABLED_MS, scope: 'all' },
       ],
       [
         () => Response.json({ error: 'rate_limited' }, { status: 429 }),
-        { kind: 'later', retryAfterMs: RETRY_AFTER_MS },
+        { kind: 'later', retryAfterMs: RETRY_AFTER_MS, scope: 'all' },
       ],
+      // Steam no ha contestado bien por este juego: espera él solo.
       [
         () => Response.json({ error: 'steam_unavailable' }, { status: 502 }),
-        { kind: 'later', retryAfterMs: RETRY_AFTER_MS },
+        { kind: 'later', retryAfterMs: RETRY_AFTER_MS, scope: 'one' },
       ],
       // El *fallback* de la SPA (sin micro-API), otro `appid` o un nombre vacío.
-      [() => new Response('<!doctype html>'), { kind: 'later', retryAfterMs: RETRY_AFTER_MS }],
+      [
+        () => new Response('<!doctype html>'),
+        { kind: 'later', retryAfterMs: RETRY_AFTER_MS, scope: 'all' },
+      ],
       [
         () => Response.json({ appid: 1, name: 'Otro' }),
-        { kind: 'later', retryAfterMs: RETRY_AFTER_MS },
+        { kind: 'later', retryAfterMs: RETRY_AFTER_MS, scope: 'all' },
       ],
       [
         () => Response.json({ appid: 7, name: '  ' }),
-        { kind: 'later', retryAfterMs: RETRY_AFTER_MS },
+        { kind: 'later', retryAfterMs: RETRY_AFTER_MS, scope: 'all' },
       ],
       [
         () => Promise.reject(new TypeError('Failed to fetch')),
-        { kind: 'later', retryAfterMs: RETRY_AFTER_MS },
+        { kind: 'later', retryAfterMs: RETRY_AFTER_MS, scope: 'all' },
       ],
     ];
     for (const [make, expected] of cases) {

@@ -1,6 +1,6 @@
 // Un texto legal con sus enlaces (`Inline` de `controller.ts`), como texto (§11.3): las rutas de
 // la app con el `Link` del *router*; `https:` en otra pestaña y sin `Referer`; `mailto:` tal cual.
-// Lo usa Ajustes; la pantalla de los textos legales lleva el suyo (ver `controller.ts`, por qué).
+// Lo usan Ajustes y la pantalla de los textos legales, que va en el mismo *chunk* (ver `App.tsx`).
 import { Link } from '../router/router.tsx';
 import type { Inline } from './controller.ts';
 

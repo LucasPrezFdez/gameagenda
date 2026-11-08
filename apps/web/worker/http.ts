@@ -11,6 +11,28 @@ import type { AppEnv, RateLimit } from './env.ts';
 /** Ruta del buzón del Atajo de iOS: no envía `Origin` y no usa la cookie, solo su *token* (§11.4). */
 export const INBOX_PATH = '/api/v1/inbox';
 
+/**
+ * Lo que enseña el Atajo de iOS, que no tiene la app para traducir los códigos: toda respuesta de
+ * `INBOX_PATH` lleva `message`, también las de error que salen antes de la ruta (el interruptor, el
+ * tipo de contenido, el tamaño o un cuerpo que no vale).
+ */
+export const INBOX_MESSAGES: Readonly<Partial<Record<ApiErrorCode | 'queued', string>>> = {
+  queued: 'Hecho. Lo apuntaremos en GameAgenda en cuanto se sincronice.',
+  unauthorized:
+    'Este atajo ya no vale. Crea un token nuevo en GameAgenda, en Ajustes › Sincronización.',
+  invalid_link: 'Eso no es un enlace de un juego de Steam.',
+  inbox_full:
+    'Hay demasiados juegos esperando. Abre GameAgenda para que se apunten y vuelve a probar.',
+  rate_limited: 'Demasiados envíos seguidos. Vuelve a probar dentro de un minuto.',
+  sync_disabled: 'GameAgenda no puede apuntar juegos así ahora mismo. Vuelve a probar más tarde.',
+  unsupported_media_type:
+    'El atajo no está bien hecho: el cuerpo de la solicitud tiene que ser JSON. Revisa los pasos en Ajustes › Sincronización.',
+  invalid_body:
+    'El atajo no está bien hecho: el JSON tiene que llevar solo el campo url. Revisa los pasos en Ajustes › Sincronización.',
+  payload_too_large: 'Lo que manda el atajo es demasiado largo: comparte solo el enlace del juego.',
+  internal: 'Algo ha fallado en GameAgenda. Vuelve a probar dentro de un rato.',
+};
+
 const API_HEADERS: Record<string, string> = {
   'Cache-Control': 'no-store',
   'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'",
@@ -21,7 +43,11 @@ const API_HEADERS: Record<string, string> = {
 };
 
 export function apiError(c: Context<AppEnv>, code: ApiErrorCode): Response {
-  return c.json({ error: code }, API_ERRORS[code] as ContentfulStatusCode);
+  const message = c.req.path === INBOX_PATH ? INBOX_MESSAGES[code] : undefined;
+  return c.json(
+    message === undefined ? { error: code } : { error: code, message },
+    API_ERRORS[code] as ContentfulStatusCode,
+  );
 }
 
 /** Cabeceras de toda respuesta de `/api/*`, también la de un error. */
@@ -58,11 +84,17 @@ export interface Schema<T> {
   safeParse(value: unknown): { success: true; data: T } | { success: false };
 }
 
-/** Lee el cuerpo sin pasar de `maxBytes`, aunque no venga `Content-Length`. */
-async function readCapped(request: Request, maxBytes: number): Promise<Uint8Array | null> {
-  const declared = Number(request.headers.get('Content-Length'));
+/**
+ * Lee el cuerpo de una petición (o de una respuesta, la de Steam en `resolve`) sin pasar de
+ * `maxBytes`, aunque no venga `Content-Length`: deja de leer en cuanto se pasa.
+ */
+export async function readCapped(
+  message: Pick<Request, 'headers' | 'body'>,
+  maxBytes: number,
+): Promise<Uint8Array | null> {
+  const declared = Number(message.headers.get('Content-Length'));
   if (declared > maxBytes) return null;
-  const body = request.body;
+  const body = message.body;
   if (body === null) return new Uint8Array(0);
   const reader = body.getReader();
   const chunks: Uint8Array[] = [];

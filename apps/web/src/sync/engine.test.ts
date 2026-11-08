@@ -771,3 +771,33 @@ describe('el buzón del Atajo de iOS (CA4.5)', () => {
     expect(await db.entries.get('steam:10')).toBeUndefined();
   });
 });
+
+describe('el buzón y lo que llega en la misma página (revisión del 08-11-2026)', () => {
+  it('un juego que la página trae vivo no se vuelve a apuntar: se confirma y ya', async () => {
+    const db = await newDb();
+    const h1 = h(NOW - 10 * MINUTE);
+    const server = fakeServer([
+      {
+        cursor: 3,
+        changes: [
+          { entryId: 'steam:10', field: 'status', value: 'completed', hlc: h1 },
+          { entryId: 'steam:10', field: 'title', value: 'Diez', hlc: h1 },
+          { entryId: 'steam:10', field: 'rank', value: 'a0', hlc: h1 },
+        ],
+        inbox: [{ id: 'i1', url: 'https://store.steampowered.com/app/10/Diez' }],
+      },
+      { inbox: [] },
+    ]);
+    const calls: InboxLink[][] = [];
+    const sink: InboxSink = {
+      async capture(links) {
+        calls.push([...links]);
+      },
+    };
+    const { engine } = engineFor(db, server, { inbox: sink });
+    await engine.round();
+    expect(calls).toEqual([]);
+    expect(server.requests.map((r) => r.inboxAck)).toEqual([undefined, ['i1']]);
+    expect((await db.entries.get('steam:10'))?.status).toBe('completed');
+  });
+});
