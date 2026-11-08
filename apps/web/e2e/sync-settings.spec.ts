@@ -107,8 +107,10 @@ test('activar: pide la edad, enseña el código de recuperación una vez y queda
   const checks = await setup(page);
   await openSync(page);
   const section = syncSection(page);
-  // Qué guarda y dónde, la cookie que crea el gesto y el hueco de los textos legales.
-  await expect(section.getByText(/Cloudflare en la Unión Europea/)).toBeVisible();
+  // Qué guarda y dónde, la cookie que crea el gesto y la primera capa de los textos legales.
+  await expect(
+    section.getByText(/^Guardamos tu agenda .*Cloudflare en la Unión Europea/),
+  ).toBeVisible();
   await expect(section.getByText(/guarda dos cookies/)).toBeVisible();
   await expect(section.locator('[data-sync-legal]')).toBeVisible();
   // El nombre, prellenado según el navegador y el sistema.

@@ -143,6 +143,7 @@ export type SyncOperation =
   | 'recover'
   | 'createPairing'
   | 'createRecovery'
+  | 'createInbox'
   | 'devices'
   | 'revoke'
   | 'leave';

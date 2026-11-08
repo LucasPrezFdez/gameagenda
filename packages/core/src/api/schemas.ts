@@ -11,6 +11,8 @@ import {
   DEVICE_KINDS,
   DEVICE_LABEL_MAX,
   EPOCH_MAX,
+  INBOX_ACK_MAX,
+  INBOX_TEXT_MAX,
   MAX_SYNC_OPS,
   SYNC_REJECTIONS,
 } from './constants.ts';
@@ -58,8 +60,24 @@ export const syncRequestSchema = z.strictObject({
   /** El `purgedSeq` de la última respuesta: con él, el servidor sabe si la app vio la purga. */
   purgedSeq: z.int().min(0),
   ops: z.array(z.unknown()).max(MAX_SYNC_OPS),
+  /**
+   * Los enlaces del buzón (`inbox` de una respuesta anterior) que la app ya ha apuntado y
+   * guardado: el servidor los borra. Sin el campo, ninguno.
+   */
+  inboxAck: z.array(z.string().max(64)).max(INBOX_ACK_MAX).optional(),
 });
 export type SyncRequest = z.input<typeof syncRequestSchema>;
+
+/** `POST /api/v1/inbox/token`: el *token* del buzón para el Atajo de iOS, con su nombre. */
+export const inboxTokenRequestSchema = z.strictObject({ label: deviceLabelSchema });
+export type InboxTokenRequest = z.input<typeof inboxTokenRequestSchema>;
+
+/**
+ * `POST /api/v1/inbox` (lo manda el Atajo de iOS, con el *token* en `Authorization`): un enlace
+ * de Steam, o un texto que lo lleve.
+ */
+export const inboxRequestSchema = z.strictObject({ url: z.string().max(INBOX_TEXT_MAX) });
+export type InboxRequest = z.input<typeof inboxRequestSchema>;
 
 export const syncChangeSchema = z.object({
   entryId: entryIdSchema,
@@ -98,6 +116,11 @@ export const syncResponseSchema = z.object({
       reason: z.enum(SYNC_REJECTIONS),
     }),
   ),
+  /**
+   * Enlaces del buzón por apuntar (solo en la última página: `more` es `false`). La app los apunta
+   * como un enlace pegado y los da por hechos (`inboxAck`) en la petición siguiente.
+   */
+  inbox: z.array(z.object({ id: z.string().max(64), url: z.string().max(INBOX_TEXT_MAX) })),
 });
 export type SyncResponse = z.output<typeof syncResponseSchema>;
 
@@ -140,3 +163,42 @@ export const devicesResponseSchema = z.object({ devices: z.array(deviceInfoSchem
 export type DevicesResponse = z.output<typeof devicesResponseSchema>;
 
 export const okResponseSchema = z.object({ ok: z.literal(true) });
+
+export const inboxTokenResponseSchema = z.object({
+  deviceId: z.string(),
+  /** El *token* del Atajo: se muestra una vez, y D1 solo guarda su SHA-256 (§11.4). */
+  token: z.string(),
+});
+export type InboxTokenResponse = z.output<typeof inboxTokenResponseSchema>;
+
+/**
+ * `GET /api/v1/resolve/<appid>`: el nombre del juego en la tienda (en español si lo tiene), o
+ * `null` si Steam no lo conoce. Es una respuesta, no un error: con un 404, el navegador anotaría un
+ * fallo en la consola por cada juego que aún no existe.
+ */
+export const resolveResponseSchema = z.object({
+  appid: z.int().positive(),
+  name: z.string().min(1).nullable(),
+});
+export type ResolveResponse = z.output<typeof resolveResponseSchema>;
+
+/**
+ * Lo que `resolve` lee de `IStoreBrowseService/GetItems/v1` de Steam, sin clave (§11.3: Zod valida
+ * cada respuesta de Steam). Con `success` 15 (sin acceso), `name` llega vacío y `appid`, a 0; con
+ * `unvailable_for_country_restriction` (así, con la errata de Steam), el juego está bloqueado en
+ * ese país y hay que pedirlo en otro.
+ */
+export const steamItemsResponseSchema = z.object({
+  response: z.object({
+    store_items: z
+      .array(
+        z.object({
+          success: z.int(),
+          name: z.string().optional(),
+          unvailable_for_country_restriction: z.boolean().optional(),
+        }),
+      )
+      .default([]),
+  }),
+});
+export type SteamItemsResponse = z.output<typeof steamItemsResponseSchema>;

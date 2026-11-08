@@ -52,6 +52,9 @@ const loadCatalog = () => import('./screens/catalog/CatalogScreen.tsx');
 const loadSettings = () => import('./screens/settings/SettingsScreen.tsx');
 const CatalogScreen = lazy(loadCatalog);
 const SettingsScreen = lazy(loadSettings);
+// Los textos legales (M4) van en el *chunk* de Ajustes, desde donde se abren: con un *chunk* propio,
+// Rolldown partía el inicial en tres ficheros (medido el 08-11-2026).
+const LegalScreen = lazy(() => loadSettings().then((m) => ({ default: m.LegalScreen })));
 
 function useTheme(theme: ThemePreference): void {
   useEffect(() => {
@@ -248,6 +251,7 @@ function Screens({ route, wide }: { route: Route; wide: boolean }) {
       {route.name === 'settings' && <SettingsScreen section={route.section} />}
       {/* `/emparejar` (M4) pasa enseguida a Ajustes › Sincronización: la misma pantalla. */}
       {route.name === 'pair' && <SettingsScreen section="sync" />}
+      {route.name === 'legal' && <LegalScreen key={route.doc} doc={route.doc} />}
       {route.name === 'notFound' && <NotFoundScreen />}
     </>
   );
@@ -357,7 +361,8 @@ function AppShell() {
     route.name === 'capture' ||
     route.name === 'share' ||
     route.name === 'game';
-  const inSettings = route.name === 'settings' || route.name === 'pair';
+  // Los textos legales se abren desde Ajustes: la navegación marca Ajustes.
+  const inSettings = route.name === 'settings' || route.name === 'pair' || route.name === 'legal';
   const group = onList ? 'agenda' : inSettings ? 'settings' : route.name;
 
   return (

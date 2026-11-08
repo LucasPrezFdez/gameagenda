@@ -20,6 +20,7 @@ import type { LockManagerLike, RuntimeHost, RuntimeTimings, SyncRuntime } from '
 import type { SchedulerEnv } from './scheduler.ts';
 import { countPendingEntries, hasSyncHint, parseSyncRecord, type SyncRecord } from './state.ts';
 import {
+  type InboxSink,
   type SyncActivity,
   SyncError,
   type SyncErrorCode,
@@ -39,6 +40,8 @@ export interface SyncServiceOptions {
   readonly newOpId: () => string;
   readonly notices?: NoticeCenter | null;
   readonly copyReminder?: CopyReminderStore | null;
+  /** Apunta los enlaces del buzón del Atajo de iOS; sin él, se quedan para otro dispositivo. */
+  readonly inbox?: InboxSink;
   /** `document.cookie` por defecto. */
   readonly readCookie?: () => string;
   /** El navegador por defecto (`window`, `document`, `navigator.onLine`, temporizadores). */
@@ -272,6 +275,7 @@ export function createSyncService(options: SyncServiceOptions): SyncController {
       ...(options.engine ? { engine: options.engine } : {}),
       notices: options.notices ?? null,
       copyReminder: options.copyReminder ?? null,
+      ...(options.inbox ? { inbox: options.inbox } : {}),
       readHint,
       getRecord: () => record,
       setRecord(next) {
@@ -392,6 +396,10 @@ export function createSyncService(options: SyncServiceOptions): SyncController {
     async createRecoveryCode() {
       requireActive();
       return (await ensureRuntime()).createRecoveryCode();
+    },
+    async createInboxToken(label) {
+      requireActive();
+      return (await ensureRuntime()).createInboxToken(label);
     },
     async listDevices() {
       requireActive();

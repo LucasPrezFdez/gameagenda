@@ -96,8 +96,9 @@ describe('cliente de la micro-API', () => {
       ],
       accepted: ['x'],
       rejected: [],
-      // Un campo nuevo del servidor no rompe a un cliente antiguo.
       inbox: [],
+      // Un campo nuevo del servidor no rompe a un cliente antiguo.
+      later: [],
     };
     const { fetch, calls } = fakeFetch(() => json(response));
     const api = createApiClient({ fetch });

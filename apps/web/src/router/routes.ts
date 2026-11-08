@@ -33,6 +33,13 @@ export const SETTINGS_SLUGS: Readonly<Record<SettingsSection, string>> = {
  */
 export const PAIR_PATH = '/emparejar';
 
+/** Los textos legales (M4; CA4.7): la política de privacidad y el aviso legal. */
+export type LegalDoc = 'privacy' | 'notice';
+export const LEGAL_PATHS: Readonly<Record<LegalDoc, string>> = {
+  privacy: '/privacidad',
+  notice: '/aviso-legal',
+};
+
 export type Route =
   | { readonly name: 'list' }
   | { readonly name: 'capture' }
@@ -43,6 +50,7 @@ export type Route =
   | { readonly name: 'settings'; readonly section: SettingsSection | null }
   /** Enlace del QR de emparejamiento (M4): se queda en Ajustes › Sincronización. */
   | { readonly name: 'pair' }
+  | { readonly name: 'legal'; readonly doc: LegalDoc }
   | { readonly name: 'notFound' };
 
 const STEAM_ID = /^steam:[1-9][0-9]{0,9}$/;
@@ -68,6 +76,8 @@ export function parseRoute(pathname: string): Route {
   if (path === '/catalogo') return { name: 'catalog' };
   if (path === '/ajustes') return { name: 'settings', section: null };
   if (path === PAIR_PATH) return { name: 'pair' };
+  if (path === LEGAL_PATHS.privacy) return { name: 'legal', doc: 'privacy' };
+  if (path === LEGAL_PATHS.notice) return { name: 'legal', doc: 'notice' };
 
   const game = /^\/juego\/([^/]+)$/.exec(path);
   if (game?.[1] !== undefined) {

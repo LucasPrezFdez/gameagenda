@@ -7,13 +7,19 @@
 //   sincronización»; aparte, canjear un código de emparejamiento o el de recuperación;
 // - recién activada (o con un código de recuperación nuevo): el código, una sola vez;
 // - emparejada: el estado, «Emparejar otro dispositivo» (código y QR de 10 min), los dispositivos,
-//   un código de recuperación nuevo y «Desemparejar este dispositivo»;
+//   el *token* del Atajo de iOS (se ve una vez, con los pasos para crear el atajo), un código de
+//   recuperación nuevo y «Desemparejar este dispositivo»;
 // - desemparejada (por el servidor o sin cookies): lo dice y ofrece el código de recuperación.
 // La sincronización en sí nunca pregunta (RF-26): aquí solo hay gestos explícitos. Las
 // confirmaciones van en el sitio, nunca en un modal (§9.6), y el foco sigue a cada cambio de vista,
 // también cuando la cambia el servidor (un 401). Lo que llega solo, sin un gesto (otro dispositivo
 // se ha emparejado), sale en el aviso de la app (`NoticeCenter`), que no empuja nada (§9.5).
-import { CODE_INPUT_MAX, DEFAULT_MIN_AGE } from '@gameagenda/core/api';
+import {
+  API_BASE,
+  CODE_INPUT_MAX,
+  DEFAULT_INBOX_LABEL,
+  DEFAULT_MIN_AGE,
+} from '@gameagenda/core/api';
 import {
   type ReactNode,
   useCallback,
@@ -27,6 +33,8 @@ import {
 import { useServices, useSyncState } from '../../app/services.tsx';
 import { logError } from '../../errors/error-log.ts';
 import { es } from '../../i18n/es.ts';
+import { syncFirstLayer } from '../../legal/first-layer.ts';
+import { LegalParts } from '../../legal/LegalParts.tsx';
 import { peekPendingPairingCode, takePendingPairingCode } from '../../router/pairing-link.ts';
 import { pairingUrl } from '../../router/routes.ts';
 import { LABEL_MAX } from '../../sync/device-label.ts';
@@ -209,9 +217,9 @@ function SyncDisclosure() {
     <>
       <p>{t.stored}</p>
       <p>{t.cookie}</p>
-      {/* El hueco de los textos legales (CA4.7): aquí irá el enlace a la política. */}
+      {/* La primera capa de los textos legales (CA4.7; art. 11 LOPDGDD), con su enlace. */}
       <p className="muted" data-sync-legal="">
-        {t.legal}
+        <LegalParts parts={syncFirstLayer()} />
       </p>
     </>
   );
@@ -933,6 +941,195 @@ function DevicesSection({
   );
 }
 
+/** Un valor para copiar en el atajo (la dirección o el encabezado), en monoespaciada. */
+function CopyValue({
+  id,
+  label,
+  value,
+  copyLabel,
+  onCopy,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  copyLabel: string;
+  onCopy: (ok: boolean) => void;
+}) {
+  return (
+    <div className="sync__field">
+      <h5 id={`${id}-label`} className="sync__label">
+        {label}
+      </h5>
+      <p className="sync__value" data-sync-value={id}>
+        {value}
+      </p>
+      <div className="settings__buttons">
+        <button
+          type="button"
+          className="btn"
+          aria-describedby={`${id}-label`}
+          onClick={() => void copyText(value).then(onCopy)}
+        >
+          {copyLabel}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * «Atajo de iOS» (CA4.5; §11.4): crea un *token* de solo escritura para el buzón, que se ve una
+ * sola vez junto con la dirección y los pasos para crear el atajo en la app Atajos. El *token*
+ * nuevo sale en «Dispositivos» (`onCreated` vuelve a cargar la lista).
+ */
+function InboxSection({
+  sync,
+  headingId,
+  onCreated,
+}: {
+  sync: SyncService;
+  headingId: string;
+  onCreated: () => void;
+}) {
+  const id = useId();
+  const [label, setLabel] = useState<string>(DEFAULT_INBOX_LABEL);
+  const [labelError, setLabelError] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [copied, setCopied] = useState<'address' | 'header' | 'failed' | null>(null);
+  // Solo con el token a la vista (las pruebas pintan el panel en Node, sin `window`).
+  const address = token === null ? '' : `${window.location.origin}${API_BASE}/inbox`;
+  const nameId = `${id}-name`;
+  const revealId = `${id}-reveal`;
+  const createId = `${id}-create`;
+
+  async function create(): Promise<void> {
+    if (busy) return;
+    setFailure(null);
+    const clean = cleanDeviceLabel(label);
+    if (clean === '') {
+      setLabelError(true);
+      focusWhenReady(nameId);
+      return;
+    }
+    setBusy(true);
+    const result = await attempt(() => sync.createInboxToken(clean));
+    setBusy(false);
+    if (!result.ok) {
+      setFailure(syncErrorText(result.code, 'createInbox'));
+      return;
+    }
+    setCopied(null);
+    setToken(result.value.token);
+    onCreated();
+    focusWhenReady(revealId);
+  }
+
+  function done(): void {
+    setToken(null);
+    setCopied(null);
+    focusWhenReady(createId);
+  }
+
+  return (
+    <section className="sync__block" aria-labelledby={headingId} data-sync-inbox="">
+      <h3 id={headingId} tabIndex={-1} className="settings__subtitle">
+        {t.inboxTitle}
+      </h3>
+      <p>{t.inboxIntro}</p>
+      <p className="muted">{t.inboxSafe}</p>
+      {token === null ? (
+        <form
+          className="sync__form"
+          noValidate
+          onSubmit={(event) => {
+            event.preventDefault();
+            void create();
+          }}
+        >
+          <div className="sync__field">
+            <label htmlFor={nameId} className="sync__label">
+              {t.inboxName}
+            </label>
+            <input
+              id={nameId}
+              className="field"
+              value={label}
+              maxLength={LABEL_MAX}
+              autoComplete="off"
+              spellCheck={false}
+              aria-invalid={labelError ? true : undefined}
+              aria-describedby={describedBy(`${nameId}-hint`, labelError && `${nameId}-error`)}
+              onChange={(event) => {
+                setLabel(event.target.value);
+                setLabelError(false);
+              }}
+            />
+            <p id={`${nameId}-hint`} className="muted">
+              {t.inboxNameHint}
+            </p>
+            {labelError && (
+              <p id={`${nameId}-error`} className="sync__error">
+                {t.inboxNameMissing}
+              </p>
+            )}
+          </div>
+          <div className="settings__buttons">
+            <button id={createId} type="submit" className="btn" aria-disabled={busy}>
+              {busy ? t.inboxCreating : t.inboxCreate}
+            </button>
+          </div>
+          <div className="settings__import-result" role="status">
+            {failure !== null && <p className="sync__error">{failure}</p>}
+          </div>
+        </form>
+      ) : (
+        <div className="sync__inbox-reveal" data-sync-inbox-reveal="">
+          <h4 id={revealId} tabIndex={-1} className="sync__label">
+            {t.inboxRevealTitle}
+          </h4>
+          <p className="sync__note">
+            <strong>{t.inboxOnce}</strong>
+          </p>
+          <CopyValue
+            id={`${id}-address`}
+            label={t.inboxAddress}
+            value={address}
+            copyLabel={t.inboxCopyAddress}
+            onCopy={(ok) => setCopied(ok ? 'address' : 'failed')}
+          />
+          <CopyValue
+            id={`${id}-header`}
+            label={t.inboxHeader}
+            value={`Bearer ${token}`}
+            copyLabel={t.inboxCopyHeader}
+            onCopy={(ok) => setCopied(ok ? 'header' : 'failed')}
+          />
+          <div className="settings__import-result" role="status">
+            {copied === 'address' && <p>{t.inboxCopiedAddress}</p>}
+            {copied === 'header' && <p>{t.inboxCopiedHeader}</p>}
+            {copied === 'failed' && <p>{t.inboxCopyFailed}</p>}
+          </div>
+          <h5 id={`${id}-steps`} className="sync__label">
+            {t.inboxStepsTitle}
+          </h5>
+          <ol className="sync__steps" aria-labelledby={`${id}-steps`}>
+            {t.inboxSteps.map((step) => (
+              <li key={step}>{step}</li>
+            ))}
+          </ol>
+          <div className="settings__buttons">
+            <button type="button" className="btn btn--primary" onClick={done}>
+              {t.inboxDone}
+            </button>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
 /** Una acción con confirmación en el sitio (sin modal, §9.6). `run` devuelve el error, o `null`. */
 function ConfirmAction({
   headingId,
@@ -1096,6 +1293,7 @@ export function PairedView({
           void load();
         }}
       />
+      <InboxSection sync={sync} headingId={ids.inbox} onCreated={() => void load()} />
       <ConfirmAction
         headingId={ids.recovery}
         title={t.newRecoveryTitle}
@@ -1215,6 +1413,7 @@ export interface PanelIds {
   readonly status: string;
   readonly pairing: string;
   readonly devices: string;
+  readonly inbox: string;
   readonly recovery: string;
   readonly leave: string;
   readonly unpaired: string;
@@ -1233,6 +1432,7 @@ export function SyncPanel() {
       status: `${base}-status`,
       pairing: `${base}-pairing`,
       devices: `${base}-devices`,
+      inbox: `${base}-inbox`,
       recovery: `${base}-recovery`,
       leave: `${base}-leave`,
       unpaired: `${base}-unpaired`,

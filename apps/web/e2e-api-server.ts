@@ -31,6 +31,11 @@
 //   (`mode: 'hold'`); con `mode: 'fail'`, todas cortan la conexión (como sin servidor) hasta
 //   entonces. `GET /__e2e/hold` dice si hay una retenida (`waiting`). Sirve en los dos motores:
 //   el `page.route()` de Playwright no ve las peticiones de una página con Service Worker en WebKit.
+// - `POST /__e2e/steam` con `{ names: { "<appid>": "<nombre>" } }`: el Steam falso de `resolve`
+//   (`GetItems`). Los E2E nunca llaman al de verdad: sin nombre, Steam «no lo conoce». Es uno para
+//   todos los mundos, como Steam, porque la app pide `resolve` sin cookies (tampoco la del mundo):
+//   cada prueba usa sus propios `appid`. `GET /__e2e/steam?appid=<n>` dice cuántas veces se ha
+//   preguntado por ese `appid`.
 
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { SQLInputValue } from 'node:sqlite';
@@ -39,7 +44,7 @@ import { DEFAULT_MIN_AGE } from '@gameagenda/core/api';
 import type { Entry } from '@gameagenda/core/entries';
 import { E2E_API_COOKIE, E2E_ROUTES_PREFIX } from './e2e-api-plugin.ts';
 import { createApp } from './worker/app.ts';
-import type { Env, RateLimit } from './worker/env.ts';
+import type { Env, RateLimit, SteamFetch } from './worker/env.ts';
 import { runMaintenance } from './worker/maintenance.ts';
 import { counterOpIds, entriesFromRows, type OpRow } from './worker/sync-plan.ts';
 import { SqliteD1 } from './worker/test/d1-sqlite.ts';
@@ -94,6 +99,24 @@ function newHold(pattern: RegExp, mode: 'hold' | 'fail'): Hold {
 
 const worlds = new Map<string, World>();
 
+/** El Steam falso de `resolve`, uno para todos los mundos (`POST /__e2e/steam`). */
+const steam = { names: new Map<number, string>(), calls: new Map<number, number>() };
+
+/** `GetItems` falso: lo que haya en `steam.names`; si no, «no lo conoce» (`success` 15). */
+const fakeSteam: SteamFetch = async (url) => {
+  const input = JSON.parse(new URL(url).searchParams.get('input_json') ?? '{}') as {
+    ids?: Array<{ appid?: number }>;
+  };
+  const appid = input.ids?.[0]?.appid ?? 0;
+  steam.calls.set(appid, (steam.calls.get(appid) ?? 0) + 1);
+  const name = steam.names.get(appid);
+  const item =
+    name === undefined
+      ? { id: appid, success: 15, visible: false, name: '', appid: 0 }
+      : { id: appid, success: 1, visible: true, name, appid, type: 0 };
+  return Response.json({ response: { store_items: [item] } });
+};
+
 function world(id: string): World {
   const existing = worlds.get(id);
   if (existing) return existing;
@@ -107,10 +130,12 @@ function world(id: string): World {
       ASSETS: { fetch: async () => new Response('No encontrado', { status: 404 }) },
       RL_AGENDA: unlimited,
       RL_REDEEM: unlimited,
+      RL_INBOX: unlimited,
+      RL_RESOLVE: unlimited,
       SYNC_ENABLED: '1',
       MIN_AGE: String(DEFAULT_MIN_AGE),
     },
-    app: createApp({ now: () => Date.now() + created.offsetMs }),
+    app: createApp({ now: () => Date.now() + created.offsetMs, steamFetch: fakeSteam }),
     offsetMs: 0,
     snapshot: null,
     hold: null,
@@ -409,6 +434,22 @@ async function e2eRoute(req: IncomingMessage, res: ServerResponse, w: World): Pr
       restoreSnapshot(w, body.newEpoch !== false);
       return sendJson(res, 200, { ok: true });
     }
+    case 'POST /__e2e/steam': {
+      const body = await readJson(req);
+      const names = body.names ?? {};
+      if (typeof names !== 'object' || names === null) throw new TypeError('names: objeto');
+      for (const [appid, name] of Object.entries(names)) {
+        if (!/^[1-9][0-9]*$/.test(appid) || typeof name !== 'string') {
+          throw new TypeError('names: { "<appid>": "<nombre>" }');
+        }
+        steam.names.set(Number(appid), name);
+      }
+      return sendJson(res, 200, { ok: true });
+    }
+    case 'GET /__e2e/steam':
+      return sendJson(res, 200, {
+        calls: steam.calls.get(Number(url.searchParams.get('appid'))) ?? 0,
+      });
     case 'GET /__e2e/agenda': {
       const report = agendaReport(w, url.searchParams);
       return report === null

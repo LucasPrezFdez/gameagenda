@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { findSteamLink, parseSteamLink, titleFromSlug } from '../src/steam-link/index.ts';
+import {
+  canonicalStoreUrl,
+  findSteamLink,
+  parseSteamLink,
+  titleFromSlug,
+} from '../src/steam-link/index.ts';
 
 describe('parseSteamLink: los seis formatos', () => {
   const vectors: Array<[string, number, string | null, string]> = [
@@ -103,5 +108,31 @@ describe('findSteamLink', () => {
   it('devuelve null si no hay ninguno', () => {
     expect(findSteamLink('Hades II, el mejor juego')).toBeNull();
     expect(findSteamLink('https://example.com/app/730')).toBeNull();
+  });
+});
+
+describe('canonicalStoreUrl', () => {
+  it('con y sin *slug*, y vuelve a dar el mismo appid y el mismo título', () => {
+    const cases = [
+      'https://store.steampowered.com/app/1145360/Hades/?snr=1_7_15__13',
+      'store.steampowered.com/app/2379780/Balatro',
+      'https://s.team/a/730',
+      'appid:504230',
+      'https://store.steampowered.com/app/1030300/Hollow_Knight_Silksong/',
+      'https://store.steampowered.com/app/4000001/Caf%C3%A9_100%25_Ni%C3%B1o/',
+    ];
+    for (const text of cases) {
+      const link = parseSteamLink(text);
+      if (link === null) throw new Error(text);
+      const url = canonicalStoreUrl(link);
+      expect(url).toMatch(/^https:\/\/store\.steampowered\.com\/app\/[1-9][0-9]*\/[^?#]*$/);
+      expect(parseSteamLink(url)).toMatchObject({ appid: link.appid, title: link.title });
+    }
+    expect(canonicalStoreUrl({ appid: 730, title: null })).toBe(
+      'https://store.steampowered.com/app/730/',
+    );
+    expect(canonicalStoreUrl({ appid: 1145360, title: 'Hades' })).toBe(
+      'https://store.steampowered.com/app/1145360/Hades',
+    );
   });
 });

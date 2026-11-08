@@ -28,6 +28,7 @@ import { countPendingEntries, newRecord, parseSyncRecord, type SyncRecord } from
 import {
   type ActivateInput,
   type DeviceInfo,
+  type InboxSink,
   type RedeemInput,
   type SyncActivity,
   SyncError,
@@ -84,6 +85,8 @@ export interface RuntimeHost {
   readonly engine?: Pick<EngineOptions, 'batchSize' | 'maxRequests' | 'yieldToMain'>;
   readonly notices: NoticeCenter | null;
   readonly copyReminder: CopyReminderStore | null;
+  /** Apunta los enlaces del buzón del Atajo de iOS (`links/inbox-capture.ts`). */
+  readonly inbox?: InboxSink;
   readHint(): boolean;
   getRecord(): SyncRecord | null;
   /** `meta.syncState` ya guardado (o borrado): la fachada recalcula el estado. */
@@ -110,6 +113,8 @@ export interface SyncRuntime {
   redeemRecoveryCode(input: RedeemInput): Promise<void>;
   createPairingCode(): Promise<{ code: string; expiresAt: string }>;
   createRecoveryCode(): Promise<{ recoveryCode: string }>;
+  /** Ver `SyncService.createInboxToken`. */
+  createInboxToken(label: string): Promise<{ deviceId: string; token: string }>;
   listDevices(): Promise<readonly DeviceInfo[]>;
   /** Ver `SyncService.revokeDevice`. */
   revokeDevice(id: string): Promise<{ self: boolean }>;
@@ -143,6 +148,7 @@ export function createRuntime(host: RuntimeHost): SyncRuntime {
     clock: host.clock,
     newOpId: host.newOpId,
     now: env.now,
+    ...(host.inbox ? { inbox: host.inbox } : {}),
     ...host.engine,
   });
   const scheduler = createScheduler(run, env, timings);
@@ -384,6 +390,7 @@ export function createRuntime(host: RuntimeHost): SyncRuntime {
     redeemRecoveryCode: (input) => redeem('recovery', input),
     createPairingCode: () => authed(() => api.createPairing()),
     createRecoveryCode: () => authed(() => api.createRecovery()),
+    createInboxToken: (label) => authed(() => api.createInboxToken(label)),
     async listDevices() {
       const { devices } = await authed(() => api.devices());
       const current = devices.find((d) => d.current);

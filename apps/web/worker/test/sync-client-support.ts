@@ -21,6 +21,7 @@ import type { CopyReminderStore } from '../../src/data/copy-reminder.ts';
 import { createDexieAgendaStorage } from '../../src/db/agenda-storage.ts';
 import { type GameAgendaDb, openDatabase } from '../../src/db/database.ts';
 import { loadLocalState } from '../../src/db/local-state.ts';
+import { createInboxSink } from '../../src/links/inbox-capture.ts';
 import type { NoticeCenter } from '../../src/notices/notice-center.ts';
 import type { FetchLike } from '../../src/sync/api-client.ts';
 import { createSyncService, type SyncController, trackLocalWrites } from '../../src/sync/facade.ts';
@@ -153,6 +154,12 @@ export interface ReplicaOptions {
    * un despliegue: el *hash* que pide ya no está.
    */
   readonly failRuntimeLoads?: number;
+  /**
+   * El buzón del Atajo de iOS: con agenda, esta pestaña lo apunta (`createInboxSink`) salvo con
+   * `inbox: false`. `catalog` son los nombres del catálogo local (por `appid`).
+   */
+  readonly inbox?: boolean;
+  readonly catalog?: ReadonlyMap<number, string>;
 }
 
 let replicas = 0;
@@ -284,6 +291,9 @@ export class Replica {
       locks: this.options.locks ?? null,
       notices: this.options.notices ?? null,
       copyReminder: this.options.copyReminder ?? null,
+      ...(this.agendaOrNull !== null && this.options.inbox !== false
+        ? { inbox: this.inboxSink(this.agendaOrNull) }
+        : {}),
       fetch: this.fetch,
       ...(this.options.timings ? { timings: this.options.timings } : {}),
       engine: {
@@ -304,6 +314,29 @@ export class Replica {
     this.sync = sync;
     sync.start();
     await this.settle();
+  }
+
+  /** Apunta el buzón como `main.tsx`, con un catálogo local falso (`options.catalog`). */
+  private inboxSink(agenda: AgendaStore) {
+    const catalog = this.options.catalog ?? new Map<number, string>();
+    return createInboxSink({
+      agenda,
+      search: {
+        lookup: async (appids) => {
+          const found = appids
+            .filter((appid) => catalog.has(appid))
+            .map((appid) => ({
+              appid,
+              name: catalog.get(appid) ?? '',
+              nameEs: null,
+              year: null,
+              flags: 0,
+            }));
+          return { found, missing: appids.filter((appid) => !catalog.has(appid)) };
+        },
+      },
+      notices: this.options.notices ?? null,
+    });
   }
 
   /** Cierra la pestaña (la IndexedDB y las cookies se quedan). */

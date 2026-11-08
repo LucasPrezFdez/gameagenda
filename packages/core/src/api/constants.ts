@@ -26,19 +26,46 @@ export const CODE_INPUT_MAX = 64;
 export const DEVICE_KINDS = ['app', 'inbox'] as const;
 export type DeviceKind = (typeof DEVICE_KINDS)[number];
 
+/** Nombre que propone Ajustes para el *token* del buzón (se puede cambiar). */
+export const DEFAULT_INBOX_LABEL = 'Atajo de iOS';
+/**
+ * Lo que admite `POST /api/v1/inbox` en `url`: un enlace de Steam, o un texto que lo lleve (lo que
+ * comparte la app de Steam lleva el título delante). Se guarda solo el enlace canónico.
+ */
+export const INBOX_TEXT_MAX = 2048;
+/** Enlaces pendientes por agenda: con más, el buzón responde 409 `inbox_full`. */
+export const INBOX_MAX_PENDING = 200;
+/** Enlaces del buzón por respuesta de `sync` (los siguientes llegan en la ronda siguiente). */
+export const INBOX_PAGE_SIZE = 50;
+/** Ids del buzón que una petición de `sync` puede dar por apuntados. */
+export const INBOX_ACK_MAX = 200;
+
+/** `resolve` (§5.2): un nombre que Steam conoce vale 30 días en la caché de D1. */
+export const RESOLVE_TTL_MS = 30 * 86_400_000;
+/** Y un `appid` que Steam no conoce, 1 día: puede ser un juego que aún no se ha publicado. */
+export const RESOLVE_MISS_TTL_MS = 86_400_000;
+/** Nombre más largo que devuelve `resolve` (se corta, sin partir un par sustituto). */
+export const RESOLVE_NAME_MAX = 200;
+
 /** Códigos de error de la micro-API: la app los traduce a sus textos. */
 export const API_ERRORS = {
   invalid_body: 400,
   invalid_code: 400,
+  /** El buzón solo admite enlaces de Steam (§11.4). */
+  invalid_link: 400,
   unauthorized: 401,
   bad_origin: 403,
   not_found: 404,
   already_paired: 409,
   age_policy_changed: 409,
+  /** Hay `INBOX_MAX_PENDING` enlaces sin recoger: hay que abrir la app para que los apunte. */
+  inbox_full: 409,
   payload_too_large: 413,
   unsupported_media_type: 415,
   rate_limited: 429,
   internal: 500,
+  /** `resolve`: Steam no ha contestado (o no como se esperaba) y no hay nada en la caché. */
+  steam_unavailable: 502,
   sync_disabled: 503,
   /** Otro dispositivo escribía a la vez y los reintentos no bastaron: probar más tarde. */
   busy: 503,

@@ -4,7 +4,7 @@
 
 import { DEFAULT_MIN_AGE } from '@gameagenda/core/api';
 import { createApp } from '../app.ts';
-import type { Env, RateLimit } from '../env.ts';
+import type { Env, RateLimit, SteamFetch } from '../env.ts';
 import { SqliteD1 } from './d1-sqlite.ts';
 
 export const ORIGIN = 'https://ga-web.test';
@@ -105,12 +105,60 @@ export class Client {
   }
 }
 
+/**
+ * Steam falso para `resolve`: `GetItems` de un juego, con los nombres de `names` (en España) y
+ * `blockedInEs` (bloqueados en España, con su nombre en EE. UU.). `fail` hace que la llamada
+ * falle (`'network'`, `'status'` o `'garbage'`). Guarda las URL que le piden.
+ */
+export class FakeSteam {
+  readonly names = new Map<number, string>();
+  readonly blockedInEs = new Map<number, string>();
+  readonly calls: string[] = [];
+  fail: 'network' | 'status' | 'garbage' | null = null;
+
+  readonly fetch: SteamFetch = async (url) => {
+    this.calls.push(url);
+    if (this.fail === 'network') throw new TypeError('fetch failed');
+    if (this.fail === 'status') return new Response('Bad gateway', { status: 502 });
+    if (this.fail === 'garbage') return new Response('{"response":{"store_items":"no"}}');
+    const input = JSON.parse(new URL(url).searchParams.get('input_json') ?? '{}') as {
+      ids: Array<{ appid: number }>;
+      context: { country_code: string };
+    };
+    const appid = input.ids[0]?.appid ?? 0;
+    const country = input.context.country_code;
+    const blocked = this.blockedInEs.get(appid);
+    const name = this.names.get(appid) ?? (country === 'US' ? blocked : undefined);
+    const item =
+      name !== undefined
+        ? { item_type: 0, id: appid, success: 1, visible: true, name, appid, type: 0 }
+        : blocked !== undefined
+          ? {
+              item_type: 0,
+              id: appid,
+              success: 15,
+              visible: false,
+              unvailable_for_country_restriction: true,
+              name: '',
+              appid: 0,
+            }
+          : { item_type: 0, id: appid, success: 15, visible: false, name: '', appid: 0 };
+    return Response.json({ response: { store_items: [item] } });
+  };
+}
+
 export interface Harness {
   db: SqliteD1;
   env: Env;
   app: ReturnType<typeof createApp>;
   clock: { ms: number };
-  limits: { agenda: CountingLimit; redeem: CountingLimit };
+  limits: {
+    agenda: CountingLimit;
+    redeem: CountingLimit;
+    inbox: CountingLimit;
+    resolve: CountingLimit;
+  };
+  steam: FakeSteam;
   client(ip?: string): Client;
 }
 
@@ -124,18 +172,27 @@ export interface HarnessOptions {
 export function createHarness(overrides: Partial<Env> = {}, options: HarnessOptions = {}): Harness {
   const db = options.db ?? new SqliteD1();
   const clock = { ms: T0 };
-  const limits = { agenda: new CountingLimit(), redeem: new CountingLimit() };
+  const limits = {
+    agenda: new CountingLimit(),
+    redeem: new CountingLimit(),
+    inbox: new CountingLimit(),
+    resolve: new CountingLimit(),
+  };
+  const steam = new FakeSteam();
   const env: Env = {
     DB: db,
     ASSETS: { fetch: async (request) => new Response(`asset ${new URL(request.url).pathname}`) },
     RL_AGENDA: limits.agenda,
     RL_REDEEM: limits.redeem,
+    RL_INBOX: limits.inbox,
+    RL_RESOLVE: limits.resolve,
     SYNC_ENABLED: '1',
     MIN_AGE: String(DEFAULT_MIN_AGE),
     ...overrides,
   };
   const app = createApp({
     now: () => clock.ms,
+    steamFetch: steam.fetch,
     ...(options.pageSize === undefined ? {} : { pageSize: options.pageSize }),
   });
   let nextIp = 1;
@@ -145,6 +202,7 @@ export function createHarness(overrides: Partial<Env> = {}, options: HarnessOpti
     app,
     clock,
     limits,
+    steam,
     client: (ip) => new Client(harness, ip ?? `192.0.2.${nextIp++}`),
   };
   return harness;

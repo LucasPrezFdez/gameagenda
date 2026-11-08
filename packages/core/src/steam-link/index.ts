@@ -75,3 +75,14 @@ export function findSteamLink(text: string): SteamLink | null {
   }
   return null;
 }
+
+/**
+ * Enlace canónico de la tienda para un enlace reconocido: `https://store.steampowered.com/app/
+ * <appid>/` y, si traía *slug*, el *slug* otra vez (con `_` por los espacios). Así lo guarda el
+ * buzón del Atajo de iOS (M4): sin parámetros ni lo que hubiera alrededor, y `parseSteamLink()`
+ * le saca el mismo `appid` y el mismo título.
+ */
+export function canonicalStoreUrl(link: Pick<SteamLink, 'appid' | 'title'>): string {
+  const slug = link.title === null ? '' : encodeURIComponent(link.title.replace(/ /g, '_'));
+  return `https://store.steampowered.com/app/${link.appid}/${slug}`;
+}

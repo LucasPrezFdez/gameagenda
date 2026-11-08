@@ -151,6 +151,16 @@
   max-width: 16rem;
 }
 
+/* Acerca de: los textos legales (M4; CA4.7). */
+.settings__legal {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
 .settings__trademark {
   padding: 12px;
   border-radius: var(--radius-sm);
@@ -294,6 +304,37 @@
 
 .sync__code-group {
   white-space: nowrap;
+}
+
+/* Lo que se copia en el Atajo de iOS (la dirección y el encabezado): largo, así que se parte por
+   cualquier sitio, y un toque lo selecciona entero. */
+.sync__value {
+  max-width: 100%;
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--text);
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-variant-ligatures: none;
+  overflow-wrap: anywhere;
+  user-select: all;
+  -webkit-user-select: all;
+}
+
+.sync__inbox-reveal {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sync__steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding-left: 1.5em;
 }
 
 .sync__code-input {

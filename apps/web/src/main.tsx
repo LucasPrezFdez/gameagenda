@@ -5,6 +5,7 @@ import { v7 as uuidv7 } from 'uuid';
 import { App } from './App.tsx';
 import { createAgenda } from './agenda/agenda.ts';
 import { startCatalogRefresh } from './agenda/catalog-refresh.ts';
+import { createResolveName } from './agenda/resolve-client.ts';
 import { type AppServices, ServicesProvider } from './app/services.tsx';
 import { createCopyReminderStore } from './data/copy-reminder.ts';
 import { createDexieAgendaStorage } from './db/agenda-storage.ts';
@@ -16,6 +17,7 @@ import { createDexiePerfSamplesStorage } from './db/perf-samples-storage.ts';
 import { createDexieSettingsStorage } from './db/settings-storage.ts';
 import { connectErrorLog, installGlobalErrorHandlers, logError } from './errors/error-log.ts';
 import { es } from './i18n/es.ts';
+import { createInboxSink } from './links/inbox-capture.ts';
 import { createNoticeCenter, type NoticeAction } from './notices/notice-center.ts';
 import { warmFallbackFonts } from './perf/fallback-fonts.ts';
 import { startPerfSampler } from './perf/sampler.ts';
@@ -162,12 +164,15 @@ async function start(): Promise<void> {
     newOpId: uuidv7,
     notices,
     copyReminder,
+    // Lo que deja el Atajo de iOS en el buzón (CA4.5), como un enlace pegado.
+    inbox: createInboxSink({ agenda, search, notices }),
     onError: (error) => logError('storage', error),
   });
 
   const services: AppServices = { agenda, search, settings, notices, copyReminder, perf, sync };
   search.init({ catalogVersion: null, showAdult });
-  startCatalogRefresh(search, agenda);
+  // Lo que no está en el catálogo local pregunta su nombre a la micro-API (M4; CA4.5).
+  startCatalogRefresh(search, agenda, { resolve: createResolveName() });
 
   const root = document.getElementById('root');
   if (!root) throw new Error('Falta el elemento #root');

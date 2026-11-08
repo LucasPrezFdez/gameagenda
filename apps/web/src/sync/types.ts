@@ -121,6 +121,12 @@ export interface SyncService {
   createPairingCode(): Promise<{ readonly code: string; readonly expiresAt: string }>;
   /** Código de recuperación nuevo; el anterior deja de valer. Se muestra una vez. */
   createRecoveryCode(): Promise<{ readonly recoveryCode: string }>;
+  /**
+   * *Token* nuevo del buzón para el Atajo de iOS (CA4.5): de solo escritura, se muestra una vez y
+   * sale en la lista de dispositivos (`kind: 'inbox'`), donde se revoca. Los anteriores siguen
+   * valiendo hasta revocarlos.
+   */
+  createInboxToken(label: string): Promise<{ readonly deviceId: string; readonly token: string }>;
   /** Dispositivos de la agenda (`current` marca este), incluido el buzón del Atajo de iOS. */
   listDevices(): Promise<readonly DeviceInfo[]>;
   /**
@@ -150,4 +156,23 @@ export interface SyncService {
   notifyLocalWrite(): void;
   /** Deja de escuchar eventos (pruebas). */
   dispose(): void;
+}
+
+/** Un enlace del buzón del Atajo de iOS (M4; CA4.5), ya leído: el juego y el título del *slug*. */
+export interface InboxLink {
+  /** Id del enlace en el buzón: se confirma con él (`inboxAck`). */
+  readonly id: string;
+  readonly appid: number;
+  /** Título del *slug* de la tienda, para el juego provisional; `null` si no lo traía. */
+  readonly title: string | null;
+}
+
+/**
+ * Quien apunta los enlaces del buzón en esta pestaña (`links/inbox-capture.ts`): como un enlace
+ * pegado, en Quiero jugar y sin tocar los que ya están en la lista. Se resuelve cuando lo apuntado
+ * está guardado. El motor solo confirma al servidor los juegos que después están en la agenda: lo
+ * que no se haya podido guardar vuelve en la ronda siguiente.
+ */
+export interface InboxSink {
+  capture(links: readonly InboxLink[]): Promise<void>;
 }

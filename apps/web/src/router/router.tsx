@@ -47,7 +47,11 @@ function read(kind: NavigationKind): LocationSnapshot {
   };
 }
 
-let snapshot: LocationSnapshot = read('initial');
+// Fuera del navegador (las pruebas que pintan en Node un componente con `Link`), la portada.
+let snapshot: LocationSnapshot =
+  typeof window === 'undefined'
+    ? { href: '/', pathname: '/', search: '', route: parseRoute('/'), kind: 'initial', index: 0 }
+    : read('initial');
 
 function emit(): void {
   for (const listener of listeners) listener();

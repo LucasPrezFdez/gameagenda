@@ -17,6 +17,7 @@
 // lo notaría). Con varios dispositivos eso no basta, y por eso está la época (`agenda.epoch`).
 
 import {
+  INBOX_PAGE_SIZE,
   MAX_SYNC_BODY,
   SYNC_PAGE_SIZE,
   type SyncChange,
@@ -143,7 +144,10 @@ async function plan(
 }
 
 interface Page
-  extends Pick<SyncResponse, 'cursor' | 'purgedSeq' | 'epoch' | 'reset' | 'more' | 'changes'> {
+  extends Pick<
+    SyncResponse,
+    'cursor' | 'purgedSeq' | 'epoch' | 'reset' | 'more' | 'changes' | 'inbox'
+  > {
   /** D1 vuelto atrás: el lote no se ha escrito, así que no se acepta ninguna operación. */
   rewound: boolean;
 }
@@ -193,10 +197,27 @@ async function attempt(
       db.prepare('UPDATE device SET last_seen_at = ?2 WHERE id = ?1').bind(deviceId, at),
     );
   }
+  // El buzón: fuera lo que la app ya ha apuntado. Si este intento se repite, borrar otra vez no
+  // cambia nada.
+  const acks = request.inboxAck ?? [];
+  if (acks.length > 0) {
+    statements.push(
+      db
+        .prepare(
+          'DELETE FROM inbox_item WHERE agenda_id = ?1 AND id IN (SELECT value FROM json_each(?2))',
+        )
+        .bind(agendaId, JSON.stringify(acks)),
+    );
+  }
   const readAt = statements.length;
   statements.push(
     db.prepare('SELECT seq, purged_seq, epoch FROM agenda WHERE id = ?1').bind(agendaId),
     db.prepare(CHANGES_SQL).bind(agendaId, request.cursor, request.purgedSeq, pageSize + 1),
+    db
+      .prepare(
+        'SELECT id, url FROM inbox_item WHERE agenda_id = ?1 ORDER BY created_at, rowid LIMIT ?2',
+      )
+      .bind(agendaId, INBOX_PAGE_SIZE),
   );
 
   const results = await db.batch(statements);
@@ -206,6 +227,7 @@ async function attempt(
     | undefined;
   if (agenda === undefined) return 'gone';
   const rows = (results[readAt + 1]?.results ?? []) as unknown as Array<OpRow & { seq: number }>;
+  const inbox = (results[readAt + 2]?.results ?? []) as unknown as SyncResponse['inbox'];
   const more = rows.length > pageSize;
   const page = more ? rows.slice(0, pageSize) : rows;
   const { cursor, purgedSeq } = request;
@@ -227,6 +249,9 @@ async function attempt(
       value: JSON.parse(r.value),
       hlc: r.hlc,
     })),
+    // Solo en la última página: con más páginas por bajar, la app aún no puede saber si el juego
+    // ya está en la agenda (y apuntarlo otra vez pisaría su estado).
+    inbox: more ? [] : inbox.map((r) => ({ id: r.id, url: r.url })),
   };
 }
 

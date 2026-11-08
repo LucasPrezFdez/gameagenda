@@ -475,6 +475,8 @@ export const es = {
       'Las portadas se cargan desde servidores de Valve en EE. UU., que reciben tu dirección IP. Sin ellas, cada juego lleva una portada con sus iniciales.',
     coversKilled: 'Ahora mismo las portadas están desactivadas para todos.',
     steamData: 'Datos de Steam que guardamos',
+    policy: 'Qué datos salen de este dispositivo, cuándo y para qué lo explica la',
+    policyLink: 'política de privacidad',
     what: 'Qué: el catálogo público de Steam (nombres, fechas de lanzamiento, reseñas, plataformas, compatibilidad con Steam Deck y las rutas de las portadas). No guardamos nada de tu cuenta de Steam.',
     where:
       'Dónde: en este dispositivo, en la caché del navegador. El catálogo se publica en la red global de Cloudflare, y GitHub, en EE. UU., guarda el estado del proceso que lo actualiza, sin datos personales.',
@@ -559,6 +561,11 @@ export const es = {
       'Tu agenda de videojuegos: apunta en segundos los juegos que quieres jugar y lleva su estado.',
     trademark:
       'Steam y el logotipo de Steam son marcas comerciales o registradas de Valve Corporation en EE. UU. y otros países. GameAgenda no está afiliada a Valve ni cuenta con su respaldo.',
+    privacy: 'Política de privacidad',
+    notice: 'Aviso legal y condiciones de uso',
+    legal: 'Textos legales',
+    /** El índice de secciones de la política y del aviso legal. */
+    sections: 'Secciones',
   },
 
   notices: {
@@ -593,6 +600,14 @@ export const es = {
     unknownSystem: 'otro sistema',
   },
 
+  /** Lo que llega del buzón del Atajo de iOS (M4; CA4.5), en el aviso de la app. */
+  inbox: {
+    captured: (titles: readonly string[]) =>
+      titles.length === 1
+        ? `Hemos apuntado «${titles[0]}» desde el Atajo de iOS.`
+        : `Hemos apuntado ${formatCount(titles.length)} juegos desde el Atajo de iOS.`,
+  },
+
   /** Ajustes › Sincronización (M4; §9.1, §11.2 y §11.4). */
   syncPanel: {
     loading: 'Cargando el estado de la sincronización…',
@@ -604,9 +619,6 @@ export const es = {
       'Guardamos tu agenda (juegos, estados, marcas, fechas y notas) y el nombre de cada dispositivo en servidores de Cloudflare en la Unión Europea. No pedimos email, nombre ni contraseña.',
     cookie:
       'Al activar o emparejar (también con el código de recuperación), este dispositivo guarda dos cookies: una lo identifica ante el servidor y la otra, sin datos, indica que está emparejado. Solo sirven para sincronizar, y se borran al desemparejarlo o al borrar la agenda sincronizada.',
-    /** Hueco de los textos legales (CA4.7): aquí irá el enlace cuando se publiquen. */
-    legal:
-      'Política de privacidad y condiciones: las publicaremos antes de abrir la sincronización.',
     deviceName: 'Nombre de este dispositivo',
     deviceNameHint: 'Así lo reconocerás en la lista de dispositivos.',
     deviceNameMissing: 'Escribe un nombre para este dispositivo.',
@@ -705,6 +717,40 @@ export const es = {
       `¿Desemparejar «${label}»? El Atajo de iOS dejará de poder apuntar juegos.`,
     unpaired: (label: string) => `Hemos desemparejado «${label}».`,
     cancel: 'Cancelar',
+
+    // El buzón del Atajo de iOS (CA4.5; §11.4): un *token* de solo escritura, que se ve una vez.
+    inboxTitle: 'Atajo de iOS',
+    inboxIntro:
+      'Con un atajo de la app Atajos del iPhone o el iPad, compartes un juego desde Safari o desde la app de Steam y se apunta en Quiero jugar, sin abrir GameAgenda. Llega a tu agenda en la siguiente sincronización.',
+    inboxSafe:
+      'El atajo usa un token propio, de solo escritura: puede dejar enlaces de Steam, pero no ve tu lista. Sale en «Dispositivos», donde lo puedes desemparejar.',
+    inboxName: 'Nombre del atajo',
+    inboxNameHint: 'Así lo reconocerás en la lista de dispositivos.',
+    inboxNameMissing: 'Escribe un nombre para el atajo.',
+    inboxCreate: 'Crear un token para el atajo',
+    inboxCreating: 'Creando el token…',
+    inboxRevealTitle: 'Crea el atajo',
+    inboxOnce:
+      'Solo verás el token ahora: haz el atajo antes de salir de aquí. Si lo pierdes, crea otro y desempareja el anterior.',
+    inboxAddress: 'Dirección',
+    inboxHeader: 'Valor del encabezado Authorization',
+    inboxCopyAddress: 'Copiar la dirección',
+    inboxCopyHeader: 'Copiar el valor',
+    inboxCopiedAddress: 'Hemos copiado la dirección.',
+    inboxCopiedHeader: 'Hemos copiado el valor del encabezado.',
+    inboxCopyFailed: 'No hemos podido copiarlo. Selecciona el texto y cópialo a mano.',
+    inboxStepsTitle: 'Pasos en el iPhone o el iPad',
+    inboxSteps: [
+      'Abre la app Atajos y crea un atajo nuevo con +. Llámalo «Apuntar en GameAgenda».',
+      'Toca el icono de información (ⓘ) y activa «Mostrar en la hoja de compartir». Arriba quedará «Recibir … desde la hoja de compartir»: toca los tipos y deja solo «URL» y «Texto».',
+      'Añade la acción «Obtener contenido de URL». En la dirección, pega la de arriba. En «Mostrar más», pon el método «POST».',
+      'En «Encabezados», añade uno: de clave, Authorization, y de valor, pega el de arriba (empieza por Bearer).',
+      'En «Cuerpo de la solicitud», elige «JSON» y añade un campo de texto: de clave, url, y de valor, la variable «Entrada del atajo».',
+      'Añade «Obtener valor del diccionario» con la clave message, y después «Mostrar notificación» con el valor del diccionario: así verás si se ha apuntado.',
+      'Para usarlo, en Safari o en la app de Steam, toca Compartir y luego «Apuntar en GameAgenda».',
+    ] as readonly string[],
+    inboxDone: 'Ya he creado el atajo',
+    inboxCreated: (label: string) => `Hemos creado el token de «${label}».`,
 
     newRecoveryTitle: 'Código de recuperación',
     newRecoveryIntro:

@@ -4,11 +4,16 @@
 // (relee las entradas cambiadas) y, si tenía una escritura pendiente de la misma entrada, la
 // fusiona sobre lo guardado con `merge()` (`db/agenda-storage.ts`): nada se pisa.
 //
+// El buzón del Atajo de iOS (CA4.5) llega en la última página de cada respuesta: la ronda apunta sus
+// enlaces con `options.inbox` (fuera de la transacción: es la agenda de la pestaña la que escribe)
+// y los confirma en la petición siguiente, solo si el juego ya está guardado en la agenda.
+//
 // Quien llama tiene el Web Lock (una ronda a la vez entre pestañas; ver `runtime.ts`). Si falta
 // `meta.syncState` (otra pestaña, o esta, ha desemparejado, olvidado o borrado todos los datos), la
 // ronda no escribe nada más ni manda más peticiones: acaba con `aborted`.
 import type { SyncResponse } from '@gameagenda/core/api';
-import type { Entry } from '@gameagenda/core/entries';
+import { type Entry, isLive } from '@gameagenda/core/entries';
+import { parseSteamLink } from '@gameagenda/core/steam-link';
 import {
   applyOps,
   canon,
@@ -38,6 +43,7 @@ import { Dexie } from 'dexie';
 import { type GameAgendaDb, META_KEYS } from '../db/database.ts';
 import type { SyncCall } from './api-client.ts';
 import { INITIAL_CURSOR, parseSyncCursor, type SyncCursorState, type SyncRecord } from './state.ts';
+import type { InboxLink, InboxSink } from './types.ts';
 
 /**
  * Peticiones por ronda, como mucho: con lotes de 200, 20 000 operaciones. Las páginas de un `reset`
@@ -65,6 +71,8 @@ export interface EngineOptions {
   readonly maxRequests?: number;
   /** Cede el turno entre páginas (por defecto, `scheduler.yield()` o una tarea nueva). */
   readonly yieldToMain?: () => Promise<void>;
+  /** Apunta los enlaces del buzón; sin él, se quedan en el servidor para otro dispositivo. */
+  readonly inbox?: InboxSink;
 }
 
 export interface RoundResult {
@@ -78,6 +86,8 @@ export interface RoundResult {
   readonly changed: number;
   /** Operaciones que se han vuelto a sellar por reloj. */
   readonly resealed: number;
+  /** Enlaces del buzón apuntados (o que ya estaban en la lista) y confirmados al servidor. */
+  readonly inbox: number;
   /**
    * `true` si la ronda ha parado porque `meta.syncState` ya no estaba: antes de una petición, o
    * al ir a aplicar su respuesta. De esa respuesta no se ha escrito nada (ni entradas, ni
@@ -191,6 +201,29 @@ export function createSyncEngine(options: EngineOptions): SyncEngine {
       if (drop.length > 0) await db.outbox.bulkDelete(drop.map((o) => o.opId));
       return { ops: sortForUpload(keep), head: 0 };
     });
+  }
+
+  /**
+   * Los enlaces del buzón de la última página: los apunta (`options.inbox`) y devuelve los ids que
+   * se pueden confirmar: los que no son un enlace de Steam (no se apuntarán nunca) y los que ya
+   * están vivos en la agenda. `null` si, mientras tanto, se ha dejado de sincronizar.
+   */
+  async function takeInbox(items: SyncResponse['inbox']): Promise<string[] | null> {
+    const links: InboxLink[] = [];
+    const acks: string[] = [];
+    for (const item of items) {
+      const link = parseSteamLink(item.url);
+      if (link === null) acks.push(item.id);
+      else links.push({ id: item.id, appid: link.appid, title: link.title });
+    }
+    if (links.length === 0 || options.inbox === undefined) return acks;
+    await options.inbox.capture(links);
+    if (!(await isPaired())) return null;
+    const rows = await db.entries.bulkGet(links.map((l) => `steam:${l.appid}`));
+    links.forEach((link, i) => {
+      if (isLive(rows[i])) acks.push(link.id);
+    });
+    return acks;
   }
 
   /**
@@ -469,12 +502,18 @@ export function createSyncEngine(options: EngineOptions): SyncEngine {
       let changed = 0;
       let resealed = 0;
       let pending = 0;
+      let inbox = 0;
+      /** Lo que se confirma del buzón en la petición siguiente. */
+      let acks: string[] = [];
+      /** Lo del buzón que ya se ha intentado apuntar en esta ronda (no se repite). */
+      const tried = new Set<string>();
       const end = (complete: boolean, aborted = false): RoundResult => ({
         requests,
         complete,
         pending,
         changed,
         resealed,
+        inbox,
         aborted,
       });
       for (;;) {
@@ -489,11 +528,15 @@ export function createSyncEngine(options: EngineOptions): SyncEngine {
           cursor: progress.pageCursor,
           purgedSeq: progress.state.purgedSeq,
           ops: batch,
+          ...(acks.length > 0 ? { inboxAck: acks } : {}),
         };
         const sentAt = now();
         const response = await transport.sync(sent);
         const receivedAt = now();
         requests += 1;
+        // El servidor ya ha borrado lo confirmado.
+        inbox += acks.length;
+        acks = [];
         const applied = await apply(batch, sent, response, { sentAt, receivedAt }, progress);
         if (applied.aborted) return end(false, true);
         // Una página de un `reset` que avanza no cuenta para el tope (ver `MAX_REQUESTS_PER_ROUND`).
@@ -509,7 +552,22 @@ export function createSyncEngine(options: EngineOptions): SyncEngine {
           const stale = pending !== queue.ops.length - queue.head;
           if (applied.requeue || applied.resealed > 0 || stale) queue = null;
         }
-        if (!response.more && !applied.again && pending === 0) return end(true);
+        // El buzón, solo con todo bajado: antes, la app aún no sabe si el juego ya estaba en la
+        // agenda, y apuntarlo otra vez pisaría su estado.
+        const settled = !response.more && !applied.again && applied.progress.changes === null;
+        const fresh = settled ? response.inbox.filter((item) => !tried.has(item.id)) : [];
+        if (fresh.length > 0) {
+          for (const item of fresh) tried.add(item.id);
+          const taken = await takeInbox(fresh);
+          if (taken === null) return end(false, true);
+          acks = taken;
+          // Lo apuntado está en la `outbox`: la cola se vuelve a leer.
+          pending = await db.outbox.count();
+          queue = null;
+        }
+        if (!response.more && !applied.again && pending === 0 && acks.length === 0) {
+          return end(true);
+        }
         if (counted >= maxRequests) return end(false);
         await pause();
       }

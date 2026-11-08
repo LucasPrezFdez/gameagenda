@@ -9,9 +9,9 @@ import { type CaptureTarget, steamId } from '../agenda/types.ts';
 import { useServices } from '../app/services.tsx';
 import { displayName, linkInText, provisionalTitle } from '../palette/palette-model.ts';
 import type { FeedbackTiming } from '../perf/measures.ts';
+import { LINK_WAIT_MS } from './link-wait.ts';
 
-/** Lo que se espera al catálogo local por el título (el mismo plazo que Intro, §8.7). */
-export const LINK_WAIT_MS = 500;
+export { LINK_WAIT_MS };
 
 /** `true` si el texto traía un enlace de Steam y se ha apuntado (o ya estaba). */
 export type CaptureLink = (text: string, timing: FeedbackTiming) => Promise<boolean>;

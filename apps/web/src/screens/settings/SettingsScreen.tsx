@@ -12,7 +12,12 @@ import { logError } from '../../errors/error-log.ts';
 import { es } from '../../i18n/es.ts';
 import { CaptureButton } from '../../palette/palette-context.tsx';
 import { Link } from '../../router/router.tsx';
-import { SETTINGS_SECTIONS, type SettingsSection, settingsPath } from '../../router/routes.ts';
+import {
+  LEGAL_PATHS,
+  SETTINGS_SECTIONS,
+  type SettingsSection,
+  settingsPath,
+} from '../../router/routes.ts';
 import type { ThemePreference } from '../../settings/settings-store.ts';
 import { useOpenShortcutHelp } from '../../shortcuts/ShortcutHelp.tsx';
 import { SyncError } from '../../sync/types.ts';
@@ -22,6 +27,9 @@ import { PerformancePanel } from './PerformancePanel.tsx';
 import { SyncPanel } from './SyncPanel.tsx';
 import { deleteServerErrorText } from './sync-model.ts';
 import './settings.css';
+
+// La pantalla de los textos legales va en este *chunk* (ver `App.tsx`).
+export { default as LegalScreen } from '../legal/LegalScreen.tsx';
 
 const THEMES: readonly ThemePreference[] = ['system', 'light', 'dark'];
 
@@ -510,6 +518,9 @@ function Privacy() {
         <p>{es.privacy.ip}</p>
         <p>{es.privacy.agenda}</p>
         <p className="muted">{es.privacy.browserCache}</p>
+        <p>
+          {es.privacy.policy} <Link to={LEGAL_PATHS.privacy}>{es.privacy.policyLink}</Link>.
+        </p>
         <div className="settings__buttons">
           <button
             type="button"
@@ -537,6 +548,16 @@ function About() {
       <p>{es.about.description}</p>
       <p className="muted">{es.about.version(__APP_VERSION__, __APP_SHA__)}</p>
       <p className="settings__trademark">{es.about.trademark}</p>
+      <nav aria-label={es.about.legal}>
+        <ul className="settings__legal">
+          <li>
+            <Link to={LEGAL_PATHS.privacy}>{es.about.privacy}</Link>
+          </li>
+          <li>
+            <Link to={LEGAL_PATHS.notice}>{es.about.notice}</Link>
+          </li>
+        </ul>
+      </nav>
     </div>
   );
 }

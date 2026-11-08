@@ -12,6 +12,8 @@ import {
   createAgendaResponseSchema,
   type DevicesResponse,
   devicesResponseSchema,
+  type InboxTokenResponse,
+  inboxTokenResponseSchema,
   okResponseSchema,
   type PairingResponse,
   pairingResponseSchema,
@@ -53,6 +55,8 @@ export interface SyncApi {
   devices(): Promise<DevicesResponse>;
   revokeDevice(id: string): Promise<void>;
   deleteAgenda(): Promise<void>;
+  /** El *token* del buzón para el Atajo de iOS (se muestra una vez). */
+  createInboxToken(label: string): Promise<InboxTokenResponse>;
   sync(request: SyncCall): Promise<SyncResponse>;
 }
 
@@ -130,6 +134,7 @@ export function createApiClient(options: ApiClientOptions = {}): SyncApi {
     async deleteAgenda() {
       await post('/agenda/delete', { confirm: true }, okResponseSchema);
     },
+    createInboxToken: (label) => post('/inbox/token', { label }, inboxTokenResponseSchema),
     sync: (request) => post('/sync', request, syncResponseSchema),
   };
 }

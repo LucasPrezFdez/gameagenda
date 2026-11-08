@@ -47,6 +47,10 @@ export interface Env {
   RL_AGENDA: RateLimit;
   /** Canjear un código de emparejamiento o de recuperación, por IP. */
   RL_REDEEM: RateLimit;
+  /** Dejar un enlace en el buzón (Atajo de iOS), por *token*. */
+  RL_INBOX: RateLimit;
+  /** `resolve` (nombre de un `appid` con `GetItems` de Steam), por IP. */
+  RL_RESOLVE: RateLimit;
   /** `'1'` activa la micro-API; con otro valor responde 503 (CA4.7: no antes de los textos legales). */
   SYNC_ENABLED: string;
   /** Edad mínima que se declara al activar la sincronización (14; R-10). */
@@ -72,9 +76,14 @@ export interface ExecutionContext {
   waitUntil(promise: Promise<unknown>): void;
 }
 
+/** Lo que `resolve` usa para llamar a Steam: `fetch` (en las pruebas, uno falso). */
+export type SteamFetch = (url: string, init: RequestInit) => Promise<Response>;
+
 /** Lo que se inyecta en las rutas: el reloj, para probar las caducidades. */
 export interface Deps {
   now: () => number;
+  /** Por defecto, el `fetch` del entorno. */
+  steamFetch?: SteamFetch;
   /** Cambios por página de `sync` (`SYNC_PAGE_SIZE`); las pruebas la bajan para paginar. */
   pageSize?: number;
 }

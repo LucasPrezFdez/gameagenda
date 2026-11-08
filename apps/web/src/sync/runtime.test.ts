@@ -49,6 +49,7 @@ const fetchOk: FetchLike = async () =>
       changes: [],
       accepted: [],
       rejected: [],
+      inbox: [],
     }),
     { headers: { 'Content-Type': 'application/json' } },
   );

@@ -32,7 +32,10 @@
   // `namespace_id` es único en la cuenta.
   "ratelimits": [
     { "name": "RL_AGENDA", "namespace_id": "1101", "simple": { "limit": 5, "period": 60 } },
-    { "name": "RL_REDEEM", "namespace_id": "1102", "simple": { "limit": 10, "period": 60 } }
+    { "name": "RL_REDEEM", "namespace_id": "1102", "simple": { "limit": 10, "period": 60 } },
+    // El buzón del Atajo de iOS, por *token*, y `resolve`, por IP.
+    { "name": "RL_INBOX", "namespace_id": "1103", "simple": { "limit": 30, "period": 60 } },
+    { "name": "RL_RESOLVE", "namespace_id": "1104", "simple": { "limit": 30, "period": 60 } }
   ],
   // Mantenimiento de D1 (`worker/maintenance.ts`): a diario, y la purga de lápidas los lunes.
   // A las 03:17 UTC, lejos del catálogo (04:17).

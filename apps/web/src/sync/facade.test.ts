@@ -57,6 +57,7 @@ function fakeRuntime() {
     redeemRecoveryCode: async () => undefined,
     createPairingCode: async () => ({ code: 'C', expiresAt: 'E' }),
     createRecoveryCode: async () => ({ recoveryCode: 'R' }),
+    createInboxToken: async () => ({ deviceId: 'I', token: 'T' }),
     listDevices: async () => [],
     revokeDevice: async () => ({ self: false }),
     deleteServerAgenda: async () => undefined,

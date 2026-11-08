@@ -17,6 +17,7 @@ import { type GameAgendaDb, META_KEYS, openDatabase } from '../db/database.ts';
 import type { SyncCall } from './api-client.ts';
 import { createSyncEngine, type EngineOptions } from './engine.ts';
 import { newRecord } from './state.ts';
+import type { InboxLink, InboxSink } from './types.ts';
 
 /** 07-11-2026 12:00 UTC. */
 const NOW = Date.UTC(2026, 10, 7, 12);
@@ -71,6 +72,7 @@ function fakeServer(replies: Reply[] = []) {
           changes: [],
           accepted: request.ops.map((o) => o.opId),
           rejected: [],
+          inbox: [],
           ...extra,
         };
       },
@@ -705,5 +707,67 @@ describe('unirse', () => {
       ['deletedAt', new Date(old + 1).toISOString(), link],
       ['mergedInto', 'steam:1145350', link],
     ]);
+  });
+});
+
+describe('el buzón del Atajo de iOS (CA4.5)', () => {
+  /** Un `InboxSink` que apunta en la base, como lo haría la agenda (y lo guarda enseguida). */
+  function sinkInto(db: GameAgendaDb, opts: { save?: boolean } = {}) {
+    const calls: InboxLink[][] = [];
+    const sink: InboxSink = {
+      async capture(links) {
+        calls.push([...links]);
+        if (opts.save === false) return;
+        for (const link of links) {
+          const id = `steam:${link.appid}`;
+          if (isLive(await db.entries.get(id))) continue;
+          await db.entries.put(added(id, link.title ?? `Juego ${link.appid}`, h(NOW - 5)));
+        }
+      },
+    };
+    return { sink, calls };
+  }
+
+  const ITEMS = [
+    { id: 'i1', url: 'https://store.steampowered.com/app/10/Diez' },
+    { id: 'i2', url: 'https://example.com/no-es-de-steam' },
+  ];
+
+  it('solo con todo bajado; y confirma en la petición siguiente lo que ha quedado guardado', async () => {
+    const db = await newDb();
+    const server = fakeServer([
+      { more: true, cursor: 5, inbox: ITEMS },
+      { inbox: ITEMS },
+      { inbox: [] },
+    ]);
+    const { sink, calls } = sinkInto(db);
+    const { engine } = engineFor(db, server, { inbox: sink });
+    const result = await engine.round();
+    // En la primera página (con más por bajar) no se apunta nada.
+    expect(calls).toEqual([[{ id: 'i1', appid: 10, title: 'Diez' }]]);
+    expect(server.requests.map((r) => r.inboxAck)).toEqual([undefined, undefined, ['i2', 'i1']]);
+    expect(result).toMatchObject({ complete: true, inbox: 2 });
+    expect((await db.entries.get('steam:10'))?.title).toBe('Diez');
+  });
+
+  it('lo que no se ha guardado no se confirma, y en la misma ronda no se repite', async () => {
+    const db = await newDb();
+    const item = ITEMS.slice(0, 1);
+    const server = fakeServer([{ inbox: item }, { inbox: item }]);
+    const { sink, calls } = sinkInto(db, { save: false });
+    const { engine } = engineFor(db, server, { inbox: sink });
+    const result = await engine.round();
+    expect(calls).toHaveLength(1);
+    expect(server.requests).toHaveLength(1);
+    expect(result).toMatchObject({ complete: true, inbox: 0 });
+  });
+
+  it('sin quien lo apunte, solo se confirma lo que no es de Steam', async () => {
+    const db = await newDb();
+    const server = fakeServer([{ inbox: ITEMS }, { inbox: ITEMS.slice(0, 1) }]);
+    const { engine } = engineFor(db, server);
+    await engine.round();
+    expect(server.requests.map((r) => r.inboxAck)).toEqual([undefined, ['i2']]);
+    expect(await db.entries.get('steam:10')).toBeUndefined();
   });
 });
