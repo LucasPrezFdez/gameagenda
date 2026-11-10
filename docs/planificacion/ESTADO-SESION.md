@@ -5,6 +5,13 @@
 
 ## 0. Lo primero en la próxima sesión
 
+**Pulido visual y animaciones (10-11-2026): en `main` y desplegado.** Elegido por el usuario entre varias opciones (página en `docs/diseno/pulido/`, que se monta en `.cache/pulido/index.html`); el detalle, en DECISIONES §10.44 (los números 34 a 43 son de M4, en su rama).
+- Se hizo en la rama `pulido-visual` (*worktree* `.claude/worktrees/pulido-visual`, que se conserva) y entró en `main` con avance rápido, en `6bb3345`.
+- `check` (972 pruebas, JS inicial de 133,1 KB), E2E de Chromium y WebKit en verde salvo los dos intermitentes ya conocidos (`boot.spec.ts:273` y `data.spec.ts:50` en WebKit), `ci` 42851918207, `deploy-web` 42852474560 y `smoke:web`, en verde.
+- `perf`: no pasa «tareas largas al teclear o apuntar», igual que `main` medido a continuación (4 de 51–55 ms frente a 2 de 50–53 ms, con la CPU al 16 %). Lo demás, dentro de presupuesto.
+- La app de escritorio, abierta oculta, se puso al día sola en 123 s (`index-Vw-YmuG2.js`) y se ha dejado abierta. No hizo falta instalador: la parte nativa no cambia.
+- **Al juntar M4 con `main`:** las dos ramas tocan `shell.css`, `settings.css` y DECISIONES; se conservan las dos partes.
+
 Todo está en `main` y subido, con el CI y el despliegue en verde y sin agentes en marcha. Por orden:
 
 0. **Rediseño visual «Tinta» (05-11-2026, sesión 8): en `main` y desplegado.** Se hizo en la rama `rediseno-visual` (*worktree* `.claude/worktrees/rediseno-visual`, que se conserva) y entró en `main` sin *merge*, en `51b5563`.
