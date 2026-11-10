@@ -84,7 +84,10 @@ export function useListMotion(
     () =>
       agenda.subscribe(() => {
         const element = container.current;
-        if (before.current || !element || skip.current || motionMs() === 0) return;
+        if (before.current || !element || skip.current) return;
+        // Con la paleta abierta no se desliza nada (la fila nueva solo destella) y medir aquí
+        // forzaría la maquetación dentro de la pulsación de Intro (`npm run perf`, 10-11-2026).
+        if (document.querySelector('.palette.is-open') || motionMs() === 0) return;
         const rects = new Map<string, { left: number; top: number }>();
         for (const [key, { left, top }] of measure(element)) rects.set(key, { left, top });
         before.current = { layoutKey: currentKey.current, scrollY: window.scrollY, rects };
