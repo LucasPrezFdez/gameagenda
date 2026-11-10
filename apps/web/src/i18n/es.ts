@@ -311,6 +311,8 @@ export const es = {
     },
     noFilterMatches: 'No hay juegos con este filtro.',
     loadingRow: 'Cargando…',
+    // Lista o cuadrícula de portadas (DECISIONES §10.45).
+    viewMode: { label: 'Ver como', list: 'Lista', grid: 'Cuadrícula' },
   },
 
   game: {

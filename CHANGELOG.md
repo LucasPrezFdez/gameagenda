@@ -8,6 +8,7 @@ Cambios de GameAgenda por versión. Cada hito cierra una versión SemVer 0.x (§
 
 #### Para el usuario
 
+- **El Catálogo, en cuadrícula** (10-11-2026; DECISIONES §10.45): un conmutador Lista / Cuadrícula junto a los filtros. La cuadrícula enseña las portadas en grande, como la búsqueda instantánea de SteamDB, con `(+)` sobre cada una y el estado de los juegos que ya están en la lista. Se recuerda, y el teclado funciona igual (← → ↑ ↓ entre tarjetas).
 - **Pulido visual y animaciones** (10-11-2026; DECISIONES §10.44, opciones elegidas por el usuario en `docs/diseno/pulido/`):
   - la paleta se abre en el centro de la pantalla (PC), con el campo grande; la barra lateral marca lo activo con tinta y lleva los contadores en píldora; la cápsula del móvil, con una píldora de tinta que se desliza;
   - las portadas de las filas llevan sombra y, en el móvil, el título ocupa todo el ancho, con el estado debajo; las secciones llevan el punto de su estado; el contenido va centrado en pantallas anchas y las tarjetas cambian el filo por una sombra fina;

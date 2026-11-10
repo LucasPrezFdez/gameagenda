@@ -37,7 +37,7 @@ export interface CoverProps {
   readonly title: string;
   /** Juego de Steam; sin él (juego manual), siempre la portada generada. */
   readonly appid?: number | null;
-  readonly size?: 'row' | 'sheet' | 'palette';
+  readonly size?: 'row' | 'sheet' | 'palette' | 'card';
   /**
    * ¿Puede pedir sus detalles? La paleta solo los pide tras 150 ms sin teclear (§9.5, regla 5) y
    * el Catálogo, con el desplazamiento parado; sin pedirlos, enseña lo que ya se sepa.

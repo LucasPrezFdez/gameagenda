@@ -192,6 +192,7 @@ describe('ajustes y registro de errores en Dexie', () => {
       loadCovers: true,
       coverNotice: 'unseen',
       sidebarCollapsed: false,
+      catalogView: 'list',
     });
   });
 

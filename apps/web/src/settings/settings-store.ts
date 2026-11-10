@@ -31,7 +31,11 @@ export interface UiSettings {
   readonly coverNotice: CoverNoticeState;
   /** La barra lateral del PC, encogida a un riel de iconos (DECISIONES §10.33). */
   readonly sidebarCollapsed: boolean;
+  /** El Catálogo, en lista o en cuadrícula de portadas (DECISIONES §10.45). */
+  readonly catalogView: CatalogView;
 }
+
+export type CatalogView = 'list' | 'grid';
 
 /**
  * `unseen`: aún no ha salido y ninguna portada se carga; `shown`: ha salido y las portadas ya se
@@ -49,12 +53,14 @@ export const DEFAULT_SETTINGS: UiSettings = {
   loadCovers: true,
   coverNotice: 'unseen',
   sidebarCollapsed: false,
+  catalogView: 'list',
 };
 
 export type SettingKey = keyof UiSettings;
 const SETTING_KEYS = Object.keys(DEFAULT_SETTINGS) as SettingKey[];
 const THEMES: readonly ThemePreference[] = ['system', 'light', 'dark'];
 const COVER_NOTICE: readonly CoverNoticeState[] = ['unseen', 'shown', 'done'];
+const CATALOG_VIEWS: readonly CatalogView[] = ['list', 'grid'];
 const MAX_LIST_SEARCH = 2000;
 
 /** Valor válido de un ajuste, o `undefined` si no lo es (se queda el de por defecto). */
@@ -73,6 +79,8 @@ function validValue(key: SettingKey, value: unknown): UiSettings[SettingKey] | u
       return typeof value === 'string' && value.length <= MAX_LIST_SEARCH ? value : undefined;
     case 'coverNotice':
       return COVER_NOTICE.find((state) => state === value);
+    case 'catalogView':
+      return CATALOG_VIEWS.find((view) => view === value);
   }
 }
 
