@@ -467,10 +467,17 @@
 }
 
 /* «Crecer desde el botón» (pulido visual, DECISIONES §10.44): unos 110 ms. Con «reducir
-   movimiento», `--motion` vale 0 y no se ve. */
-.menu__popup,
+   movimiento», `--motion` vale 0 y no se ve. Solo con puntero fino: en WebKit móvil, elegir una
+   opción con el menú aún animándose retrasaba el fotograma de la respuesta de ≈15 a 55–99 ms
+   (CA1.6, medido el 10-11-2026 con agenda-dexie.spec.ts), así que con el dedo sale de golpe. */
 .shortcut-help[open] {
   animation: pop-in calc(var(--motion) * 0.7) var(--ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .menu__popup {
+    animation: pop-in calc(var(--motion) * 0.7) var(--ease);
+  }
 }
 
 @keyframes pop-in {

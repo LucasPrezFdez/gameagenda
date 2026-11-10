@@ -461,14 +461,14 @@ Resueltos a partir de las mediciones y de los conflictos detectados entre seccio
       - **Fila en el móvil, «Estado debajo»:** a ≤479 px el título ocupa todo el ancho y el estado baja a la segunda línea, junto a las marcas (con dos o más, solo sus iconos) o a la fecha de salida. Es solo CSS (`display: contents` en `.entry-row__main`).
       - **Cabeceras de sección, «Con punto»:** nombre en letra normal con el punto del estado (`data-section`); la pista de ordenar solo sale con el puntero o el foco en la sección (en táctil se queda).
       - **Pantallas anchas, «Centrado»:** la columna de 960 px, centrada en su hueco.
-      - **Tarjetas, «Relieve»:** `--shadow-card` en vez del filo (en oscuro sigue siendo un filo: una sombra no se vería).
+      - **Tarjetas, «Relieve»:** `--shadow-card` en vez del filo (en oscuro sigue siendo un filo: una sombra no se vería). La lista del Catálogo conserva el filo: es una lista virtual de millones de píxeles de alto y una sombra difuminada de ese tamaño hacía perder fotogramas al desplazarse en WebKit (`covers.spec.ts`).
       - **Paleta, «Centrada»:** en el PC, al abrirla sale al centro con el campo grande y los resultados en una pieza; su hueco en la barra se queda. Las teclas van en un pie propio.
       - **Ficha, «Ambiente»:** la portada, desenfocada, tiñe la cabecera (`.sheet__ambient`, con la misma imagen que ya cargó la portada: sin peticiones nuevas y nada si las portadas están apagadas).
       - **Aviso, «Píldora de tinta»:** invertido, ajustado a su texto y centrado.
       - **Estados vacíos, «Centrado»:** sin caja de trazos.
     - **Movimiento** (ritmo «Medio»: `--motion` sigue en 160 ms; todo se apaga con «reducir movimiento»):
       - paleta: «Aparecer» en el PC y «Fundir y subir» en el móvil; cerrar es instantáneo;
-      - menús y ayuda de atajos: «Crecer desde el botón»;
+      - menús y ayuda de atajos: «Crecer desde el botón». Los menús, solo con puntero fino: en WebKit móvil, elegir una opción con el menú aún animándose retrasaba el fotograma de la respuesta de ≈15 a 55–99 ms (CA1.6; tres rondas intercaladas de `agenda-dexie.spec.ts`), así que con el dedo salen de golpe;
       - cambio de estado: «Deslizar» (`list-motion.ts`, FLIP con la Web Animations API). Solo con cambios de la agenda y con la misma vista, filtros y orden; mide nada más que las filas cercanas a la pantalla y no bloquea nada. Soltar una fila arrastrada no se anima;
       - juego recién apuntado: «Destello» (hasta 3 altas a la vez; una importación no destella);
       - poner una marca: «Salto del icono» (`popIcon`, al pulsar el botón);
@@ -477,4 +477,5 @@ Resueltos a partir de las mediciones y de los conflictos detectados entre seccio
       - ficha: «Empuje corto» en el móvil (al volver, la lista entra desde la izquierda: `data-from`) y «Deslizar» como panel entre 768 y 1 279 px;
       - botones: «Hundirse» al pulsar.
     - **Sin animación, a propósito:** cambiar de pantalla (elegido por el usuario), los resultados de la paleta al teclear, filtrar y ordenar, y los esqueletos.
-    - **Pendiente de medir:** `npm run perf` y la batería de WebKit.
+    - **Dos fallos encontrados al comprobarlo:** la compilación minimiza `160ms` a `.16s`, y `motionMs()` lo leía como 0,16 ms (acepta las dos unidades); y `useListMotion` devolvía un objeto nuevo en cada pintado, lo que reenganchaba los gestos y rompía el mantener pulsado (ahora es estable).
+    - **Pendiente de medir:** `npm run perf` (en el *worktree* falta el catálogo congelado).

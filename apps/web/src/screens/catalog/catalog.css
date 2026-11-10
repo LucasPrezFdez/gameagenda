@@ -31,9 +31,12 @@
   position: relative;
   contain: size layout;
   width: 100%;
+  /* Con filo y no con la sombra de las demás tarjetas (`--shadow-card`): la lista mide millones de
+     píxeles de alto y una sombra difuminada de ese tamaño hacía perder fotogramas al desplazarse
+     en WebKit (covers.spec.ts, 10-11-2026). */
+  border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: var(--surface);
-  box-shadow: var(--shadow-card);
 }
 
 .catalog-list[hidden] {
