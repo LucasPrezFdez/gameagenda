@@ -478,4 +478,4 @@ Resueltos a partir de las mediciones y de los conflictos detectados entre seccio
       - botones: «Hundirse» al pulsar.
     - **Sin animación, a propósito:** cambiar de pantalla (elegido por el usuario), los resultados de la paleta al teclear, filtrar y ordenar, y los esqueletos.
     - **Dos fallos encontrados al comprobarlo:** la compilación minimiza `160ms` a `.16s`, y `motionMs()` lo leía como 0,16 ms (acepta las dos unidades); y `useListMotion` devolvía un objeto nuevo en cada pintado, lo que reenganchaba los gestos y rompía el mantener pulsado (ahora es estable).
-    - **Pendiente de medir:** `npm run perf` (en el *worktree* falta el catálogo congelado).
+    - **`npm run perf` (10-11-2026, CPU al 16 %, CPU ×4 y 500 entradas):** todo pasa menos «tareas largas al teclear o apuntar», que tampoco pasa en `main` medido justo después: 4 tareas de 51–55 ms en la rama y 2 de 50–53 ms en `main`. INP de 64 ms (48 en `main`) y `ui:feedback` de 72,8 ms como máximo (58,8), dentro de sus presupuestos (200 y 100 ms). Con la paleta abierta no se miden las filas: esa medida metía una tarea de 90 ms en el Intro que apunta.
