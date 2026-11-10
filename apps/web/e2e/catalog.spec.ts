@@ -125,3 +125,67 @@ test('los filtros sencillos van en la URL y `+` apunta desde la fila', async ({ 
   await expect(page).toHaveURL('/catalogo?q=dota');
   await checks.expectClean();
 });
+
+test('la cuadrícula enseña el catálogo en tarjetas, se recuerda y apunta con `(+)` (§10.45)', async ({
+  page,
+}) => {
+  const checks = await setup(page);
+  await page.goto('/catalogo');
+  await waitForSearch(page, 'ready');
+  const list = titles(page);
+  await expect(list.getByRole('link').first()).toBeVisible();
+  const lefts = () =>
+    list
+      .getByRole('listitem')
+      .evaluateAll(
+        (items) => new Set(items.map((item) => Math.round(item.getBoundingClientRect().left))).size,
+      );
+  expect(await lefts()).toBe(1);
+
+  // De lista a cuadrícula: varias columnas (nunca menos de 3) y los mismos juegos, en orden.
+  const first = await list.getByRole('link').first().textContent();
+  await page.getByRole('button', { name: 'Cuadrícula' }).click();
+  await expect(page.getByRole('button', { name: 'Cuadrícula' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(list.locator('.catalog-card').first()).toBeVisible();
+  expect(await lefts()).toBeGreaterThanOrEqual(3);
+  await expect(list.getByRole('link').first()).toHaveText(first ?? '');
+
+  // Teclado: ↓ desde el filtro va a la primera tarjeta; → a la de al lado y ↓ a la fila siguiente.
+  const columns = await lefts();
+  await page.getByPlaceholder('Filtrar el catálogo…').focus();
+  await page.keyboard.press('ArrowDown');
+  await expect(list.locator('[data-index="0"]')).toBeFocused();
+  await page.keyboard.press('ArrowRight');
+  await expect(list.locator('[data-index="1"]')).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await expect(list.locator(`[data-index="${1 + columns}"]`)).toBeFocused();
+
+  // `(+)` apunta desde la tarjeta, y en su sitio queda el estado.
+  const card = list
+    .locator('.catalog-card')
+    .filter({ has: page.locator('.catalog-card__add') })
+    .first();
+  const name = (await card.getByRole('link').textContent()) ?? '';
+  await card.locator('.catalog-card__add').click();
+  await expect(toast(page)).toContainText(name);
+  await expect(
+    list
+      .locator('.catalog-card')
+      .filter({ hasText: name })
+      .first()
+      .locator('.catalog-card__status'),
+  ).toBeVisible();
+
+  // Se recuerda al volver, y sin desplazamiento horizontal.
+  await page.reload();
+  await expect(list.locator('.catalog-card').first()).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+  await page.getByRole('button', { name: 'Lista' }).click();
+  await expect(list.locator('.catalog-row').first()).toBeVisible();
+  await checks.expectClean();
+});

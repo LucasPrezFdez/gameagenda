@@ -2,9 +2,13 @@
 // `(+)` en cada fila. Lista virtual (`@tanstack/react-virtual`, en este *chunk* diferido) sobre
 // `browse` + `rows`: el Worker da el recuento y las filas en ventanas de ≤200; el catálogo nunca
 // pasa entero al hilo principal (se guardan como mucho `MAX_PAGES` ventanas).
+// Dos formas de verlo (DECISIONES §10.45): la lista y una cuadrícula de portadas, como la búsqueda
+// instantánea de SteamDB. La cuadrícula virtualiza filas de tarjetas: el número de columnas sale
+// del ancho, y las teclas, los atajos y `(+)` son los mismos.
 import { formatCount } from '@gameagenda/core';
 import { defaultRangeExtractor, type Range, useWindowVirtualizer } from '@tanstack/react-virtual';
 import {
+  type CSSProperties,
   type KeyboardEvent,
   useCallback,
   useEffect,
@@ -45,6 +49,17 @@ const ROW_GAP = 4;
 const PAGE_KEYS_STEP = 10;
 /** Filas que se pintan fuera de la vista, por arriba y por abajo. */
 const OVERSCAN = 8;
+/** Cuadrícula: ancho mínimo de la tarjeta, hueco entre tarjetas y alto del texto bajo la portada. */
+const CARD_MIN = 148;
+const CARD_GAP = 12;
+const CARD_TEXT = 48;
+/** Nunca menos de 3 columnas: con 2, en un móvil estrecho el alto total pasaría el límite de
+ *  Firefox (§9.1). Con 3 a 320 px son ≈65 600 filas de ≈205 px, unos 13,5 Mpx. */
+const MIN_COLUMNS = 3;
+const MAX_COLUMNS = 8;
+/** Filas de tarjetas fuera de la vista, y las que avanzan RePág y AvPág. */
+const GRID_OVERSCAN = 3;
+const GRID_PAGE_ROWS = 3;
 
 type Chip = 'all' | 'soon' | 'free' | 'early';
 
@@ -92,9 +107,13 @@ function GameMeta({ game, showAdult }: { game: CoreGame; showAdult: boolean }) {
 }
 
 export default function CatalogScreen() {
-  const { search } = useServices();
+  const { search, settings: settingsStore } = useServices();
   const status = useCatalogStatus();
-  const { showAdult, singleKeyShortcuts } = useSettings();
+  const { showAdult, singleKeyShortcuts, catalogView } = useSettings();
+  const grid = catalogView === 'grid';
+  const rootRef = useRef<HTMLDivElement>(null);
+  /** Ancho del contenido: de él salen las columnas de la cuadrícula. */
+  const [width, setWidth] = useState(0);
   const entriesById = useEntriesById();
   const commands = useCommands();
   const { search: query } = useLocation();
@@ -137,10 +156,35 @@ export default function CatalogScreen() {
     };
   }, [search, ready, text, chip, viewKey]);
 
+  useLayoutEffect(() => {
+    const element = rootRef.current;
+    if (!element) return;
+    const observer = new ResizeObserver(() => setWidth(element.clientWidth));
+    observer.observe(element);
+    setWidth(element.clientWidth);
+    return () => observer.disconnect();
+  }, []);
+
+  // Lista: una columna. Cuadrícula: las tarjetas que quepan, todas del mismo ancho, con portada
+  // de 2:3 y dos líneas de texto debajo; cada fila virtual es una fila de tarjetas.
+  const columns =
+    grid && width > 0
+      ? Math.max(
+          MIN_COLUMNS,
+          Math.min(MAX_COLUMNS, Math.floor((width + CARD_GAP) / (CARD_MIN + CARD_GAP))),
+        )
+      : 1;
+  const cardWidth = grid ? Math.floor((width - CARD_GAP * (columns - 1)) / columns) : 0;
+  const rowHeight = grid ? Math.round(cardWidth * 1.5) + CARD_TEXT + CARD_GAP : ROW_HEIGHT;
+  const rowCount = Math.ceil(count / columns);
+  const overscan = grid ? GRID_OVERSCAN : OVERSCAN;
+  const columnsRef = useRef(columns);
+  columnsRef.current = columns;
+
   const rangeExtractor = useCallback((range: Range) => {
     // La fila activa nunca se desmonta, aunque quede fuera de la vista (ver §9.7, 4.1.2).
     const indexes = defaultRangeExtractor(range);
-    const keep = activeRef.current;
+    const keep = Math.floor(activeRef.current / columnsRef.current);
     if (keep < range.count && !indexes.includes(keep)) {
       indexes.push(keep);
       indexes.sort((a, b) => a - b);
@@ -149,9 +193,9 @@ export default function CatalogScreen() {
   }, []);
 
   const virtualizer = useWindowVirtualizer({
-    count,
-    estimateSize: () => ROW_HEIGHT,
-    overscan: OVERSCAN,
+    count: rowCount,
+    estimateSize: () => rowHeight,
+    overscan,
     scrollMargin,
     rangeExtractor,
   });
@@ -160,8 +204,15 @@ export default function CatalogScreen() {
   const scrolling = virtualizer.isScrolling;
   // Lo visible (sin la fila activa, que puede estar lejos): solo esas ventanas se piden.
   const visible = virtualizer.range;
-  const firstIndex = Math.max(0, (visible?.startIndex ?? 0) - OVERSCAN);
-  const lastIndex = Math.min(count - 1, (visible?.endIndex ?? -1) + OVERSCAN);
+  const firstIndex = Math.max(0, (visible?.startIndex ?? 0) - overscan) * columns;
+  const lastIndex = Math.min(count - 1, ((visible?.endIndex ?? -1) + overscan + 1) * columns - 1);
+
+  // Al cambiar el alto de las filas (otra forma de verlo u otro ancho), el virtualizador vuelve a
+  // medir. El conmutador está arriba, así que al cambiar de forma siempre se parte del principio.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: solo al cambiar la rejilla.
+  useLayoutEffect(() => {
+    virtualizer.measure();
+  }, [rowHeight, columns]);
 
   // Posición de la lista en la página, para la virtualización sobre la ventana.
   useLayoutEffect(() => {
@@ -244,7 +295,7 @@ export default function CatalogScreen() {
     const next = Math.max(0, Math.min(count - 1, index));
     setActiveIndex(next);
     wantFocus.current = next;
-    virtualizer.scrollToIndex(next, { align: 'auto' });
+    virtualizer.scrollToIndex(Math.floor(next / columns), { align: 'auto' });
     // Si la fila ya está pintada, el foco va ya: puede que no haya otro render (misma fila activa).
     focusWanted();
   }
@@ -273,6 +324,11 @@ export default function CatalogScreen() {
     updateUrl(text, next);
   }
 
+  function onViewMode(next: 'list' | 'grid'): void {
+    if (next === catalogView) return;
+    settingsStore.update({ catalogView: next });
+  }
+
   function capture(game: CoreGame, timeStamp: number, status?: Status): void {
     commands.capture(
       { id: steamId(game.appid), title: displayName(game) },
@@ -294,20 +350,31 @@ export default function CatalogScreen() {
       event.preventDefault();
       goTo(next);
     };
+    // En la cuadrícula, ↑ y ↓ cambian de fila de tarjetas y ← y → van a la de al lado.
+    const pageStep = grid ? GRID_PAGE_ROWS * columns : PAGE_KEYS_STEP;
     if (event.key === 'ArrowDown') {
-      move(index + 1);
+      move(grid ? Math.min(count - 1, index + columns) : index + 1);
       return;
     }
     if (event.key === 'ArrowUp') {
+      if (!grid || index >= columns) move(index - columns);
+      else event.preventDefault();
+      return;
+    }
+    if (grid && event.key === 'ArrowRight') {
+      move(index + 1);
+      return;
+    }
+    if (grid && event.key === 'ArrowLeft') {
       move(index - 1);
       return;
     }
     if (event.key === 'PageDown') {
-      move(index + PAGE_KEYS_STEP);
+      move(index + pageStep);
       return;
     }
     if (event.key === 'PageUp') {
-      move(index - PAGE_KEYS_STEP);
+      move(index - pageStep);
       return;
     }
     if (event.key === 'Home') {
@@ -376,8 +443,73 @@ export default function CatalogScreen() {
   const roving = Math.min(active, Math.max(0, count - 1));
   const filtered = text.trim() !== '' || chip !== 'all';
 
+  /** Una fila de la lista o una tarjeta de la cuadrícula: el mismo juego, las mismas acciones. */
+  function renderItem(index: number, style: CSSProperties) {
+    const game = gameAt(index);
+    const tab = index === roving ? 0 : -1;
+    const common = {
+      'aria-setsize': count,
+      'aria-posinset': index + 1,
+      onFocusCapture: () => setActiveIndex(index),
+      style,
+    };
+    const size = grid ? 'card' : 'row';
+    const block = grid ? 'catalog-card' : 'catalog-row';
+    if (!game) {
+      return (
+        <li key={index} className={`${block} ${block}--loading`} {...common}>
+          <span className={`cover cover--${size} skeleton`} />
+          <span
+            className={`${block}__title skeleton skeleton--line`}
+            tabIndex={tab}
+            data-row-title=""
+            data-index={index}
+          >
+            <span className="visually-hidden">{es.catalog.loadingRow}</span>
+          </span>
+        </li>
+      );
+    }
+    const entry = entriesById.get(steamId(game.appid));
+    const name = displayName(game);
+    return (
+      <li key={index} className={block} {...common}>
+        {/* Con el desplazamiento parado: arrastrar la barra no pide un *shard* por fila. */}
+        <Cover title={name} appid={game.appid} size={size} load={!scrolling} />
+        <div className={`${block}__main`}>
+          <Link
+            to={gamePath(steamId(game.appid))}
+            className={`${block}__title`}
+            tabIndex={tab}
+            data-row-title=""
+            data-index={index}
+            data-appid={game.appid}
+          >
+            {name}
+          </Link>
+          <GameMeta game={game} showAdult={showAdult} />
+        </div>
+        {entry ? (
+          <span className={`${block}__status`}>
+            <StatusText status={entry.status} />
+          </span>
+        ) : (
+          <button
+            type="button"
+            className={`icon-btn ${block}__add`}
+            aria-label={es.catalog.capture(name)}
+            tabIndex={tab}
+            onClick={(event) => capture(game, event.timeStamp)}
+          >
+            <Icon name="plus" />
+          </button>
+        )}
+      </li>
+    );
+  }
+
   return (
-    <div className="screen catalog">
+    <div ref={rootRef} className="screen catalog">
       <header className="screen__header catalog__header">
         <ScreenHeading documentTitle={es.nav.catalog}>{es.catalog.title}</ScreenHeading>
         {current && (
@@ -407,19 +539,37 @@ export default function CatalogScreen() {
         />
       </label>
 
-      {/* biome-ignore lint/a11y/useSemanticElements: grupo de botones conmutables, no un formulario. */}
-      <div className="chips" role="group" aria-label={es.catalog.chips}>
-        {CHIP_ORDER.map((option) => (
-          <button
-            key={option}
-            type="button"
-            className="chip-button"
-            aria-pressed={chip === option}
-            onClick={() => onChip(option)}
-          >
-            {es.catalog.chip[option]}
-          </button>
-        ))}
+      <div className="catalog__bar">
+        {/* biome-ignore lint/a11y/useSemanticElements: grupo de botones conmutables, no un formulario. */}
+        <div className="chips" role="group" aria-label={es.catalog.chips}>
+          {CHIP_ORDER.map((option) => (
+            <button
+              key={option}
+              type="button"
+              className="chip-button"
+              aria-pressed={chip === option}
+              onClick={() => onChip(option)}
+            >
+              {es.catalog.chip[option]}
+            </button>
+          ))}
+        </div>
+        {/* biome-ignore lint/a11y/useSemanticElements: grupo de botones conmutables, no un formulario. */}
+        <div className="view-toggle" role="group" aria-label={es.catalog.viewMode.label}>
+          {(['list', 'grid'] as const).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              className="icon-btn view-toggle__button"
+              aria-pressed={catalogView === mode}
+              aria-label={es.catalog.viewMode[mode]}
+              title={es.catalog.viewMode[mode]}
+              onClick={() => onViewMode(mode)}
+            >
+              <Icon name={mode === 'list' ? 'list' : 'catalog'} />
+            </button>
+          ))}
+        </div>
       </div>
 
       <CatalogNotice />
@@ -444,74 +594,34 @@ export default function CatalogScreen() {
 
       <ol
         ref={listRef}
-        className="catalog-list"
+        className={grid ? 'catalog-list catalog-list--grid' : 'catalog-list'}
         aria-label={filtered ? `${es.catalog.list}: ${text}` : es.catalog.list}
         hidden={!current || count === 0}
         onKeyDown={onListKeyDown}
         style={{ height: virtualizer.getTotalSize() }}
       >
-        {items.map((item) => {
-          const game = gameAt(item.index);
-          const tab = item.index === roving ? 0 : -1;
-          const style = {
-            height: ROW_HEIGHT - ROW_GAP,
-            transform: `translateY(${item.start - virtualizer.options.scrollMargin}px)`,
-          };
-          const common = {
-            'aria-setsize': count,
-            'aria-posinset': item.index + 1,
-            onFocusCapture: () => setActiveIndex(item.index),
-            style,
-          };
-          if (!game) {
-            return (
-              <li key={item.key} className="catalog-row catalog-row--loading" {...common}>
-                <span className="cover cover--row skeleton" />
-                <span
-                  className="catalog-row__title skeleton skeleton--line"
-                  tabIndex={tab}
-                  data-row-title=""
-                  data-index={item.index}
-                >
-                  <span className="visually-hidden">{es.catalog.loadingRow}</span>
-                </span>
-              </li>
+        {items.flatMap((item) => {
+          const top = item.start - virtualizer.options.scrollMargin;
+          if (!grid)
+            return [
+              renderItem(item.index, {
+                height: ROW_HEIGHT - ROW_GAP,
+                transform: `translateY(${top}px)`,
+              }),
+            ];
+          const cells = [];
+          for (let column = 0; column < columns; column += 1) {
+            const index = item.index * columns + column;
+            if (index >= count) break;
+            cells.push(
+              renderItem(index, {
+                width: cardWidth,
+                height: rowHeight - CARD_GAP,
+                transform: `translate(${column * (cardWidth + CARD_GAP)}px, ${top}px)`,
+              }),
             );
           }
-          const entry = entriesById.get(steamId(game.appid));
-          const name = displayName(game);
-          return (
-            <li key={item.key} className="catalog-row" {...common}>
-              {/* Con el desplazamiento parado: arrastrar la barra no pide un *shard* por fila. */}
-              <Cover title={name} appid={game.appid} load={!scrolling} />
-              <div className="catalog-row__main">
-                <Link
-                  to={gamePath(steamId(game.appid))}
-                  className="catalog-row__title"
-                  tabIndex={tab}
-                  data-row-title=""
-                  data-index={item.index}
-                  data-appid={game.appid}
-                >
-                  {name}
-                </Link>
-                <GameMeta game={game} showAdult={showAdult} />
-              </div>
-              {entry ? (
-                <StatusText status={entry.status} />
-              ) : (
-                <button
-                  type="button"
-                  className="icon-btn catalog-row__add"
-                  aria-label={es.catalog.capture(name)}
-                  tabIndex={tab}
-                  onClick={(event) => capture(game, event.timeStamp)}
-                >
-                  <Icon name="plus" />
-                </button>
-              )}
-            </li>
-          );
+          return cells;
         })}
       </ol>
     </div>
