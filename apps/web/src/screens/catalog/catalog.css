@@ -31,9 +31,9 @@
   position: relative;
   contain: size layout;
   width: 100%;
-  border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: var(--surface);
+  box-shadow: var(--shadow-card);
 }
 
 .catalog-list[hidden] {

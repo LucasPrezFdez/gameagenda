@@ -453,3 +453,28 @@ Resueltos a partir de las mediciones y de los conflictos detectados entre seccio
         - `sidebar.spec.ts`: contadores, vista abierta, conservar la compra, «Jugando ahora» abre la ficha y las pestañas vuelven al encoger;
         - los E2E que pulsaban las pestañas usan `viewControl`: en el PC, el enlace de la barra; en el móvil, la pestaña;
         - `check` (945), los E2E (181) y `perf` entero en verde con la CPU al 5 %: 0 tareas largas, INP de 40 ms y `scan` en 1 802 ms.
+44. **Pulido visual y animaciones (10-11-2026, elegido por el usuario).** Sobre «Tinta» (§10.31) y la navegación (§10.33). El usuario pidió un aspecto más profesional y animaciones «nada exageradas», sin animar lo que va mejor quieto, y eligió entre varias opciones de cada cosa en una página con capturas de la app real y demostraciones en vivo (`docs/diseno/pulido/`, montada en `.cache/pulido/index.html`). Los números 34 a 43 son de M4, en su rama.
+    - **Aspecto:**
+      - **Barra lateral (PC), «Marca de tinta»:** lo activo lleva una marca de tinta en el borde y los contadores de las vistas van en píldora. El buscador cerrado pierde el borde (es un botón más de la barra: lupa, texto y tecla) y su texto cabe entero.
+      - **Cápsula del móvil, «Tinta»:** la sección activa es una píldora de tinta, como el botón del buscador.
+      - **Filas, «Relieve»:** el mismo tamaño; la portada lleva sombra (`--shadow-cover`) y el título, más peso.
+      - **Fila en el móvil, «Estado debajo»:** a ≤479 px el título ocupa todo el ancho y el estado baja a la segunda línea, junto a las marcas (con dos o más, solo sus iconos) o a la fecha de salida. Es solo CSS (`display: contents` en `.entry-row__main`).
+      - **Cabeceras de sección, «Con punto»:** nombre en letra normal con el punto del estado (`data-section`); la pista de ordenar solo sale con el puntero o el foco en la sección (en táctil se queda).
+      - **Pantallas anchas, «Centrado»:** la columna de 960 px, centrada en su hueco.
+      - **Tarjetas, «Relieve»:** `--shadow-card` en vez del filo (en oscuro sigue siendo un filo: una sombra no se vería).
+      - **Paleta, «Centrada»:** en el PC, al abrirla sale al centro con el campo grande y los resultados en una pieza; su hueco en la barra se queda. Las teclas van en un pie propio.
+      - **Ficha, «Ambiente»:** la portada, desenfocada, tiñe la cabecera (`.sheet__ambient`, con la misma imagen que ya cargó la portada: sin peticiones nuevas y nada si las portadas están apagadas).
+      - **Aviso, «Píldora de tinta»:** invertido, ajustado a su texto y centrado.
+      - **Estados vacíos, «Centrado»:** sin caja de trazos.
+    - **Movimiento** (ritmo «Medio»: `--motion` sigue en 160 ms; todo se apaga con «reducir movimiento»):
+      - paleta: «Aparecer» en el PC y «Fundir y subir» en el móvil; cerrar es instantáneo;
+      - menús y ayuda de atajos: «Crecer desde el botón»;
+      - cambio de estado: «Deslizar» (`list-motion.ts`, FLIP con la Web Animations API). Solo con cambios de la agenda y con la misma vista, filtros y orden; mide nada más que las filas cercanas a la pantalla y no bloquea nada. Soltar una fila arrastrada no se anima;
+      - juego recién apuntado: «Destello» (hasta 3 altas a la vez; una importación no destella);
+      - poner una marca: «Salto del icono» (`popIcon`, al pulsar el botón);
+      - aviso: salida con fundido (130 ms más montado) y una línea con el tiempo que queda (8 s, se para con el aviso);
+      - cápsula del móvil: la píldora se desliza (solo CSS, con `data-route`);
+      - ficha: «Empuje corto» en el móvil (al volver, la lista entra desde la izquierda: `data-from`) y «Deslizar» como panel entre 768 y 1 279 px;
+      - botones: «Hundirse» al pulsar.
+    - **Sin animación, a propósito:** cambiar de pantalla (elegido por el usuario), los resultados de la paleta al teclear, filtrar y ordenar, y los esqueletos.
+    - **Pendiente de medir:** `npm run perf` y la batería de WebKit.

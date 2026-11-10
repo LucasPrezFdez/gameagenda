@@ -385,8 +385,12 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  /* Centrada en su hueco (pulido visual, DECISIONES §10.44): a 1 920 px ya no queda media
+     pantalla vacía a la derecha. */
+  width: 100%;
   max-width: 60rem;
   min-width: 0;
+  margin-inline: auto;
 }
 
 .screen__header {
@@ -397,15 +401,20 @@
   gap: 8px 16px;
 }
 
+/* Sin caja (pulido visual, DECISIONES §10.44): el texto y el botón, centrados y con aire. */
 .empty-state {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 24px;
-  border: 1px dashed var(--line);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
+  align-items: center;
+  gap: 16px;
+  padding: 56px 24px;
+  text-align: center;
+}
+
+.empty-state > p:first-child,
+.empty-state__texts {
+  font-size: var(--text-lg);
+  font-weight: 600;
 }
 
 .capture-button {
@@ -449,10 +458,26 @@
 
 .menu__popup--end {
   right: 0;
+  transform-origin: top right;
 }
 
 .menu__popup--start {
   left: 0;
+  transform-origin: top left;
+}
+
+/* «Crecer desde el botón» (pulido visual, DECISIONES §10.44): unos 110 ms. Con «reducir
+   movimiento», `--motion` vale 0 y no se ve. */
+.menu__popup,
+.shortcut-help[open] {
+  animation: pop-in calc(var(--motion) * 0.7) var(--ease);
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
 }
 
 .menu__item {
@@ -514,6 +539,8 @@
   left: calc(50% + var(--sidebar-w) / 2);
   z-index: var(--z-toast);
   width: min(36rem, calc(100vw - 2 * var(--gutter) - var(--sidebar-w)));
+  display: flex;
+  justify-content: center;
   transform: translateX(-50%);
   pointer-events: none;
 }
@@ -545,26 +572,73 @@
   display: none;
 }
 
+/* «Píldora de tinta» (pulido visual, DECISIONES §10.44): invertido (oscuro sobre la app clara y
+   claro sobre la oscura), ajustado a su texto y centrado. El radio es el de una píldora con una
+   línea de texto; con dos (móvil), esquinas muy redondas. */
 .toast {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 8px 8px 8px 16px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
+  max-width: 100%;
+  padding: 6px 6px 6px 20px;
+  overflow: hidden;
+  border-radius: 26px;
+  background: var(--text);
+  color: var(--bg);
   box-shadow: var(--shadow);
   pointer-events: auto;
   animation: toast-in var(--motion) ease-out;
 }
 
+.toast .btn {
+  border-radius: 999px;
+}
+
+.toast .btn--ghost:hover {
+  background: color-mix(in srgb, var(--bg) 16%, transparent);
+}
+
+.toast :focus-visible {
+  outline-color: var(--bg);
+}
+
+/* Lo que queda para deshacer: una línea que se acorta en lo que dura el aviso (`NOTICE_MS`, 8 s)
+   y se para con él, con el puntero encima o el foco dentro. */
+.toast::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: currentcolor;
+  opacity: 0.4;
+  transform-origin: left;
+  animation: toast-time 8000ms linear forwards;
+}
+
+.toaster[data-paused] .toast::after {
+  animation-play-state: paused;
+}
+
+/* La salida: Toaster.tsx lo deja 130 ms más con esta clase. */
+.toast.is-leaving {
+  pointer-events: none;
+  animation: toast-out calc(var(--motion) * 0.75) ease-in forwards;
+}
+
+.toast.is-leaving::after {
+  display: none;
+}
+
 .toast__message {
-  flex: 1;
+  flex: 0 1 auto;
 }
 
 .toast__undo,
 .toast__action {
-  color: var(--accent);
+  color: var(--bg);
   font-weight: 700;
 }
 
@@ -575,10 +649,28 @@
   }
 }
 
+@keyframes toast-out {
+  to {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@keyframes toast-time {
+  to {
+    transform: scaleX(0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .toast,
+  .toast::after,
   .cover-notice {
     animation: none;
+  }
+
+  .toast::after {
+    display: none;
   }
 }
 
@@ -659,8 +751,52 @@
     font-size: var(--text-xs);
   }
 
-  .app-nav__link[aria-current="page"] {
-    background: var(--surface-3);
+  /* «Tinta» y «La píldora se desliza» (pulido visual, DECISIONES §10.44): una sola píldora de
+     tinta, como el botón del buscador, que viaja a la sección activa. Su sitio sale de
+     `data-route`, sin JavaScript; las tres secciones miden lo mismo. */
+  .app-nav ul {
+    position: relative;
+  }
+
+  .app-nav li {
+    position: relative;
+  }
+
+  .app-nav ul::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: calc((100% - 4px) / 3);
+    border-radius: 999px;
+    background: var(--accent);
+    transition: translate calc(var(--motion) * 1.6) var(--ease);
+  }
+
+  .app[data-route="catalog"] .app-nav ul::before {
+    translate: calc(100% + 2px) 0;
+  }
+
+  .app[data-route="settings"] .app-nav ul::before {
+    translate: calc(200% + 4px) 0;
+  }
+
+  .app[data-route="notFound"] .app-nav ul::before {
+    display: none;
+  }
+
+  .app-nav__link[aria-current="page"],
+  .app-nav__link[aria-current="page"]:hover {
+    background: transparent;
+    color: var(--on-accent);
+  }
+
+  .app-nav__link[aria-current="page"] .icon {
+    color: var(--on-accent);
+  }
+
+  .app-nav__link[aria-current="page"]:focus-visible {
+    outline-offset: -4px;
+    outline-color: var(--on-accent);
   }
 
   .app-main {
@@ -762,4 +898,38 @@
 
 .shortcut-combo {
   white-space: nowrap;
+}
+
+/* Barra lateral, «Marca de tinta» (pulido visual, DECISIONES §10.44; PC): lo activo lleva una marca
+   de tinta en el borde de la barra y los contadores de las vistas van en píldora. */
+@media (min-width: 768px) {
+  .app-nav__link,
+  .sidebar-views__link {
+    position: relative;
+  }
+
+  .app-nav__link[aria-current="page"]::before,
+  .sidebar-views__link[aria-current="page"]::before {
+    content: "";
+    position: absolute;
+    top: 6px;
+    bottom: 6px;
+    left: -12px;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: var(--accent);
+  }
+
+  .sidebar-views__count {
+    min-width: 26px;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    text-align: center;
+  }
+
+  .sidebar-views__link[aria-current="page"] .sidebar-views__count {
+    background: var(--surface);
+    color: var(--text);
+  }
 }

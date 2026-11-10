@@ -190,11 +190,70 @@
   padding-inline: 12px;
 }
 
-/* «Arrastra :: o usa Alt+↑/↓» (§9.3); con el dedo, sin las teclas. */
+/* «Con punto» (pulido visual, DECISIONES §10.44): el nombre en letra normal y con peso, con el
+   punto del estado delante, el mismo de la barra lateral y de las filas. Sin sección de estado
+   (Todos, Próximos), sin punto. */
+.list-section__header h2 {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  font-size: var(--text-sm);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.list-section:is(
+    [data-section="playing"],
+    [data-section="next"],
+    [data-section="want_to_play"],
+    [data-section="on_hold"],
+    [data-section="completed"],
+    [data-section="dropped"]
+  )
+  h2::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--want_to_play);
+}
+
+.list-section[data-section="playing"] h2::before {
+  background: var(--playing);
+}
+.list-section[data-section="next"] h2::before {
+  background: var(--next);
+}
+.list-section[data-section="on_hold"] h2::before {
+  background: var(--on_hold);
+}
+.list-section[data-section="completed"] h2::before {
+  background: var(--completed);
+}
+.list-section[data-section="dropped"] h2::before {
+  background: var(--dropped);
+}
+
+/* «Arrastra :: o usa Alt+↑/↓» (§9.3); con el dedo, sin las teclas. Con puntero fino solo sale al
+   pasar por la sección o con el foco dentro: repetida en cada sección era ruido. */
 .list-section__hint {
   margin-inline-end: auto;
   color: var(--text-muted);
   font-size: var(--text-xs);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .list-section__hint {
+    opacity: 0;
+    transition: opacity var(--motion) var(--ease);
+  }
+
+  .list-section:hover .list-section__hint,
+  .list-section:focus-within .list-section__hint {
+    opacity: 1;
+  }
 }
 
 .list-section__hint-touch {
@@ -216,9 +275,10 @@
   display: flex;
   flex-direction: column;
   padding: 4px;
-  border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: var(--surface);
+  /* «Relieve»: una sombra muy fina en vez del filo (tokens.css). */
+  box-shadow: var(--shadow-card);
 }
 
 /* La fila (`li`) es el fondo que asoma al deslizar; lo que se ve y se desliza es su cuerpo. */
@@ -230,7 +290,7 @@
 .entry-row__body {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   min-height: var(--row-h);
   padding: 8px;
   border-radius: var(--radius);
@@ -245,7 +305,7 @@
   background-image: linear-gradient(var(--line), var(--line));
   background-repeat: no-repeat;
   background-position: right 8px top 0;
-  background-size: calc(100% - 68px) 1px;
+  background-size: calc(100% - 70px) 1px;
 }
 
 /* Con cientos de entradas, las filas fuera de la pantalla no se maquetan ni se pintan (RNF-03):
@@ -420,6 +480,7 @@
   flex: none;
   color: var(--text-muted);
   font-size: var(--text-sm);
+  font-weight: 600;
   text-align: right;
 }
 
@@ -435,8 +496,11 @@
   letter-spacing: 0.02em;
 }
 
+/* «Relieve» (pulido visual, DECISIONES §10.44): la portada de la fila lleva sombra. */
 .cover--row {
   width: 40px;
+  border-radius: 5px;
+  box-shadow: var(--shadow-cover);
   font-size: var(--text-sm);
 }
 
@@ -517,7 +581,8 @@
 
 .entry-row__title {
   overflow: hidden;
-  font-weight: 500;
+  font-weight: 600;
+  letter-spacing: -0.005em;
   text-decoration: none;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -675,6 +740,87 @@
 }
 
 @media (max-width: 479px) {
+  /* «Estado debajo» (pulido visual, DECISIONES §10.44): el título ocupa todo el ancho y el estado
+     baja a la segunda línea, junto a las marcas o a la fecha de salida. `.entry-row__main` deja
+     de ser una caja para que sus hijos entren en la rejilla de la fila. */
+  .entry-row__body {
+    display: grid;
+    grid-template-columns: auto auto auto auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "handle rank cover title title more"
+      "handle rank cover status extra more";
+    gap: 0;
+    align-items: center;
+  }
+
+  .entry-row__handle {
+    grid-area: handle;
+  }
+
+  .entry-row__rank {
+    grid-area: rank;
+    margin-right: 10px;
+  }
+
+  .entry-row__body > .cover {
+    grid-area: cover;
+    margin-right: 12px;
+  }
+
+  .entry-row__main {
+    display: contents;
+  }
+
+  .entry-row__title {
+    grid-area: title;
+    align-self: end;
+  }
+
+  .entry-row__release,
+  .flag-badges {
+    grid-area: extra;
+    align-self: start;
+    min-height: 28px;
+    padding-left: 6px;
+    line-height: 28px;
+  }
+
+  .flag-badges {
+    align-items: center;
+    flex-wrap: nowrap;
+    overflow: hidden;
+  }
+
+  /* Con fecha de salida (Próximos), las marcas no caben en la línea: se quedan en el menú. */
+  .entry-row__release ~ .flag-badges {
+    display: none;
+  }
+
+  .flag-badges .chip {
+    white-space: nowrap;
+  }
+
+  /* Con dos marcas o más, solo sus iconos: con el texto no caben junto al estado. */
+  .flag-badges .chip:not(:only-child) {
+    gap: 0;
+    font-size: 0;
+  }
+
+  .flag-badges .chip:not(:only-child) .icon {
+    width: 16px;
+    height: 16px;
+  }
+
+  .entry-row__body > .menu:nth-last-child(2) {
+    grid-area: status;
+    align-self: start;
+    margin-left: -6px;
+  }
+
+  .entry-row__body > .menu:last-child {
+    grid-area: more;
+  }
+
   /* El texto se queda también aquí: es corto, y sin él el punto solo diría el color. */
   .status-button {
     padding: 2px 6px;
@@ -688,4 +834,17 @@
   .list-order .choice__label {
     display: none;
   }
+}
+
+/* «Deslizar» (pulido visual, DECISIONES §10.44): la fila que cambia de sección viaja por encima de
+   las demás, con su fondo y una sombra, mientras dura el movimiento (list-motion.ts). */
+.entry-row.is-moving {
+  z-index: 1;
+  content-visibility: visible;
+}
+
+.entry-row.is-moving .entry-row__body {
+  background-color: var(--surface);
+  background-image: none;
+  box-shadow: var(--shadow);
 }

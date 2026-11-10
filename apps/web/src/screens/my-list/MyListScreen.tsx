@@ -47,6 +47,7 @@ import {
   PURCHASE_FILTERS,
   parseListParams,
 } from './list-model.ts';
+import { useListMotion } from './list-motion.ts';
 import { useReleases } from './use-releases.ts';
 
 function sectionLabel(section: ListSection): string {
@@ -189,6 +190,13 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
   );
 
   const hasRows = entries.length > 0 && !releasesPending && sections.length > 0;
+  // Las filas se deslizan a su sitio nuevo y la recién apuntada destella (DECISIONES §10.44).
+  const motion = useListMotion(
+    listRef,
+    agenda,
+    entries,
+    `${params.view}|${params.order}|${params.purchase}|${params.q}|${showOnHold}`,
+  );
   const gesturesOn = useRef(touchGestures);
   gesturesOn.current = touchGestures;
 
@@ -206,13 +214,17 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
       onLongPress: (_id, row) => row.querySelector<HTMLButtonElement>('.status-button')?.click(),
     });
     const detachDrag = attachDragReorder(container, {
-      onDrop: (id, to, timing) => actions.move(id, to, timing),
+      // Al soltarla, la fila ya está en su sitio: no hay nada que deslizar.
+      onDrop: (id, to, timing) => {
+        motion.skipNext();
+        actions.move(id, to, timing);
+      },
     });
     return () => {
       detachGestures();
       detachDrag();
     };
-  }, [hasRows, actions]);
+  }, [hasRows, actions, motion]);
 
   // La bandeja se cierra al tocar fuera de ella, al desplazar la página y con Esc. Tocar la fila
   // abierta solo la cierra: no abre la ficha.
@@ -517,7 +529,12 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
             const collapsed = section.collapsible && !showOnHold;
             const movable = isMovable(section, params);
             return (
-              <section key={section.key} className="list-section" aria-labelledby={headingId}>
+              <section
+                key={section.key}
+                className="list-section"
+                data-section={section.key}
+                aria-labelledby={headingId}
+              >
                 <div className="list-section__header">
                   <h2 id={headingId}>{es.list.sectionCount(label, section.entries.length)}</h2>
                   {movable && section.entries.length > 1 && (

@@ -8,6 +8,12 @@ Cambios de GameAgenda por versión. Cada hito cierra una versión SemVer 0.x (§
 
 #### Para el usuario
 
+- **Pulido visual y animaciones** (10-11-2026; DECISIONES §10.44, opciones elegidas por el usuario en `docs/diseno/pulido/`):
+  - la paleta se abre en el centro de la pantalla (PC), con el campo grande; la barra lateral marca lo activo con tinta y lleva los contadores en píldora; la cápsula del móvil, con una píldora de tinta que se desliza;
+  - las portadas de las filas llevan sombra y, en el móvil, el título ocupa todo el ancho, con el estado debajo; las secciones llevan el punto de su estado; el contenido va centrado en pantallas anchas y las tarjetas cambian el filo por una sombra fina;
+  - la ficha se tiñe con el color de la portada; el aviso con Deshacer es una píldora de tinta que enseña el tiempo que queda y se va con un fundido;
+  - animaciones cortas donde explican lo que pasa: la fila se desliza a su sección nueva, el juego recién apuntado destella, el icono salta al poner una marca, los menús crecen desde su botón y los botones se hunden al pulsarlos. Cambiar de pantalla, filtrar y teclear en la paleta siguen siendo instantáneos, y con «reducir movimiento» no se anima nada.
+
 - **Buscar antes en la primera visita** (06-11-2026; ADR-009, DECISIONES §10.30): mientras llega el catálogo completo, la paleta ya busca en los 20 000 juegos más populares. Lo dice junto a los resultados y, si no encuentra el juego, no da por hecho que no está en Steam ni resalta la fila «a mano», porque puede llegar unos segundos después. Al llegar el catálogo entero, repite la búsqueda abierta. El Catálogo y la ficha esperan al catálogo completo.
   - Con CPU ×4, en local, se puede buscar a los 556 ms (presupuesto: 1 500 ms, RNF-05). En producción, con la fibra del PC, a los 0,9 s, y el catálogo completo llega a los 2,0 s (`smoke:web`, 06-11-2026).
   - Si el catálogo completo falla, se sigue buscando en el de arranque, con «Reintentar», y la carga se repite sola.

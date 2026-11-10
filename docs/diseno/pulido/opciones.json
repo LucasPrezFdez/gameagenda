@@ -1,0 +1,503 @@
+[
+  {
+    "id": "lateral",
+    "title": "Barra lateral (PC)",
+    "why": "Es lo que más se ve del HUD. Ahora el buscador corta su texto («Apunta un juego..») y lleva el borde más marcado de la pantalla; lo activo y los contadores apenas destacan.",
+    "shots": [
+      {
+        "id": "claro",
+        "label": "Claro",
+        "path": "/",
+        "width": 1440,
+        "theme": "light",
+        "clip": "0,0,500,620"
+      },
+      {
+        "id": "oscuro",
+        "label": "Oscuro",
+        "path": "/",
+        "width": 1440,
+        "theme": "dark",
+        "clip": "0,0,500,620"
+      }
+    ],
+    "options": [
+      {
+        "id": "ahora",
+        "name": "Ahora",
+        "note": "Barra blanca con filo, lo activo sobre gris suave."
+      },
+      {
+        "id": "fundida",
+        "name": "A · Fundida",
+        "note": "La barra toma el color del fondo y lo activo es una tarjeta blanca con sombra fina, como en Linear o Notion. El buscador pasa a ser blanco con filo fino.",
+        "css": ["lateral-comun", "lateral-fundida"],
+        "rec": true
+      },
+      {
+        "id": "marca",
+        "name": "B · Marca de tinta",
+        "note": "Lo activo lleva una marca de tinta a la izquierda y los contadores van en píldora, como en GitHub o VS Code. El buscador pierde el borde.",
+        "css": ["lateral-comun", "lateral-marca"]
+      },
+      {
+        "id": "tarjeta",
+        "name": "C · Tarjeta flotante",
+        "note": "La barra se separa del borde como una tarjeta redondeada, como en Arc. Es la que más cambia el carácter de la app y quita 8 px al contenido.",
+        "css": ["lateral-comun", "lateral-tarjeta"]
+      }
+    ]
+  },
+  {
+    "id": "capsula",
+    "title": "Barra del móvil",
+    "why": "La cápsula flotante y la cabecera son el HUD del móvil. Ahora son opacas y la píldora activa es un gris sobre blanco con poco contraste.",
+    "shots": [
+      {
+        "id": "claro",
+        "label": "Claro",
+        "path": "/",
+        "width": 390,
+        "theme": "light",
+        "clip": "0,444,390,400"
+      },
+      {
+        "id": "oscuro",
+        "label": "Oscuro",
+        "path": "/",
+        "width": 390,
+        "theme": "dark",
+        "clip": "0,444,390,400"
+      }
+    ],
+    "options": [
+      {
+        "id": "ahora",
+        "name": "Ahora",
+        "note": "Cápsula opaca con píldora gris."
+      },
+      {
+        "id": "cristal",
+        "name": "A · Cristal",
+        "note": "La cápsula y la cabecera dejan ver la lista desenfocada por debajo, como en iOS. Es la más vistosa; el desenfoque cuesta algo de GPU al desplazar en móviles modestos, así que lo mediría antes de darlo por bueno.",
+        "css": ["capsula-cristal"]
+      },
+      {
+        "id": "tinta",
+        "name": "B · Tinta",
+        "note": "La sección activa es una píldora de tinta, igual que el botón del buscador. Contraste máximo y coste cero.",
+        "css": ["capsula-tinta"],
+        "rec": true
+      },
+      {
+        "id": "ligera",
+        "name": "C · Ligera",
+        "note": "Sin píldora: la sección activa en tinta con un punto debajo, y la cápsula baja a 52 px. Tapa menos lista.",
+        "css": ["capsula-ligera"]
+      }
+    ]
+  },
+  {
+    "id": "filas",
+    "title": "Filas de Mi lista",
+    "why": "Es donde se pasa el tiempo. Las portadas son lo único con color de la app «Tinta» y ahora van planas; la fila mide 76 px.",
+    "shots": [
+      {
+        "id": "claro",
+        "label": "Claro",
+        "path": "/",
+        "width": 1000,
+        "theme": "light",
+        "clip": "248,110,752,520"
+      },
+      {
+        "id": "oscuro",
+        "label": "Oscuro, con el puntero encima",
+        "path": "/",
+        "width": 1000,
+        "theme": "dark",
+        "prepare": "encima",
+        "clip": "248,110,752,520"
+      }
+    ],
+    "options": [
+      {
+        "id": "ahora",
+        "name": "Ahora",
+        "note": "76 px, portada de 40 × 60 plana."
+      },
+      {
+        "id": "compacta",
+        "name": "A · Compacta",
+        "note": "60 px con portada de 32 × 48: cabe un 25 % más de juegos por pantalla.",
+        "css": ["filas-compacta"]
+      },
+      {
+        "id": "relieve",
+        "name": "B · Relieve",
+        "note": "El mismo tamaño, pero la portada lleva sombra y el título más peso. Es el cambio más barato y el que más «acabado» da.",
+        "css": ["filas-relieve"],
+        "rec": true
+      },
+      {
+        "id": "amplia",
+        "name": "C · Portada grande",
+        "note": "88 px con portada de 48 × 72 y título mayor. Más reconocible, menos juegos por pantalla.",
+        "css": ["filas-amplia"]
+      }
+    ],
+    "wide": true
+  },
+  {
+    "id": "filamovil",
+    "title": "Fila en el móvil",
+    "why": "A 390 px el estado y el menú se comen el título: «Hollow Knight: Silksong» se queda en «Hollow Kn…».",
+    "shots": [
+      {
+        "id": "claro",
+        "label": "Claro",
+        "path": "/",
+        "width": 390,
+        "theme": "light",
+        "clip": "0,270,390,500"
+      }
+    ],
+    "options": [
+      {
+        "id": "ahora",
+        "name": "Ahora",
+        "note": "El estado a la derecha; el título se corta."
+      },
+      {
+        "id": "debajo",
+        "name": "A · Estado debajo",
+        "note": "El título ocupa todo el ancho y el estado baja a la segunda línea, junto a las marcas.",
+        "css": ["filamovil-debajo"],
+        "rec": true
+      },
+      {
+        "id": "iconos",
+        "name": "B · Marcas en icono",
+        "note": "El estado se queda a la derecha; las marcas enseñan solo su icono y se aprietan los huecos. Gana poco título.",
+        "css": ["filamovil-iconos"]
+      }
+    ]
+  },
+  {
+    "id": "secciones",
+    "title": "Cabeceras de sección",
+    "why": "«JUGANDO AHORA (2)» va en mayúsculas pequeñas y grises, y la pista «Arrastra :: o usa Alt+↑/↓» se repite en cada sección aunque no se esté ordenando.",
+    "shots": [
+      {
+        "id": "claro",
+        "label": "Claro",
+        "path": "/",
+        "width": 1000,
+        "theme": "light",
+        "clip": "248,110,752,470"
+      }
+    ],
+    "options": [
+      {
+        "id": "ahora",
+        "name": "Ahora",
+        "note": "Mayúsculas pequeñas; la pista, siempre a la vista."
+      },
+      {
+        "id": "titulo",
+        "name": "A · Título",
+        "note": "El nombre en letra normal y con peso; la pista de ordenar sale solo con el puntero encima de la sección (en táctil se queda).",
+        "css": ["secciones-titulo"]
+      },
+      {
+        "id": "punto",
+        "name": "B · Con punto",
+        "note": "Como A, pero con el punto de color del estado delante, el mismo de la barra lateral y de las filas.",
+        "css": ["secciones-punto"],
+        "rec": true
+      }
+    ],
+    "wide": true
+  },
+  {
+    "id": "ancho",
+    "title": "Pantallas anchas",
+    "why": "El contenido mide 960 px y se pega a la izquierda: a 1 920 px queda media pantalla vacía a la derecha.",
+    "shots": [
+      {
+        "id": "1440",
+        "label": "1 440 px",
+        "path": "/",
+        "width": 1440,
+        "theme": "light"
+      },
+      {
+        "id": "1920",
+        "label": "1 920 px",
+        "path": "/",
+        "width": 1920,
+        "height": 1000,
+        "theme": "light"
+      }
+    ],
+    "options": [
+      {
+        "id": "ahora",
+        "name": "Ahora",
+        "note": "Columna de 960 px a la izquierda."
+      },
+      {
+        "id": "centrado",
+        "name": "A · Centrado",
+        "note": "La misma columna, centrada en el hueco. El ojo recorre líneas igual de cortas.",
+        "css": ["ancho-centrado"],
+        "rec": true
+      },
+      {
+        "id": "amplio",
+        "name": "B · Ancho y centrado",
+        "note": "La columna crece hasta 1 200 px. Llena más, pero el estado queda más lejos del título.",
+        "css": ["ancho-amplio"]
+      }
+    ],
+    "wide": true
+  },
+  {
+    "id": "superficies",
+    "title": "Tarjetas de las listas",
+    "why": "Cada sección es una tarjeta blanca con un filo gris. Es correcto, pero el filo es lo que hace que se vea «de plantilla».",
+    "shots": [
+      {
+        "id": "claro",
+        "label": "Claro",
+        "path": "/",
+        "width": 1000,
+        "theme": "light",
+        "clip": "248,110,752,520"
+      },
+      {
+        "id": "catalogo",
+        "label": "Catálogo, oscuro",
+        "path": "/catalogo",
+        "width": 1000,
+        "theme": "dark",
+        "clip": "248,100,752,470"
+      }
+    ],
+    "options": [
+      {
+        "id": "ahora",
+        "name": "Ahora",
+        "note": "Tarjeta con filo de 1 px."
+      },
+      {
+        "id": "relieve",
+        "name": "A · Relieve",
+        "note": "El filo se cambia por una sombra muy fina: la tarjeta se despega del fondo sin líneas duras. En oscuro apenas cambia.",
+        "css": ["superficies-relieve"],
+        "rec": true
+      },
+      {
+        "id": "plano",
+        "name": "B · Plano",
+        "note": "Sin tarjetas: las filas van sobre el fondo, separadas por líneas finas, como en Linear o Things. Más sobrio y más denso a la vista.",
+        "css": ["superficies-plano"]
+      }
+    ],
+    "wide": true
+  },
+  {
+    "id": "paleta",
+    "title": "Paleta (Ctrl+K)",
+    "why": "Es la función principal y ahora sale de una esquina, colgada del buscador de la barra lateral, con el campo estrecho.",
+    "shots": [
+      {
+        "id": "claro",
+        "label": "Claro",
+        "path": "/",
+        "width": 1440,
+        "theme": "light",
+        "prepare": "paleta",
+        "clip": "0,0,1440,720"
+      },
+      {
+        "id": "oscuro",
+        "label": "Oscuro",
+        "path": "/",
+        "width": 1440,
+        "theme": "dark",
+        "prepare": "paleta",
+        "clip": "0,0,1440,720"
+      }
+    ],
+    "options": [
+      {
+        "id": "ahora",
+        "name": "Ahora",
+        "note": "Colgada del buscador de la barra lateral."
+      },
+      {
+        "id": "centrada",
+        "name": "A · Centrada",
+        "note": "Al abrirla sale al centro, con el campo grande y los resultados en una sola pieza, como en Linear, Raycast o Spotlight. Lo que escribes queda donde miras.",
+        "css": ["paleta-centrada"],
+        "rec": true
+      },
+      {
+        "id": "anclada",
+        "name": "B · Anclada, pulida",
+        "note": "Se queda donde está: opción activa sin la marca lateral, «Intro» como tecla y las teclas en un pie propio.",
+        "css": ["paleta-anclada"]
+      }
+    ],
+    "wide": true
+  },
+  {
+    "id": "ficha",
+    "title": "Ficha del juego",
+    "why": "La ficha es un formulario correcto, pero la portada, que es lo más bonito que tiene, pasa desapercibida.",
+    "shots": [
+      {
+        "id": "oscuro",
+        "label": "PC, oscuro",
+        "path": "/juego/steam:367520",
+        "width": 1440,
+        "theme": "dark",
+        "clip": "976,0,464,560"
+      },
+      {
+        "id": "claro",
+        "label": "PC, claro",
+        "path": "/juego/steam:367520",
+        "width": 1440,
+        "theme": "light",
+        "clip": "976,0,464,560"
+      },
+      {
+        "id": "movil",
+        "label": "Móvil",
+        "path": "/juego/steam:367520",
+        "width": 390,
+        "theme": "dark",
+        "clip": "0,0,390,560"
+      }
+    ],
+    "options": [
+      {
+        "id": "ahora",
+        "name": "Ahora",
+        "note": "Portada de 120 px, plana."
+      },
+      {
+        "id": "ambiente",
+        "name": "A · Ambiente",
+        "note": "La portada, desenfocada, tiñe la cabecera de la ficha, como en Spotify o Apple Music: cada juego tiene su color. La portada lleva sombra.",
+        "css": ["ficha-ambiente"],
+        "rec": true
+      },
+      {
+        "id": "portada",
+        "name": "B · Portada protagonista",
+        "note": "Portada más grande y con sombra; los datos, en letra pequeña y gris. Sin color de fondo.",
+        "css": ["ficha-portada"]
+      }
+    ]
+  },
+  {
+    "id": "avisos",
+    "title": "Aviso con Deshacer",
+    "why": "Confirma cada cambio. Ahora es una tarjeta del mismo color que la lista que tapa, y se confunde con ella.",
+    "shots": [
+      {
+        "id": "claro",
+        "label": "Claro",
+        "path": "/",
+        "width": 1000,
+        "theme": "light",
+        "prepare": "aviso",
+        "clip": "296,780,656,110"
+      },
+      {
+        "id": "oscuro",
+        "label": "Oscuro",
+        "path": "/",
+        "width": 1000,
+        "theme": "dark",
+        "prepare": "aviso",
+        "clip": "296,780,656,110"
+      },
+      {
+        "id": "movil",
+        "label": "Móvil",
+        "path": "/",
+        "width": 390,
+        "theme": "light",
+        "prepare": "aviso",
+        "clip": "0,600,390,244"
+      }
+    ],
+    "options": [
+      {
+        "id": "ahora",
+        "name": "Ahora",
+        "note": "Tarjeta blanca con sombra."
+      },
+      {
+        "id": "tinta",
+        "name": "A · Tinta",
+        "note": "Invertido: oscuro sobre la app clara y claro sobre la oscura, como en Linear o Gmail. Se distingue de la lista de un vistazo.",
+        "css": ["avisos-tinta"],
+        "rec": true
+      },
+      {
+        "id": "pildora",
+        "name": "B · Píldora",
+        "note": "Se ajusta a su texto y se centra, en forma de píldora. Tapa menos.",
+        "css": ["avisos-pildora"]
+      },
+      {
+        "id": "tinta-pildora",
+        "name": "C · Píldora de tinta",
+        "note": "Las dos cosas.",
+        "css": ["avisos-tinta-pildora"]
+      }
+    ],
+    "wide": true
+  },
+  {
+    "id": "vacio",
+    "title": "Estados vacíos",
+    "why": "Una vista sin juegos enseña una caja de trazos, que parece un hueco sin terminar.",
+    "shots": [
+      {
+        "id": "claro",
+        "label": "Próximos, sin juegos",
+        "path": "/?vista=proximos",
+        "width": 1000,
+        "theme": "light",
+        "clip": "248,0,752,330"
+      }
+    ],
+    "options": [
+      {
+        "id": "ahora",
+        "name": "Ahora",
+        "note": "Caja de trazos, alineada a la izquierda."
+      },
+      {
+        "id": "centrado",
+        "name": "A · Centrado",
+        "note": "Sin caja: el texto y el botón, centrados y con aire.",
+        "css": ["vacio-centrado"],
+        "rec": true
+      },
+      {
+        "id": "tarjeta",
+        "name": "B · Tarjeta",
+        "note": "La misma tarjeta que las listas, con filo continuo.",
+        "css": ["vacio-tarjeta"]
+      }
+    ],
+    "wide": true
+  }
+]

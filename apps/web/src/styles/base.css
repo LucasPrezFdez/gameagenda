@@ -307,3 +307,22 @@ kbd {
     height: var(--target-touch);
   }
 }
+
+/* Pulsar un botón, «Hundirse» (pulido visual, DECISIONES §10.44): encoge al 96 % mientras está
+   pulsado. Se nota sobre todo con el dedo. Con «reducir movimiento», no. */
+@media (prefers-reduced-motion: no-preference) {
+  .btn,
+  .icon-btn,
+  .chip-button,
+  .status-button {
+    transition:
+      transform 90ms var(--ease),
+      background-color var(--motion) var(--ease),
+      color var(--motion) var(--ease),
+      filter var(--motion) var(--ease);
+  }
+
+  :is(.btn, .icon-btn, .chip-button, .status-button):active:not(:disabled, [aria-disabled="true"]) {
+    transform: scale(0.96);
+  }
+}

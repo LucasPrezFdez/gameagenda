@@ -45,6 +45,8 @@ export interface CoverProps {
   readonly load?: boolean;
   /** ¿Saca el aviso de primera capa si aún no ha salido? (La paleta no: lo taparía.) */
   readonly notice?: boolean;
+  /** Avisa de la imagen que ha cargado: la ficha la usa de fondo desenfocado («Ambiente»). */
+  readonly onImage?: (src: string) => void;
 }
 
 /**
@@ -58,6 +60,7 @@ export function Cover({
   size = 'row',
   load = true,
   notice = true,
+  onImage,
 }: CoverProps) {
   const ref = useRef<HTMLSpanElement>(null);
   const store = useDetailsStore();
@@ -102,7 +105,10 @@ export function Cover({
           referrerPolicy="no-referrer"
           crossOrigin="anonymous"
           draggable={false}
-          onLoad={() => setAttempt({ key, index: current.index, loaded: true })}
+          onLoad={() => {
+            setAttempt({ key, index: current.index, loaded: true });
+            onImage?.(src);
+          }}
           onError={() => setAttempt({ key, index: current.index + 1, loaded: false })}
         />
       )}

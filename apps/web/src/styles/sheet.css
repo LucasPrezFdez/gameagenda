@@ -6,10 +6,55 @@
   flex-direction: column;
   gap: 16px;
   min-width: 0;
+  position: relative;
+  isolation: isolate;
   padding: var(--gutter);
-  border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+/* «Ambiente» (pulido visual, DECISIONES §10.44): la portada, muy desenfocada, tiñe la cabecera de
+   la ficha y se funde hacia abajo; cada juego tiene su color. La caja recorta el desenfoque, así
+   que no añade desplazamiento. Sin portadas (ajuste o aviso sin ver), no hay nada. */
+.sheet__ambient {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: -1;
+  height: 340px;
+  overflow: hidden;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  opacity: 0.42;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(#000 35%, transparent);
+  mask-image: linear-gradient(#000 35%, transparent);
+  animation: ambient-in 400ms ease-out;
+}
+
+.sheet__ambient img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 30%;
+  filter: blur(48px) saturate(1.5);
+  transform: scale(1.4);
+}
+
+@keyframes ambient-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet__ambient {
+    animation: none;
+  }
+}
+
+.cover--sheet {
+  border-radius: 8px;
+  box-shadow: 0 8px 24px -6px rgb(0 0 0 / 0.45);
 }
 
 .sheet__header {
@@ -238,6 +283,32 @@
     overflow: auto;
     border-radius: 0;
     box-shadow: var(--shadow);
+    /* «Deslizar» (pulido visual): el panel entra desde el borde derecho. */
+    animation: panel-in calc(var(--motion) * 1.5) var(--ease);
+  }
+
+  .sheet__ambient {
+    border-radius: 0;
+  }
+}
+
+@keyframes panel-in {
+  from {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes push-in {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+}
+
+@keyframes push-back {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
   }
 }
 
@@ -246,10 +317,23 @@
     display: none;
   }
 
+  /* «Empuje corto» (pulido visual): la ficha entra desde la derecha y, al volver de ella, la lista
+     desde la izquierda (`data-from`, App.tsx). Entre las demás pantallas no hay animación. */
   .sheet {
     padding: 0;
-    border: 0;
     background: transparent;
+    box-shadow: none;
+    animation: push-in calc(var(--motion) * 1.2) var(--ease);
+  }
+
+  .app[data-from="game"] .screen-slot--list {
+    animation: push-back calc(var(--motion) * 1.2) var(--ease);
+  }
+
+  /* Sin caja, el color llega hasta los bordes de la pantalla y bajo la cabecera. */
+  .sheet__ambient {
+    inset: calc(-1 * var(--gutter)) calc(-1 * var(--gutter)) auto;
+    border-radius: 0;
   }
 
   .sheet__back {
