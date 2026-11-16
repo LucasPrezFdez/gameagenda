@@ -2,9 +2,10 @@
 // LSSI), en un solo sitio: lo usan la política de privacidad, el aviso legal y la primera capa de
 // Ajustes › Sincronización (CA4.7; §11.2).
 //
-// PENDIENTE (lo decide el usuario): el nombre o alias y el correo de contacto. Mientras falten, los
-// textos dicen «pendiente» y `scripts/legal-guard.test.ts` no deja encender la micro-API
-// (`SYNC_ENABLED` a "1" en `apps/web/wrangler.jsonc`).
+// El nombre y el correo los dio el usuario el 16-11-2026 (el nombre, el mismo del README y de
+// `LICENSE`: el art. 13 RGPD pide la identidad del responsable). Si faltaran, los textos dirían
+// «pendiente» y `scripts/legal-guard.test.ts` no dejaría encender la micro-API (`SYNC_ENABLED` a
+// "1" en `apps/web/wrangler.jsonc`).
 //
 // No importa nada. Los textos legales van en el *chunk* de Ajustes (ver `App.tsx`): con uno propio,
 // Rolldown partía el inicial en tres ficheros (medido el 08-11-2026: 1,8 KB brotli más).
@@ -16,7 +17,10 @@ export interface Controller {
   readonly email: string | null;
 }
 
-export const CONTROLLER: Controller = { name: null, email: null };
+export const CONTROLLER: Controller = {
+  name: 'Lucas Pérez Fernández',
+  email: 'lucasperezfernandez0@gmail.com',
+};
 
 /** Las rutas de los textos (las mismas que `LEGAL_PATHS` de `router/routes.ts`; lo comprueba una prueba). */
 export const PRIVACY_PATH = '/privacidad';

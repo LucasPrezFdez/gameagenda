@@ -10,8 +10,8 @@ Registro del art. 30 RGPD. Es obligatorio aunque el proyecto sea pequeño, porqu
 
 | Campo | Valor |
 |---|---|
-| Responsable | **Pendiente:** el nombre o alias que decida el usuario, el mismo de `apps/web/src/legal/controller.ts` |
-| Contacto | **Pendiente:** el correo de contacto, el mismo de `controller.ts` |
+| Responsable | Lucas Pérez Fernández (el mismo de `apps/web/src/legal/controller.ts`; decidido el 16-11-2026) |
+| Contacto | lucasperezfernandez0@gmail.com |
 | Delegado de protección de datos | No hace falta: no hay tratamiento a gran escala ni datos de categorías especiales (art. 37 RGPD) |
 
 ## Actividad 1 · Sincronización de la agenda (M4)
