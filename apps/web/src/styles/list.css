@@ -272,6 +272,8 @@
 
 /* Cada sección, una superficie con su filo; dentro, las filas sin caja. */
 .entry-list {
+  /* Para las acciones rápidas de la fila, que solo caben con la lista ancha (más abajo). */
+  container: entry-list / inline-size;
   display: flex;
   flex-direction: column;
   padding: 4px;
@@ -572,6 +574,7 @@
 }
 
 .entry-row__main {
+  position: relative;
   display: flex;
   flex: 1;
   flex-direction: column;
@@ -579,7 +582,14 @@
   min-width: 0;
 }
 
+/* 24 px de alto como mínimo: el título es el enlace a la ficha, y a 320 px el área del estado,
+   justo debajo, lo dejaba por debajo del mínimo de WCAG 2.5.8 (revisión del 16-11-2026). */
 .entry-row__title {
+  /* Solo lo que ocupa el texto: el resto de la línea es de las acciones rápidas. */
+  align-self: flex-start;
+  max-width: 100%;
+  min-height: 24px;
+  line-height: 24px;
   overflow: hidden;
   font-weight: 600;
   letter-spacing: -0.005em;
@@ -619,17 +629,43 @@
 }
 
 /* Las acciones rápidas se ven con el puntero encima o con el foco del teclado (WCAG 1.4.13), no
-   tras un clic. */
+   tras un clic. No reservan su hueco: salen sobre el final del título, con el fondo de la fila y
+   un degradado, como en Gmail. Antes, invisibles, ocupaban unos 200 px, y entre 768 y 1 000 px
+   de ancho el título se quedaba en nada (revisión del 16-11-2026). */
 .entry-row__actions {
+  position: absolute;
+  top: 50%;
+  right: 0;
   display: flex;
   align-items: center;
   gap: 2px;
+  padding-left: 4px;
+  background: var(--surface-2);
   opacity: 0;
+  transform: translateY(-50%);
+}
+
+.entry-row__actions::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 100%;
+  bottom: 0;
+  width: 24px;
+  background: linear-gradient(to right, transparent, var(--surface-2));
 }
 
 .entry-row:hover .entry-row__actions,
 .entry-row:has(:focus-visible) .entry-row__actions {
   opacity: 1;
+}
+
+/* Con la lista estrecha (la barra lateral abierta entre 768 y 900 px, o la ficha al lado), las
+   acciones taparían casi todo el título: se quedan en el menú «…» y en los atajos de teclado. */
+@container entry-list (max-width: 639px) {
+  .entry-row__actions {
+    display: none;
+  }
 }
 
 .entry-row__quick {

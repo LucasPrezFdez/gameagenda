@@ -117,6 +117,9 @@ test('a 320 px (el zoom al 400 %), ninguna pantalla se desplaza en horizontal (1
     await expect(page.getByRole('main')).toBeVisible();
     await page.waitForTimeout(150);
     expect(await overflow(page), name).toBeLessThanOrEqual(0);
+    // Y axe a 320 px en Mi lista, con juegos: el título de la fila quedaba por debajo de 24 px de
+    // alto con el estado justo debajo (2.5.8; revisión del 16-11-2026).
+    if (path === '/') await expectAccessible(page, 'Mi lista a 320 px');
   }
   // La paleta abierta (en el móvil, la hoja a pantalla completa).
   await page.goto('/');

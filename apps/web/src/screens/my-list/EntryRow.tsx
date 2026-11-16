@@ -146,36 +146,37 @@ function EntryRowView({
           </Link>
           {release !== null && <span className="entry-row__release">{release}</span>}
           <FlagBadges entry={entry} />
-        </div>
-        <div className="entry-row__actions">
-          {entry.status === 'want_to_play' && (
-            <button
-              type="button"
-              className="btn entry-row__quick"
-              tabIndex={tab}
-              onClick={(event) => actions.setStatus(entry.id, 'playing', timing(event))}
-            >
-              <Icon name="playing" />
-              {es.list.start}
-              <span className="visually-hidden">: {entry.title}</span>
-            </button>
-          )}
-          {FLAGS.map((flag) => (
-            <button
-              key={flag}
-              type="button"
-              className={`icon-btn flag-toggle flag-toggle--${flag}`}
-              aria-pressed={entry.flags[flag] === true}
-              aria-label={es.toggleFlag(flag, entry.title)}
-              tabIndex={tab}
-              onClick={(event) => {
-                if (entry.flags[flag] !== true) popIcon(event.currentTarget);
-                actions.setFlag(entry.id, flag, entry.flags[flag] !== true, timing(event));
-              }}
-            >
-              <Icon name={flag} />
-            </button>
-          ))}
+          {/* Dentro de `__main`: salen sobre el final del título y no le quitan ancho (list.css). */}
+          <div className="entry-row__actions">
+            {entry.status === 'want_to_play' && (
+              <button
+                type="button"
+                className="btn entry-row__quick"
+                tabIndex={tab}
+                onClick={(event) => actions.setStatus(entry.id, 'playing', timing(event))}
+              >
+                <Icon name="playing" />
+                {es.list.start}
+                <span className="visually-hidden">: {entry.title}</span>
+              </button>
+            )}
+            {FLAGS.map((flag) => (
+              <button
+                key={flag}
+                type="button"
+                className={`icon-btn flag-toggle flag-toggle--${flag}`}
+                aria-pressed={entry.flags[flag] === true}
+                aria-label={es.toggleFlag(flag, entry.title)}
+                tabIndex={tab}
+                onClick={(event) => {
+                  if (entry.flags[flag] !== true) popIcon(event.currentTarget);
+                  actions.setFlag(entry.id, flag, entry.flags[flag] !== true, timing(event));
+                }}
+              >
+                <Icon name={flag} />
+              </button>
+            ))}
+          </div>
         </div>
         <MenuButton
           label={es.changeStatus(entry.status, entry.title)}
