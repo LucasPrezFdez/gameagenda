@@ -1,9 +1,18 @@
 # Estado del proyecto — punto de partida de la próxima sesión
 
-**Actualizado:** 08-11-2026, en la sesión 12 (M4 parte 4: el buzón del Atajo de iOS, `resolve`, los textos legales y la estimación de CA4.6, en la rama `m4-sincronizacion`). Antes, el 07-11-2026, en la sesión 11 (M4 parte 3: el cliente de sincronización, Ajustes › Sincronización y los E2E de CA4.2 y CA4.3). Antes, el 06-11-2026, en la sesión 10 (M4 empezado en la rama `m4-sincronizacion`: la base de la micro-API y el ADR-011). Antes, en la sesión 9 (el cliente del núcleo de arranque, en `main` y desplegado: el núcleo de arranque, entero en producción). Antes, el 05-11-2026, en la sesión 8 (CA2.1 cumplido: M2 cerrado con `v0.2.0`; la parte del pipeline del núcleo de arranque, en `main`; y el rediseño visual «Tinta», en `main` y desplegado).
+**Actualizado:** 16-11-2026 (la revisión completa y sus arreglos, en `main` y desplegados; y M4 parte 5, preparada en su rama, a falta de pasarla a `main`). Antes, el 08-11-2026, en la sesión 12 (M4 parte 4: el buzón del Atajo de iOS, `resolve`, los textos legales y la estimación de CA4.6, en la rama `m4-sincronizacion`). Antes, el 07-11-2026, en la sesión 11 (M4 parte 3: el cliente de sincronización, Ajustes › Sincronización y los E2E de CA4.2 y CA4.3). Antes, el 06-11-2026, en la sesión 10 (M4 empezado en la rama `m4-sincronizacion`: la base de la micro-API y el ADR-011). Antes, en la sesión 9 (el cliente del núcleo de arranque, en `main` y desplegado: el núcleo de arranque, entero en producción). Antes, el 05-11-2026, en la sesión 8 (CA2.1 cumplido: M2 cerrado con `v0.2.0`; la parte del pipeline del núcleo de arranque, en `main`; y el rediseño visual «Tinta», en `main` y desplegado).
 **Cómo retomar:** escribe *«Retoma GameAgenda desde docs/planificacion/ESTADO-SESION.md»*.
 
 ## 0. Lo primero en la próxima sesión
+
+**M4 parte 5, preparada (16-11-2026) en la rama `m4-sincronizacion`; falta pasarla a `main`, que despliega, con el visto bueno del usuario.** DECISIONES §10.47 y ADR-011, «Despliegue».
+- `main` está traído a la rama (`07ad714`; nueve conflictos, con las dos partes conservadas).
+- El responsable de los textos legales, puesto (`ab3de52`): el nombre del README y el correo que dio el usuario.
+- La base D1 `ga-agenda` existe, en la jurisdicción UE (región EEUR), en la cuenta de `ga-web`. Su id está en `wrangler.jsonc`. Todavía no tiene tablas: las migraciones las aplica `deploy-web` antes de desplegar.
+- El usuario dio a `CLOUDFLARE_API_TOKEN` el permiso «D1: Edit». **Ojo:** hay dos cuentas de Cloudflare; el *token* del catálogo (`github-ga-catalog`) es de la otra y no lo necesita.
+- `SYNC_ENABLED` a `"1"`; la prueba de humo de `deploy-web` mira también `/api/*` y el 404 de `/assets/`.
+- **Al pasarla a `main`:** mirar el `deploy-web` (las migraciones y que el plan gratuito admita `ratelimits`), `smoke:web` y una activación de la sincronización de verdad en producción. Después, medir CA4.6 en el panel de Workers. Quedan del usuario las pruebas en el iPhone.
+- **Si algo falla tras desplegar:** `SYNC_ENABLED` a `"0"` y desplegar apaga la micro-API; `wrangler rollback` devuelve el código, pero no D1.
 
 **Revisión completa y arreglos rápidos (16-11-2026).** El usuario pidió una revisión «como experto programador, diseñador, tester y experto en aplicaciones». Veredicto: lista para su uso diario; para unos amigos faltan el dominio definitivo (los datos van atados al origen), el responsable de los textos legales y desplegar M4; para un lanzamiento público, además, importar la biblioteca de Steam, el inglés y una página de presentación. Capturas e informes, en `.cache/revision-20261116/` del árbol principal.
 - Los arreglos rápidos se hicieron en la rama `arreglos-revision` (*worktree* `.claude/worktrees/arreglos-revision`, que se conserva) y entraron en `main` con avance rápido el 16-11-2026, en `389149b`, con el visto bueno del usuario: DECISIONES §10.46. Desplegados: `ci` 43940043402, `deploy-web` 43940645399 y `smoke:web` en verde (en la segunda pasada, `boot` a los 1,2 s y `full` a los 2,6 s). La licencia la decidió el usuario: todos los derechos reservados (`LICENSE`).
@@ -19,7 +28,7 @@
 - La app de escritorio, abierta oculta, se puso al día sola en 123 s (`index-Vw-YmuG2.js`) y se ha dejado abierta. No hizo falta instalador: la parte nativa no cambia.
 - **Al juntar M4 con `main`:** las dos ramas tocan `shell.css`, `settings.css` y DECISIONES; se conservan las dos partes.
 
-**M4 · Sincronización: empezado el 06-11-2026 (sesión 10), en la rama `m4-sincronizacion`** (subida; el árbol de trabajo está en ella). No va a `main` hasta tener la base de D1 en Cloudflare y el permiso de D1 en el *token* de `deploy-web`: con el *binding* en `wrangler.jsonc`, cada despliegue fallaría.
+**M4 · Sincronización: empezado el 06-11-2026 (sesión 10), en la rama `m4-sincronizacion`** (subida; el árbol de trabajo está en ella). No iba a `main` sin la base de D1 en Cloudflare y el permiso de D1 en el *token* de `deploy-web`, porque con el *binding* en `wrangler.jsonc` cada despliegue habría fallado. Las dos cosas están desde el 16-11-2026 (parte 5, arriba).
 
 - **Parte 1, hecha** (`07720f7` y `29d0d39`): la base de la micro-API. ADR-011 («propuesta») y DECISIONES §10.34.
   - `apps/web/worker/`: Hono solo en `/api/*`, con el interruptor `SYNC_ENABLED` apagado; reglas de la §11.4; crear agenda con la edad y el código de recuperación; dispositivos; emparejar; recuperar; borrar en cascada. Esquema en `worker/migrations/0001_inicial.sql`. Contrato en `@gameagenda/core/api`.
@@ -57,12 +66,9 @@
   - **`resolve`, solo con la sincronización activada** (decisión del usuario, 08-11-2026): quien no sincroniza no hace ninguna petición a `/api`, y lo comprueba `sync.spec.ts` con un juego provisional.
   - **`data.spec.ts:50`, arreglada:** espera al catálogo antes de navegar, y pasa 12 de 12 en WebKit.
   - **Tras los arreglos:** `check` con 1 275 pruebas y el JS inicial en 139,2 KB brotli; la batería E2E entera, 237 en verde y 37 omitidas, ninguna en rojo; y `wrangler dev`, en verde, también con el enlace enorme y los mensajes del Atajo.
-  - **Pendiente de esta parte (lo hace el usuario):**
-    - el responsable (nombre o alias y correo), en `legal/controller.ts` y en el registro de actividades. El usuario decidió el 08-11-2026 dejarlo para el despliegue (parte 5): sin él no se puede encender la sincronización;
-    - los pasos del Atajo, en un iPhone de verdad.
-- **Siguiente parte:**
-  5. desplegar: aplicar las migraciones `0001` y `0002`, crear D1 con `--jurisdiction=eu` (y ver si el plan gratuito la admite, igual que `ratelimits`), el permiso de D1 del *token*, las migraciones en `deploy-web`, `SYNC_ENABLED` a `"1"` (con el responsable puesto), medir CA4.6 en el panel de Workers y las pruebas en el iPhone.
-- **Le tocará al usuario:** el nombre o alias y el correo de contacto del responsable para los textos legales; dar permiso de D1 al *token* `CLOUDFLARE_API_TOKEN`; y probar en el iPhone (CA4.3, CA4.5 con el Atajo de verdad y el QR).
+  - **Pendiente de esta parte (lo hace el usuario):** los pasos del Atajo, en un iPhone de verdad. El responsable de los textos lo dio el 16-11-2026.
+- **Parte 5, preparada el 16-11-2026** (arriba, al principio de esta sección): queda pasarla a `main` con el visto bueno del usuario, medir CA4.6 en el panel de Workers y las pruebas en el iPhone.
+- **Le tocará al usuario:** probar en el iPhone (CA4.3, CA4.5 con el Atajo de verdad y el QR).
 
 Lo de M3 está en `main` y subido, con el CI y el despliegue en verde. Por orden:
 

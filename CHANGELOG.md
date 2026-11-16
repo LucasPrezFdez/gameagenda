@@ -11,7 +11,7 @@ Cambios de GameAgenda por versión. Cada hito cierra una versión SemVer 0.x (§
 - **Sincronización entre dispositivos** (07-11-2026, en la rama `m4-sincronizacion`, sin publicar; ADR-011, DECISIONES §10.36–§10.37): en Ajustes › Sincronización se activa con la declaración de edad y se guarda una vez un código de recuperación. Otro dispositivo se empareja con un código o un QR de 10 min. Los cambios se sincronizan solos al abrir la app, al volver a ella, al recuperar la red y poco después de apuntar algo. Hay lista de dispositivos para desemparejarlos, y «Borrar todos mis datos» borra también la copia del servidor. Si se borran los datos del navegador, la agenda vuelve sola o con el código de recuperación.
 - **Atajo de iOS** (08-11-2026, en la rama `m4-sincronizacion`, sin publicar; ADR-011, DECISIONES §10.39): desde Ajustes › Sincronización se crea un token de solo escritura para la app Atajos del iPhone o el iPad, con la dirección y los pasos. Compartir un juego desde Safari o la app de Steam lo deja en un buzón, y la siguiente sincronización lo apunta en Quiero jugar, con un aviso. Lo que ya está en la lista no cambia. El token sale en «Dispositivos», donde se desempareja.
 - **El nombre de un juego que aún no está en el catálogo** (08-11-2026, en la misma rama; DECISIONES §10.40): con la sincronización activada, un enlace de un juego recién publicado se apunta al instante como provisional, y su nombre llega de Steam en un segundo, si hay conexión. Sin sincronizar, espera a que llegue al catálogo.
-- **Política de privacidad y aviso legal** (08-11-2026, en la misma rama; DECISIONES §10.41): en `/privacidad` y `/aviso-legal`, enlazados desde Ajustes › Privacidad, Acerca de y la sincronización, que lleva al lado la primera capa. Falta el nombre y el correo del responsable, que decide el usuario.
+- **Política de privacidad y aviso legal** (08-11-2026, en la misma rama; DECISIONES §10.41): en `/privacidad` y `/aviso-legal`, enlazados desde Ajustes › Privacidad, Acerca de y la sincronización, que lleva al lado la primera capa. El nombre y el correo del responsable, desde el 16-11-2026.
 - **Pulido visual y animaciones** (10-11-2026; DECISIONES §10.44, opciones elegidas por el usuario en `docs/diseno/pulido/`):
   - la paleta se abre en el centro de la pantalla (PC), con el campo grande; la barra lateral marca lo activo con tinta y lleva los contadores en píldora; la cápsula del móvil, con una píldora de tinta que se desliza;
   - las portadas de las filas llevan sombra y, en el móvil, el título ocupa todo el ancho, con el estado debajo; las secciones llevan el punto de su estado; el contenido va centrado en pantallas anchas y las tarjetas cambian el filo por una sombra fina;
@@ -25,6 +25,10 @@ Cambios de GameAgenda por versión. Cada hito cierra una versión SemVer 0.x (§
 
 #### Ingeniería
 
+- **Micro-API, parte 5: preparar el despliegue** (16-11-2026, en la rama `m4-sincronizacion`; ADR-011, «Despliegue», y DECISIONES §10.47):
+  - la base D1 `ga-agenda`, creada en la jurisdicción UE;
+  - `deploy-web` aplica las migraciones de D1 antes de desplegar, y su prueba de humo comprueba también la micro-API y el 404 de `/assets/`;
+  - `SYNC_ENABLED` a `"1"`.
 - **Micro-API, parte 4** (08-11-2026, en la rama `m4-sincronizacion`; ADR-011):
   - `POST /api/v1/inbox/token` y `POST /api/v1/inbox`, con el buzón en las respuestas de `sync` (`inbox`) y su confirmación (`inboxAck`);
   - `GET /api/v1/resolve/<appid>`, con `GetItems` sin clave y la caché de D1;

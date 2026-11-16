@@ -44,7 +44,7 @@ Opción elegida: **1**, porque es la del plan (D-13), mantiene la cookie de prim
 
 - `apps/web/wrangler.jsonc` lleva `main: ./worker/index.ts` y `assets.run_worker_first: ["/api/*"]`. El *script* solo corre en `/api/*`, y el resto lo sirven los *assets*, gratis. Si llega otra petición al *script* (con `run_worker_first`, Cloudflare no garantiza dejar fuera las navegaciones), se devuelve con `env.ASSETS.fetch()`, que aplica el *fallback* de la SPA.
 - Comprobado con `wrangler dev` (`workerd` y D1 locales) el 06-11-2026: `/juego/steam:730` da el 307 de siempre y luego `index.html`, y un fichero que no existe, el `index.html` del *fallback*.
-- **Interruptor:** la variable `SYNC_ENABLED` vale `"0"` en `wrangler.jsonc`, y con ella toda `/api/*` responde 503 `sync_disabled` sin tocar D1. Se pone a `"1"` cuando estén publicados los textos legales (CA4.7).
+- **Interruptor:** la variable `SYNC_ENABLED` de `wrangler.jsonc`. Con `"0"`, toda `/api/*` responde 503 `sync_disabled` sin tocar D1. Vale `"1"` desde el 16-11-2026 (parte 5), con los textos legales completos (CA4.7); para apagar la micro-API basta con volver a `"0"` y desplegar.
 
 ### Código y tipos
 
@@ -129,7 +129,7 @@ Comprobado en `workerd` local con la API de `wrangler dev` (`POST /cdn-cgi/local
 - índices por `agenda_id` en las tablas hijas, para las cascadas;
 - `write_id` en `agenda`, para la concurrencia optimista de `sync`.
 
-`0002_epoca.sql` (07-11-2026) añade `agenda.epoch TEXT NOT NULL DEFAULT ''` y un `UPDATE` que la rellena: `ADD COLUMN` no admite un valor por defecto calculado. **Hay que aplicarla antes de desplegar el Worker con esta versión** (`npx wrangler d1 migrations apply DB --remote -c apps/web/wrangler.jsonc`); si no, el `SELECT` de `epoch` falla con 500.
+`0002_epoca.sql` (07-11-2026) añade `agenda.epoch TEXT NOT NULL DEFAULT ''` y un `UPDATE` que la rellena: `ADD COLUMN` no admite un valor por defecto calculado. **Hay que aplicarla antes de desplegar el Worker con esta versión** (`npx wrangler d1 migrations apply DB --remote -c apps/web/wrangler.jsonc`); si no, el `SELECT` de `epoch` falla con 500. Desde la parte 5 lo hace `deploy-web`, antes de `wrangler deploy` (ver «Despliegue»).
 
 D1 aplica las claves foráneas, así que borrar una agenda se lleva sus dispositivos, *tokens*, operaciones y buzón (CA4.7). `STRICT`, `WITHOUT ROWID`, `RETURNING`, `json_each`, `->>`, el *upsert* y la purga con CTE funcionan en el `workerd` de `wrangler` 4.155.0.
 
@@ -336,9 +336,9 @@ Lo detalla DECISIONES §10.41.
   - el aviso legal y las condiciones de uso (`/aviso-legal`);
   - la primera capa en `[data-sync-legal]`.
 - **Dónde está:** los textos son datos en `apps/web/src/legal/` (`texts.ts`, `first-layer.ts` y `controller.ts`), y la pantalla los pinta como texto, en el *chunk* de Ajustes.
-- **El responsable, pendiente:** el nombre o alias y el correo los da el usuario. Hasta entonces los textos dicen «pendiente», y `scripts/legal-guard.test.ts` no deja `SYNC_ENABLED` a `"1"` sin ellos.
+- **El responsable:** el nombre y el correo los dio el usuario el 16-11-2026, y van en `legal/controller.ts` y en el registro. Sin ellos, los textos dirían «pendiente» y `scripts/legal-guard.test.ts` no dejaría `SYNC_ENABLED` a `"1"`.
 - **El registro de actividades:** `docs/legal/registro-actividades.md`.
-- **El interruptor:** `SYNC_ENABLED` sigue a `"0"` en `wrangler.jsonc`. Se pone a `"1"` al desplegar (parte 5), con el responsable puesto.
+- **El interruptor:** `SYNC_ENABLED` a `"1"` en `wrangler.jsonc` desde el 16-11-2026 (parte 5).
 
 ### CPU por petición (08-11-2026; CA4.6)
 
@@ -346,6 +346,16 @@ Lo detalla DECISIONES §10.41.
   - En caliente, el peor p99 es 2,38 ms, en `sync` con 200 operaciones. Bajar 1 000 cambios se queda en 2,22 ms, y el resto no pasa de 1,6 ms.
   - La primera petición de un *isolate* nuevo cuesta ≈6 ms, porque Hono y Zod preparan cosas la primera vez.
 - **Lo que cierra CA4.6** es el p99 del panel de Workers en producción (parte 5).
+
+### Despliegue (16-11-2026; parte 5)
+
+Lo detalla DECISIONES §10.47.
+
+- **D1:** `ga-agenda`, creada con `npx wrangler d1 create ga-agenda --jurisdiction eu` en la cuenta de `ga-web`. `wrangler d1 info` da `"jurisdiction": "eu"` y la región EEUR: el plan gratuito admite la jurisdicción. Su id va en `wrangler.jsonc`.
+- **Migraciones en `deploy-web`:** `wrangler d1 migrations apply DB --remote`, antes de `wrangler deploy`. Si fallan, no se despliega nada. Mientras se aplican y hasta que el borde tiene la versión nueva, sigue sirviendo la anterior, así que **cada migración tiene que valer también para el código anterior**: añadir tablas, columnas con valor por defecto o índices; nada de quitar ni renombrar en la misma versión. Sin terminal, `wrangler` no pregunta (`confirm` vale `true` por defecto).
+- **El *token*:** `CLOUDFLARE_API_TOKEN` lleva desde el 16-11-2026 el permiso «D1: Edit», que puso el usuario. Es el de la cuenta de `ga-web`; el del catálogo (`CATALOG_CLOUDFLARE_API_TOKEN`, en su propia cuenta) no lo necesita.
+- **Prueba de humo:** además de la SPA y su CSP, `/api/v1/prueba-de-humo` tiene que responder JSON (404, o 503 con el interruptor apagado, para que apagarlo no ponga el despliegue en rojo) y `/assets/prueba-de-humo.js`, 404. Las dos solo las da el Worker: sin él serían el `index.html` del *fallback*.
+- **Vuelta atrás:** `wrangler rollback` devuelve el código, no D1. Por eso las migraciones solo añaden, y para apagar la micro-API está el interruptor.
 
 ### Pruebas
 
@@ -388,11 +398,9 @@ Lo detalla DECISIONES §10.41.
 - Bien, porque el Atajo de iOS apunta sin abrir la app con un *token* que solo puede dejar enlaces, y lo apuntado pasa por la misma agenda que un enlace pegado.
 - Mal, porque sin sincronizar un juego recién publicado se queda con el título del enlace hasta que llega al catálogo (normalmente, al día siguiente).
 - **Pendiente:**
-  - **el responsable** de los textos legales (nombre o alias y correo), que da el usuario, en `legal/controller.ts`;
-  - **parte 5, desplegar:** crear D1 con `--jurisdiction=eu`; el permiso de D1 del *token* de `deploy-web`; las migraciones 0001 y 0002 en el flujo, antes del Worker; `SYNC_ENABLED` a `"1"`; medir CA4.6 en el panel de Workers; y las pruebas en el iPhone (CA4.3 con los datos de Safari, CA4.5 con el Atajo de verdad y el QR con la app en la pantalla de inicio).
+  - **parte 5, lo que queda** (lo demás, hecho el 16-11-2026 en la rama: ver «Despliegue»): pasar la rama a `main` y desplegar, con el visto bueno del usuario; medir CA4.6 en el panel de Workers; y las pruebas en el iPhone (CA4.3 con los datos de Safari, CA4.5 con el Atajo de verdad y el QR con la app en la pantalla de inicio).
 - **A verificar al desplegar:**
-  - que el plan gratuito admite la jurisdicción UE de D1 y el *binding* `ratelimits`, porque la documentación no lo dice;
-  - el id real de D1 en `wrangler.jsonc`;
+  - que el plan gratuito admite el *binding* `ratelimits`, porque la documentación no lo dice (la jurisdicción UE de D1, sí: comprobado al crearla);
   - que `navigator.standalone` solo existe en iOS: si Safari de macOS lo diera como `false`, la nota de Safari saldría en un Mac.
 
 ### Confirmación
