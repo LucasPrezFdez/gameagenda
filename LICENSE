@@ -1,0 +1,25 @@
+Copyright (c) 2026 Lucas Pérez Fernández. Todos los derechos reservados.
+
+El código de este repositorio se publica solo para que se pueda leer. No se concede
+ninguna licencia: sin el permiso por escrito del titular, no se puede copiar, modificar,
+distribuir, sublicenciar ni usar para crear otros productos, ni en todo ni en parte.
+
+Los términos de servicio de GitHub permiten ver los repositorios públicos y hacer un
+fork dentro de GitHub; eso no concede ningún otro derecho.
+
+Los componentes de terceros conservan sus propias licencias (por ejemplo, los iconos de
+Phosphor, con licencia MIT: ver apps/web/public/licencias.txt).
+
+---
+
+Copyright (c) 2026 Lucas Pérez Fernández. All rights reserved.
+
+The source code in this repository is published for reference only. No license is
+granted: you may not copy, modify, distribute, sublicense, or use it to build other
+products, in whole or in part, without the copyright holder's written permission.
+
+GitHub's Terms of Service allow viewing public repositories and forking them within
+GitHub; that grants no other rights.
+
+Third-party components keep their own licenses (for example, the Phosphor icons, under
+the MIT License: see apps/web/public/licencias.txt).

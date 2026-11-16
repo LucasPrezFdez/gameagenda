@@ -6,7 +6,7 @@
 ## 0. Lo primero en la próxima sesión
 
 **Revisión completa y arreglos rápidos (16-11-2026).** El usuario pidió una revisión «como experto programador, diseñador, tester y experto en aplicaciones». Veredicto: lista para su uso diario; para unos amigos faltan el dominio definitivo (los datos van atados al origen), el responsable de los textos legales y desplegar M4; para un lanzamiento público, además, importar la biblioteca de Steam, el inglés y una página de presentación. Capturas e informes, en `.cache/revision-20261116/` del árbol principal.
-- Los arreglos rápidos van en la rama `arreglos-revision` (*worktree* `.claude/worktrees/arreglos-revision`), sin fusionar: DECISIONES §10.46. Pendiente del usuario: el visto bueno para fusionarla en `main` (despliega) y la licencia del repositorio (es público y no tiene `LICENSE`).
+- Los arreglos rápidos van en la rama `arreglos-revision` (*worktree* `.claude/worktrees/arreglos-revision`), sin fusionar: DECISIONES §10.46. Pendiente del usuario: el visto bueno para fusionarla en `main` (despliega). La licencia la decidió el usuario: todos los derechos reservados (`LICENSE`).
 - En la rama de M4, el 404 de `/assets/*` que no existe y hono 4.13.18 (arreglos de seguridad de `hono/cookie` y del validador).
 - **La racha del catálogo ya está cumplida:** 14 ejecuciones programadas seguidas en verde, del 03-11 al 16-11 (M3 pedía 7).
 - **El *cron* del catálogo se apaga a los 60 días sin *commits* en el repositorio:** con el último de `main` del 10-11, hacia el 09-01-2027.

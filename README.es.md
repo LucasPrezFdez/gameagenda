@@ -52,3 +52,7 @@ Los despliegues necesitan los secretos `CLOUDFLARE_API_TOKEN` («Workers Scripts
 | `fixtures/` | Datos de prueba, incluida la copia congelada del catálogo real |
 | `scripts/` | *Scripts* del repositorio |
 | `docs/` | ADR, mediciones (`docs/medidas/`) y planificación |
+
+## Licencia
+
+Todos los derechos reservados. El código es público solo para que se pueda leer: ver [LICENSE](LICENSE).

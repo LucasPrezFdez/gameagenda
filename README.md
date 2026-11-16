@@ -88,3 +88,7 @@ Deployments need the `CLOUDFLARE_API_TOKEN` («Workers Scripts: Edit») and `CLO
 ## Author
 
 Lucas Pérez Fernández · [Portfolio](https://lucasprezfdez.github.io/) · [GitHub](https://github.com/LucasPrezFdez)
+
+## License
+
+All rights reserved. The code is public for reference only: see [LICENSE](LICENSE).
