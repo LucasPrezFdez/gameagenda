@@ -247,8 +247,9 @@ export const es = {
     show: 'Mostrar',
     hide: 'Ocultar',
     allEntries: 'Juegos',
-    empty:
-      'Tu agenda está vacía. Apunta el primer juego que quieras jugar: escribe su nombre y pulsa Intro.',
+    empty: 'Tu agenda está vacía. Apunta el primer juego que quieras jugar.',
+    // Abre la paleta: en el móvil no hay ningún campo a la vista (revisión del 16-11-2026).
+    emptyCapture: 'Apunta tu primer juego…',
     // M4 (CA4.3): con IndexedDB borrada y el dispositivo aún emparejado, la agenda vuelve sola.
     restoring:
       'Estamos trayendo tu agenda sincronizada. Tus juegos aparecerán aquí en unos segundos.',
@@ -282,6 +283,7 @@ export const es = {
       tbd: 'Por confirmar',
       loading: 'Buscando las fechas de lanzamiento…',
       empty: 'Ningún juego de tu lista sale pronto ni ha salido en los últimos 14 días.',
+      browse: 'Ver lo que sale pronto en el catálogo',
     },
     releaseLoading: 'Ordenando por lanzamiento…',
   },

@@ -364,6 +364,15 @@ function AppShell() {
   // Los textos legales se abren desde Ajustes: la navegación marca Ajustes.
   const inSettings = route.name === 'settings' || route.name === 'pair' || route.name === 'legal';
   const group = onList ? 'agenda' : inSettings ? 'settings' : route.name;
+  // De qué pantalla se viene: en el móvil, al volver de la ficha la lista entra desde la izquierda
+  // (sheet.css). Se anota al pintar, sin estado: no hace falta otro repintado.
+  const routeTrail = useRef<{ now: string; from: string | undefined }>({
+    now: route.name,
+    from: undefined,
+  });
+  if (routeTrail.current.now !== route.name) {
+    routeTrail.current = { now: route.name, from: routeTrail.current.now };
+  }
 
   return (
     <PaletteProvider handle={paletteRef}>
@@ -371,6 +380,7 @@ function AppShell() {
         <div
           className="app"
           data-route={route.name}
+          data-from={routeTrail.current.from}
           data-sidebar={collapsed ? 'collapsed' : 'expanded'}
         >
           <a className="skip-link" href="#main">

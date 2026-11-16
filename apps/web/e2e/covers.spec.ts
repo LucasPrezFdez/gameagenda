@@ -167,7 +167,15 @@ test('el aviso de Deshacer va justo encima del de las portadas, que no tapa la p
   await capture(page, 'hades ii', 'Hades II');
   await expect(notice(page)).toBeVisible();
   // Los dos entran con una animación (`toast-in`): se mide cuando ha acabado.
-  await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished)));
+  // La línea del tiempo del aviso dura lo que él (8 s) y no mueve nada: no se espera.
+  await page.evaluate(() =>
+    Promise.all(
+      document
+        .getAnimations()
+        .filter((a) => (a as CSSAnimation).animationName !== 'toast-time')
+        .map((a) => a.finished.catch(() => undefined)),
+    ),
+  );
   const toastBox = await toast(page).boundingBox();
   const noticeBox = await notice(page).boundingBox();
   if (!toastBox || !noticeBox) throw new Error('Los dos avisos tienen que estar a la vista');

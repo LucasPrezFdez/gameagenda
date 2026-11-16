@@ -5,7 +5,19 @@
 
 ## 0. Lo primero en la próxima sesión
 
-Lo de M3 está en `main` y subido, con el CI y el despliegue en verde y sin agentes en marcha; M4, en su rama (abajo). Por orden:
+**Revisión completa y arreglos rápidos (16-11-2026).** El usuario pidió una revisión «como experto programador, diseñador, tester y experto en aplicaciones». Veredicto: lista para su uso diario; para unos amigos faltan el dominio definitivo (los datos van atados al origen), el responsable de los textos legales y desplegar M4; para un lanzamiento público, además, importar la biblioteca de Steam, el inglés y una página de presentación. Capturas e informes, en `.cache/revision-20261116/` del árbol principal.
+- Los arreglos rápidos se hicieron en la rama `arreglos-revision` (*worktree* `.claude/worktrees/arreglos-revision`, que se conserva) y entraron en `main` con avance rápido el 16-11-2026, en `389149b`, con el visto bueno del usuario: DECISIONES §10.46. Desplegados: `ci` 43940043402, `deploy-web` 43940645399 y `smoke:web` en verde (en la segunda pasada, `boot` a los 1,2 s y `full` a los 2,6 s). La licencia la decidió el usuario: todos los derechos reservados (`LICENSE`).
+- **Dominio:** el usuario solo cambiaría si fuera gratis, y no lo es (unos 10–15 € al año). Se queda `workers.dev` por ahora; con M4 desplegado, cambiar de dirección solo pide el código de recuperación en la nueva (y tocar el `Origin` de la micro-API, las etiquetas Open Graph y el instalador de escritorio).
+- En la rama de M4, el 404 de `/assets/*` que no existe y hono 4.13.18 (arreglos de seguridad de `hono/cookie` y del validador).
+- **La racha del catálogo ya está cumplida:** 14 ejecuciones programadas seguidas en verde, del 03-11 al 16-11 (M3 pedía 7).
+- **El *cron* del catálogo se apaga a los 60 días sin *commits* en el repositorio:** con el último de `main` del 10-11, hacia el 09-01-2027.
+
+**Pulido visual y animaciones (10-11-2026): en `main` y desplegado.** Elegido por el usuario entre varias opciones (página en `docs/diseno/pulido/`, que se monta en `.cache/pulido/index.html`); el detalle, en DECISIONES §10.44 (los números 34 a 43 son de M4, en su rama).
+- Se hizo en la rama `pulido-visual` (*worktree* `.claude/worktrees/pulido-visual`, que se conserva) y entró en `main` con avance rápido, en `6bb3345`.
+- `check` (972 pruebas, JS inicial de 133,1 KB), E2E de Chromium y WebKit en verde salvo los dos intermitentes ya conocidos (`boot.spec.ts:273` y `data.spec.ts:50` en WebKit), `ci` 42851918207, `deploy-web` 42852474560 y `smoke:web`, en verde.
+- `perf`: no pasa «tareas largas al teclear o apuntar», igual que `main` medido a continuación (4 de 51–55 ms frente a 2 de 50–53 ms, con la CPU al 16 %). Lo demás, dentro de presupuesto.
+- La app de escritorio, abierta oculta, se puso al día sola en 123 s (`index-Vw-YmuG2.js`) y se ha dejado abierta. No hizo falta instalador: la parte nativa no cambia.
+- **Al juntar M4 con `main`:** las dos ramas tocan `shell.css`, `settings.css` y DECISIONES; se conservan las dos partes.
 
 **M4 · Sincronización: empezado el 06-11-2026 (sesión 10), en la rama `m4-sincronizacion`** (subida; el árbol de trabajo está en ella). No va a `main` hasta tener la base de D1 en Cloudflare y el permiso de D1 en el *token* de `deploy-web`: con el *binding* en `wrangler.jsonc`, cada despliegue fallaría.
 
@@ -52,6 +64,7 @@ Lo de M3 está en `main` y subido, con el CI y el despliegue en verde y sin agen
   5. desplegar: aplicar las migraciones `0001` y `0002`, crear D1 con `--jurisdiction=eu` (y ver si el plan gratuito la admite, igual que `ratelimits`), el permiso de D1 del *token*, las migraciones en `deploy-web`, `SYNC_ENABLED` a `"1"` (con el responsable puesto), medir CA4.6 en el panel de Workers y las pruebas en el iPhone.
 - **Le tocará al usuario:** el nombre o alias y el correo de contacto del responsable para los textos legales; dar permiso de D1 al *token* `CLOUDFLARE_API_TOKEN`; y probar en el iPhone (CA4.3, CA4.5 con el Atajo de verdad y el QR).
 
+Lo de M3 está en `main` y subido, con el CI y el despliegue en verde. Por orden:
 
 0. **Rediseño visual «Tinta» (05-11-2026, sesión 8): en `main` y desplegado.** Se hizo en la rama `rediseno-visual` (*worktree* `.claude/worktrees/rediseno-visual`, que se conserva) y entró en `main` sin *merge*, en `51b5563`.
    - Encargo: `docs/planificacion/prompts/rediseno-visual.md`. Auditoría, opciones, elecciones del usuario y medidas: `docs/diseno/rediseno-visual/propuesta.md`. El porqué, en DECISIONES §10.31; los tokens, en la §9.8.

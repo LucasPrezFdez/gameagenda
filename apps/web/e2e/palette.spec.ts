@@ -214,6 +214,44 @@ test.describe('carrera de Intro', () => {
     await expect(toast(page)).toBeEmpty();
     await checks.expectClean();
   });
+
+  // Revisión del 16-11-2026: con la respuesta de la última tecla en vuelo, Intro apuntaba la
+  // primera fila de los resultados nuevos y no la elegida con ↑/↓ sobre los visibles.
+  test('la fila elegida con ↓ antes de que lleguen los resultados es la que se apunta', async ({
+    page,
+  }) => {
+    const checks = await setup(page, { latencyMs: 300 });
+    await page.goto('/');
+    await waitForSearch(page, 'full');
+    await openPalette(page);
+    await page.keyboard.type('hollo');
+    await expect(page.getByRole('option').first()).toHaveAccessibleName(/^Hollow Knight/);
+    await page.keyboard.type('w');
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('ArrowDown');
+    await expect(page.getByRole('option', { selected: true })).toHaveAccessibleName(
+      /^Grimm's Hollow/,
+    );
+    await page.keyboard.press('Enter');
+    await expect(toast(page)).toContainText("Apuntado en Quiero jugar: Grimm's Hollow");
+    await expect(listRow(page, 'Hollow Knight')).toHaveCount(0);
+    await checks.expectClean();
+  });
+
+  test('↑ a «a mano» antes de que lleguen los resultados abre el alta a mano', async ({ page }) => {
+    const checks = await setup(page, { latencyMs: 300 });
+    await page.goto('/');
+    await waitForSearch(page, 'full');
+    await openPalette(page);
+    await page.keyboard.type('Celest');
+    await expect(page.getByRole('option').first()).toHaveAccessibleName(/^Celeste/);
+    await page.keyboard.type('e');
+    await page.keyboard.press('ArrowUp');
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('textbox', { name: 'Título' })).toHaveValue('Celeste');
+    await expect(toast(page)).toBeEmpty();
+    await checks.expectClean();
+  });
 });
 
 test('«¿Quizás buscabas…?»: Intro no apunta una sugerencia que no se ha elegido', async ({

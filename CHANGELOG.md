@@ -12,6 +12,12 @@ Cambios de GameAgenda por versión. Cada hito cierra una versión SemVer 0.x (§
 - **Atajo de iOS** (08-11-2026, en la rama `m4-sincronizacion`, sin publicar; ADR-011, DECISIONES §10.39): desde Ajustes › Sincronización se crea un token de solo escritura para la app Atajos del iPhone o el iPad, con la dirección y los pasos. Compartir un juego desde Safari o la app de Steam lo deja en un buzón, y la siguiente sincronización lo apunta en Quiero jugar, con un aviso. Lo que ya está en la lista no cambia. El token sale en «Dispositivos», donde se desempareja.
 - **El nombre de un juego que aún no está en el catálogo** (08-11-2026, en la misma rama; DECISIONES §10.40): con la sincronización activada, un enlace de un juego recién publicado se apunta al instante como provisional, y su nombre llega de Steam en un segundo, si hay conexión. Sin sincronizar, espera a que llegue al catálogo.
 - **Política de privacidad y aviso legal** (08-11-2026, en la misma rama; DECISIONES §10.41): en `/privacidad` y `/aviso-legal`, enlazados desde Ajustes › Privacidad, Acerca de y la sincronización, que lleva al lado la primera capa. Falta el nombre y el correo del responsable, que decide el usuario.
+- **Pulido visual y animaciones** (10-11-2026; DECISIONES §10.44, opciones elegidas por el usuario en `docs/diseno/pulido/`):
+  - la paleta se abre en el centro de la pantalla (PC), con el campo grande; la barra lateral marca lo activo con tinta y lleva los contadores en píldora; la cápsula del móvil, con una píldora de tinta que se desliza;
+  - las portadas de las filas llevan sombra y, en el móvil, el título ocupa todo el ancho, con el estado debajo; las secciones llevan el punto de su estado; el contenido va centrado en pantallas anchas y las tarjetas cambian el filo por una sombra fina;
+  - la ficha se tiñe con el color de la portada; el aviso con Deshacer es una píldora de tinta que enseña el tiempo que queda y se va con un fundido;
+  - animaciones cortas donde explican lo que pasa: la fila se desliza a su sección nueva, el juego recién apuntado destella, el icono salta al poner una marca, los menús crecen desde su botón y los botones se hunden al pulsarlos. Cambiar de pantalla, filtrar y teclear en la paleta siguen siendo instantáneos, y con «reducir movimiento» no se anima nada.
+
 - **Buscar antes en la primera visita** (06-11-2026; ADR-009, DECISIONES §10.30): mientras llega el catálogo completo, la paleta ya busca en los 20 000 juegos más populares. Lo dice junto a los resultados y, si no encuentra el juego, no da por hecho que no está en Steam ni resalta la fila «a mano», porque puede llegar unos segundos después. Al llegar el catálogo entero, repite la búsqueda abierta. El Catálogo y la ficha esperan al catálogo completo.
   - Con CPU ×4, en local, se puede buscar a los 556 ms (presupuesto: 1 500 ms, RNF-05). En producción, con la fibra del PC, a los 0,9 s, y el catálogo completo llega a los 2,0 s (`smoke:web`, 06-11-2026).
   - Si el catálogo completo falla, se sigue buscando en el de arranque, con «Reintentar», y la carga se repite sola.
@@ -58,8 +64,15 @@ Cambios de GameAgenda por versión. Cada hito cierra una versión SemVer 0.x (§
   - **En el móvil,** una cápsula flotante con Mi lista, Catálogo y Ajustes, y el buscador como botón redondo aparte, como las apps de iOS 26. Pasa de dos barras apiladas abajo a una sola fila flotante. El filtro del Catálogo sube arriba.
 - **`Ctrl+Mayús+Espacio` en la app de escritorio solo la pone delante** (06-11-2026, decisión del usuario; DECISIONES §10.32): ya no abre la paleta. Para apuntar, `Ctrl+K`. Llega sin reinstalar.
 - **Logo nuevo, «Grafito»:** un marcapáginas blanco con un play hueco sobre zinc oscuro. Sale en la pestaña, en la app instalada (móvil, iPhone y escritorio) y en la cabecera. El color de tema deja el rosa.
+- **Mi lista vacía lleva a apuntar** (16-11-2026, revisión; DECISIONES §10.46): un botón con forma de buscador, «Apunta tu primer juego…», abre la paleta; «Explorar el catálogo» pasa a secundario. En el iPhone, el aviso de Safari espera al primer juego. Próximos vacío lleva a lo que sale pronto en el catálogo.
+- **Vista previa al compartir el enlace** (16-11-2026): etiquetas Open Graph con el nombre, una descripción y el icono.
 
 ### Corregido
+
+- **Intro apuntaba otro juego** (16-11-2026, revisión; DECISIONES §10.46). Si se elegía una fila con ↑/↓ antes de que llegaran los resultados de la última tecla, Intro apuntaba la primera de los nuevos. Ahora apunta la elegida, o nada si ya no está.
+- **Los enlaces de juegos para adultos** (`store.steampowered.com/agecheck/app/…`) no se reconocían y acababan en un alta a mano con la dirección como título.
+- **La fila de Mi lista entre 768 y 1 000 px:** con la barra lateral abierta, el título se quedaba en nada o se cortaba con un hueco vacío al lado, porque las acciones rápidas, aun invisibles, ocupaban su sitio. Ahora salen sobre el final del título con el puntero encima, y con la lista estrecha no salen (quedan el menú «…» y los atajos).
+- **Tamaño táctil del título de la fila** a 320 px: 24 px de alto como mínimo (WCAG 2.5.8).
 
 - **Las filas se quedaban «encendidas» tras un clic** (06-11-2026, lo vio el usuario). Al pulsar «Empezar» o una marca, la fila (o la siguiente, si el juego cambiaba de sección) seguía resaltada y con sus acciones a la vista sin el ratón encima. Pasaba en Mi lista y en el Catálogo. Ahora salen solo con el puntero encima o con el foco puesto con el teclado (`:has(:focus-visible)` en vez de `:focus-within`).
 - **Paleta en el móvil:** a 390 px, cada resultado medía 395 px dentro de una lista de 358, y el año y «Intro: Apuntar» quedaban debajo del botón (i).

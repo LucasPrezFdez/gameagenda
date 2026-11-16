@@ -370,6 +370,9 @@ export function Palette({ actions, showBar, onClose, ref }: PaletteProps) {
       return;
     }
     // Carrera de Intro: lo visible es de un `seq` anterior; se espera al actual (ver §8.7).
+    // Una fila elegida con ↑/↓ sobre lo visible manda sobre la primera: se busca la misma en los
+    // resultados nuevos y, si ya no está, no se apunta nada (Intro nunca apunta lo no elegido).
+    const chosenKey = choice !== null && choice.seq === query.seq ? choice.key : null;
     enterPending.current = true;
     const fresh = await search.waitForFresh(ENTER_WAIT_MS);
     enterPending.current = false;
@@ -383,9 +386,12 @@ export function Palette({ actions, showBar, onClose, ref }: PaletteProps) {
       latest.current.entriesById,
       latest.current.pasted,
     );
-    const option = freshModel.options[freshModel.defaultIndex];
+    const option =
+      chosenKey === null
+        ? freshModel.options[freshModel.defaultIndex]
+        : freshModel.options.find((candidate) => candidate.key === chosenKey);
     if (option) activate(option, kind, timeStamp);
-    else setHint(hintFor(freshModel));
+    else setHint(chosenKey === null ? hintFor(freshModel) : es.palette.chooseResult);
   }
 
   function moveActive(delta: 1 | -1): void {

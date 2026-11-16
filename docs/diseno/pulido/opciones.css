@@ -1,0 +1,685 @@
+/* Pulido visual: las hojas de cada opción, en un solo fichero. Cada bloque empieza con una línea
+   «@@ nombre» y `scripts/pulido-capturas.ts` lo inyecta encima de la app real para fotografiarla.
+   Son maquetas: lo elegido se pasa después a las hojas de la app (tokens.css, shell.css…). */
+
+/*@@ lateral-comun */
+/* Común a las opciones de la barra lateral: el texto del buscador cabe entero. */
+@media (min-width: 768px) {
+  .app-header .palette__input {
+    font-size: var(--text-sm);
+  }
+  .app-header .palette__field {
+    gap: 6px;
+    padding-left: 10px;
+  }
+}
+
+/*@@ lateral-fundida */
+/* A «Fundida»: la barra toma el color del fondo y lo activo es una tarjeta blanca con sombra fina
+   (Linear, Notion). */
+@media (min-width: 768px) {
+  .app-sidebar {
+    background: var(--bg);
+  }
+  .app-header .palette__field {
+    border-color: var(--line);
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+  }
+  .app-nav__link:hover,
+  .sidebar-views__link:hover,
+  .sidebar-shelf__link:hover,
+  .sidebar-footer__help:hover {
+    background: var(--surface-3);
+  }
+  .app-nav__link[aria-current="page"],
+  .sidebar-views__link[aria-current="page"] {
+    background: var(--surface);
+    box-shadow:
+      0 0 0 1px var(--line),
+      var(--shadow-sm);
+  }
+}
+
+/*@@ lateral-marca */
+/* B «Marca de tinta»: lo activo lleva una marca de tinta a la izquierda y los contadores van en
+   píldora (GitHub, VS Code). */
+@media (min-width: 768px) {
+  .app-header .palette__field {
+    border-color: transparent;
+  }
+  .app-nav__link,
+  .sidebar-views__link {
+    position: relative;
+  }
+  .app-nav__link[aria-current="page"]::before,
+  .sidebar-views__link[aria-current="page"]::before {
+    content: "";
+    position: absolute;
+    left: -12px;
+    top: 6px;
+    bottom: 6px;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: var(--accent);
+  }
+  .sidebar-views__count {
+    min-width: 26px;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    text-align: center;
+  }
+  .sidebar-views__link[aria-current="page"] .sidebar-views__count {
+    background: var(--surface);
+    color: var(--text);
+  }
+}
+
+/*@@ lateral-tarjeta */
+/* C «Tarjeta flotante»: la barra es una tarjeta separada del borde, con esquinas redondeadas y
+   sombra (Arc, apps de macOS recientes). */
+@media (min-width: 768px) {
+  .app-sidebar {
+    top: 8px;
+    height: calc(100dvh - 16px);
+    margin: 8px 0 8px 8px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+  }
+  .app-header .palette__field {
+    border-color: transparent;
+  }
+  .app-nav__link[aria-current="page"],
+  .sidebar-views__link[aria-current="page"] {
+    background: var(--surface-3);
+  }
+}
+
+/*@@ capsula-cristal */
+/* A «Cristal»: la cápsula y la cabecera dejan ver el contenido desenfocado al pasar por debajo
+   (iOS, apps recientes). */
+@media (max-width: 767px) {
+  /* En la cabecera el desenfoque va en un pseudoelemento: puesto en ella, el buscador redondo
+     (fijo, dentro de la cabecera) dejaría de colocarse respecto a la pantalla. */
+  .app-header {
+    background: transparent;
+  }
+  .app-header::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+  }
+  .app-header::before,
+  .app-nav {
+    background: color-mix(in srgb, var(--surface) 70%, transparent);
+    -webkit-backdrop-filter: blur(18px) saturate(1.7);
+    backdrop-filter: blur(18px) saturate(1.7);
+  }
+  .app-header {
+    border-bottom-color: color-mix(in srgb, var(--line) 60%, transparent);
+  }
+  .app-nav__link[aria-current="page"] {
+    background: color-mix(in srgb, var(--text) 10%, transparent);
+  }
+}
+
+/*@@ capsula-tinta */
+/* B «Tinta»: la sección activa es una píldora de tinta, como el botón del buscador. */
+@media (max-width: 767px) {
+  .app-nav__link[aria-current="page"],
+  .app-nav__link[aria-current="page"]:hover {
+    background: var(--accent);
+    color: var(--on-accent);
+  }
+  .app-nav__link[aria-current="page"] .icon {
+    color: var(--on-accent);
+  }
+}
+
+/*@@ capsula-ligera */
+/* C «Ligera»: sin píldora; la sección activa va en tinta con un punto debajo y la cápsula baja
+   de 60 a 52 px. */
+@media (max-width: 767px) {
+  .app-nav {
+    height: 52px;
+  }
+  .app-nav__link {
+    position: relative;
+    gap: 0;
+  }
+  .app-nav__link[aria-current="page"] {
+    background: transparent;
+  }
+  .app-nav__link[aria-current="page"]::after {
+    content: "";
+    position: absolute;
+    bottom: 2px;
+    left: 50%;
+    width: 4px;
+    height: 4px;
+    margin-left: -2px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+  .app-nav__link > * {
+    translate: 0 -3px;
+  }
+  .app-header > .palette:not(.is-open) {
+    bottom: calc(12px + env(safe-area-inset-bottom));
+    width: 52px;
+    height: 52px;
+  }
+  .app-header > .palette:not(.is-open) .palette__field {
+    min-height: 52px;
+  }
+}
+
+/*@@ filas-compacta */
+/* A «Compacta»: filas de 60 px con portada de 32 × 48; caben un 25 % más de juegos. */
+:root {
+  --row-h: 60px;
+}
+.entry-row__body {
+  padding: 6px 8px;
+}
+.cover--row {
+  width: 32px;
+}
+.entry-row__main {
+  gap: 0;
+}
+.entry-row + .entry-row .entry-row__body {
+  background-size: calc(100% - 60px) 1px;
+}
+
+/*@@ filas-relieve */
+/* B «Relieve»: la portada gana presencia (sombra) y el título, peso; el tamaño no cambia. */
+.cover--row {
+  border-radius: 5px;
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.18),
+    0 4px 10px -2px rgb(0 0 0 / 0.22);
+}
+.entry-row__title {
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+.entry-row__body {
+  gap: 14px;
+}
+.entry-row__rank {
+  font-weight: 600;
+}
+.entry-row + .entry-row .entry-row__body {
+  background-size: calc(100% - 70px) 1px;
+}
+
+/*@@ filas-amplia */
+/* C «Portada grande»: portada de 48 × 72 y más aire; menos juegos por pantalla, más reconocibles. */
+:root {
+  --row-h: 88px;
+}
+.cover--row {
+  width: 48px;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px -2px rgb(0 0 0 / 0.25);
+}
+.entry-row__body {
+  gap: 16px;
+}
+.entry-row__title {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.entry-row__main {
+  gap: 4px;
+}
+.entry-row + .entry-row .entry-row__body {
+  background-size: calc(100% - 80px) 1px;
+}
+
+/*@@ filamovil-debajo */
+/* A «Estado debajo»: en el móvil, el título ocupa todo el ancho y el estado baja a la segunda
+   línea, junto a las marcas. */
+@media (max-width: 479px) {
+  .entry-row__body {
+    display: grid;
+    grid-template-columns: auto auto auto minmax(0, 1fr) auto;
+    grid-template-areas: "handle cover title title more" "handle cover status flags more";
+    gap: 0;
+    align-items: center;
+  }
+  .entry-row__handle {
+    grid-area: handle;
+  }
+  .entry-row__body > .cover {
+    grid-area: cover;
+    margin-right: 12px;
+  }
+  .entry-row__main {
+    display: contents;
+  }
+  .entry-row__title {
+    grid-area: title;
+    align-self: end;
+  }
+  .flag-badges {
+    grid-area: flags;
+    align-self: start;
+    align-items: center;
+    flex-wrap: nowrap;
+    min-height: 28px;
+    padding-left: 6px;
+    overflow: hidden;
+  }
+  .flag-badges .chip {
+    white-space: nowrap;
+  }
+  /* Con dos marcas o más, solo sus iconos: con el texto no caben junto al estado. */
+  .flag-badges .chip:not(:only-child) {
+    gap: 0;
+    font-size: 0;
+  }
+  .flag-badges .chip:not(:only-child) .icon {
+    width: 16px;
+    height: 16px;
+  }
+  .entry-row__body > .menu:nth-last-child(2) {
+    grid-area: status;
+    align-self: start;
+    margin-left: -6px;
+  }
+  .entry-row__body > .menu:last-child {
+    grid-area: more;
+  }
+}
+
+/*@@ filamovil-iconos */
+/* B «Marcas en icono»: el estado se queda a la derecha; las marcas enseñan solo su icono y los
+   huecos se aprietan, así que el título gana unos 30 px. */
+@media (max-width: 479px) {
+  .entry-row__body {
+    gap: 8px;
+  }
+  .status-button {
+    gap: 6px;
+    padding: 2px;
+  }
+  .flag-badges {
+    gap: 10px;
+  }
+  .flag-badges .chip {
+    gap: 0;
+    font-size: 0;
+  }
+  .flag-badges .chip .icon {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+/*@@ secciones-titulo */
+/* A «Título»: el nombre de la sección en letra normal y con peso; la pista de ordenar solo sale
+   con el puntero encima de la sección. */
+.list-section__header h2 {
+  color: var(--text);
+  font-size: var(--text-md);
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  text-transform: none;
+}
+.list-section__hint {
+  opacity: 0;
+}
+.list-section:hover .list-section__hint,
+.list-section:focus-within .list-section__hint {
+  opacity: 1;
+}
+@media (pointer: coarse) {
+  .list-section__hint {
+    opacity: 1;
+  }
+}
+
+/*@@ secciones-punto */
+/* B «Con punto»: el punto del estado delante del nombre, como en la barra lateral y en las filas;
+   la pista de ordenar, solo con el puntero encima. */
+.list-section__header h2 {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.list-section__header h2::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--want_to_play);
+}
+.list-section[aria-labelledby$="-playing"] h2::before {
+  background: var(--playing);
+}
+.list-section[aria-labelledby$="-next"] h2::before {
+  background: var(--next);
+}
+.list-section[aria-labelledby$="-on_hold"] h2::before {
+  background: var(--on_hold);
+}
+.list-section[aria-labelledby$="-completed"] h2::before {
+  background: var(--completed);
+}
+.list-section[aria-labelledby$="-dropped"] h2::before {
+  background: var(--dropped);
+}
+.list-section__hint {
+  opacity: 0;
+}
+.list-section:hover .list-section__hint,
+.list-section:focus-within .list-section__hint {
+  opacity: 1;
+}
+@media (pointer: coarse) {
+  .list-section__hint {
+    opacity: 1;
+  }
+}
+
+/*@@ ancho-centrado */
+/* A «Centrado»: la columna de 960 px, en el centro del hueco (Linear, Notion). */
+@media (min-width: 768px) {
+  .screen {
+    width: 100%;
+    margin-inline: auto;
+  }
+}
+
+/*@@ ancho-amplio */
+/* B «Ancho y centrado»: la columna crece hasta 1 200 px y se centra. */
+@media (min-width: 768px) {
+  .screen {
+    width: 100%;
+    max-width: 75rem;
+    margin-inline: auto;
+  }
+  .app-main {
+    padding-inline: 32px;
+  }
+}
+
+/*@@ paleta-centrada */
+/* A «Centrada»: al abrirla, la paleta sale al centro de la pantalla, con el campo y los resultados
+   en una sola pieza (Linear, Raycast, Spotlight). */
+@media (min-width: 768px) {
+  .app-header > .palette.is-open {
+    min-height: 36px;
+  }
+  .app-header .palette.is-open .palette__panel {
+    position: fixed;
+    top: 12vh;
+    left: 50%;
+    width: min(42rem, calc(100vw - 32px));
+    translate: -50% 0;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+  }
+  .app-header .palette.is-open .palette__field,
+  .app[data-sidebar="collapsed"] .palette.is-open .palette__field {
+    width: auto;
+    min-height: 54px;
+    padding: 0 12px 0 16px;
+    border-color: var(--line);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    background: var(--surface);
+    outline: none;
+  }
+  .app-header .palette.is-open .palette__input {
+    font-size: var(--text-lg);
+  }
+  .app-header .palette.is-open .palette__popup,
+  .app[data-sidebar="collapsed"] .app-header .palette.is-open .palette__popup {
+    top: calc(100% - 1px);
+    width: 100%;
+    max-height: min(60vh, 34rem);
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    box-shadow: none;
+  }
+  .palette__option.is-active {
+    background: var(--surface-2);
+    box-shadow: none;
+  }
+  .palette__keys {
+    margin: 4px -6px -6px;
+    padding: 8px 18px;
+    border-top: 1px solid var(--line);
+    background: var(--surface-2);
+  }
+}
+
+/*@@ paleta-anclada */
+/* B «Anclada, pulida»: se queda bajo el buscador, con la opción activa sin la marca lateral, la
+   tecla Intro como tecla y las teclas en un pie propio. */
+@media (min-width: 768px) {
+  .app-header .palette__popup {
+    width: min(44rem, calc(100vw - var(--sidebar-w) - 32px));
+    padding-bottom: 0;
+  }
+  .palette__option {
+    border-radius: var(--radius);
+  }
+  .palette__option.is-active {
+    background: var(--surface-2);
+    box-shadow: none;
+  }
+  .palette__option.is-active .palette__enter {
+    padding: 1px 8px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    font-size: var(--text-xs);
+  }
+  .palette__keys {
+    position: sticky;
+    bottom: 0;
+    margin: 4px -6px 0;
+    padding: 8px 18px;
+    border-top: 1px solid var(--line);
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    background: var(--surface-2);
+  }
+}
+
+/*@@ ficha-ambiente */
+/* A «Ambiente»: la portada, desenfocada, tiñe la cabecera de la ficha (Spotify, Apple Music,
+   Steam). En la maqueta la imagen va puesta a mano; en la app saldría de la portada del juego. */
+.sheet {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+.sheet::before {
+  content: "";
+  position: absolute;
+  inset: -60px -60px auto;
+  z-index: -1;
+  height: 360px;
+  background:
+    url("https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/367520/1eebc7e077ee345f126df35cd99c124273c4e4e3/library_capsule.jpg")
+    center 30% / cover;
+  filter: blur(48px) saturate(1.5);
+  opacity: 0.42;
+  -webkit-mask-image: linear-gradient(#000 40%, transparent);
+  mask-image: linear-gradient(#000 40%, transparent);
+}
+.cover--sheet {
+  border-radius: 8px;
+  box-shadow: 0 8px 24px -6px rgb(0 0 0 / 0.45);
+}
+@media (max-width: 767px) {
+  .sheet {
+    overflow: visible;
+  }
+  .sheet::before {
+    inset: -80px -16px auto;
+  }
+}
+
+/*@@ ficha-portada */
+/* B «Portada protagonista»: portada más grande y con sombra, y los datos en letra pequeña y gris;
+   sin color de fondo. */
+.cover--sheet {
+  width: 140px;
+  border-radius: 8px;
+  box-shadow: 0 10px 28px -8px rgb(0 0 0 / 0.5);
+}
+.sheet__top {
+  gap: 20px;
+}
+.sheet__details {
+  gap: 2px;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+.sheet__facts {
+  font-size: var(--text-sm);
+}
+@media (max-width: 767px) {
+  .cover--sheet {
+    width: 104px;
+  }
+}
+
+/*@@ avisos-tinta */
+/* A «Tinta»: el aviso va invertido (oscuro sobre la app clara, claro sobre la oscura), como en
+   Linear, Vercel o Gmail. */
+.toast {
+  border-color: transparent;
+  background: var(--text);
+  color: var(--bg);
+}
+.toast__undo,
+.toast__action {
+  color: var(--bg);
+}
+.toast .btn--ghost:hover {
+  background: color-mix(in srgb, var(--bg) 16%, transparent);
+}
+
+/*@@ avisos-pildora */
+/* B «Píldora»: el aviso se ajusta a su texto y se centra, en forma de píldora. */
+.toaster {
+  display: flex;
+  justify-content: center;
+}
+.toast {
+  max-width: 100%;
+  padding: 6px 6px 6px 20px;
+  border-radius: 999px;
+}
+.toast__message {
+  flex: 0 1 auto;
+}
+.toast .btn {
+  border-radius: 999px;
+}
+
+/*@@ avisos-tinta-pildora */
+/* C «Píldora de tinta»: las dos cosas. */
+.toaster {
+  display: flex;
+  justify-content: center;
+}
+.toast {
+  max-width: 100%;
+  padding: 6px 6px 6px 20px;
+  border-color: transparent;
+  border-radius: 999px;
+  background: var(--text);
+  color: var(--bg);
+}
+.toast__message {
+  flex: 0 1 auto;
+}
+.toast .btn {
+  border-radius: 999px;
+}
+.toast__undo,
+.toast__action {
+  color: var(--bg);
+}
+.toast .btn--ghost:hover {
+  background: color-mix(in srgb, var(--bg) 16%, transparent);
+}
+
+/*@@ superficies-relieve */
+/* A «Relieve»: las tarjetas cambian el filo por una sombra muy fina; se despegan del fondo sin
+   líneas duras. */
+.entry-list,
+.catalog-list,
+.sheet,
+.notice {
+  border-color: transparent;
+  box-shadow:
+    0 0 0 1px rgb(24 24 27 / 0.05),
+    0 1px 2px rgb(24 24 27 / 0.06),
+    0 6px 16px -6px rgb(24 24 27 / 0.1);
+}
+
+/*@@ superficies-plano */
+/* B «Plano»: sin tarjetas; las filas van directamente sobre el fondo, separadas por líneas finas
+   (Linear, Things). */
+.entry-list,
+.catalog-list {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.entry-list {
+  border-top: 1px solid var(--line);
+}
+.list-section__header {
+  padding-inline: 8px;
+}
+.entry-row:hover .entry-row__body,
+.entry-row:has(:focus-visible) .entry-row__body {
+  background-color: var(--surface-3);
+}
+.catalog-list > .catalog-row {
+  right: 0;
+  left: 0;
+}
+
+/*@@ vacio-centrado */
+/* A «Centrado»: sin caja de trazos; el texto y el botón, centrados y con aire. */
+.empty-state {
+  align-items: center;
+  gap: 16px;
+  padding: 56px 24px;
+  border: 0;
+  background: transparent;
+  text-align: center;
+}
+.empty-state > :first-child {
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+/*@@ vacio-tarjeta */
+/* B «Tarjeta»: la misma tarjeta que las listas, con filo continuo en vez de trazos. */
+.empty-state {
+  gap: 14px;
+  padding: 28px;
+  border-style: solid;
+}
+.empty-state > :first-child {
+  font-weight: 600;
+}

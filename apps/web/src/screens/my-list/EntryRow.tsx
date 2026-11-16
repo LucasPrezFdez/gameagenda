@@ -16,6 +16,7 @@ import { Cover, FlagBadges } from '../../components/bits.tsx';
 import { Icon } from '../../components/icons.tsx';
 import { MenuButton, type MenuItem } from '../../components/MenuButton.tsx';
 import { es } from '../../i18n/es.ts';
+import { popIcon } from '../../lib/motion.ts';
 import type { FeedbackTiming } from '../../perf/measures.ts';
 import { Link } from '../../router/router.tsx';
 import { gamePath } from '../../router/routes.ts';
@@ -145,35 +146,37 @@ function EntryRowView({
           </Link>
           {release !== null && <span className="entry-row__release">{release}</span>}
           <FlagBadges entry={entry} />
-        </div>
-        <div className="entry-row__actions">
-          {entry.status === 'want_to_play' && (
-            <button
-              type="button"
-              className="btn entry-row__quick"
-              tabIndex={tab}
-              onClick={(event) => actions.setStatus(entry.id, 'playing', timing(event))}
-            >
-              <Icon name="playing" />
-              {es.list.start}
-              <span className="visually-hidden">: {entry.title}</span>
-            </button>
-          )}
-          {FLAGS.map((flag) => (
-            <button
-              key={flag}
-              type="button"
-              className={`icon-btn flag-toggle flag-toggle--${flag}`}
-              aria-pressed={entry.flags[flag] === true}
-              aria-label={es.toggleFlag(flag, entry.title)}
-              tabIndex={tab}
-              onClick={(event) =>
-                actions.setFlag(entry.id, flag, entry.flags[flag] !== true, timing(event))
-              }
-            >
-              <Icon name={flag} />
-            </button>
-          ))}
+          {/* Dentro de `__main`: salen sobre el final del título y no le quitan ancho (list.css). */}
+          <div className="entry-row__actions">
+            {entry.status === 'want_to_play' && (
+              <button
+                type="button"
+                className="btn entry-row__quick"
+                tabIndex={tab}
+                onClick={(event) => actions.setStatus(entry.id, 'playing', timing(event))}
+              >
+                <Icon name="playing" />
+                {es.list.start}
+                <span className="visually-hidden">: {entry.title}</span>
+              </button>
+            )}
+            {FLAGS.map((flag) => (
+              <button
+                key={flag}
+                type="button"
+                className={`icon-btn flag-toggle flag-toggle--${flag}`}
+                aria-pressed={entry.flags[flag] === true}
+                aria-label={es.toggleFlag(flag, entry.title)}
+                tabIndex={tab}
+                onClick={(event) => {
+                  if (entry.flags[flag] !== true) popIcon(event.currentTarget);
+                  actions.setFlag(entry.id, flag, entry.flags[flag] !== true, timing(event));
+                }}
+              >
+                <Icon name={flag} />
+              </button>
+            ))}
+          </div>
         </div>
         <MenuButton
           label={es.changeStatus(entry.status, entry.title)}
@@ -196,9 +199,10 @@ function EntryRowView({
               type="button"
               className={`entry-row__tray-button flag-toggle flag-toggle--${flag}`}
               aria-pressed={entry.flags[flag] === true}
-              onClick={(event) =>
-                actions.setFlag(entry.id, flag, entry.flags[flag] !== true, timing(event))
-              }
+              onClick={(event) => {
+                if (entry.flags[flag] !== true) popIcon(event.currentTarget);
+                actions.setFlag(entry.id, flag, entry.flags[flag] !== true, timing(event));
+              }}
             >
               <Icon name={flag} />
               <span>{es.flag[flag]}</span>

@@ -125,7 +125,6 @@
 
 .palette__option.is-active {
   background: var(--surface-2);
-  box-shadow: inset 2px 0 var(--accent);
 }
 
 .palette__name {
@@ -209,8 +208,12 @@
   display: none;
 }
 
+/* Las teclas, en un pie propio pegado al borde de la lista. */
 .palette__keys {
-  padding: 4px 12px;
+  margin: 4px -6px -6px;
+  padding: 8px 18px;
+  border-top: 1px solid var(--line);
+  background: var(--surface-2);
   color: var(--text-muted);
   font-size: var(--text-xs);
 }
@@ -286,18 +289,64 @@
 
   /* En la barra lateral: el campo, más bajo y sobre un fondo suave; la lista sale de la barra hacia
      el contenido. */
+  /* Cerrado es un botón más de la barra («Marca de tinta», DECISIONES §10.44): sin borde, sobre
+     su fondo suave, con la lupa, el texto y la tecla, y la letra justa para que «Apunta un
+     juego…» quepa entero. */
   .app-header .palette__field {
+    gap: 6px;
     min-height: 36px;
+    padding-left: 10px;
+    border-color: transparent;
     background: var(--surface-2);
   }
 
   .app-header .palette__input {
-    font-size: var(--text-md);
+    font-size: var(--text-sm);
   }
 
-  .app-header .palette__popup {
-    right: auto;
-    width: min(40rem, calc(100vw - var(--sidebar-w) - 32px));
+  /* «Centrada» (pulido visual, DECISIONES §10.44): al abrirla sale al centro de la pantalla, con el
+     campo grande y los resultados en una sola pieza, como Linear, Raycast o Spotlight. Su hueco
+     en la barra se queda, así que nada se mueve debajo. */
+  .app-header > .palette.is-open {
+    min-height: 36px;
+  }
+
+  .app-header .palette.is-open .palette__panel {
+    position: fixed;
+    top: 12vh;
+    left: 50%;
+    width: min(42rem, calc(100vw - 32px));
+    translate: -50% 0;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    transform-origin: top center;
+    /* «Aparecer»: fundido con 6 px de caída; el fondo se oscurece a la vez. Cerrar es instantáneo. */
+    animation: palette-in calc(var(--motion) * 0.8) var(--ease);
+  }
+
+  .app-header .palette.is-open .palette__field {
+    min-height: 54px;
+    padding: 0 12px 0 16px;
+    border-color: var(--line);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    background: var(--surface);
+    outline: none;
+  }
+
+  .app-header .palette.is-open .palette__input {
+    font-size: var(--text-lg);
+  }
+
+  .app-header .palette.is-open .palette__popup {
+    top: calc(100% - 1px);
+    width: 100%;
+    max-height: min(60vh, 34rem);
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    box-shadow: none;
+  }
+
+  .palette__backdrop {
+    animation: backdrop-in var(--motion) linear;
   }
 
   /* Barra encogida: el buscador es una lupa de 40 px. El campo sigue ahí, invisible encima, y al
@@ -317,13 +366,25 @@
   .app[data-sidebar="collapsed"] .palette:not(.is-open) .palette__kbd {
     display: none;
   }
+}
 
-  .app[data-sidebar="collapsed"] .palette.is-open .palette__field {
-    width: min(40rem, calc(100vw - 24px));
+@keyframes palette-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
   }
+}
 
-  .app[data-sidebar="collapsed"] .app-header .palette__popup {
-    width: min(40rem, calc(100vw - 24px));
+@keyframes backdrop-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes palette-sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
   }
 }
 
@@ -414,8 +475,10 @@
     overscroll-behavior: contain;
   }
 
+  /* «Fundir y subir» (pulido visual): corto, para no competir con el teclado que sube. */
   .app-header > .palette.is-open {
     transition: transform var(--motion) ease-out;
+    animation: palette-sheet-in calc(var(--motion) * 0.9) var(--ease);
   }
 
   .app-header > .palette.is-pulling {

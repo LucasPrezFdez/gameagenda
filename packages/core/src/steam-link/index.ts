@@ -13,11 +13,12 @@ export interface SteamLink {
 const APPID = '([1-9][0-9]{0,9})';
 const REST = '(?:[/?#].*)?';
 const PATTERNS: ReadonlyArray<[SteamLinkSource, RegExp]> = [
-  // La tienda lleva un *slug* opcional tras el appid.
+  // La tienda lleva un *slug* opcional tras el appid. Los juegos para adultos llevan antes a la
+  // comprobación de edad (`/agecheck/app/<appid>`), con el mismo appid y el mismo *slug*.
   [
     'store',
     new RegExp(
-      `^(?:https?://)?store\\.steampowered\\.com/app/${APPID}(?:/([^/?#]*))?${REST}$`,
+      `^(?:https?://)?store\\.steampowered\\.com/(?:agecheck/)?app/${APPID}(?:/([^/?#]*))?${REST}$`,
       'i',
     ),
   ],
@@ -42,7 +43,7 @@ export function titleFromSlug(slug: string): string | null {
 
 /**
  * Reconoce un enlace o `appid:<n>` (el texto entero, sin contar espacios alrededor):
- * `store.steampowered.com/app/<appid>[/<slug>]`, `s.team/a/<appid>`,
+ * `store.steampowered.com/[agecheck/]app/<appid>[/<slug>]`, `s.team/a/<appid>`,
  * `steamcommunity.com/app/<appid>`, `steam://store/<appid>`, `steamdb.info/app/<appid>`
  * y `appid:730`. `null` si no es ninguno.
  */

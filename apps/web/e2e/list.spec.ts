@@ -165,6 +165,8 @@ test('las acciones de la fila salen con el puntero o el teclado, y no se quedan 
   await capture(page, 'celeste', 'Celeste');
   const actions = row(page, 'Celeste').locator('.entry-row__actions');
   const body = row(page, 'Celeste').locator('.entry-row__body');
+  // La fila recién apuntada destella (DECISIONES §10.44): su fondo de reposo, cuando acaba.
+  await body.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
   const resting = await body.evaluate((el) => getComputedStyle(el).backgroundColor);
 
   await row(page, 'Celeste').hover();

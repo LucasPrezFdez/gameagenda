@@ -30,6 +30,7 @@ import { attachDragReorder } from '../../gestures/drag-reorder.ts';
 import { attachRowGestures } from '../../gestures/row-gestures.ts';
 import { es } from '../../i18n/es.ts';
 import { isIosBrowserTab } from '../../lib/hooks.ts';
+import { usePalette } from '../../palette/palette-context.tsx';
 import { measureListVisible } from '../../perf/measures.ts';
 import { Link, navigate, useLocation } from '../../router/router.tsx';
 import { gamePath, settingsPath, withSearch } from '../../router/routes.ts';
@@ -48,6 +49,7 @@ import {
   PURCHASE_FILTERS,
   parseListParams,
 } from './list-model.ts';
+import { useListMotion } from './list-motion.ts';
 import { emptyTextOf, SYNCED_EMPTY_TEXTS, syncedEmptyState } from './restore-notice.ts';
 import { useReleases } from './use-releases.ts';
 
@@ -138,6 +140,7 @@ function keepFocusNear(container: HTMLElement | null, id: string): () => void {
 export function MyListScreen({ primary = true }: { primary?: boolean }) {
   const entries = useAgendaEntries();
   const commands = useCommands();
+  const palette = usePalette();
   const { agenda, settings, notices, copyReminder } = useServices();
   const { singleKeyShortcuts, touchGestures } = useSettings();
   const copyState = useCopyReminder();
@@ -211,6 +214,13 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
   );
 
   const hasRows = entries.length > 0 && !releasesPending && sections.length > 0;
+  // Las filas se deslizan a su sitio nuevo y la recién apuntada destella (DECISIONES §10.44).
+  const motion = useListMotion(
+    listRef,
+    agenda,
+    entries,
+    `${params.view}|${params.order}|${params.purchase}|${params.q}|${showOnHold}`,
+  );
   const gesturesOn = useRef(touchGestures);
   gesturesOn.current = touchGestures;
 
@@ -228,13 +238,17 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
       onLongPress: (_id, row) => row.querySelector<HTMLButtonElement>('.status-button')?.click(),
     });
     const detachDrag = attachDragReorder(container, {
-      onDrop: (id, to, timing) => actions.move(id, to, timing),
+      // Al soltarla, la fila ya está en su sitio: no hay nada que deslizar.
+      onDrop: (id, to, timing) => {
+        motion.skipNext();
+        actions.move(id, to, timing);
+      },
     });
     return () => {
       detachGestures();
       detachDrag();
     };
-  }, [hasRows, actions]);
+  }, [hasRows, actions, motion]);
 
   // La bandeja se cierra al tocar fuera de ella, al desplazar la página y con Esc. Tocar la fila
   // abierta solo la cierra: no abre la ficha.
@@ -398,7 +412,8 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
         )}
       </header>
 
-      {iosNotice && (
+      {/* Con la agenda vacía no hay nada que perder: el aviso espera al primer juego. */}
+      {iosNotice && total > 0 && (
         <div className="notice notice--ios">
           <p>{es.notices.ios}</p>
           <button
@@ -504,7 +519,16 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
       {total === 0 ? (
         <div className="empty-state">
           <EmptyText />
-          <Link to="/catalogo" className="btn btn--primary">
+          <button
+            type="button"
+            className="empty-state__capture"
+            onClick={(event) => palette.open(event.timeStamp)}
+          >
+            <Icon name="search" />
+            <span>{es.list.emptyCapture}</span>
+            <kbd className="empty-state__kbd">{es.palette.shortcut}</kbd>
+          </button>
+          <Link to="/catalogo" className="btn">
             {es.list.exploreCatalog}
           </Link>
         </div>
@@ -514,15 +538,24 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
         />
       ) : sections.length === 0 ? (
         <div className="empty-state">
-          <p>
-            {params.view === 'upcoming' && params.purchase === 'any' && params.q === ''
-              ? es.list.upcoming.empty
-              : es.list.noMatches}
-          </p>
-          {filtered && (
-            <button type="button" className="btn" onClick={() => update(parseListParams(''))}>
-              {es.list.clearFilters}
-            </button>
+          {params.view === 'upcoming' && params.purchase === 'any' && params.q === '' ? (
+            // Sin filtros que quitar: lleva a lo que sale pronto en el catálogo (revisión del
+            // 16-11-2026; antes ofrecía «Quitar los filtros» sin ninguno puesto).
+            <>
+              <p>{es.list.upcoming.empty}</p>
+              <Link to="/catalogo?filtro=proximamente" className="btn">
+                {es.list.upcoming.browse}
+              </Link>
+            </>
+          ) : (
+            <>
+              <p>{es.list.noMatches}</p>
+              {filtered && (
+                <button type="button" className="btn" onClick={() => update(parseListParams(''))}>
+                  {es.list.clearFilters}
+                </button>
+              )}
+            </>
           )}
         </div>
       ) : (
@@ -539,7 +572,12 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
             const collapsed = section.collapsible && !showOnHold;
             const movable = isMovable(section, params);
             return (
-              <section key={section.key} className="list-section" aria-labelledby={headingId}>
+              <section
+                key={section.key}
+                className="list-section"
+                data-section={section.key}
+                aria-labelledby={headingId}
+              >
                 <div className="list-section__header">
                   <h2 id={headingId}>{es.list.sectionCount(label, section.entries.length)}</h2>
                   {movable && section.entries.length > 1 && (

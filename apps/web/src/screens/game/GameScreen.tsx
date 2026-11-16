@@ -36,6 +36,7 @@ import { localToday, releaseFromDetails } from '../../details/release.ts';
 import { releaseText } from '../../details/release-text.ts';
 import { es } from '../../i18n/es.ts';
 import { isEditableTarget } from '../../lib/hooks.ts';
+import { popIcon } from '../../lib/motion.ts';
 import { CaptureButton } from '../../palette/palette-context.tsx';
 import { displayName } from '../../palette/palette-model.ts';
 import { goBack, navigate } from '../../router/router.tsx';
@@ -255,9 +256,10 @@ function EntryEditor({ entry }: { entry: AgendaEntry }) {
               type="button"
               className={`chip-button status-text status-text--${flag}`}
               aria-pressed={entry.flags[flag] === true}
-              onClick={(event) =>
-                commands.setFlag(entry.id, flag, entry.flags[flag] !== true, timing(event))
-              }
+              onClick={(event) => {
+                if (entry.flags[flag] !== true) popIcon(event.currentTarget);
+                commands.setFlag(entry.id, flag, entry.flags[flag] !== true, timing(event));
+              }}
             >
               <Icon name={flag} />
               {es.flag[flag]}
@@ -400,6 +402,7 @@ export function GameScreen({ id }: { id: string }) {
   const title = entry?.title ?? (game ? displayName(game) : '');
   const missing = !loading && !entry && !game;
   const close = () => goBack('/');
+  const [ambient, setAmbient] = useState<string | null>(null);
   const { singleKeyShortcuts } = useSettings();
   const entryId = entry?.id ?? null;
 
@@ -497,6 +500,20 @@ export function GameScreen({ id }: { id: string }) {
       aria-labelledby={loading ? undefined : `sheet-${id}`}
       aria-label={loading ? es.game.sheet : undefined}
     >
+      {/* «Ambiente» (DECISIONES §10.44): la portada, desenfocada, tiñe la cabecera de la ficha. Es
+          la misma imagen que ya ha cargado la portada, así que no hay otra petición. */}
+      {ambient !== null && (
+        <div className="sheet__ambient" aria-hidden="true">
+          <img
+            src={ambient}
+            alt=""
+            decoding="async"
+            referrerPolicy="no-referrer"
+            crossOrigin="anonymous"
+            draggable={false}
+          />
+        </div>
+      )}
       <header className="sheet__header">
         <button
           type="button"
@@ -531,7 +548,7 @@ export function GameScreen({ id }: { id: string }) {
         </div>
       ) : (
         <div className="sheet__top">
-          <Cover title={title} appid={game ? appid : null} size="sheet" />
+          <Cover title={title} appid={game ? appid : null} size="sheet" onImage={setAmbient} />
           <div className="sheet__heading">
             <ScreenHeading id={`sheet-${id}`} documentTitle={title}>
               {title}

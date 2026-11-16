@@ -21,6 +21,14 @@ describe('parseSteamLink: los seis formatos', () => {
     ],
     ['https://store.steampowered.com/app/730?l=spanish', 730, null, 'store'],
     ['HTTPS://Store.SteamPowered.com/app/730/', 730, null, 'store'],
+    // La comprobación de edad de los juegos para adultos (revisión del 16-11-2026).
+    [
+      'https://store.steampowered.com/agecheck/app/1086940/Baldurs_Gate_3/',
+      1086940,
+      'Baldurs Gate 3',
+      'store',
+    ],
+    ['store.steampowered.com/agecheck/app/730', 730, null, 'store'],
     // Enlace corto, comunidad, cliente, SteamDB y appid.
     ['https://s.team/a/1145350', 1145350, null, 's.team'],
     ['s.team/a/730/', 730, null, 's.team'],
@@ -47,6 +55,9 @@ describe('parseSteamLink: lo que no debe reconocerse', () => {
     'hades ii',
     'https://store.steampowered.com/sub/54029/',
     'https://store.steampowered.com/bundle/232/',
+    'https://store.steampowered.com/agecheck/sub/54029/',
+    'https://store.steampowered.com/agecheck/agecheck/app/730/',
+    'https://store.steampowered.com/agecheckapp/730/',
     'https://store.steampowered.com/app/',
     'https://store.steampowered.com/app/abc/',
     'https://store.steampowered.com/app/0/',
