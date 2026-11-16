@@ -29,6 +29,7 @@ import { attachDragReorder } from '../../gestures/drag-reorder.ts';
 import { attachRowGestures } from '../../gestures/row-gestures.ts';
 import { es } from '../../i18n/es.ts';
 import { isIosBrowserTab } from '../../lib/hooks.ts';
+import { usePalette } from '../../palette/palette-context.tsx';
 import { measureListVisible } from '../../perf/measures.ts';
 import { Link, navigate, useLocation } from '../../router/router.tsx';
 import { gamePath, settingsPath, withSearch } from '../../router/routes.ts';
@@ -117,6 +118,7 @@ function keepFocusNear(container: HTMLElement | null, id: string): () => void {
 export function MyListScreen({ primary = true }: { primary?: boolean }) {
   const entries = useAgendaEntries();
   const commands = useCommands();
+  const palette = usePalette();
   const { agenda, settings, notices, copyReminder } = useServices();
   const { singleKeyShortcuts, touchGestures } = useSettings();
   const copyState = useCopyReminder();
@@ -388,7 +390,8 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
         )}
       </header>
 
-      {iosNotice && (
+      {/* Con la agenda vacía no hay nada que perder: el aviso espera al primer juego. */}
+      {iosNotice && total > 0 && (
         <div className="notice notice--ios">
           <p>{es.notices.ios}</p>
           <button
@@ -494,7 +497,16 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
       {total === 0 ? (
         <div className="empty-state">
           <p>{es.list.empty}</p>
-          <Link to="/catalogo" className="btn btn--primary">
+          <button
+            type="button"
+            className="empty-state__capture"
+            onClick={(event) => palette.open(event.timeStamp)}
+          >
+            <Icon name="search" />
+            <span>{es.list.emptyCapture}</span>
+            <kbd className="empty-state__kbd">{es.palette.shortcut}</kbd>
+          </button>
+          <Link to="/catalogo" className="btn">
             {es.list.exploreCatalog}
           </Link>
         </div>
@@ -504,15 +516,24 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
         />
       ) : sections.length === 0 ? (
         <div className="empty-state">
-          <p>
-            {params.view === 'upcoming' && params.purchase === 'any' && params.q === ''
-              ? es.list.upcoming.empty
-              : es.list.noMatches}
-          </p>
-          {filtered && (
-            <button type="button" className="btn" onClick={() => update(parseListParams(''))}>
-              {es.list.clearFilters}
-            </button>
+          {params.view === 'upcoming' && params.purchase === 'any' && params.q === '' ? (
+            // Sin filtros que quitar: lleva a lo que sale pronto en el catálogo (revisión del
+            // 16-11-2026; antes ofrecía «Quitar los filtros» sin ninguno puesto).
+            <>
+              <p>{es.list.upcoming.empty}</p>
+              <Link to="/catalogo?filtro=proximamente" className="btn">
+                {es.list.upcoming.browse}
+              </Link>
+            </>
+          ) : (
+            <>
+              <p>{es.list.noMatches}</p>
+              {filtered && (
+                <button type="button" className="btn" onClick={() => update(parseListParams(''))}>
+                  {es.list.clearFilters}
+                </button>
+              )}
+            </>
           )}
         </div>
       ) : (
