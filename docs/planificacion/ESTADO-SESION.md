@@ -10,7 +10,8 @@
 - El responsable de los textos legales, puesto (`ab3de52`): el nombre del README y el correo que dio el usuario.
 - La base D1 `ga-agenda` existe, en la jurisdicción UE (región EEUR), en la cuenta de `ga-web`. Su id está en `wrangler.jsonc`. Todavía no tiene tablas: las migraciones las aplica `deploy-web` antes de desplegar.
 - El usuario dio a `CLOUDFLARE_API_TOKEN` el permiso «D1: Edit». **Ojo:** hay dos cuentas de Cloudflare; el *token* del catálogo (`github-ga-catalog`) es de la otra y no lo necesita.
-- `SYNC_ENABLED` a `"1"`; la prueba de humo de `deploy-web` mira también `/api/*` y el 404 de `/assets/`.
+- `SYNC_ENABLED` a `"1"`; la prueba de humo de `deploy-web` mira también `/api/*`.
+- **El 404 de `/assets/` no actúa en producción:** con `run_worker_first` en forma de lista, lo que no está en ella no pasa por el Worker. Arreglarlo es una mejora aparte, por probar (DECISIONES §10.47).
 - **Al pasarla a `main`:** mirar el `deploy-web` (las migraciones y que el plan gratuito admita `ratelimits`), `smoke:web` y una activación de la sincronización de verdad en producción. Después, medir CA4.6 en el panel de Workers. Quedan del usuario las pruebas en el iPhone.
 - **Si algo falla tras desplegar:** `SYNC_ENABLED` a `"0"` y desplegar apaga la micro-API; `wrangler rollback` devuelve el código, pero no D1.
 

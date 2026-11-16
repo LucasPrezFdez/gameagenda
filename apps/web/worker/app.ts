@@ -32,6 +32,10 @@ export function createApp(deps: Deps = { now: Date.now }): Hono<AppEnv> {
   // pestaña vieja) da 404 y no el `index.html` del *fallback*: servido como 200 en esa ruta,
   // `_headers` lo cacheaba un año como `immutable` (revisión del 16-11-2026). Vite no deja HTML en
   // `/assets/`, así que un HTML ahí solo puede ser el *fallback*.
+  // OJO: en producción no llega aquí. Con `run_worker_first` en forma de lista, Static Assets no
+  // mira `Sec-Fetch-Mode` y lo que no está en la lista recibe el *fallback* sin pasar por el Worker
+  // (comprobado el 16-11-2026). Haría falta `/assets/*` en `run_worker_first`, y antes comprobar
+  // que `_headers` sigue valiendo para lo que sirve `ASSETS.fetch()` (DECISIONES §10.47).
   app.all('/assets/*', async (c) => {
     const response = await c.env.ASSETS.fetch(c.req.raw);
     if (!response.headers.get('Content-Type')?.startsWith('text/html')) return response;

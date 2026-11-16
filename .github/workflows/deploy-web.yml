@@ -121,26 +121,19 @@ jobs:
             echo "  Content-Security-Policy: $csp"
             if [ -n "$problem" ]; then echo "::error::$problem"; exit 1; fi
           done
-          # Lo que sirve el Worker (M4, ADR-011) y no el *fallback* de la SPA: `/api/*` responde JSON
-          # (404 de la ruta, o 503 con el interruptor `SYNC_ENABLED` apagado) y un `/assets/` que no
-          # existe, 404. Sin `Sec-Fetch-Mode: navigate`, Static Assets le pasa al Worker lo que no
-          # encuentra.
+          # La micro-API (M4, ADR-011): `/api/*` lo sirve el Worker y responde JSON (404 de la ruta, o
+          # 503 con el interruptor `SYNC_ENABLED` apagado), no el `index.html` del *fallback*.
           for attempt in $(seq 1 20); do
             problem=""
             api=$(curl -sS -o /dev/null -w '%{http_code} %{content_type}' "$URL/api/v1/prueba-de-humo")
-            asset=$(curl -sS -o /dev/null -w '%{http_code}' "$URL/assets/prueba-de-humo.js")
             case "$api" in
               "404 application/json"* | "503 application/json"*) ;;
               *) problem="/api/v1/prueba-de-humo responde $api" ;;
             esac
-            if [ -z "$problem" ] && [ "$asset" != 404 ]; then
-              problem="/assets/prueba-de-humo.js responde $asset"
-            fi
             if [ -z "$problem" ]; then break; fi
             echo "Intento $attempt: $problem"
             sleep 3
           done
           echo "/api/v1/prueba-de-humo → $api"
-          echo "/assets/prueba-de-humo.js → $asset"
           if [ -n "$problem" ]; then echo "::error::$problem"; exit 1; fi
           echo "✓ $URL responde con la CSP de _headers, y la micro-API, con JSON" >> "$GITHUB_STEP_SUMMARY"

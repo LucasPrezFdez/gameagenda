@@ -27,7 +27,7 @@ Cambios de GameAgenda por versión. Cada hito cierra una versión SemVer 0.x (§
 
 - **Micro-API, parte 5: preparar el despliegue** (16-11-2026, en la rama `m4-sincronizacion`; ADR-011, «Despliegue», y DECISIONES §10.47):
   - la base D1 `ga-agenda`, creada en la jurisdicción UE;
-  - `deploy-web` aplica las migraciones de D1 antes de desplegar, y su prueba de humo comprueba también la micro-API y el 404 de `/assets/`;
+  - `deploy-web` aplica las migraciones de D1 antes de desplegar, y su prueba de humo comprueba también la micro-API;
   - `SYNC_ENABLED` a `"1"`.
 - **Micro-API, parte 4** (08-11-2026, en la rama `m4-sincronizacion`; ADR-011):
   - `POST /api/v1/inbox/token` y `POST /api/v1/inbox`, con el buzón en las respuestas de `sync` (`inbox`) y su confirmación (`inboxAck`);
