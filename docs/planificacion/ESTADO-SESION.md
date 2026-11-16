@@ -5,6 +5,12 @@
 
 ## 0. Lo primero en la próxima sesión
 
+**Revisión completa y arreglos rápidos (16-11-2026).** El usuario pidió una revisión «como experto programador, diseñador, tester y experto en aplicaciones». Veredicto: lista para su uso diario; para unos amigos faltan el dominio definitivo (los datos van atados al origen), el responsable de los textos legales y desplegar M4; para un lanzamiento público, además, importar la biblioteca de Steam, el inglés y una página de presentación. Capturas e informes, en `.cache/revision-20261116/` del árbol principal.
+- Los arreglos rápidos van en la rama `arreglos-revision` (*worktree* `.claude/worktrees/arreglos-revision`), sin fusionar: DECISIONES §10.46. Pendiente del usuario: el visto bueno para fusionarla en `main` (despliega) y la licencia del repositorio (es público y no tiene `LICENSE`).
+- En la rama de M4, el 404 de `/assets/*` que no existe y hono 4.13.18 (arreglos de seguridad de `hono/cookie` y del validador).
+- **La racha del catálogo ya está cumplida:** 14 ejecuciones programadas seguidas en verde, del 03-11 al 16-11 (M3 pedía 7).
+- **El *cron* del catálogo se apaga a los 60 días sin *commits* en el repositorio:** con el último de `main` del 10-11, hacia el 09-01-2027.
+
 **Pulido visual y animaciones (10-11-2026): en `main` y desplegado.** Elegido por el usuario entre varias opciones (página en `docs/diseno/pulido/`, que se monta en `.cache/pulido/index.html`); el detalle, en DECISIONES §10.44 (los números 34 a 43 son de M4, en su rama).
 - Se hizo en la rama `pulido-visual` (*worktree* `.claude/worktrees/pulido-visual`, que se conserva) y entró en `main` con avance rápido, en `6bb3345`.
 - `check` (972 pruebas, JS inicial de 133,1 KB), E2E de Chromium y WebKit en verde salvo los dos intermitentes ya conocidos (`boot.spec.ts:273` y `data.spec.ts:50` en WebKit), `ci` 42851918207, `deploy-web` 42852474560 y `smoke:web`, en verde.

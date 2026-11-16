@@ -54,8 +54,15 @@ Cambios de GameAgenda por versión. Cada hito cierra una versión SemVer 0.x (§
   - **En el móvil,** una cápsula flotante con Mi lista, Catálogo y Ajustes, y el buscador como botón redondo aparte, como las apps de iOS 26. Pasa de dos barras apiladas abajo a una sola fila flotante. El filtro del Catálogo sube arriba.
 - **`Ctrl+Mayús+Espacio` en la app de escritorio solo la pone delante** (06-11-2026, decisión del usuario; DECISIONES §10.32): ya no abre la paleta. Para apuntar, `Ctrl+K`. Llega sin reinstalar.
 - **Logo nuevo, «Grafito»:** un marcapáginas blanco con un play hueco sobre zinc oscuro. Sale en la pestaña, en la app instalada (móvil, iPhone y escritorio) y en la cabecera. El color de tema deja el rosa.
+- **Mi lista vacía lleva a apuntar** (16-11-2026, revisión; DECISIONES §10.46): un botón con forma de buscador, «Apunta tu primer juego…», abre la paleta; «Explorar el catálogo» pasa a secundario. En el iPhone, el aviso de Safari espera al primer juego. Próximos vacío lleva a lo que sale pronto en el catálogo.
+- **Vista previa al compartir el enlace** (16-11-2026): etiquetas Open Graph con el nombre, una descripción y el icono.
 
 ### Corregido
+
+- **Intro apuntaba otro juego** (16-11-2026, revisión; DECISIONES §10.46). Si se elegía una fila con ↑/↓ antes de que llegaran los resultados de la última tecla, Intro apuntaba la primera de los nuevos. Ahora apunta la elegida, o nada si ya no está.
+- **Los enlaces de juegos para adultos** (`store.steampowered.com/agecheck/app/…`) no se reconocían y acababan en un alta a mano con la dirección como título.
+- **La fila de Mi lista entre 768 y 1 000 px:** con la barra lateral abierta, el título se quedaba en nada o se cortaba con un hueco vacío al lado, porque las acciones rápidas, aun invisibles, ocupaban su sitio. Ahora salen sobre el final del título con el puntero encima, y con la lista estrecha no salen (quedan el menú «…» y los atajos).
+- **Tamaño táctil del título de la fila** a 320 px: 24 px de alto como mínimo (WCAG 2.5.8).
 
 - **Las filas se quedaban «encendidas» tras un clic** (06-11-2026, lo vio el usuario). Al pulsar «Empezar» o una marca, la fila (o la siguiente, si el juego cambiaba de sección) seguía resaltada y con sus acciones a la vista sin el ratón encima. Pasaba en Mi lista y en el Catálogo. Ahora salen solo con el puntero encima o con el foco puesto con el teclado (`:has(:focus-visible)` en vez de `:focus-within`).
 - **Paleta en el móvil:** a 390 px, cada resultado medía 395 px dentro de una lista de 358, y el año y «Intro: Apuntar» quedaban debajo del botón (i).
