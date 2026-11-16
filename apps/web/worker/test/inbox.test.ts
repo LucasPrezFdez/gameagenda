@@ -42,8 +42,11 @@ describe('el token del buzón', () => {
     const { h, pc, token, deviceId } = await setup();
     expect(token).toMatch(/^[A-Za-z0-9_-]{43}$/);
     expect(dumpAllText(h.db)).not.toContain(token);
-    // No toca las cookies de la app que lo pide.
-    const devices = (await pc.get('/api/v1/devices')).json.devices;
+    // No toca las cookies de la app que lo pide. Con el reloj quieto, los dos dispositivos se crean
+    // en el mismo milisegundo y la lista los desempata por su id, que es aleatorio: se ordenan aquí
+    // por tipo (era intermitente, 1 de cada 4–6 ejecuciones; revisión del 16-11-2026).
+    const devices = (await pc.get('/api/v1/devices')).json.devices as Array<{ kind: string }>;
+    devices.sort((a, b) => a.kind.localeCompare(b.kind));
     expect(devices).toMatchObject([
       { kind: 'app', current: true },
       { id: deviceId, kind: 'inbox', label: 'Atajo de iOS', current: false },

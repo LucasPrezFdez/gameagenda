@@ -14,6 +14,28 @@ describe('encaminamiento', () => {
     expect(response.json).toBe('asset /juego/steam:730');
   });
 
+  it('un fichero de /assets/ que no existe da 404 sin caché, no el index.html del fallback', async () => {
+    const html = { 'Content-Type': 'text/html' };
+    const h = createHarness({
+      ASSETS: {
+        fetch: async (request) =>
+          new URL(request.url).pathname === '/assets/index-abc.js'
+            ? new Response('código', { headers: { 'Content-Type': 'text/javascript' } })
+            : new Response('<!doctype html>', { headers: html }),
+      },
+    });
+    const missing = await h.client().get('/assets/index-viejo.js');
+    expect(missing.status).toBe(404);
+    expect(missing.headers.get('Cache-Control')).toBe('no-store');
+    const present = await h.client().get('/assets/index-abc.js');
+    expect(present.status).toBe(200);
+    expect(present.headers.get('Content-Type')).toBe('text/javascript');
+    // Fuera de /assets/, el fallback de la SPA sigue igual.
+    const deep = await h.client().get('/juego/steam:730');
+    expect(deep.status).toBe(200);
+    expect(deep.headers.get('Content-Type')).toBe('text/html');
+  });
+
   it('una ruta desconocida de /api da 404 en JSON, con las cabeceras de la API', async () => {
     const h = createHarness();
     const response = await h.client().get('/api/v1/nada');
