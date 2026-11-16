@@ -8,8 +8,8 @@ Cambios de GameAgenda por versión. Cada hito cierra una versión SemVer 0.x (§
 
 #### Para el usuario
 
-- **Sincronización entre dispositivos** (07-11-2026, en la rama `m4-sincronizacion`, sin publicar; ADR-011, DECISIONES §10.36–§10.37): en Ajustes › Sincronización se activa con la declaración de edad y se guarda una vez un código de recuperación. Otro dispositivo se empareja con un código o un QR de 10 min. Los cambios se sincronizan solos al abrir la app, al volver a ella, al recuperar la red y poco después de apuntar algo. Hay lista de dispositivos para desemparejarlos, y «Borrar todos mis datos» borra también la copia del servidor. Si se borran los datos del navegador, la agenda vuelve sola o con el código de recuperación.
-- **Atajo de iOS** (08-11-2026, en la rama `m4-sincronizacion`, sin publicar; ADR-011, DECISIONES §10.39): desde Ajustes › Sincronización se crea un token de solo escritura para la app Atajos del iPhone o el iPad, con la dirección y los pasos. Compartir un juego desde Safari o la app de Steam lo deja en un buzón, y la siguiente sincronización lo apunta en Quiero jugar, con un aviso. Lo que ya está en la lista no cambia. El token sale en «Dispositivos», donde se desempareja.
+- **Sincronización entre dispositivos** (07-11-2026; en producción desde el 16-11-2026; ADR-011, DECISIONES §10.36–§10.37): en Ajustes › Sincronización se activa con la declaración de edad y se guarda una vez un código de recuperación. Otro dispositivo se empareja con un código o un QR de 10 min. Los cambios se sincronizan solos al abrir la app, al volver a ella, al recuperar la red y poco después de apuntar algo. Hay lista de dispositivos para desemparejarlos, y «Borrar todos mis datos» borra también la copia del servidor. Si se borran los datos del navegador, la agenda vuelve sola o con el código de recuperación.
+- **Atajo de iOS** (08-11-2026; en producción desde el 16-11-2026; ADR-011, DECISIONES §10.39): desde Ajustes › Sincronización se crea un token de solo escritura para la app Atajos del iPhone o el iPad, con la dirección y los pasos. Compartir un juego desde Safari o la app de Steam lo deja en un buzón, y la siguiente sincronización lo apunta en Quiero jugar, con un aviso. Lo que ya está en la lista no cambia. El token sale en «Dispositivos», donde se desempareja.
 - **El nombre de un juego que aún no está en el catálogo** (08-11-2026, en la misma rama; DECISIONES §10.40): con la sincronización activada, un enlace de un juego recién publicado se apunta al instante como provisional, y su nombre llega de Steam en un segundo, si hay conexión. Sin sincronizar, espera a que llegue al catálogo.
 - **Política de privacidad y aviso legal** (08-11-2026, en la misma rama; DECISIONES §10.41): en `/privacidad` y `/aviso-legal`, enlazados desde Ajustes › Privacidad, Acerca de y la sincronización, que lleva al lado la primera capa. El nombre y el correo del responsable, desde el 16-11-2026.
 - **Pulido visual y animaciones** (10-11-2026; DECISIONES §10.44, opciones elegidas por el usuario en `docs/diseno/pulido/`):
@@ -25,7 +25,7 @@ Cambios de GameAgenda por versión. Cada hito cierra una versión SemVer 0.x (§
 
 #### Ingeniería
 
-- **Micro-API, parte 5: preparar el despliegue** (16-11-2026, en la rama `m4-sincronizacion`; ADR-011, «Despliegue», y DECISIONES §10.47):
+- **Micro-API, parte 5: el despliegue** (16-11-2026, en producción; ADR-011, «Despliegue», y DECISIONES §10.47):
   - la base D1 `ga-agenda`, creada en la jurisdicción UE;
   - `deploy-web` aplica las migraciones de D1 antes de desplegar, y su prueba de humo comprueba también la micro-API;
   - `SYNC_ENABLED` a `"1"`.

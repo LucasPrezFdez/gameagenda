@@ -577,8 +577,9 @@ Resueltos a partir de las mediciones y de los conflictos detectados entre seccio
     - **Prueba de humo de la micro-API:** `deploy-web` comprueba que `/api/v1/prueba-de-humo` responde JSON, con reintentos como los de la SPA: esa respuesta solo la da el Worker, y sin él sería el `index.html` del *fallback*. Se acepta 404 o 503: si no, apagar la micro-API con el interruptor pondría el despliegue en rojo.
     - **El 404 de `/assets/` no llega a producción** (visto en el primer despliegue, `deploy-web` 43964492038, que lo comprobaba y salió en rojo después de desplegar). Con `run_worker_first` en forma de lista, Static Assets no mira `Sec-Fetch-Mode`: lo que no está en la lista recibe el *fallback* sin pasar por el Worker, también un `fetch()` (lo dice la documentación de Cloudflare, «Single Page Application»). La ruta de `worker/app.ts` y su prueba se quedan, pero hoy no actúan. Para que actuaran, `/assets/*` tendría que ir en `run_worker_first`. Eso pasa todo el JS por el Worker: cuenta para las 100 000 peticiones diarias del plan gratuito. Y la documentación no dice si `_headers` (la caché de un año) vale para lo que sirve `ASSETS.fetch()`. Queda como mejora aparte, con una prueba antes; la prueba de humo ya no lo mira.
     - **`SYNC_ENABLED` a `"1"`**, con `scripts/legal-guard.test.ts` en verde.
-    - **Queda:**
-      - pasar la rama a `main`, que despliega, con el visto bueno del usuario;
-      - ver que el plan gratuito admite `ratelimits` (lo dirá el despliegue: si no, falla sin tocar lo publicado);
-      - medir CA4.6 en el panel de Workers;
-      - las pruebas en el iPhone.
+    - **Desplegado el mismo día**, con el visto bueno del usuario (`main` en `426d0fa`, por avance rápido):
+      - el primer `deploy-web` (43964492038) aplicó las migraciones 0001 y 0002 y desplegó, y el plan gratuito admite `ratelimits`. Salió en rojo por la comprobación de `/assets/` (arriba);
+      - el segundo (43965893460), en verde, sin migraciones nuevas;
+      - una prueba contra producción pasó tres veces en verde: activar, apuntar, emparejar otro dispositivo, bajar lo apuntado, lista de dispositivos, borrarlo todo y el 401. D1 quedó vacía. `smoke:web`, en verde.
+    - **CA4.6, primera muestra** (`docs/medidas/ca4.6-20261116-produccion.md`): en caliente, de 1 a 4 ms; la primera petición de cada ruta en un *isolate*, de 9 a 14 ms; ninguna cortada. Con tan poco tráfico no cierra el criterio: falta el p99 del panel tras una semana de uso.
+    - **Queda:** el p99 de CA4.6 en el panel, las pruebas en el iPhone y, como mejora aparte, el 404 de `/assets/`.

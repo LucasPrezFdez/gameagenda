@@ -24,8 +24,8 @@ A personal backlog for video games: jot down the games you want to play in secon
 
   Full results in [`docs/medidas/`](docs/medidas/).
 - **Desktop app.** A Tauri 2 wrapper around the web app with a global shortcut. Tauri treats the page as remote and grants it no capabilities, so there is no native API to call from the web side ([ADR-010](docs/adr/010-app-de-escritorio.md)).
-- **Ready for sync.** User data is stored in IndexedDB (Dexie) with natural ids, hybrid logical clocks and an outbox ([ADR-004](docs/adr/004-datos-del-usuario.md)). Multi-device sync is the next milestone (M4).
-- **Documented decisions.** Ten architecture decision records in [MADR 4.0](https://adr.github.io/madr/) format in [`docs/adr/`](docs/adr/), each with the options considered, consequences and how it is verified. The project plan is in [`prototipe.md`](prototipe.md). Both are in Spanish.
+- **Multi-device sync without an account.** User data lives in IndexedDB (Dexie) with natural ids, hybrid logical clocks and an outbox ([ADR-004](docs/adr/004-datos-del-usuario.md)). An opt-in Hono micro-API on the same Worker syncs it through Cloudflare D1 in the EU jurisdiction: devices pair with a 10-minute code or QR, there is no email or password, and the server merges with the same last-writer-wins code as the app ([ADR-011](docs/adr/011-sincronizacion.md)).
+- **Documented decisions.** Eleven architecture decision records in [MADR 4.0](https://adr.github.io/madr/) format in [`docs/adr/`](docs/adr/), each with the options considered, consequences and how it is verified. The project plan is in [`prototipe.md`](prototipe.md). Both are in Spanish.
 
 ## Stack
 
@@ -71,7 +71,7 @@ On Cloudflare Workers Static Assets (see [ADR-003](docs/adr/003-hosting-desplieg
 | `ga-web` | https://ga-web.gameagenda.workers.dev | After every green `ci` run on a push to `main` (`.github/workflows/deploy-web.yml`) |
 | `ga-catalog` | https://ga-catalog.gameagenda-cat.workers.dev (in its own Cloudflare account; until M2, the M0 mini-catalog at https://ga-catalog.gameagenda.workers.dev) | Daily, with `catalog.yml` (see ADR-007) |
 
-Deployments need the `CLOUDFLARE_API_TOKEN` («Workers Scripts: Edit») and `CLOUDFLARE_ACCOUNT_ID` secrets in GitHub. To roll back: `npx wrangler rollback -c apps/web/wrangler.jsonc`.
+Deployments need the `CLOUDFLARE_API_TOKEN` («Workers Scripts: Edit» and «D1: Edit», for the migrations) and `CLOUDFLARE_ACCOUNT_ID` secrets in GitHub. To roll back: `npx wrangler rollback -c apps/web/wrangler.jsonc`.
 
 ## Structure
 

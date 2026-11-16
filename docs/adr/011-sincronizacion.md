@@ -399,10 +399,10 @@ Lo detalla DECISIONES §10.47.
 - Bien, porque el Atajo de iOS apunta sin abrir la app con un *token* que solo puede dejar enlaces, y lo apuntado pasa por la misma agenda que un enlace pegado.
 - Mal, porque sin sincronizar un juego recién publicado se queda con el título del enlace hasta que llega al catálogo (normalmente, al día siguiente).
 - **Pendiente:**
-  - **parte 5, lo que queda** (lo demás, hecho el 16-11-2026 en la rama: ver «Despliegue»): pasar la rama a `main` y desplegar, con el visto bueno del usuario; medir CA4.6 en el panel de Workers; y las pruebas en el iPhone (CA4.3 con los datos de Safari, CA4.5 con el Atajo de verdad y el QR con la app en la pantalla de inicio).
-- **A verificar al desplegar:**
-  - que el plan gratuito admite el *binding* `ratelimits`, porque la documentación no lo dice (la jurisdicción UE de D1, sí: comprobado al crearla);
+  - **parte 5, lo que queda** (desplegado el 16-11-2026: ver «Despliegue»): el p99 de CA4.6 en el panel de Workers tras una semana de uso, y las pruebas en el iPhone (CA4.3 con los datos de Safari, CA4.5 con el Atajo de verdad y el QR con la app en la pantalla de inicio).
+- **A verificar:**
   - que `navigator.standalone` solo existe en iOS: si Safari de macOS lo diera como `false`, la nota de Safari saldría en un Mac.
+  - (Comprobado al desplegar: el plan gratuito admite la jurisdicción UE de D1 y el *binding* `ratelimits`.)
 
 ### Confirmación
 
@@ -412,6 +412,7 @@ Lo detalla DECISIONES §10.47.
 - `wrangler dev` el 06-11-2026: alta, cookies, lista, código de un solo uso, 404 de la API, *fallback* de la SPA, límite y borrado en cascada; `sync` con la derivada de Platinado, el rechazo de una acción entera, texto con ñ y emoji y la repetición idempotente; y la purga de un lunes. El 07-11-2026, el recorrido del cliente con el *build* de producción (ver «Pruebas»).
 - `code-review` (nivel alto) sobre `4b46155^..HEAD` el 08-11-2026: los arreglos de la parte 3, que su segunda revisión dejó a medias, y la parte 4. Dio 10 hallazgos y se arreglan 9 (DECISIONES §10.43).
 - `wrangler dev` el 08-11-2026, con las migraciones 0001 y 0002 en una D1 local nueva: el buzón (enlace canónico, sin repetir el juego, un `appid` que empieza igual sí entra, `invalid_link`, el orden en `sync`, la confirmación y el 401 tras revocar) y `resolve` con Steam de verdad (322 ms; de la caché, 9 ms; `name: null` para un `appid` que no existe; 404 si está mal formado).
+- En producción, el 16-11-2026: el primer despliegue aplicó las migraciones 0001 y 0002; una prueba contra la micro-API (activar, apuntar, emparejar, bajar, dispositivos, borrar y el 401) pasó tres veces y dejó D1 vacía; y la primera muestra de CPU está en `docs/medidas/ca4.6-20261116-produccion.md` (en caliente, de 1 a 4 ms; la primera petición de cada ruta en un *isolate*, de 9 a 14 ms).
 - CA4.1–CA4.7, al cerrar M4.
 
 ## Pros y contras de las opciones
