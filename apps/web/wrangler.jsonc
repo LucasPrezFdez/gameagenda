@@ -18,13 +18,14 @@
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*"]
   },
-  // D1 en la jurisdicción UE (§7.7 y §11.2), creada con
-  // `npx wrangler d1 create ga-agenda --jurisdiction=eu`. PENDIENTE: el id real, al crearla.
+  // D1 en la jurisdicción UE (§7.7 y §11.2), creada el 16-11-2026 con
+  // `npx wrangler d1 create ga-agenda --jurisdiction eu` (`wrangler d1 info`: `"jurisdiction": "eu"`,
+  // región EEUR). Las migraciones las aplica `deploy-web` antes de desplegar.
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "ga-agenda",
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "565fae76-c48b-44f1-b7a9-f01b1a44bb9b",
       "migrations_dir": "./worker/migrations"
     }
   ],
@@ -41,8 +42,9 @@
   // A las 03:17 UTC, lejos del catálogo (04:17).
   "triggers": { "crons": ["17 3 * * *"] },
   "vars": {
-    // La micro-API responde 503 hasta que se publiquen los textos legales (CA4.7).
-    "SYNC_ENABLED": "0",
+    // Con "0", la micro-API responde 503 a todo (CA4.7): es el interruptor para apagarla. Encendida
+    // el 16-11-2026, con los textos legales ya completos (`scripts/legal-guard.test.ts`).
+    "SYNC_ENABLED": "1",
     // Edad mínima declarada al activar la sincronización (art. 7 LOPDGDD; R-10: puede pasar a 16).
     "MIN_AGE": "14"
   }
