@@ -6,7 +6,7 @@
 // - orden por lanzamiento: los de todas las entradas de la vista.
 // Mientras faltan fechas, `lookup` es `null`: la lista no se reordena bajo el cursor (§9.5).
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { type AgendaEntry, appidOf } from '../../agenda/types.ts';
+import { type AgendaEntry, appidOf, steamId } from '../../agenda/types.ts';
 import { useServices } from '../../app/services.tsx';
 import { useDetailsStore } from '../../details/details-context.tsx';
 import type { DetailsStore } from '../../details/details-store.ts';
@@ -42,7 +42,9 @@ function useCoreLookup(
 ): ReadonlyMap<number, CoreGame> | null {
   const { search } = useServices();
   const catalogKey = useCatalogKey();
-  const key = enabled && catalogKey !== null ? `${catalogKey}|${appids.join(',')}` : null;
+  // Con miles de entradas, unir los `appid` cuesta: solo cuando cambian (ver `useStableAppids`).
+  const joined = useMemo(() => appids.join(','), [appids]);
+  const key = enabled && catalogKey !== null ? `${catalogKey}|${joined}` : null;
   const [result, setResult] = useState<{
     key: string;
     map: ReadonlyMap<number, CoreGame>;
@@ -134,10 +136,12 @@ export function useReleases(entries: readonly AgendaEntry[], params: ListParams)
     return () => clearTimeout(timer);
   }, [idle]);
 
-  const allAppids = useMemo(() => appidsOf(entries), [entries]);
-  const viewAppids = useMemo(
-    () => (byRelease ? appidsOf(filterEntries(entries, params)) : []),
-    [entries, params, byRelease],
+  const allAppids = useStableAppids(useMemo(() => appidsOf(entries), [entries]));
+  const viewAppids = useStableAppids(
+    useMemo(
+      () => (byRelease ? appidsOf(filterEntries(entries, params)) : []),
+      [entries, params, byRelease],
+    ),
   );
 
   const core = useCoreLookup(allAppids, showUpcoming || byRelease || idle);
@@ -186,11 +190,15 @@ export function useReleases(entries: readonly AgendaEntry[], params: ListParams)
       previous.current = null;
       return { lookup: null, upcoming: null };
     }
+    // Solo las que pueden salir: las candidatas de Próximos y, con el orden por lanzamiento, las
+    // de la vista. Las demás (publicadas hace años, o a mano) no tienen lanzamiento que mostrar, y
+    // así cambiar un estado no lo recalcula todo (con 5 000 entradas, en cada cambio).
     const map = new Map<string, ReleaseInfo | null>();
-    for (const entry of entries) {
-      const appid = appidOf(entry.id);
-      map.set(entry.id, appid === null ? null : infoOf(store, core, appid));
-    }
+    const wanted = [
+      ...(upcomingActive && candidates ? candidates : []),
+      ...(byRelease ? viewAppids : []),
+    ];
+    for (const appid of wanted) map.set(steamId(appid), infoOf(store, core, appid));
     const last = previous.current;
     const reuse = last !== null && sameMaps(last.map, map);
     const lookup: ReleaseLookup =
@@ -201,7 +209,31 @@ export function useReleases(entries: readonly AgendaEntry[], params: ListParams)
     };
     previous.current = { ...result, lookup, map: reuse ? last.map : map };
     return result;
-  }, [version, core, candidates, entries, upcomingActive, byRelease, showUpcoming, today, store]);
+  }, [
+    version,
+    core,
+    candidates,
+    viewAppids,
+    upcomingActive,
+    byRelease,
+    showUpcoming,
+    today,
+    store,
+  ]);
+}
+
+/**
+ * La misma lista mientras no cambien los `appid`: cambiar un estado o una marca crea otra agenda,
+ * pero con los mismos juegos, y no hace falta volver a buscarlos ni a recalcular lo que depende
+ * de ellos (con 5 000 entradas, cada cambio lo recorría todo).
+ */
+function useStableAppids(appids: readonly number[]): readonly number[] {
+  const previous = useRef(appids);
+  const same =
+    previous.current.length === appids.length &&
+    previous.current.every((appid, index) => appid === appids[index]);
+  if (!same) previous.current = appids;
+  return previous.current;
 }
 
 function appidsOf(entries: readonly AgendaEntry[]): number[] {

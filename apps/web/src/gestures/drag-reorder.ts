@@ -14,6 +14,10 @@ export interface DragReorderOptions {
     to: { readonly before: string } | { readonly after: string },
     timing: FeedbackTiming,
   ): void;
+  /** La fila se ha levantado: empieza el arrastre (Mi lista deja de cambiar qué filas pinta). */
+  onLift?(): void;
+  /** El arrastre ha acabado, se suelte o se cancele. */
+  onSettle?(): void;
 }
 
 /** Hasta aquí es un clic en el asa, no un arrastre. */
@@ -71,6 +75,7 @@ export function attachDragReorder(container: HTMLElement, options: DragReorderOp
     if (!d.lifted) {
       if (Math.abs(dy) < LIFT_PX) return;
       d.lifted = true;
+      options.onLift?.();
       d.row.classList.add('is-dragging');
       d.list.classList.add('is-reordering');
       if (d.touch) vibrate();
@@ -111,6 +116,7 @@ export function attachDragReorder(container: HTMLElement, options: DragReorderOp
     for (const row of d.rows) row.style.transform = '';
     d.row.classList.remove('is-dragging');
     d.list.classList.remove('is-reordering');
+    if (d.lifted) options.onSettle?.();
     if (!drop || !d.lifted) return;
     const target = dropTarget(d.ids, d.from, d.to);
     const id = d.ids[d.from];

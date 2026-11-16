@@ -42,8 +42,21 @@ export function takeNoteFocus(id: string): boolean {
   return true;
 }
 
-/** Los `id` de Mi lista en el orden en que se ven (para `J` y `K` en la ficha). */
+/** El orden de Mi lista que publica la pantalla mientras está montada (ver `visibleEntryIds`). */
+let listOrder: readonly string[] | null = null;
+
+/** Mi lista publica aquí sus `id` a la vista, en orden; `null` al desmontarse. */
+export function publishListOrder(ids: readonly string[] | null): void {
+  listOrder = ids;
+}
+
+/**
+ * Los `id` de Mi lista en el orden en que se ven (para `J` y `K` en la ficha). Con muchas filas
+ * solo están pintadas las cercanas a la pantalla, así que manda el orden que publica Mi lista; el
+ * DOM, solo si no hay ninguno.
+ */
 export function visibleEntryIds(): string[] {
+  if (listOrder !== null) return [...listOrder];
   return [...document.querySelectorAll<HTMLElement>('.screen-slot--list [data-entry-id]')].map(
     (row) => row.dataset.entryId ?? '',
   );

@@ -303,7 +303,15 @@
 }
 
 /* Línea fina entre filas, desde el título (no desde la portada), como en una lista agrupada. */
-.entry-row + .entry-row .entry-row__body {
+/* Con muchas filas (SectionRows.tsx), el alto de las que no se pintan. La fila que va después de
+   un hueco no es la primera de la sección: lleva su raya, como las demás. */
+.entry-list__gap {
+  flex: none;
+  list-style: none;
+}
+
+.entry-row + .entry-row .entry-row__body,
+.entry-list__gap + .entry-row .entry-row__body {
   background-image: linear-gradient(var(--line), var(--line));
   background-repeat: no-repeat;
   background-position: right 8px top 0;

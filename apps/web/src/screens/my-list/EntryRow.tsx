@@ -20,6 +20,7 @@ import { popIcon } from '../../lib/motion.ts';
 import type { FeedbackTiming } from '../../perf/measures.ts';
 import { Link } from '../../router/router.tsx';
 import { gamePath } from '../../router/routes.ts';
+import type { VirtualRowProps } from './SectionRows.tsx';
 
 /** Lo que una fila pide a la agenda; la pantalla lo conecta con `useCommands()`. */
 export interface RowActions {
@@ -45,6 +46,8 @@ export interface EntryRowProps {
   readonly trayOpen?: boolean;
   readonly actions: RowActions;
   readonly onActivate: (id: string) => void;
+  /** Con la sección virtual (muchas filas): su posición y el total, para el lector de pantalla. */
+  readonly virtual?: VirtualRowProps;
 }
 
 export function rowTitleId(id: string): string {
@@ -62,6 +65,7 @@ function EntryRowView({
   trayOpen = false,
   actions,
   onActivate,
+  virtual,
 }: EntryRowProps) {
   const tab = active ? 0 : -1;
   const timing = (event: { timeStamp: number }): FeedbackTiming => ({
@@ -112,6 +116,9 @@ function EntryRowView({
       className={`entry-row${trayOpen ? ' is-tray-open' : ''}`}
       data-status={entry.status}
       data-entry-id={entry.id}
+      data-index={virtual?.index}
+      aria-setsize={virtual?.setSize}
+      aria-posinset={virtual === undefined ? undefined : virtual.index + 1}
       onFocusCapture={() => onActivate(entry.id)}
     >
       <div className="entry-row__body">
@@ -227,5 +234,7 @@ export const EntryRow = memo(
     a.active === b.active &&
     a.trayOpen === b.trayOpen &&
     a.actions === b.actions &&
-    a.onActivate === b.onActivate,
+    a.onActivate === b.onActivate &&
+    a.virtual?.index === b.virtual?.index &&
+    a.virtual?.setSize === b.virtual?.setSize,
 );

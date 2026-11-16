@@ -34,7 +34,12 @@ import { usePalette } from '../../palette/palette-context.tsx';
 import { measureListVisible } from '../../perf/measures.ts';
 import { Link, navigate, useLocation } from '../../router/router.tsx';
 import { gamePath, settingsPath, withSearch } from '../../router/routes.ts';
-import { isShortcutTarget, openSteam, requestNoteFocus } from '../../shortcuts/dom.ts';
+import {
+  isShortcutTarget,
+  openSteam,
+  publishListOrder,
+  requestNoteFocus,
+} from '../../shortcuts/dom.ts';
 import { shortcutFor } from '../../shortcuts/keymap.ts';
 import { EntryRow, type RowActions, rowTitleId } from './EntryRow.tsx';
 import {
@@ -51,6 +56,7 @@ import {
 } from './list-model.ts';
 import { useListMotion } from './list-motion.ts';
 import { emptyTextOf, SYNCED_EMPTY_TEXTS, syncedEmptyState } from './restore-notice.ts';
+import { SectionRows, VIRTUAL_FROM } from './SectionRows.tsx';
 import { useReleases } from './use-releases.ts';
 
 function sectionLabel(section: ListSection): string {
@@ -173,10 +179,45 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
   const byRelease = params.view === 'upcoming' || params.order === 'release';
   const releasesPending = byRelease && releases.lookup === null;
   const today = releases.lookup?.today ?? 0;
-  const visibleIds = sections.flatMap((section) =>
-    section.collapsible && !showOnHold ? [] : section.entries.map((entry) => entry.id),
+  /** Los `id` a la vista, en orden: ↑ y ↓, Inicio y Fin, y `J` y `K` en la ficha. */
+  const visibleIds = useMemo(
+    () =>
+      sections.flatMap((section) =>
+        section.collapsible && !showOnHold ? [] : section.entries.map((entry) => entry.id),
+      ),
+    [sections, showOnHold],
   );
   const rovingId = activeId !== null && visibleIds.includes(activeId) ? activeId : visibleIds[0];
+  // Con muchas filas, cada sección pinta solo las cercanas a la pantalla (SectionRows.tsx).
+  const virtual = visibleIds.length >= VIRTUAL_FROM;
+  /** Mientras se arrastra con el asa: las filas pintadas no cambian. */
+  const frozen = useRef(false);
+  /** Fila que debe recibir el foco en cuanto esté pintada (↓ hasta una que aún no lo está). */
+  const wantFocus = useRef<string | null>(null);
+
+  useEffect(() => publishListOrder(visibleIds), [visibleIds]);
+  useEffect(() => () => publishListOrder(null), []);
+
+  // Tras cada pintado: la fila pedida puede acabar de llegar.
+  useLayoutEffect(() => {
+    const id = wantFocus.current;
+    if (id === null) return;
+    const title = document.getElementById(rowTitleId(id));
+    if (!title) return;
+    wantFocus.current = null;
+    title.focus();
+  });
+
+  /** Pone el foco en la fila; si aún no está pintada, la pinta antes (pasa a ser la activa). */
+  function focusRow(id: string): void {
+    const title = document.getElementById(rowTitleId(id));
+    if (title) {
+      title.focus();
+      return;
+    }
+    wantFocus.current = id;
+    setActiveId(id);
+  }
 
   function update(patch: Partial<ListParams>): void {
     const next = listSearchParams({ ...params, ...patch });
@@ -238,6 +279,12 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
       onLongPress: (_id, row) => row.querySelector<HTMLButtonElement>('.status-button')?.click(),
     });
     const detachDrag = attachDragReorder(container, {
+      onLift: () => {
+        frozen.current = true;
+      },
+      onSettle: () => {
+        frozen.current = false;
+      },
       // Al soltarla, la fila ya está en su sitio: no hay nada que deslizar.
       onDrop: (id, to, timing) => {
         motion.skipNext();
@@ -296,11 +343,11 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
     const title = row?.querySelector<HTMLElement>('[data-row-title]');
     const id = row?.dataset.entryId;
     if (!row || !title || id === undefined) return;
-    const titles = [...(listRef.current?.querySelectorAll<HTMLElement>('[data-row-title]') ?? [])];
-    const index = titles.indexOf(title);
+    // Por `id` y no por las filas del DOM: con muchas, solo están pintadas las cercanas.
+    const index = visibleIds.indexOf(id);
     const go = (next: number) => {
-      const element = titles[Math.max(0, Math.min(titles.length - 1, next))];
-      element?.focus();
+      const target = visibleIds[Math.max(0, Math.min(visibleIds.length - 1, next))];
+      if (target !== undefined) focusRow(target);
       event.preventDefault();
     };
     // Con Alt, las flechas son la prioridad (más abajo).
@@ -318,7 +365,7 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
         return;
       }
       if (event.key === 'End') {
-        go(titles.length - 1);
+        go(visibleIds.length - 1);
         return;
       }
     }
@@ -599,27 +646,33 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
                     </button>
                   )}
                 </div>
-                <ol id={`${headingId}-rows`} className="entry-list" hidden={collapsed}>
-                  {!collapsed &&
-                    section.entries.map((entry, index) => {
-                      const info = byRelease ? releases.lookup?.get(entry) : null;
-                      return (
-                        <EntryRow
-                          key={entry.id}
-                          entry={entry}
-                          release={info ? releaseText(info, today) : null}
-                          position={section.ranked ? index + 1 : null}
-                          movable={movable}
-                          isFirst={index === 0}
-                          isLast={index === section.entries.length - 1}
-                          active={entry.id === rovingId}
-                          trayOpen={entry.id === trayId}
-                          actions={actions}
-                          onActivate={onActivate}
-                        />
-                      );
-                    })}
-                </ol>
+                <SectionRows
+                  id={`${headingId}-rows`}
+                  hidden={collapsed}
+                  entries={section.entries}
+                  virtual={virtual}
+                  keepId={rovingId ?? null}
+                  frozen={frozen}
+                  renderRow={(entry, index, virtualRow) => {
+                    const info = byRelease ? releases.lookup?.get(entry) : null;
+                    return (
+                      <EntryRow
+                        key={entry.id}
+                        entry={entry}
+                        release={info ? releaseText(info, today) : null}
+                        position={section.ranked ? index + 1 : null}
+                        movable={movable}
+                        isFirst={index === 0}
+                        isLast={index === section.entries.length - 1}
+                        active={entry.id === rovingId}
+                        trayOpen={entry.id === trayId}
+                        actions={actions}
+                        onActivate={onActivate}
+                        virtual={virtualRow}
+                      />
+                    );
+                  }}
+                />
               </section>
             );
           })}
