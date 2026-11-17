@@ -41,6 +41,7 @@ import {
 } from '@gameagenda/core/sync';
 import { Dexie } from 'dexie';
 import { type GameAgendaDb, META_KEYS } from '../db/database.ts';
+import { yieldToMain } from '../lib/yield.ts';
 import type { SyncCall } from './api-client.ts';
 import { INITIAL_CURSOR, parseSyncCursor, type SyncCursorState, type SyncRecord } from './state.ts';
 import type { InboxLink, InboxSink } from './types.ts';
@@ -114,13 +115,6 @@ export interface SyncEngine {
   join(record: SyncRecord): Promise<void>;
   /** Operaciones en la `outbox`. */
   pending(): Promise<number>;
-}
-
-/** Cede el turno al navegador: nada de tareas largas entre páginas (§9.5). */
-export function yieldToMain(): Promise<void> {
-  const s = (globalThis as { scheduler?: { yield?: () => Promise<void> } }).scheduler;
-  if (typeof s?.yield === 'function') return s.yield();
-  return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
 /**

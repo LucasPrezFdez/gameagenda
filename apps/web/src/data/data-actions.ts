@@ -16,6 +16,7 @@ import { localDay } from '../agenda/agenda.ts';
 import { type AgendaStore, compareRank, STATUSES } from '../agenda/types.ts';
 import { clearErrorLog, readErrorLog } from '../errors/error-log.ts';
 import { es } from '../i18n/es.ts';
+import { yieldToMain } from '../lib/yield.ts';
 import {
   DEFAULT_SETTINGS,
   type SettingsStore,
@@ -92,6 +93,47 @@ function looksLikeJson(name: string, text: string): boolean {
 }
 
 /**
+ * Juegos por lote al importar una copia JSON (Fase 2; DECISIONES §10.48). Con 5 000 de una vez,
+ * fusionar, pintar y guardar dejaba tareas largas de más de un segundo.
+ */
+export const IMPORT_BATCH = 250;
+
+export interface ImportOptions {
+  readonly now?: Date;
+  /** Para las pruebas: otro tamaño de lote. */
+  readonly batchSize?: number;
+  /** Entre lote y lote (por defecto, `yieldToMain`). */
+  readonly pause?: () => Promise<void>;
+}
+
+/**
+ * Las entradas de la copia en lotes de unas `size`, con todas las de un mismo `id` en el mismo
+ * lote: así cada juego se fusiona de una vez y los recuentos salen como en una sola pasada.
+ */
+export function importBatches<T extends { readonly id: string }>(
+  entries: readonly T[],
+  size: number,
+): T[][] {
+  const byId = new Map<string, T[]>();
+  for (const entry of entries) {
+    const group = byId.get(entry.id);
+    if (group) group.push(entry);
+    else byId.set(entry.id, [entry]);
+  }
+  const batches: T[][] = [];
+  let batch: T[] = [];
+  for (const group of byId.values()) {
+    if (batch.length > 0 && batch.length + group.length > size) {
+      batches.push(batch);
+      batch = [];
+    }
+    batch.push(...group);
+  }
+  batches.push(batch);
+  return batches;
+}
+
+/**
  * Importar es fusionar (§7.5): antes, copia en `meta.backup`; después, recuento de altas,
  * cambios, bajas y rechazos. Un fichero que no es una copia válida no cambia nada.
  */
@@ -99,24 +141,37 @@ export async function importText(
   services: DataServices,
   name: string,
   text: string,
-  now = new Date(),
+  options: ImportOptions = {},
 ): Promise<ImportOutcome> {
   const { agenda, settings } = services;
+  const now = options.now ?? new Date();
   if (looksLikeJson(name, text)) {
     const parsed = parseExport(text);
     if (!parsed.ok) return { kind: 'invalid' };
     await agenda.backup(copyOf(services, now));
-    // Sin `await` desde aquí hasta aplicar: se fusiona con la agenda tal como está ahora.
-    const ctx = agenda.importContext();
-    const result = importExport(parsed.file, agenda.get, {
-      nowMs: ctx.nowMs,
-      offsetMs: ctx.offsetMs,
-      newOpId: ctx.newOpId,
-    });
-    const saved = agenda.applyImport(result);
-    settings.update(settingsPatch(result.settings));
-    await saved;
-    return { kind: 'done', counts: result.counts, skipped: 0 };
+    const counts: ImportCounts = { added: 0, changed: 0, removed: 0, rejected: 0 };
+    const saved: Promise<void>[] = [];
+    const batches = importBatches(parsed.file.entries, options.batchSize ?? IMPORT_BATCH);
+    for (const [index, entries] of batches.entries()) {
+      // Entre lote y lote, la app pinta y responde. Sin `await` entre fusionar y aplicar un
+      // lote: cada uno se fusiona con la agenda tal como está, también si se ha apuntado algo
+      // entretanto (calcularlo todo antes y aplicarlo a trozos lo pisaría).
+      if (index > 0) await (options.pause ?? yieldToMain)();
+      const ctx = agenda.importContext();
+      const result = importExport({ ...parsed.file, entries }, agenda.get, {
+        nowMs: ctx.nowMs,
+        offsetMs: ctx.offsetMs,
+        newOpId: ctx.newOpId,
+      });
+      saved.push(agenda.applyImport(result));
+      if (index === 0) settings.update(settingsPatch(result.settings));
+      counts.added += result.counts.added;
+      counts.changed += result.counts.changed;
+      counts.removed += result.counts.removed;
+      counts.rejected += result.counts.rejected;
+    }
+    await Promise.all(saved);
+    return { kind: 'done', counts, skipped: 0 };
   }
 
   // CSV: sin HLC, solo da altas (DECISIONES §10, punto 11). Lo mismo que comprueba `importCsv`

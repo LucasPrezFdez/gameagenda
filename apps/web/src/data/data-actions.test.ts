@@ -11,6 +11,7 @@ import {
   buildJsonExport,
   type DataServices,
   deleteAllData,
+  importBatches,
   importText,
 } from './data-actions.ts';
 
@@ -151,6 +152,70 @@ describe('exportar e importar (CA1.9)', () => {
 
     const again = await importText(data, 'lista.csv', csv);
     expect(again).toMatchObject({ counts: { added: 0 }, skipped: before.length });
+  });
+});
+
+describe('importar por lotes (DECISIONES §10.48)', () => {
+  it('reparte las entradas en lotes y deja juntas las de un mismo id', () => {
+    const e = (id: string, n = 0) => ({ id, n });
+    expect(importBatches([], 2)).toEqual([[]]);
+    expect(importBatches([e('a'), e('b'), e('c'), e('d'), e('e')], 2)).toEqual([
+      [e('a'), e('b')],
+      [e('c'), e('d')],
+      [e('e')],
+    ]);
+    // La segunda «b» va con la primera, aunque el lote pase del tamaño si no cabe en otro.
+    expect(importBatches([e('a'), e('b'), e('c'), e('b', 1), e('d')], 2)).toEqual([
+      [e('a')],
+      [e('b'), e('b', 1)],
+      [e('c'), e('d')],
+    ]);
+    expect(importBatches([e('a'), e('a', 1), e('a', 2)], 2)).toEqual([
+      [e('a'), e('a', 1), e('a', 2)],
+    ]);
+  });
+
+  it('en lotes de uno queda igual que de una vez, cediendo el turno entre lote y lote', async () => {
+    const { data: source } = await services();
+    fill(source);
+    const json = buildJsonExport(source).content;
+    const once = await services();
+    const whole = await importText(once.data, 'copia.json', json);
+    const batched = await services();
+    let pauses = 0;
+    const outcome = await importText(batched.data, 'copia.json', json, {
+      batchSize: 1,
+      pause: async () => {
+        pauses += 1;
+      },
+    });
+    expect(outcome).toEqual(whole);
+    expect(pauses).toBe(source.agenda.allEntries().length - 1);
+    expect(byId(batched.tab.agenda.allEntries()).map(values)).toEqual(
+      byId(once.tab.agenda.allEntries()).map(values),
+    );
+    await batched.tab.agenda.whenIdle();
+    expect(await batched.tab.db.entries.count()).toBe(source.agenda.allEntries().length);
+  });
+
+  it('lo que se apunta entre dos lotes no lo pisa un lote posterior', async () => {
+    const { data: source } = await services();
+    fill(source);
+    const json = buildJsonExport(source).content;
+    const { tab, data } = await services();
+    let first = true;
+    await importText(data, 'copia.json', json, {
+      batchSize: 1,
+      pause: async () => {
+        // Terraria viene en el tercer lote; aquí se apunta en Jugando, después de la copia.
+        if (first)
+          data.agenda.capture({ id: 'steam:105600', title: 'Terraria' }, { status: 'playing' });
+        first = false;
+      },
+    });
+    expect(tab.agenda.get('steam:105600')?.status).toBe('playing');
+    expect(tab.agenda.get('steam:504230')?.status).toBe('completed');
+    expect(tab.agenda.get('steam:1145350')?.note).toBe('Con «comillas»; y\nsaltos');
   });
 });
 
