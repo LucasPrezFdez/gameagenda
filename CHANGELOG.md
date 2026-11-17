@@ -49,8 +49,8 @@ Cambios de GameAgenda por versión. Cada hito cierra una versión SemVer 0.x (§
 
 ### Cambiado
 
-- **Mi lista con miles de juegos** (17-11-2026, en la rama `lista-grande`; Fase 2, parte 1; DECISIONES §10.48): desde 300 juegos a la vista, Mi lista pinta solo los cercanos a la pantalla. Con 5 000 juegos y CPU ×4, abrirla pasa de 8 s a 0,5 s, cambiar un estado de 2,4 s a 0,13 s y filtrar de 3,1 s a 0,4 s. El teclado (↑/↓, Inicio, Fin, `J` y `K` en la ficha), el asa `::` y el lector de pantalla funcionan igual que con pocos. Es lo previo a importar la biblioteca de Steam.
-- **Importar una copia grande no congela la app** (17-11-2026, en la misma rama; DECISIONES §10.48): la copia JSON se importa en lotes de 250 juegos, y la app sigue respondiendo entre uno y otro. Con 5 000 juegos y CPU ×4, la pausa más larga pasa de 5,1 s a unos 0,4 s.
+- **Mi lista con miles de juegos** (17-11-2026, en producción; Fase 2, parte 1; DECISIONES §10.48): desde 300 juegos a la vista, Mi lista pinta solo los cercanos a la pantalla. Con 5 000 juegos y CPU ×4, abrirla pasa de 8 s a 0,5 s, cambiar un estado de 2,4 s a 0,13 s y filtrar de 3,1 s a 0,4 s. El teclado (↑/↓, Inicio, Fin, `J` y `K` en la ficha), el asa `::` y el lector de pantalla funcionan igual que con pocos. Es lo previo a importar la biblioteca de Steam.
+- **Importar una copia grande no congela la app** (17-11-2026, en producción; DECISIONES §10.48): la copia JSON se importa en lotes de 250 juegos, y la app sigue respondiendo entre uno y otro. Con 5 000 juegos y CPU ×4, la pausa más larga pasa de 5,1 s a unos 0,4 s.
 - **Rediseño visual, dirección «Tinta»** (05-11-2026, en la rama `rediseno-visual`; DECISIONES §10.31 y §9.8). La app es casi monocroma y más limpia:
   - el acento es la tinta, y el color lo ponen las portadas y los iconos de estado;
   - las filas van sin tarjeta, dentro de una superficie por sección, con líneas finas;

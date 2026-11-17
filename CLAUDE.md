@@ -8,7 +8,7 @@ Agenda personal de videojuegos: apuntar en segundos los juegos que quieres jugar
 - **M2 cerrado con `v0.2.0` el 05-11-2026** (CA2.1: las ejecuciones programadas de `catalog.yml` del 03 al 05-11, en verde). Catálogo firmado en https://ga-catalog.gameagenda-cat.workers.dev, en su propia cuenta de Cloudflare; app 0.2.0 en https://ga-web.gameagenda.workers.dev (ADR-003 y ADR-007). Cada cambio del pipeline sale en la siguiente ejecución programada, y M3 pide 7 seguidas en verde.
 - **M3 empezado:** la app de escritorio para Windows (`apps/desktop`, Tauri; ADR-010) está cerrada, con CA3.7 y CA3.8 el 02-11-2026. El núcleo de arranque (ADR-009) está en `main` y en producción desde el 06-11-2026. Lo demás de M3 que puede hacer el asistente también está hecho; quedan las pruebas del usuario y la racha de 7 ejecuciones (ver `ESTADO-SESION.md` §0).
 - **M4, en producción desde el 16-11-2026:** la sincronización entre dispositivos (micro-API en `apps/web/worker/`, D1 `ga-agenda` en la UE; ADR-011). Quedan el p99 de CA4.6 en el panel de Workers y las pruebas en el iPhone.
-- **Fase 2 empezada (17-11-2026):** la parte 1, Mi lista con miles de juegos (lo previo a importar la biblioteca de Steam), está hecha en la rama `lista-grande`, a falta del visto bueno para pasarla a `main` (DECISIONES §10.48).
+- **Fase 2 empezada:** la parte 1, Mi lista con miles de juegos (lo previo a importar la biblioteca de Steam), en producción desde el 17-11-2026 (DECISIONES §10.48). Siguen las partes 2 a 4 de la importación de Steam.
 - Repositorio: https://github.com/LucasPrezFdez/gameagenda.
 - Para retomar el trabajo, lee primero `docs/planificacion/ESTADO-SESION.md`.
 
