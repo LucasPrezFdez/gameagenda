@@ -1,6 +1,6 @@
 # Importación de Steam, parte 2: «Iniciar sesión con Steam» y traer la biblioteca
 
-> Encargo escrito el 17-11-2026 para la sesión siguiente. Para empezar: *«Lee `docs/planificacion/prompts/importacion-steam-parte-2.md` y empieza por el paso 0»*. Se trabaja en una rama nueva, `steam-parte-2`, que sale de `main` (`49dbd6c`). No se integra en `main` sin mi visto bueno.
+> Encargo escrito el 17-11-2026 para la sesión siguiente. Para empezar: *«Lee `docs/planificacion/prompts/importacion-steam-parte-2.md` y empieza por el paso 0»*. Se trabaja en una rama nueva, `steam-parte-2`, que sale de `main` (con la parte 1 ya dentro). No se integra en `main` sin mi visto bueno.
 
 ## Tu papel
 
