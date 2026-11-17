@@ -74,3 +74,34 @@ export function storedKeys(page: Page, table: string): Promise<string[]> {
     table,
   );
 }
+
+/**
+ * Guarda estas entradas tal cual en `entries`, en una transacción y sin `outbox`, para empezar una
+ * prueba con muchas (la app tiene que haber abierto ya la base; recarga después). Importarlas
+ * cuesta en WebKit para Windows ≈15 ms por petición: con 600 juegos y sus 9 000 operaciones,
+ * más de dos minutos. Importar ya lo prueba `data.spec.ts`.
+ */
+export function putEntries(page: Page, entries: readonly unknown[]): Promise<void> {
+  return page.evaluate(
+    (rows) =>
+      new Promise<void>((resolve, reject) => {
+        const request = indexedDB.open('gameagenda');
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+          const db = request.result;
+          const tx = db.transaction('entries', 'readwrite');
+          const store = tx.objectStore('entries');
+          for (const row of rows) store.put(row);
+          tx.oncomplete = () => {
+            db.close();
+            resolve();
+          };
+          tx.onerror = () => {
+            db.close();
+            reject(tx.error);
+          };
+        };
+      }),
+    entries,
+  );
+}
