@@ -1,46 +1,28 @@
 # Estado del proyecto — punto de partida de la próxima sesión
 
-**Actualizado:** 16-11-2026 (la revisión completa y sus arreglos, en `main` y desplegados; y la sincronización de M4, en `main` y en producción). Antes, el 08-11-2026, en la sesión 12 (M4 parte 4: el buzón del Atajo de iOS, `resolve`, los textos legales y la estimación de CA4.6, en la rama `m4-sincronizacion`). Antes, el 07-11-2026, en la sesión 11 (M4 parte 3: el cliente de sincronización, Ajustes › Sincronización y los E2E de CA4.2 y CA4.3). Antes, el 06-11-2026, en la sesión 10 (M4 empezado en la rama `m4-sincronizacion`: la base de la micro-API y el ADR-011). Antes, en la sesión 9 (el cliente del núcleo de arranque, en `main` y desplegado: el núcleo de arranque, entero en producción). Antes, el 05-11-2026, en la sesión 8 (CA2.1 cumplido: M2 cerrado con `v0.2.0`; la parte del pipeline del núcleo de arranque, en `main`; y el rediseño visual «Tinta», en `main` y desplegado).
+**Actualizado:** 17-11-2026 (Fase 2, parte 1: Mi lista con miles de juegos, hecha en la rama `lista-grande`). Antes, el 16-11-2026 (la revisión completa y sus arreglos, en `main` y desplegados; y la sincronización de M4, en `main` y en producción). Antes, el 08-11-2026, en la sesión 12 (M4 parte 4: el buzón del Atajo de iOS, `resolve`, los textos legales y la estimación de CA4.6, en la rama `m4-sincronizacion`). Antes, el 07-11-2026, en la sesión 11 (M4 parte 3: el cliente de sincronización, Ajustes › Sincronización y los E2E de CA4.2 y CA4.3). Antes, el 06-11-2026, en la sesión 10 (M4 empezado en la rama `m4-sincronizacion`: la base de la micro-API y el ADR-011). Antes, en la sesión 9 (el cliente del núcleo de arranque, en `main` y desplegado: el núcleo de arranque, entero en producción). Antes, el 05-11-2026, en la sesión 8 (CA2.1 cumplido: M2 cerrado con `v0.2.0`; la parte del pipeline del núcleo de arranque, en `main`; y el rediseño visual «Tinta», en `main` y desplegado).
 **Cómo retomar:** escribe *«Retoma GameAgenda desde docs/planificacion/ESTADO-SESION.md»*.
 
 ## 0. Lo primero en la próxima sesión
 
-**Fase 2, parte 1: Mi lista con miles de juegos (17-11-2026), EN CURSO en la rama `lista-grande`** (subida; el árbol principal está en ella; sale de `main` en `affcf81`). Es lo previo a importar la biblioteca de Steam, que pidió el usuario («empieza por la parte 1»). El usuario cortó la sesión: queda lo de abajo.
-- **Hecho** (`2a409af`):
-  - desde 300 filas a la vista (`VIRTUAL_FROM`), cada sección pinta solo las cercanas a la pantalla, entre huecos `li.entry-list__gap` con el alto de las demás. Está en `apps/web/src/screens/my-list/SectionRows.tsx`, sin librería: todas las filas miden lo mismo (76 px), y TanStack sumaba 9 KB al JS inicial;
-  - la fila del foco no se desmonta; ↑/↓, Inicio, Fin, J y K van por `id` (`focusRow` y `wantFocus` en `MyListScreen`);
-  - el asa `::` congela las filas al arrastrar (`onLift` y `onSettle` en `drag-reorder.ts`);
-  - Mi lista publica su orden para J y K en la ficha (`publishListOrder` en `shortcuts/dom.ts`);
-  - además, `motionMs()` se guarda (antes forzaba un recálculo de estilos en cada cambio), y `useReleases` solo recalcula las candidatas y la vista.
-- **Medido con 5 000 juegos** (prueba temporal en `.cache/lista-grande/`; se copia a `apps/web/e2e/` y se corre con `N=5000 npx playwright test e2e/zz-lista-grande.spec.ts --project=chromium --trace off`):
-
-  | | Antes ×1 | Ahora ×1 | Antes ×4 | Ahora ×4 |
-  |---|---|---|---|---|
-  | Abrir Mi lista | 1 687 ms | 154 ms | 8 011 ms | 478 ms |
-  | «Empezar» (`ui:feedback`) | 962 ms | 35 ms | 2 425 ms | 131 ms |
-  | Filtrar «99» | 779 ms | 179 ms | 3 095 ms | 428 ms |
-
-  De 3 798 filas y 180 000 nodos se pasa a 22 filas y 1 217 nodos. `check` en verde, JS inicial de 141,5 KB.
-- **Ojo al medir con Playwright y miles de filas:**
-  - `getByRole` recorre todo el árbol de accesibilidad, así que hay que usar selectores CSS;
-  - la traza (`trace: retain-on-failure`) hace una instantánea del DOM entero en cada acción: `--trace off`;
-  - `capture:palette-to-confirm` cuenta desde que se abre la paleta (incluye teclear); la respuesta es `ui:feedback`.
-- **Ojo (React):** la *ref* de un elemento del padre se asigna después de los efectos de los hijos. Por eso el `<ol>` va dentro de `WindowRows`: si no, el efecto que escucha el desplazamiento la ve vacía.
-- **Falta, por orden:**
-  1. pasar los E2E enteros (Chromium y WebKit), que **no se han pasado** tras el cambio;
-  2. pruebas nuevas:
-     - unitaria de `visibleRange`;
-     - E2E con unas 600 entradas: pocas filas en el DOM, desplazarse pinta las nuevas, Inicio y Fin con foco, cambiar un estado, filtrar por debajo de 300, axe, J y K en la ficha, y el asa `::`;
-  3. `npm run perf`: las 500 entradas de la parte 2 ya van virtualizadas, así que hay que comparar con los presupuestos;
-  4. comprobar el móvil (WebKit): el alto de la fila con «Estado debajo»;
-  5. **importar por lotes,** la otra mitad de la parte 1. Importar 5 000 juegos deja tareas largas de 1 a 1,6 s (`data-actions.ts`), y la importación de Steam aplicará cientos de cambios de golpe;
-  6. si hace falta, lo que aún recorre toda la agenda en cada cambio: `SidebarLibrary` (≈6 ms con 5 000 sin minificar) y las uniones de `appid` en `useReleases`;
-  7. documentación:
-     - DECISIONES §10.48, que `SectionRows.tsx` ya cita;
-     - la §9 del plan (Mi lista) y `prototipe.md` montado;
-     - el CHANGELOG;
-     - la medida en `docs/medidas/`;
-  8. con el visto bueno del usuario, pasarlo a `main`. Después vienen las partes 2 a 4 de la importación de Steam: OpenID y la ruta en la micro-API, la pantalla de revisar y aplicar, y los logros. Para la 2, el usuario tiene que poner la clave como secreto del Worker (`! npx wrangler secret put STEAM_API_KEY -c apps/web/wrangler.jsonc`).
+**Fase 2, parte 1: Mi lista con miles de juegos (16 y 17-11-2026), HECHA en la rama `lista-grande`, a falta del visto bueno del usuario para pasarla a `main`** (sale de `main` en `affcf81`; el árbol principal está en ella). Es lo previo a importar la biblioteca de Steam, que pidió el usuario («empieza por la parte 1»). El detalle, en DECISIONES §10.48 y en `docs/medidas/lista-grande-20261117.md`.
+- **Mi lista virtual** (`2a409af`): desde 300 filas a la vista (`VIRTUAL_FROM`), cada sección pinta solo las cercanas a la pantalla, entre huecos `li.entry-list__gap` con el alto de las demás (`SectionRows.tsx`, sin librería). La fila del foco no se desmonta; ↑/↓, Inicio, Fin, J y K van por `id`; el asa `::` congela las filas al arrastrar; y Mi lista publica su orden para J y K en la ficha (`publishListOrder`). Con 5 000 juegos y CPU ×4: abrir Mi lista, de 8,0 s a 0,48 s; «Empezar», de 2,4 s a 0,13 s; filtrar, de 3,1 s a 0,43 s.
+- **Pruebas** (`8beb84a`): la unitaria de `visibleRange` (con una propiedad de fast-check) y `e2e/list-large.spec.ts`, con 600 juegos en Chromium y WebKit, también el alto de la fila en el móvil con «Estado debajo». Pasa 6 de 6, y con J y K rotos a propósito falla donde debe. Guarda los juegos directamente en IndexedDB (`putEntries`, en `e2e/storage.ts`).
+- **Importar por lotes** (`21558f0`): la copia JSON, en lotes de 250 (`IMPORT_BATCH`, `importBatches` en `data-actions.ts`), cediendo el turno entre uno y otro (`yieldToMain`, que pasa a `lib/yield.ts`). Cada lote se fusiona y se aplica seguido, así que lo que se apunte entretanto no se pisa (con su prueba). Con 5 000 juegos, la tarea más larga pasa de 1 192 a ≈80 ms (×1) y de 5 112 a ≈400 ms (×4); el total, de 4,2 a 5,0 s (×1). El CSV sigue de una vez.
+- **Comprobado:**
+  - `check` en verde: 1 291 pruebas y JS inicial de 141,3 KB;
+  - la batería E2E entera (antes de los lotes): 239 en verde, 37 omitidas y 2 en rojo, las dos de portadas del Catálogo. `covers.spec.ts:123` falla en WebKit con carga **también con el código de `main`** (3 de 4 en los dos casos), y `covers.spec.ts:104` (Chromium) pasó al repetirla. Tras los lotes, los E2E de datos, sincronización y la lista grande, 50 en verde;
+  - `npm run perf`, dos pasadas de la rama y dos de `main`: todo dentro de presupuesto salvo «tareas largas al teclear o apuntar», que también falla en `main` (1 y 2 tareas, frente a 3 y 3; ver §10.48 y la medida). Mi lista visible tras reiniciar, de 640–701 a 258–297 ms.
+- **Hallazgos:**
+  - en el WebKit de Playwright para Windows, cada petición a IndexedDB tarda ≈15 ms: importar 600 juegos lleva 155 s (también en `main`). No afecta al iPhone ni a la app de escritorio;
+  - cada juego importado deja **15 operaciones en la `outbox`**, una por campo: 5 000 juegos serían 75 000 operaciones y 375 peticiones de `sync`. **Hay que decidirlo en la parte 3** de la importación de Steam;
+  - las tareas largas de la paleta (borrar las opciones anteriores con cada tecla y maquetar sus textos) son la causa de casi todas las de `perf`. Abaratarlas es una mejora aparte.
+- **Ojo al medir con Playwright y miles de filas:** `getByRole` recorre todo el árbol de accesibilidad (selectores CSS); la traza (`retain-on-failure`) fotografía el DOM en cada acción (`--trace off`); y entregar un fichero de 5 MB con `setInputFiles` deja un fotograma de ≈400 ms sin *scripts* que no es de la app. Las pruebas temporales están en `.cache/lista-grande/` (se copian a `apps/web/e2e/`).
+- **Ojo (React):** la *ref* de un elemento del padre se asigna después de los efectos de los hijos. Por eso el `<ol>` va dentro de `WindowRows`.
+- **Queda:**
+  1. el visto bueno del usuario para pasar la rama a `main` (avance rápido) y desplegar;
+  2. opcional: lo que aún recorre toda la agenda en cada cambio (`SidebarLibrary`, ≈6 ms con 5 000 sin minificar, y las uniones de `appid` en `useReleases`), y el CSV por lotes;
+  3. después, las partes 2 a 4 de la importación de Steam: OpenID y la ruta en la micro-API, la pantalla de revisar y aplicar, y los logros. Para la 2, el usuario tiene que poner la clave como secreto del Worker (`! npx wrangler secret put STEAM_API_KEY -c apps/web/wrangler.jsonc`).
 
 **M4 · Sincronización, en producción desde el 16-11-2026** (parte 5, con el visto bueno del usuario; DECISIONES §10.47 y ADR-011, «Despliegue»). `main` avanzó hasta la rama `m4-sincronizacion` (`426d0fa`), y las dos apuntan al mismo *commit*.
 - **Despliegue:** el primer `deploy-web` (43964492038) aplicó las migraciones 0001 y 0002 en D1 y desplegó, y el plan gratuito admite `ratelimits`. Salió en rojo solo por la comprobación del 404 de `/assets/` (abajo), que ya no se hace. El segundo (43965893460), en verde.
