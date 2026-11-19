@@ -130,6 +130,9 @@ export const OWNED_EMPTY_FIXTURE = webapiFixture('get-owned-games-empty.json');
 export const WISHLIST_FIXTURE = webapiFixture('get-wishlist.json');
 export const WISHLIST_PRIVATE_FIXTURE = webapiFixture('get-wishlist-private.json');
 
+/** El tope de `redeem` en las pruebas (en producción, `STEAM_IMPORT_MAX_BYTES`, 16 MiB). */
+export const TEST_IMPORT_MAX_BYTES = 1024 * 1024;
+
 /** Una clave inventada para las pruebas (32 cifras hexadecimales, como las de Steam). */
 export const TEST_STEAM_KEY = '0123456789ABCDEF0123456789ABCDEF';
 export const OWNED_API_PREFIX = 'https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?';
@@ -206,7 +209,10 @@ export class FakeSteamWebApi {
     }
     if (fail === 'garbage')
       return new Response(chunked('{"response":{"items":['), { headers: JSON_HEADERS });
-    if (fail === 'huge') return new Response(endless(17 * 1024 * 1024), { headers: JSON_HEADERS });
+    // El doble del tope de las pruebas: también pasa del de la lista de deseados (1 MiB).
+    if (fail === 'huge') {
+      return new Response(endless(2 * TEST_IMPORT_MAX_BYTES), { headers: JSON_HEADERS });
+    }
     return new Response(chunked(owned ? this.owned : this.wishlist), { headers: JSON_HEADERS });
   }
 }

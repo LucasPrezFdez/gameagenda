@@ -105,6 +105,32 @@
   border-top: 1px solid var(--line);
 }
 
+/* «Importar desde Steam» (Fase 2; ADR-012), entre importar y el catálogo. */
+.settings__steam {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.settings__steam-status:empty {
+  display: none;
+}
+
+/* El botón oficial de Steam, tal cual (sus colores son los suyos), con el tamaño mínimo de objetivo
+   (`--target`) y el anillo de foco de siempre. */
+.settings__steam-signin {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target);
+  border-radius: var(--radius-sm);
+}
+
+.settings__steam-signin img {
+  display: block;
+}
+
 .settings__subtitle {
   color: var(--text);
   font-size: 1rem;

@@ -46,6 +46,9 @@ export default defineConfig(({ mode }) => ({
       injectRegister: false,
       injectManifest: {
         globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'],
+        // El botón oficial de Steam (`public/steam/`): sin red no se puede importar, y en producción
+        // la importación está apagada (`__STEAM_IMPORT__`).
+        globIgnores: ['steam/**'],
         // Sin `import` en el Service Worker: así vale también donde no hay módulos en SW.
         rollupFormat: 'iife',
       },
@@ -94,6 +97,12 @@ export default defineConfig(({ mode }) => ({
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
     __APP_SHA__: JSON.stringify(gitSha()),
+    // «Importar desde Steam» (Fase 2; ADR-012): en desarrollo y en los E2E, sí; en producción, no
+    // hasta la parte 3, salvo con `VITE_STEAM_IMPORT=1` al construir (la prueba a mano con el
+    // túnel). Como constante, en producción desaparece todo lo de la importación del *build*.
+    __STEAM_IMPORT__: JSON.stringify(
+      mode !== 'production' || process.env.VITE_STEAM_IMPORT === '1',
+    ),
   },
   // Solo la interfaz local: evita el aviso del cortafuegos de Windows (ver §13.3).
   server: { host: '127.0.0.1', port: 5173, strictPort: true },

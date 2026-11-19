@@ -24,6 +24,10 @@ import { SyncError } from '../../sync/types.ts';
 import { PerformancePanel } from './PerformancePanel.tsx';
 // En el *chunk* de Ajustes, sin Zod. Como *chunk* propio, Rolldown partía el JS inicial en cuatro
 // (React, `es.ts` y el reloj, compartidos con él) y lo subía unos 4 KB con brotli.
+// «Importar desde Steam» (Fase 2; ADR-012), en este *chunk*: como *chunk* propio, anidado en
+// este, Rolldown partía el JS inicial (con la importación activada, 142,7 KB). Con
+// `__STEAM_IMPORT__` a `false` (producción, hasta la parte 3) desaparece del *build*.
+import { SteamImport } from './SteamImport.tsx';
 import { SyncPanel } from './SyncPanel.tsx';
 import { deleteServerErrorText } from './sync-model.ts';
 import './settings.css';
@@ -303,6 +307,8 @@ function Data() {
           </>
         )}
       </div>
+
+      {__STEAM_IMPORT__ && <SteamImport />}
 
       <CatalogAge />
 

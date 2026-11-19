@@ -36,6 +36,20 @@
 //   todos los mundos, como Steam, porque la app pide `resolve` sin cookies (tampoco la del mundo):
 //   cada prueba usa sus propios `appid`. `GET /__e2e/steam?appid=<n>` dice cuántas veces se ha
 //   preguntado por ese `appid`.
+//
+// Importar desde Steam (ADR-012): la app pide `/api/v1/steam/*` sin cookies, y la vuelta de Steam
+// es una navegación que sí las lleva. Para que las dos lleguen a la misma D1 (en producción hay una),
+// `/api/v1/steam/*` y `/__e2e/steam/*` van a un mundo propio de Steam por conexión: `steam-http`
+// (Chromium, por la vista previa) y `steam-https` (WebKit, por el espejo HTTPS). Así un proyecto no
+// apaga ni corta la importación del otro, que corre a la vez. Las rutas de apoyo:
+// - `POST /__e2e/steam/assertion` con `{ returnTo, steamId? }`: la vuelta de Steam firmada por el
+//   Steam falso (`{ query }`, lo que va detrás de `returnTo`), como si se hubiera iniciado sesión;
+// - `POST /__e2e/steam/library` con `{ steamId, owned?, wishlist? }`: lo que devuelven
+//   `GetOwnedGames` y `GetWishlist` para esa cuenta (cuerpos JSON; `wishlist: null`, que falle);
+//   sin nada, las *fixtures* de `fixtures/steam/webapi/`;
+// - `POST /__e2e/steam/expire` con `{ ticket }`: caduca ese ticket ya;
+// - `POST /__e2e/steam/config` con `{ steamEnabled }`, y `POST /__e2e/steam/hold` y
+//   `/__e2e/steam/release`, como los de siempre, sobre ese mundo de Steam.
 
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { SQLInputValue } from 'node:sqlite';
@@ -44,10 +58,20 @@ import { DEFAULT_MIN_AGE } from '@gameagenda/core/api';
 import type { Entry } from '@gameagenda/core/entries';
 import { E2E_API_COOKIE, E2E_ROUTES_PREFIX } from './e2e-api-plugin.ts';
 import { createApp } from './worker/app.ts';
+import { sha256Hex } from './worker/crypto.ts';
 import type { Env, RateLimit, SteamFetch } from './worker/env.ts';
 import { runMaintenance } from './worker/maintenance.ts';
+import { STEAM_OPENID } from './worker/steam-openid.ts';
 import { counterOpIds, entriesFromRows, type OpRow } from './worker/sync-plan.ts';
 import { SqliteD1 } from './worker/test/d1-sqlite.ts';
+import {
+  FakeSteamOpenId,
+  OWNED_API_PREFIX,
+  OWNED_FIXTURE,
+  TEST_STEAM_KEY,
+  WISHLIST_API_PREFIX,
+  WISHLIST_FIXTURE,
+} from './worker/test/steam-support.ts';
 
 const API_PREFIX = '/api/';
 const DEFAULT_WORLD = 'default';
@@ -102,8 +126,35 @@ const worlds = new Map<string, World>();
 /** El Steam falso de `resolve`, uno para todos los mundos (`POST /__e2e/steam`). */
 const steam = { names: new Map<number, string>(), calls: new Map<number, number>() };
 
+/** La importación de Steam: el OpenID falso y lo que devuelve la Web API para cada cuenta. */
+const steamAccounts = {
+  openid: new FakeSteamOpenId(),
+  libraries: new Map<string, { owned: string; wishlist: string | null }>(),
+};
+
+const STEAM_JSON = { 'Content-Type': 'application/json; charset=utf-8' };
+
+/** `GetOwnedGames` y `GetWishlist` falsos: lo de `POST /__e2e/steam/library`, o las *fixtures*. */
+function fakeWebApi(url: string): Response {
+  const steamId = new URL(url).searchParams.get('steamid') ?? '';
+  const library = steamAccounts.libraries.get(steamId) ?? {
+    owned: OWNED_FIXTURE,
+    wishlist: WISHLIST_FIXTURE,
+  };
+  if (url.startsWith(OWNED_API_PREFIX)) return new Response(library.owned, { headers: STEAM_JSON });
+  return library.wishlist === null
+    ? new Response('Internal Server Error', { status: 500 })
+    : new Response(library.wishlist, { headers: STEAM_JSON });
+}
+
 /** `GetItems` falso: lo que haya en `steam.names`; si no, «no lo conoce» (`success` 15). */
-const fakeSteam: SteamFetch = async (url) => {
+const fakeSteam: SteamFetch = async (url, init) => {
+  if (url === STEAM_OPENID && init.method === 'POST') {
+    return steamAccounts.openid.check(new URLSearchParams(String(init.body)));
+  }
+  if (url.startsWith(OWNED_API_PREFIX) || url.startsWith(WISHLIST_API_PREFIX)) {
+    return fakeWebApi(url);
+  }
   const input = JSON.parse(new URL(url).searchParams.get('input_json') ?? '{}') as {
     ids?: Array<{ appid?: number }>;
   };
@@ -136,6 +187,7 @@ function world(id: string): World {
       SYNC_ENABLED: '1',
       MIN_AGE: String(DEFAULT_MIN_AGE),
       STEAM_ENABLED: '1',
+      STEAM_WEB_API_KEY: TEST_STEAM_KEY,
     },
     app: createApp({ now: () => Date.now() + created.offsetMs, steamFetch: fakeSteam }),
     offsetMs: 0,
@@ -374,7 +426,9 @@ function restoreSnapshot(w: World, newEpoch: boolean): void {
 
 async function e2eRoute(req: IncomingMessage, res: ServerResponse, w: World): Promise<void> {
   const url = new URL(req.url ?? '/', 'http://127.0.0.1');
-  const route = `${req.method ?? 'GET'} ${url.pathname}`;
+  // `/__e2e/steam/hold`, `/release` y `/config`: los de siempre, sobre el mundo de Steam.
+  const pathname = url.pathname.replace(/^\/__e2e\/steam\/(hold|release|config)$/, '/__e2e/$1');
+  const route = `${req.method ?? 'GET'} ${pathname}`;
   switch (route) {
     case 'GET /__e2e/state':
       return sendJson(res, 200, state(w));
@@ -394,6 +448,10 @@ async function e2eRoute(req: IncomingMessage, res: ServerResponse, w: World): Pr
       }
       const minAge = finiteNumber(body.minAge, 'minAge');
       if (minAge !== undefined) w.env.MIN_AGE = String(minAge);
+      if (body.steamEnabled !== undefined) {
+        if (typeof body.steamEnabled !== 'boolean') throw new TypeError('steamEnabled: booleano');
+        w.env.STEAM_ENABLED = body.steamEnabled ? '1' : '0';
+      }
       return sendJson(res, 200, state(w));
     }
     case 'POST /__e2e/maintenance': {
@@ -448,6 +506,38 @@ async function e2eRoute(req: IncomingMessage, res: ServerResponse, w: World): Pr
       }
       return sendJson(res, 200, { ok: true });
     }
+    case 'POST /__e2e/steam/assertion': {
+      const body = await readJson(req);
+      if (typeof body.returnTo !== 'string') throw new TypeError('returnTo: la vuelta de start');
+      const steamId = typeof body.steamId === 'string' ? body.steamId : undefined;
+      const assertion = steamAccounts.openid.assertion(
+        body.returnTo,
+        steamId === undefined ? {} : { steamId },
+      );
+      return sendJson(res, 200, { query: assertion.toString() });
+    }
+    case 'POST /__e2e/steam/library': {
+      const body = await readJson(req);
+      if (typeof body.steamId !== 'string') throw new TypeError('steamId: SteamID64');
+      const owned = body.owned === undefined ? OWNED_FIXTURE : JSON.stringify(body.owned);
+      const wishlist =
+        body.wishlist === undefined
+          ? WISHLIST_FIXTURE
+          : body.wishlist === null
+            ? null
+            : JSON.stringify(body.wishlist);
+      steamAccounts.libraries.set(body.steamId, { owned, wishlist });
+      return sendJson(res, 200, { ok: true });
+    }
+    case 'POST /__e2e/steam/expire': {
+      const body = await readJson(req);
+      if (typeof body.ticket !== 'string') throw new TypeError('ticket: el de start');
+      await w.db
+        .prepare('UPDATE steam_ticket SET expires_at = ?1 WHERE ticket_hash = ?2')
+        .bind('2000-01-01T00:00:00.000Z', await sha256Hex(body.ticket))
+        .run();
+      return sendJson(res, 200, { ok: true });
+    }
     case 'GET /__e2e/steam':
       return sendJson(res, 200, {
         calls: steam.calls.get(Number(url.searchParams.get('appid'))) ?? 0,
@@ -476,7 +566,10 @@ export function e2eApiMiddleware(): (
     const isApi = path.startsWith(API_PREFIX);
     if (!isApi && !path.startsWith(E2E_ROUTES_PREFIX)) return next();
     const { world: id, cookie } = splitWorldCookie(req.headers.cookie);
-    const w = world(id);
+    // La importación de Steam, en el mundo de Steam de su conexión (ver arriba).
+    const steam = path.startsWith('/api/v1/steam/') || path.startsWith('/__e2e/steam/');
+    const secure = (req.socket as TLSSocket).encrypted === true;
+    const w = world(steam ? `steam-${secure ? 'https' : 'http'}` : id);
     const hold = isApi && w.hold?.pattern.test(path) === true ? w.hold : null;
     if (hold?.mode === 'fail') {
       res.destroy();
