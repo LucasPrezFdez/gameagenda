@@ -109,7 +109,10 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
   const href = url.origin + url.pathname;
   if (request.mode === 'navigate') {
-    // SPA: cualquier ruta de la app se sirve con el `index.html` precacheado.
+    // La micro-API, a la red: la vuelta del login de Steam (`/api/v1/steam/callback`, ADR-012) es
+    // una navegación, y con el `index.html` el usuario vería la app en vez de «Listo».
+    if (url.pathname.startsWith('/api/')) return;
+    // SPA: cualquier otra ruta de la app se sirve con el `index.html` precacheado.
     event.respondWith(fromCache(urls.has(href) && href !== shellUrl ? href : shellUrl, request));
     return;
   }
