@@ -11,6 +11,7 @@ import {
   FakeSteamOpenId,
   FakeSteamWebApi,
   OWNED_API_PREFIX,
+  TEST_IMPORT_MAX_BYTES,
   TEST_STEAM_KEY,
   WISHLIST_API_PREFIX,
 } from './steam-support.ts';
@@ -232,6 +233,8 @@ export function createHarness(overrides: Partial<Env> = {}, options: HarnessOpti
     steamFetch: steam.fetch,
     ...(options.pageSize === undefined ? {} : { pageSize: options.pageSize }),
     ...(options.steamDailyCalls === undefined ? {} : { steamDailyCalls: options.steamDailyCalls }),
+    // Con 16 MiB, cada prueba del tope movería 17 MiB: con 1 MiB, la Web API falsa manda 2.
+    steamImportMaxBytes: TEST_IMPORT_MAX_BYTES,
   });
   let nextIp = 1;
   const harness: Harness = {

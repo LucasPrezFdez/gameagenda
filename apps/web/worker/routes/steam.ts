@@ -174,7 +174,12 @@ export function steamRoutes(api: Hono<AppEnv>, deps: Deps): void {
         : c.json({ status: 'pending' }, 202);
     }
     if (!(await spendSteamCalls(db, deps.now(), 2, dailyCalls))) return apiError(c, 'steam_busy');
-    const library = await fetchLibrary(redeemed.steam_id, key, steamFetch);
+    const library = await fetchLibrary(
+      redeemed.steam_id,
+      key,
+      steamFetch,
+      deps.steamImportMaxBytes,
+    );
     if (!library.ok) {
       // Sin nada de la cuenta: solo el código de Steam, para ver si la clave ya no vale (401 o 403).
       if (library.status === 401 || library.status === 403) {

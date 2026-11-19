@@ -1,7 +1,11 @@
 // `POST /api/v1/steam/redeem` (Fase 2, parte 2; §10.2 y §10.3 de prototipe.md; ADR-012): el canje
 // tipo PKCE del ticket y la biblioteca y la lista de deseados, tal cual las da Steam.
 
-import { STEAM_TICKET_TTL_MS, steamImportResponseSchema } from '@gameagenda/core/api';
+import {
+  STEAM_IMPORT_MAX_BYTES,
+  STEAM_TICKET_TTL_MS,
+  steamImportResponseSchema,
+} from '@gameagenda/core/api';
 import { describe, expect, it, vi } from 'vitest';
 import { ownedGamesUrl, wishlistUrl } from '../steam-library.ts';
 import { STEAM_OPENID } from '../steam-openid.ts';
@@ -15,6 +19,7 @@ import {
   pkce,
   STEAM_ID,
   steamIdOf,
+  TEST_IMPORT_MAX_BYTES,
   TEST_STEAM_KEY,
   WISHLIST_FIXTURE,
   WISHLIST_PRIVATE_FIXTURE,
@@ -285,16 +290,21 @@ describe('si Steam falla', () => {
     });
   }
 
-  it('una biblioteca de más de 16 MiB corta la respuesta (la app la ve rota)', async () => {
+  it('una biblioteca que pasa del tope corta la respuesta (la app la ve rota)', async () => {
     const h = createHarness();
     const pc = h.client();
     h.steam.webapi.ownedFail = 'huge';
     const { ticket, verifier } = await loggedIn(h, pc);
-    // Sin `rejects`: si llegara entera, Vitest intentaría pintar 17 MiB en el fallo y se colgaría.
+    // Sin `rejects`: si llegara entera, Vitest intentaría pintarla en el fallo y se colgaría.
     const outcome = await redeem(pc, ticket, verifier).then(
       () => 'llega entera',
       () => 'cortada',
     );
     expect(outcome).toBe('cortada');
   });
+});
+
+it('en producción, el tope es de 16 MiB (las pruebas lo bajan a 1 MiB)', () => {
+  expect(STEAM_IMPORT_MAX_BYTES).toBe(16 * 1024 * 1024);
+  expect(TEST_IMPORT_MAX_BYTES).toBeLessThan(STEAM_IMPORT_MAX_BYTES);
 });

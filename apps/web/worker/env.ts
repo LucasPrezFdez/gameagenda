@@ -100,6 +100,8 @@ export interface Deps {
   pageSize?: number;
   /** Tope diario de llamadas a Steam (`STEAM_DAILY_CALLS`); las pruebas lo bajan. */
   steamDailyCalls?: number;
+  /** Tope de lo que pasa `redeem` (`STEAM_IMPORT_MAX_BYTES`); las pruebas lo bajan a 1 MiB. */
+  steamImportMaxBytes?: number;
 }
 
 /** Tipos de Hono para la app: `c.env` y `c.var`. */

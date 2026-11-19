@@ -67,12 +67,13 @@ export type LibraryResult =
 /**
  * Pide a la vez la biblioteca (con la clave en `x-webapi-key`, nunca en la URL) y la lista de
  * deseados (sin clave), y devuelve el cuerpo de la respuesta, que se escribe mientras llega la
- * biblioteca. Si pasa de `STEAM_IMPORT_MAX_BYTES`, el *stream* se corta con un error.
+ * biblioteca. Si pasa de `maxBytes` (`STEAM_IMPORT_MAX_BYTES`), el *stream* se corta con un error.
  */
 export async function fetchLibrary(
   steamId: string,
   key: string,
   fetch: SteamFetch,
+  maxBytes = STEAM_IMPORT_MAX_BYTES,
 ): Promise<LibraryResult> {
   const wishlist = fetchWishlist(steamId, fetch);
   let owned: Response;
@@ -92,13 +93,14 @@ export async function fetchLibrary(
       status: owned.status,
     };
   }
-  return { ok: true, body: importStream(owned.body, wishlist) };
+  return { ok: true, body: importStream(owned.body, wishlist, maxBytes) };
 }
 
 /** `{"owned":` + la biblioteca tal cual + `,"wishlist":` + los deseados (o `null`) + `}`. */
 function importStream(
   owned: ReadableStream<Uint8Array>,
   wishlist: Promise<Uint8Array | null>,
+  maxBytes: number,
 ): ReadableStream<Uint8Array> {
   const encoder = new TextEncoder();
   const reader = owned.getReader();
@@ -114,7 +116,7 @@ function importStream(
       const { done, value } = await reader.read();
       if (!done) {
         size += value.byteLength;
-        if (size > STEAM_IMPORT_MAX_BYTES) {
+        if (size > maxBytes) {
           await reader.cancel();
           controller.error(new Error('steam_import_too_large'));
           return;
