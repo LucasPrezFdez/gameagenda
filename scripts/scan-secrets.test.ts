@@ -58,6 +58,18 @@ describe('búsqueda de la clave de Steam en el build (CA0.4)', () => {
     expect(scanDir(build({ 'index.html': '<p>GameAgenda</p>' }), FAKE_HASH)).toEqual([]);
   });
 
+  it('en el bundle del Worker (names: false), solo la clave: los nombres sí pueden ir', () => {
+    const worker = 'headers: { "x-webapi-key": env.STEAM_WEB_API_KEY }';
+    expect(scanText(worker, FAKE_HASH, { names: false })).toEqual([]);
+    expect(scanText(`${worker}; const k = "${FAKE_KEY}";`, FAKE_HASH, { names: false })).toEqual([
+      'la clave de Steam (coincide con STEAM_KEY_SHA256)',
+    ]);
+    const dir = build({ 'index.js': `${worker}\n// ${FAKE_KEY}` });
+    expect(scanDir(dir, FAKE_HASH, { names: false })).toEqual([
+      { file: 'index.js', what: 'la clave de Steam (coincide con STEAM_KEY_SHA256)' },
+    ]);
+  });
+
   it('STEAM_KEY_SHA256 tiene que ser un SHA-256 en hexadecimal', () => {
     expect(keyHashFromEnv(undefined)).toBeNull();
     expect(keyHashFromEnv('  ')).toBeNull();

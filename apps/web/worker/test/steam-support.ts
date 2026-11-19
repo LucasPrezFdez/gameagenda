@@ -210,3 +210,41 @@ export class FakeSteamWebApi {
     return new Response(chunked(owned ? this.owned : this.wishlist), { headers: JSON_HEADERS });
   }
 }
+
+/**
+ * Una biblioteca de `games` juegos como la de `GetOwnedGames` con `include_appinfo`, con los campos
+ * de `get-owned-games.json` (con 5 000, ≈1,7 MB). Siempre la misma para el mismo número.
+ */
+export function bigLibrary(games: number): string {
+  let seed = 42;
+  const random = () => {
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    return seed / 0x7fffffff;
+  };
+  const words = ['Shadow', 'Legends', 'of', 'the', 'Fallen', 'Kingdom', 'Ñandú', 'Racing'];
+  const list = [];
+  for (let i = 0; i < games; i++) {
+    const played = random() < 0.6;
+    const minutes = played ? Math.floor(random() * 20000) : 0;
+    const name = Array.from({ length: 2 + Math.floor(random() * 5) }, () => {
+      return words[Math.floor(random() * words.length)];
+    }).join(' ');
+    list.push({
+      appid: 10 + i * 37,
+      name,
+      playtime_forever: minutes,
+      img_icon_url: Math.floor(random() * 2 ** 52)
+        .toString(16)
+        .padStart(40, '0'),
+      has_community_visible_stats: random() < 0.7,
+      playtime_windows_forever: minutes,
+      playtime_mac_forever: 0,
+      playtime_linux_forever: 0,
+      playtime_deck_forever: 0,
+      rtime_last_played: played ? 1500000000 + Math.floor(random() * 290000000) : 0,
+      ...(random() < 0.3 ? { content_descriptorids: [2, 5] } : {}),
+      playtime_disconnected: 0,
+    });
+  }
+  return JSON.stringify({ response: { game_count: games, games: list } });
+}

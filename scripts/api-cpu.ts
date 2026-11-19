@@ -24,14 +24,24 @@ import {
   createAgenda,
   createHarness,
   type Harness,
+  ORIGIN,
   T0,
 } from '../apps/web/worker/test/harness.ts';
+import {
+  begin,
+  bigLibrary,
+  callback,
+  chunked,
+  pkce,
+} from '../apps/web/worker/test/steam-support.ts';
 import { addOps, hlc } from '../apps/web/worker/test/sync-support.ts';
 
 /** El criterio CA4.6, en ms. */
 const BUDGET_MS = 5;
 const WARMUP = 30;
 const RUNS = 300;
+/** La biblioteca de `redeem` (ADR-012): con 5 000 juegos, ≈1,7 MB. */
+const STEAM_GAMES = 5000;
 
 /** La D1 de las pruebas, contando el tiempo que pasa dentro (no es CPU del Worker). */
 class TimedD1 extends SqliteD1 {
@@ -61,6 +71,8 @@ interface Scenario {
   readonly what: string;
   /** Prepara los datos (sin medir) y devuelve la petición que se mide. */
   setup(h: Harness): Promise<() => Promise<number>>;
+  /** Presupuesto del p99, en ms; por defecto, el de CA4.6. */
+  readonly budgetMs?: number;
 }
 
 let appidSeq = 1_000_000;
@@ -190,6 +202,46 @@ const SCENARIOS: Scenario[] = [
     },
   },
   {
+    name: 'steam-start',
+    what: 'Importar desde Steam: empezar (`start`)',
+    async setup(h) {
+      const { challenge } = await pkce();
+      return async () => (await h.client().post('/api/v1/steam/start', { challenge })).status;
+    },
+  },
+  {
+    name: 'steam-callback',
+    what: 'La vuelta de Steam (`callback`, con `check_authentication` falso, sin esperar)',
+    async setup(h) {
+      const pc = h.client();
+      const ready = await steamTickets(h, pc, false);
+      return async () => {
+        const next = ready.pop();
+        if (next === undefined) throw new Error('sin tickets');
+        return (await callback(pc, next.ticket, h.steam.openid.assertion(next.returnTo))).status;
+      };
+    },
+  },
+  {
+    name: 'steam-redeem',
+    // El del encargo de la parte 2 (ADR-012): el límite gratuito de Workers.
+    budgetMs: 10,
+    what: `El canje (\`redeem\`) con una biblioteca de ${STEAM_GAMES.toLocaleString('es-ES')} juegos, en *streaming*`,
+    async setup(h) {
+      h.steam.webapi.owned = bigLibrary(STEAM_GAMES);
+      const pc = h.client();
+      const ready = await steamTickets(h, pc, true);
+      return async () => {
+        const next = ready.pop();
+        if (next === undefined) throw new Error('sin tickets');
+        return readAll(h, pc, '/api/v1/steam/redeem', {
+          ticket: next.ticket,
+          verifier: next.verifier,
+        });
+      };
+    },
+  },
+  {
     name: 'resolve-hit',
     what: '`resolve` con el nombre en la caché',
     async setup(h) {
@@ -210,6 +262,64 @@ const SCENARIOS: Scenario[] = [
     },
   },
 ];
+
+/**
+ * Tickets para medir una vuelta de Steam o un canje cada vez, preparados antes (sin medir): con
+ * `loggedIn`, ya con su login.
+ */
+async function steamTickets(h: Harness, pc: Client, loggedIn: boolean) {
+  const ready = [];
+  for (let i = 0; i < WARMUP + RUNS + 5; i++) {
+    const started = await begin(pc);
+    if (loggedIn) await callback(pc, started.ticket, h.steam.openid.assertion(started.returnTo));
+    ready.push(started);
+  }
+  return ready;
+}
+
+/**
+ * Un POST que se lee entero sin descodificarlo ni parsearlo: eso lo hace la app, no el Worker. En
+ * la medida cuenta pasar los trozos por el Worker (y el Steam falso, que solo los reparte).
+ */
+async function readAll(h: Harness, pc: Client, path: string, body: unknown): Promise<number> {
+  const response = await h.app.request(
+    `${ORIGIN}${path}`,
+    {
+      method: 'POST',
+      headers: { 'CF-Connecting-IP': pc.ip, Origin: ORIGIN, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+    h.env,
+  );
+  const reader = response.body?.getReader();
+  let bytes = 0;
+  for (;;) {
+    const chunk = await reader?.read();
+    if (chunk === undefined || chunk.done) break;
+    bytes += chunk.value.byteLength;
+  }
+  if (response.status === 200 && bytes < 1_000_000) throw new Error(`biblioteca corta: ${bytes}`);
+  return response.status;
+}
+
+/**
+ * Referencia: lo que cuesta en Node que el Steam falso reparta la biblioteca en trozos y leerla,
+ * sin el Worker en medio. En `workerd`, la red y la respuesta son *streams* nativos.
+ */
+async function nodeStreamsBaseline(): Promise<number> {
+  const body = bigLibrary(STEAM_GAMES);
+  const samples: number[] = [];
+  for (let i = 0; i < WARMUP + RUNS; i++) {
+    const start = performance.now();
+    const reader = chunked(body).getReader();
+    while (!(await reader.read()).done) {}
+    if (i >= WARMUP) samples.push(performance.now() - start);
+  }
+  return percentile(
+    samples.sort((a, b) => a - b),
+    50,
+  );
+}
 
 function harness(): { h: Harness; db: TimedD1 } {
   const db = new TimedD1();
@@ -260,6 +370,7 @@ async function main(): Promise<void> {
   const self = fileURLToPath(import.meta.url);
   const rows: string[] = [];
   let worst = 0;
+  let over = false;
   for (const scenario of SCENARIOS) {
     const { h, db } = harness();
     const call = await scenario.setup(h);
@@ -272,7 +383,9 @@ async function main(): Promise<void> {
     );
     const p50 = percentile(samples, 50);
     const p99 = percentile(samples, 99);
-    worst = Math.max(worst, p99);
+    const budget = scenario.budgetMs ?? BUDGET_MS;
+    if (budget === BUDGET_MS) worst = Math.max(worst, p99);
+    if (p99 > budget) over = true;
     rows.push(
       `| ${scenario.what} | ${p50.toFixed(2)} | ${p99.toFixed(2)} | ${(samples.at(-1) ?? 0).toFixed(2)} | ${cold.toFixed(2)} |`,
     );
@@ -281,9 +394,13 @@ async function main(): Promise<void> {
   console.log('|---|---|---|---|---|');
   for (const row of rows) console.log(row);
   console.log(
-    `\nPeor p99: ${worst.toFixed(2)} ms (CA4.6: ≤${BUDGET_MS} ms). Node ${process.version}.`,
+    `\nPeor p99 de las demás rutas: ${worst.toFixed(2)} ms (CA4.6: ≤${BUDGET_MS} ms). Node ${process.version}.`,
   );
-  if (worst > BUDGET_MS) process.exitCode = 1;
+  const streams = await nodeStreamsBaseline();
+  console.log(
+    `El canje de Steam, ≤10 ms. Ojo: en él cuenta repartir y leer la biblioteca con los *streams* de Node (p50 de ${streams.toFixed(2)} ms sin pasar por el Worker), que en \`workerd\` son nativos.`,
+  );
+  if (over) process.exitCode = 1;
 }
 
 await main();

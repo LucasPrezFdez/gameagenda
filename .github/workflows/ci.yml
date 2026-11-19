@@ -42,6 +42,14 @@ jobs:
         run: node scripts/scan-secrets.ts apps/web/dist
         env:
           STEAM_KEY_SHA256: ${{ vars.STEAM_KEY_SHA256 }}
+      # El Worker usa la clave desde la Fase 2 (ADR-012), como secreto: su *bundle* puede llevar los
+      # nombres, pero nunca el valor.
+      - name: Búsqueda de la clave de Steam en el bundle del Worker
+        run: |
+          npx wrangler deploy --dry-run --outdir "$RUNNER_TEMP/worker-bundle" -c apps/web/wrangler.jsonc
+          node scripts/scan-secrets.ts --key-only "$RUNNER_TEMP/worker-bundle"
+        env:
+          STEAM_KEY_SHA256: ${{ vars.STEAM_KEY_SHA256 }}
 
   e2e:
     name: E2E (Chromium)

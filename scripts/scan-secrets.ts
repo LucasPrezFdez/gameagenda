@@ -4,7 +4,11 @@
 // *hash* de la clave, nunca la clave: así `ci.yml` no necesita el secreto. Sin ella solo se buscan
 // los dos nombres.
 //
-// Uso: node scripts/scan-secrets.ts [carpeta]  (por defecto, apps/web/dist).
+// Con `--key-only`, solo la clave (por su *hash*), sin los nombres: es para el *bundle* del Worker
+// (`wrangler deploy --dry-run --outdir`), que sí usa `x-webapi-key` y `STEAM_WEB_API_KEY` desde la
+// Fase 2 (la importación de Steam, ADR-012) y nunca debe llevar el valor.
+//
+// Uso: node scripts/scan-secrets.ts [--key-only] [carpeta]  (por defecto, apps/web/dist).
 import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
@@ -27,11 +31,20 @@ export interface Finding {
 
 const sha256 = (text: string): string => createHash('sha256').update(text).digest('hex');
 
+export interface ScanOptions {
+  /** Buscar también los nombres (por defecto, sí; no en el *bundle* del Worker). */
+  readonly names?: boolean;
+}
+
 /** Lo prohibido que contiene `text`: los nombres y, con `keySha256`, la clave. */
-export function scanText(text: string, keySha256: string | null): string[] {
+export function scanText(
+  text: string,
+  keySha256: string | null,
+  { names = true }: ScanOptions = {},
+): string[] {
   const found: string[] = [];
   const lower = text.toLowerCase();
-  for (const name of FORBIDDEN) if (lower.includes(name.toLowerCase())) found.push(name);
+  if (names) for (const name of FORBIDDEN) if (lower.includes(name.toLowerCase())) found.push(name);
   if (keySha256 !== null) {
     for (const match of text.matchAll(RE_WORD)) {
       // También en minúsculas: el *hash* es el de la clave tal como la da Steam, en mayúsculas.
@@ -45,14 +58,18 @@ export function scanText(text: string, keySha256: string | null): string[] {
 }
 
 /** Recorre `dir` entero. Los ficheros se leen como `latin1`: la clave y los nombres son ASCII. */
-export function scanDir(dir: string, keySha256: string | null): Finding[] {
+export function scanDir(
+  dir: string,
+  keySha256: string | null,
+  options: ScanOptions = {},
+): Finding[] {
   const findings: Finding[] = [];
   const walk = (current: string): void => {
     for (const name of readdirSync(current).sort()) {
       const path = join(current, name);
       if (statSync(path).isDirectory()) walk(path);
       else {
-        for (const what of scanText(readFileSync(path, 'latin1'), keySha256)) {
+        for (const what of scanText(readFileSync(path, 'latin1'), keySha256, options)) {
           findings.push({ file: relative(dir, path), what });
         }
       }
@@ -72,10 +89,20 @@ export function keyHashFromEnv(value: string | undefined): string | null {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const root = fileURLToPath(new URL('..', import.meta.url));
-  const dir = process.argv[2] ?? join(root, 'apps/web/dist');
+  const args = process.argv.slice(2);
+  const keyOnly = args.includes('--key-only');
+  const dir = args.find((a) => !a.startsWith('--')) ?? join(root, 'apps/web/dist');
   const keySha256 = keyHashFromEnv(process.env.STEAM_KEY_SHA256);
-  const findings = scanDir(dir, keySha256);
-  const scope = keySha256 ? 'nombres y clave' : 'solo los nombres, falta STEAM_KEY_SHA256';
+  if (keyOnly && keySha256 === null) {
+    console.log(`✓ Sin STEAM_KEY_SHA256 no hay clave que buscar en ${dir}.`);
+    process.exit(0);
+  }
+  const findings = scanDir(dir, keySha256, { names: !keyOnly });
+  const scope = keyOnly
+    ? 'solo la clave'
+    : keySha256
+      ? 'nombres y clave'
+      : 'solo los nombres, falta STEAM_KEY_SHA256';
   if (findings.length > 0) {
     for (const f of findings) console.error(`✗ ${f.file}: ${f.what}`);
     console.error(`La carpeta ${dir} contiene secretos de Steam: no se puede publicar.`);
