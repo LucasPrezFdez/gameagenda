@@ -7,7 +7,13 @@ import { createApp } from '../app.ts';
 import type { Env, RateLimit, SteamFetch } from '../env.ts';
 import { STEAM_OPENID } from '../steam-openid.ts';
 import { SqliteD1 } from './d1-sqlite.ts';
-import { FakeSteamOpenId } from './steam-support.ts';
+import {
+  FakeSteamOpenId,
+  FakeSteamWebApi,
+  OWNED_API_PREFIX,
+  TEST_STEAM_KEY,
+  WISHLIST_API_PREFIX,
+} from './steam-support.ts';
 
 export const ORIGIN = 'https://ga-web.test';
 /** 06-11-2026 12:00 UTC. */
@@ -113,7 +119,8 @@ export class Client {
  * Steam falso. Para `resolve`, `GetItems` de un juego, con los nombres de `names` (en España) y
  * `blockedInEs` (bloqueados en España, con su nombre en EE. UU.). `fail` hace que la llamada
  * falle (`'network'`, `'status'` o `'garbage'`). Para el login de la importación de Steam,
- * `check_authentication` (`openid`). Guarda las URL que le piden, todas.
+ * `check_authentication` (`openid`), y `GetOwnedGames` y `GetWishlist` (`webapi`). Guarda las URL
+ * que le piden, todas.
  */
 export class FakeSteam {
   readonly names = new Map<number, string>();
@@ -121,11 +128,15 @@ export class FakeSteam {
   readonly calls: string[] = [];
   fail: 'network' | 'status' | 'garbage' | 'huge' | null = null;
   readonly openid = new FakeSteamOpenId();
+  readonly webapi = new FakeSteamWebApi();
 
   readonly fetch: SteamFetch = async (url, init) => {
     this.calls.push(url);
     if (url === STEAM_OPENID && init.method === 'POST') {
       return this.openid.check(new URLSearchParams(String(init.body)));
+    }
+    if (url.startsWith(OWNED_API_PREFIX) || url.startsWith(WISHLIST_API_PREFIX)) {
+      return this.webapi.fetch(url, init);
     }
     if (!url.startsWith('https://api.steampowered.com/IStoreBrowseService/GetItems/v1/?')) {
       return new Response('Not Found', { status: 404 });
@@ -207,6 +218,7 @@ export function createHarness(overrides: Partial<Env> = {}, options: HarnessOpti
     RL_RESOLVE: limits.resolve,
     SYNC_ENABLED: '1',
     MIN_AGE: String(DEFAULT_MIN_AGE),
+    STEAM_WEB_API_KEY: TEST_STEAM_KEY,
     ...overrides,
   };
   const app = createApp({

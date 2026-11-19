@@ -55,6 +55,11 @@ export interface Env {
   SYNC_ENABLED: string;
   /** Edad mínima que se declara al activar la sincronización (14; R-10). */
   MIN_AGE: string;
+  /**
+   * Clave de la Steam Web API (secreto del Worker, `wrangler secret put`; en local, `.dev.vars`).
+   * Solo la usa `redeem`, en `x-webapi-key`. Nunca va en la URL, los registros ni el cliente.
+   */
+  STEAM_WEB_API_KEY?: string;
 }
 
 export interface DeviceAuth {

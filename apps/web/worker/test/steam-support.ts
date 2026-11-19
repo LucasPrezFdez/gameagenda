@@ -121,3 +121,92 @@ export function checkRequest(assertion: URLSearchParams): RequestInit {
   body.set('openid.mode', 'check_authentication');
   return { method: 'POST', body: body.toString() };
 }
+
+const WEBAPI_FIXTURES = new URL('../../../../fixtures/steam/webapi/', import.meta.url);
+const webapiFixture = (name: string) => readFileSync(new URL(name, WEBAPI_FIXTURES), 'utf8');
+export const OWNED_FIXTURE = webapiFixture('get-owned-games.json');
+export const OWNED_PRIVATE_FIXTURE = webapiFixture('get-owned-games-private.json');
+export const OWNED_EMPTY_FIXTURE = webapiFixture('get-owned-games-empty.json');
+export const WISHLIST_FIXTURE = webapiFixture('get-wishlist.json');
+export const WISHLIST_PRIVATE_FIXTURE = webapiFixture('get-wishlist-private.json');
+
+/** Una clave inventada para las pruebas (32 cifras hexadecimales, como las de Steam). */
+export const TEST_STEAM_KEY = '0123456789ABCDEF0123456789ABCDEF';
+export const OWNED_API_PREFIX = 'https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?';
+export const WISHLIST_API_PREFIX = 'https://api.steampowered.com/IWishlistService/GetWishlist/v1/?';
+
+export type WebApiFail =
+  | 'network'
+  | 'status'
+  | 'unauthorized'
+  | 'rate_limited'
+  | 'html'
+  | 'garbage'
+  | 'huge';
+
+/** Un cuerpo en trozos de 16 KiB, sin `Content-Length`, como llega por la red. */
+export function chunked(text: string): ReadableStream<Uint8Array> {
+  const bytes = new TextEncoder().encode(text);
+  let offset = 0;
+  return new ReadableStream<Uint8Array>({
+    pull(controller) {
+      if (offset >= bytes.length) {
+        controller.close();
+        return;
+      }
+      controller.enqueue(bytes.subarray(offset, offset + 16 * 1024));
+      offset += 16 * 1024;
+    },
+  });
+}
+
+/** `bytes` bytes de espacios, en trozos de 1 MiB que se generan al leerlos. */
+function endless(bytes: number): ReadableStream<Uint8Array> {
+  const chunk = new Uint8Array(1024 * 1024).fill(0x20);
+  let sent = 0;
+  return new ReadableStream<Uint8Array>({
+    pull(controller) {
+      if (sent >= bytes) controller.close();
+      else {
+        controller.enqueue(chunk);
+        sent += chunk.byteLength;
+      }
+    },
+  });
+}
+
+const JSON_HEADERS = { 'Content-Type': 'application/json; charset=utf-8' };
+
+/** La Web API de Steam falsa: `GetOwnedGames` y `GetWishlist`, con lo que digan sus campos. */
+export class FakeSteamWebApi {
+  owned = OWNED_FIXTURE;
+  wishlist = WISHLIST_FIXTURE;
+  ownedFail: WebApiFail | null = null;
+  wishlistFail: WebApiFail | null = null;
+  /** Cada petición, con sus cabeceras (para ver por dónde va la clave). */
+  readonly requests: { url: string; headers: Headers }[] = [];
+
+  async fetch(url: string, init: RequestInit): Promise<Response> {
+    this.requests.push({ url, headers: new Headers(init.headers) });
+    const owned = url.startsWith(OWNED_API_PREFIX);
+    const fail = owned ? this.ownedFail : this.wishlistFail;
+    if (fail === 'network') throw new TypeError('fetch failed');
+    if (fail === 'status') return new Response('Internal Server Error', { status: 500 });
+    if (fail === 'unauthorized') {
+      return new Response('<html><body>Forbidden</body></html>', {
+        status: 403,
+        headers: { 'Content-Type': 'text/html' },
+      });
+    }
+    if (fail === 'rate_limited') return new Response('Too Many Requests', { status: 429 });
+    if (fail === 'html') {
+      return new Response('<html><body>Steam</body></html>', {
+        headers: { 'Content-Type': 'text/html; charset=utf-8' },
+      });
+    }
+    if (fail === 'garbage')
+      return new Response(chunked('{"response":{"items":['), { headers: JSON_HEADERS });
+    if (fail === 'huge') return new Response(endless(17 * 1024 * 1024), { headers: JSON_HEADERS });
+    return new Response(chunked(owned ? this.owned : this.wishlist), { headers: JSON_HEADERS });
+  }
+}

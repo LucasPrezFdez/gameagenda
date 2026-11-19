@@ -8,6 +8,10 @@
 //   cinco comprobaciones de la §10.2, en `steam-openid.ts`) y, si Steam la da por buena, apunta el
 //   SteamID64 en el ticket. Responde una página corta (`steam-page.ts`). Es un GET que escribe en
 //   D1: lo exige OpenID 2.0, y solo escribe con una aserción verificada para un ticket vigente.
+// - `POST /steam/redeem` `{ ticket, verifier }`: lo canjea la app, con el verificador del
+//   `challenge`. Sin login aún, 202 `pending` (no lo gasta). Con él, lo gasta y trae la biblioteca
+//   y la lista de deseados (`steam-library.ts`), tal cual, en *streaming*. Es la primera y única
+//   llamada a la Web API de Steam, y solo con un login verificado (§10).
 //
 // Nada de estas rutas se registra: ni la URL (lleva el ticket y la aserción), ni los cuerpos, ni el
 // SteamID64 (§10.4).
@@ -15,13 +19,15 @@
 import {
   STEAM_SECRET_PATTERN,
   STEAM_TICKET_TTL_MS,
+  steamRedeemRequestSchema,
   steamStartRequestSchema,
 } from '@gameagenda/core/api';
 import type { Context, Hono } from 'hono';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
-import { newSteamTicket, sha256Hex } from '../crypto.ts';
+import { newSteamTicket, sha256Base64url, sha256Hex } from '../crypto.ts';
 import type { AppEnv, Deps } from '../env.ts';
-import { iso, parseBody } from '../http.ts';
+import { apiError, iso, parseBody } from '../http.ts';
+import { fetchLibrary } from '../steam-library.ts';
 import {
   checkAssertion,
   checkAuthentication,
@@ -112,5 +118,51 @@ export function steamRoutes(api: Hono<AppEnv>, deps: Deps): void {
       .bind(check.steamId, hash, iso(deps.now()))
       .run();
     return page(c, saved.meta.changes === 1 ? 'done' : 'expired');
+  });
+
+  api.post('/steam/redeem', async (c) => {
+    const body = await parseBody(c, steamRedeemRequestSchema, MAX_BODY);
+    if (!body.ok) return body.response;
+    // Sin la clave no se gasta el ticket: no se podría traer la biblioteca.
+    const key = c.env.STEAM_WEB_API_KEY;
+    if (key === undefined || key === '') return apiError(c, 'steam_disabled');
+    const db = c.env.DB;
+    const hash = await sha256Hex(body.data.ticket);
+    const challenge = await sha256Base64url(body.data.verifier);
+    const now = iso(deps.now());
+    // Comprobación 5: un solo uso, y solo con el verificador. El DELETE que lo encuentra es el único
+    // que lo canjea.
+    const redeemed = await db
+      .prepare(
+        `DELETE FROM steam_ticket
+         WHERE ticket_hash = ?1 AND challenge = ?2 AND expires_at > ?3 AND steam_id IS NOT NULL
+         RETURNING steam_id`,
+      )
+      .bind(hash, challenge, now)
+      .first<{ steam_id: string }>();
+    if (redeemed === null) {
+      // Aún sin login: solo se lo dice a quien tiene el verificador, y no lo gasta.
+      const pending = await db
+        .prepare(
+          'SELECT 1 AS ok FROM steam_ticket WHERE ticket_hash = ?1 AND challenge = ?2 AND expires_at > ?3',
+        )
+        .bind(hash, challenge, now)
+        .first();
+      return pending === null
+        ? apiError(c, 'steam_ticket_invalid')
+        : c.json({ status: 'pending' }, 202);
+    }
+    const library = await fetchLibrary(redeemed.steam_id, key, steamFetch);
+    if (!library.ok) {
+      // Sin nada de la cuenta: solo el código de Steam, para ver si la clave ya no vale (401 o 403).
+      if (library.status === 401 || library.status === 403) {
+        console.error(`micro-API: GetOwnedGames respondió ${library.status}`);
+      }
+      return apiError(c, library.error === 'busy' ? 'steam_busy' : 'steam_unavailable');
+    }
+    return new Response(library.body, {
+      status: 200,
+      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+    });
   });
 }
