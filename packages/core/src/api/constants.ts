@@ -57,6 +57,18 @@ export const RESOLVE_NAME_MAX = 200;
  * solo uso. Solo lo canjea quien tiene su verificador (canje tipo PKCE).
  */
 export const STEAM_TICKET_TTL_MS = 10 * 60_000;
+/**
+ * El ticket, el verificador y el `challenge` (`BASE64URL(SHA-256(verificador))`, como `S256` de
+ * PKCE): 256 bits en base64url sin relleno, 43 caracteres.
+ */
+export const STEAM_SECRET_PATTERN = /^[A-Za-z0-9_-]{43}$/;
+/**
+ * Lo que `redeem` deja pasar de Steam como mucho (la biblioteca y la lista de deseados juntas): una
+ * biblioteca de 5 000 juegos con `include_appinfo` pesa ≈1,7 MB.
+ */
+export const STEAM_IMPORT_MAX_BYTES = 16 * 1024 * 1024;
+/** Juegos de la biblioteca, y de la lista de deseados, que la app admite como mucho. */
+export const STEAM_LIST_MAX = 100_000;
 
 /** Códigos de error de la micro-API: la app los traduce a sus textos. */
 export const API_ERRORS = {
@@ -75,9 +87,21 @@ export const API_ERRORS = {
   unsupported_media_type: 415,
   rate_limited: 429,
   internal: 500,
-  /** `resolve`: Steam no ha contestado (o no como se esperaba) y no hay nada en la caché. */
+  /**
+   * Importar desde Steam: el ticket no existe, ha caducado, ya se canjeó o el verificador no es el
+   * suyo (las cuatro dan la misma respuesta). Hay que volver a empezar.
+   */
+  steam_ticket_invalid: 410,
+  /**
+   * `resolve`: Steam no ha contestado (o no como se esperaba) y no hay nada en la caché. Importar
+   * desde Steam: `GetOwnedGames` no ha respondido como se esperaba.
+   */
   steam_unavailable: 502,
   sync_disabled: 503,
+  /** `STEAM_ENABLED` no vale `'1'`, o falta la clave de la Steam Web API en el Worker. */
+  steam_disabled: 503,
+  /** Se ha llegado al tope diario de llamadas a Steam (los ToU, §11.1): mañana. */
+  steam_busy: 503,
   /** Otro dispositivo escribía a la vez y los reintentos no bastaron: probar más tarde. */
   busy: 503,
 } as const;

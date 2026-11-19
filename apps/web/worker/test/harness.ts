@@ -41,6 +41,8 @@ export interface CallOptions {
   headers?: Record<string, string>;
   /** `null` quita la cabecera `Origin`. */
   origin?: string | null;
+  /** Otro origen para la petición (p. ej., el del túnel de las pruebas a mano); por defecto, `ORIGIN`. */
+  base?: string;
 }
 
 export class Client {
@@ -57,7 +59,7 @@ export class Client {
     const headers = new Headers(options.headers);
     headers.set('CF-Connecting-IP', this.ip);
     if (method !== 'GET' && method !== 'HEAD') {
-      if (options.origin !== null) headers.set('Origin', options.origin ?? ORIGIN);
+      if (options.origin !== null) headers.set('Origin', options.origin ?? options.base ?? ORIGIN);
       if (!headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
     }
     if (this.cookies.size > 0) {
@@ -73,7 +75,7 @@ export class Client {
       body = '{}';
     }
     const response = await this.harness.app.request(
-      `${ORIGIN}${path}`,
+      `${options.base ?? ORIGIN}${path}`,
       { method, headers, body },
       this.harness.env,
     );

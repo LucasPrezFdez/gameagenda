@@ -20,6 +20,11 @@ export function newDeviceToken(): string {
   return base64url(randomBytes(32));
 }
 
+/** Ticket del login con Steam (ADR-012): 256 bits en base64url, como la credencial. */
+export function newSteamTicket(): string {
+  return base64url(randomBytes(32));
+}
+
 /** Código de emparejamiento o de recuperación, canónico: 140 bits (ver `codes.ts` de core). */
 export function newCode(): string {
   return codeFromBytes(randomBytes(CODE_SYMBOLS));
@@ -30,4 +35,9 @@ export async function sha256Hex(text: string): Promise<string> {
   let hex = '';
   for (const b of digest) hex += b.toString(16).padStart(2, '0');
   return hex;
+}
+
+/** `BASE64URL(SHA-256(texto))`: el `challenge` de un verificador (`S256` de PKCE, RFC 7636). */
+export async function sha256Base64url(text: string): Promise<string> {
+  return base64url(new Uint8Array(await crypto.subtle.digest('SHA-256', encoder.encode(text))));
 }

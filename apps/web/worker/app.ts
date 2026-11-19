@@ -12,6 +12,7 @@ import { deviceRoutes } from './routes/devices.ts';
 import { inboxRoutes } from './routes/inbox.ts';
 import { pairingRoutes } from './routes/pairing.ts';
 import { resolveRoutes } from './routes/resolve.ts';
+import { steamRoutes } from './routes/steam.ts';
 import { syncRoutes } from './routes/sync.ts';
 
 export function createApp(deps: Deps = { now: Date.now }): Hono<AppEnv> {
@@ -24,6 +25,7 @@ export function createApp(deps: Deps = { now: Date.now }): Hono<AppEnv> {
   pairingRoutes(api, deps);
   inboxRoutes(api, deps);
   resolveRoutes(api, deps);
+  steamRoutes(api, deps);
   syncRoutes(api, deps);
   app.route(API_BASE, api);
 
