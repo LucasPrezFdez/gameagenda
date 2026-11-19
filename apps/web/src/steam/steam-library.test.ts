@@ -107,7 +107,8 @@ describe('readSteamImport', () => {
     const games = Array.from({ length: 2 * VALIDATE_BATCH + 1 }, (_, i) => ({ appid: i + 1 }));
     const library = await readSteamImport(body({ response: { games } }));
     expect(library?.owned).toHaveLength(games.length);
-    expect(spy).toHaveBeenCalledTimes(2);
+    // Uno tras leer el JSON, y otro cada 500 juegos.
+    expect(spy).toHaveBeenCalledTimes(3);
     spy.mockRestore();
   });
 });

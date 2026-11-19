@@ -85,6 +85,8 @@ export async function readSteamImport(text: string): Promise<SteamLibrary | null
   const visibility =
     games === undefined && ownedBody.response.game_count === undefined ? 'private' : 'public';
 
+  // Leer el JSON ya ha sido un bloque (≈5 ms con 5 000 juegos en un PC): antes de validar, el turno.
+  if ((games?.length ?? 0) > VALIDATE_BATCH) await yieldToMain();
   let skipped = 0;
   const seen = new Set<number>();
   const owned: SteamOwnedGame[] = [];
