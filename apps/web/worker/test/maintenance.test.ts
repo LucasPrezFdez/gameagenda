@@ -1,8 +1,16 @@
 // Mantenimiento de D1 (§7.7 y §11.2; ADR-011): *tokens* caducados, agendas sin sincronizar en
-// 13 meses y la purga semanal de lápidas y esqueletos.
+// 13 meses, la purga semanal de lápidas y esqueletos, y los tickets y el contador de Steam.
 
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { runMaintenance } from '../maintenance.ts';
+import worker from '../index.ts';
+import {
+  purgeSteamTickets,
+  runMaintenance,
+  STEAM_PURGE_CRON,
+  STEAM_QUOTA_KEEP_DAYS,
+  utcDay,
+} from '../maintenance.ts';
 import { createAgenda, createHarness, type Harness } from './harness.ts';
 import { addOps, hlc, op, Replica, sync } from './sync-support.ts';
 
@@ -136,5 +144,87 @@ describe('purga semanal (los lunes)', () => {
     await runMaintenance(h.db, MONDAY);
     expect(h.db.rows('SELECT * FROM op ORDER BY entry_id, field')).toEqual(after);
     expect(h.db.rows('SELECT purged_seq FROM agenda')).toEqual(agenda);
+  });
+});
+
+describe('Steam (ADR-012)', () => {
+  const CHALLENGE = 'c'.repeat(43);
+  const STEAM_ID = '76561197960287930';
+
+  function addTicket(h: Harness, hash: string, expiresAt: number, steamId: string | null = null) {
+    h.db.rows(
+      `INSERT INTO steam_ticket (ticket_hash, challenge, expires_at, steam_id)
+       VALUES ('${hash}', '${CHALLENGE}', '${new Date(expiresAt).toISOString()}', ${steamId === null ? 'NULL' : `'${steamId}'`})`,
+    );
+  }
+
+  function tickets(h: Harness): string[] {
+    return h.db
+      .rows<{ ticket_hash: string }>('SELECT ticket_hash FROM steam_ticket ORDER BY ticket_hash')
+      .map((r) => r.ticket_hash);
+  }
+
+  it('cada 5 min, fuera los tickets caducados (con o sin SteamID64) y nada más', async () => {
+    const h = createHarness();
+    const pc = h.client();
+    await createAgenda(pc);
+    h.clock.ms = TUESDAY - 20 * 60_000;
+    await pc.post('/api/v1/pairing');
+    addTicket(h, 'a-caducado', TUESDAY - 1, STEAM_ID);
+    addTicket(h, 'b-justo', TUESDAY);
+    addTicket(h, 'c-vigente', TUESDAY + 1, STEAM_ID);
+    h.db.rows("INSERT INTO steam_quota (day, calls) VALUES ('2026-10-01', 3)");
+    await purgeSteamTickets(h.db, TUESDAY);
+    expect(tickets(h)).toEqual(['c-vigente']);
+    expect(count(h, 'pairing_token')).toBe(1);
+    expect(count(h, 'steam_quota')).toBe(1);
+  });
+
+  it('a diario, también los tickets caducados y los días del contador de hace más de una semana', async () => {
+    const h = createHarness();
+    addTicket(h, 'a-caducado', TUESDAY - 1);
+    addTicket(h, 'b-vigente', TUESDAY + 60_000);
+    const day = (offset: number) => utcDay(TUESDAY + offset * DAY);
+    for (const offset of [-8, -STEAM_QUOTA_KEEP_DAYS, -1, 0]) {
+      h.db.rows(`INSERT INTO steam_quota (day, calls) VALUES ('${day(offset)}', 2)`);
+    }
+    await runMaintenance(h.db, TUESDAY);
+    expect(tickets(h)).toEqual(['b-vigente']);
+    expect(h.db.rows('SELECT day FROM steam_quota ORDER BY day')).toEqual(
+      [-STEAM_QUOTA_KEEP_DAYS, -1, 0].map((offset) => ({ day: day(offset) })),
+    );
+  });
+
+  it('el SteamID64 solo puede ser de 17 cifras', () => {
+    const h = createHarness();
+    expect(() => addTicket(h, 'x', TUESDAY, '7656119796028793')).toThrow(/CHECK/);
+    expect(() => addTicket(h, 'y', TUESDAY, '7656119796028793a')).toThrow(/CHECK/);
+    addTicket(h, 'z', TUESDAY, STEAM_ID);
+    expect(tickets(h)).toEqual(['z']);
+  });
+
+  it('el Worker reparte los dos Cron Triggers de wrangler.jsonc', async () => {
+    const config = readFileSync(new URL('../../wrangler.jsonc', import.meta.url), 'utf8');
+    const crons = JSON.parse(/"crons":\s*(\[[^\]]*\])/.exec(config)?.[1] ?? '[]') as string[];
+    expect(crons).toEqual(['17 3 * * *', STEAM_PURGE_CRON]);
+
+    const h = createHarness();
+    const pc = h.client();
+    await createAgenda(pc);
+    h.clock.ms = TUESDAY - 20 * 60_000;
+    await pc.post('/api/v1/pairing');
+    addTicket(h, 'a-caducado', TUESDAY - 1);
+    const run = async (cron: string) => {
+      const pending: Promise<unknown>[] = [];
+      worker.scheduled({ cron, scheduledTime: TUESDAY }, h.env, {
+        waitUntil: (promise) => pending.push(promise),
+      });
+      await Promise.all(pending);
+    };
+    await run(STEAM_PURGE_CRON);
+    expect(tickets(h)).toEqual([]);
+    expect(count(h, 'pairing_token')).toBe(1);
+    await run('17 3 * * *');
+    expect(count(h, 'pairing_token')).toBe(0);
   });
 });

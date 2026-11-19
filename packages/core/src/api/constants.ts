@@ -52,6 +52,12 @@ export const RESOLVE_MISS_TTL_MS = 86_400_000;
 /** Nombre más largo que devuelve `resolve` (se corta, sin partir un par sustituto). */
 export const RESOLVE_NAME_MAX = 200;
 
+/**
+ * Importar desde Steam (Fase 2; §10.2; ADR-012): el ticket del login caduca a los 10 min y es de un
+ * solo uso. Solo lo canjea quien tiene su verificador (canje tipo PKCE).
+ */
+export const STEAM_TICKET_TTL_MS = 10 * 60_000;
+
 /** Códigos de error de la micro-API: la app los traduce a sus textos. */
 export const API_ERRORS = {
   invalid_body: 400,

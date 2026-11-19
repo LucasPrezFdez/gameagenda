@@ -1,6 +1,7 @@
 // Mantenimiento de D1 (§7.7 y §11.2; ADR-011), con un Cron Trigger diario y un solo `batch()`:
 // - a diario, fuera los *tokens* de emparejamiento caducados y las agendas sin sincronizar en
-//   13 meses (con todo lo suyo, en cascada);
+//   13 meses (con todo lo suyo, en cascada), y de Steam, los tickets caducados y los días del
+//   contador de llamadas de hace más de una semana (ADR-012);
 // - los lunes, la purga semanal: las entradas borradas hace más de 90 días, y los esqueletos (sin
 //   `status` o sin `title`) sin cambios en 90 días, con el corte de `purgeCutoff()` de core.
 //
@@ -10,12 +11,19 @@
 // cuenta: con su propio calendario, una escritura vieja subida después de una purga dejaría
 // réplicas distintas a la vista. Cuesta un `reset` por dispositivo las semanas en que su agenda
 // purga algo.
+//
+// Además, cada 5 min (`STEAM_PURGE_CRON`), fuera los tickets de Steam caducados: así un SteamID64
+// está en D1, como mucho, los 10 min del ticket y 5 más (§11.2).
 
 import { purgeCutoff } from '@gameagenda/core/sync';
 import type { D1Database, D1PreparedStatement } from './env.ts';
 import { iso } from './http.ts';
 
 export const AGENDA_TTL_MONTHS = 13;
+/** Días que se guarda el contador de llamadas a Steam (`steam_quota`). */
+export const STEAM_QUOTA_KEEP_DAYS = 7;
+/** El segundo Cron Trigger de `wrangler.jsonc`: solo borra los tickets de Steam caducados. */
+export const STEAM_PURGE_CRON = '*/5 * * * *';
 
 // ?1: instante ISO de corte de las lápidas; ?2: HLC de corte de los esqueletos (`purgeCutoff`).
 // El mismo criterio que `isPurgeable()` de core.
@@ -47,6 +55,10 @@ export function maintenanceStatements(db: D1Database, nowMs: number): D1Prepared
   const statements = [
     db.prepare('DELETE FROM pairing_token WHERE expires_at <= ?1').bind(iso(nowMs)),
     db.prepare('DELETE FROM agenda WHERE last_sync_at < ?1').bind(cutoff.toISOString()),
+    steamTicketPurge(db, nowMs),
+    db
+      .prepare('DELETE FROM steam_quota WHERE day < ?1')
+      .bind(utcDay(nowMs - STEAM_QUOTA_KEEP_DAYS * 86_400_000)),
   ];
   if (new Date(nowMs).getUTCDay() === 1) {
     const { deletedBefore, unchangedBefore } = purgeCutoff(nowMs);
@@ -56,6 +68,20 @@ export function maintenanceStatements(db: D1Database, nowMs: number): D1Prepared
     );
   }
   return statements;
+}
+
+/** El día UTC de un instante, `YYYY-MM-DD`, como lo guarda `steam_quota`. */
+export function utcDay(ms: number): string {
+  return iso(ms).slice(0, 10);
+}
+
+function steamTicketPurge(db: D1Database, nowMs: number): D1PreparedStatement {
+  return db.prepare('DELETE FROM steam_ticket WHERE expires_at <= ?1').bind(iso(nowMs));
+}
+
+/** Lo que hace el *cron* de cada 5 min: fuera los tickets de Steam caducados. */
+export async function purgeSteamTickets(db: D1Database, nowMs: number): Promise<void> {
+  await steamTicketPurge(db, nowMs).run();
 }
 
 export async function runMaintenance(db: D1Database, nowMs: number): Promise<void> {

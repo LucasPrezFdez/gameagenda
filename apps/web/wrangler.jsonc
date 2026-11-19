@@ -39,8 +39,9 @@
     { "name": "RL_RESOLVE", "namespace_id": "1104", "simple": { "limit": 30, "period": 60 } }
   ],
   // Mantenimiento de D1 (`worker/maintenance.ts`): a diario, y la purga de lápidas los lunes.
-  // A las 03:17 UTC, lejos del catálogo (04:17).
-  "triggers": { "crons": ["17 3 * * *"] },
+  // A las 03:17 UTC, lejos del catálogo (04:17). Y cada 5 min, solo los tickets de Steam caducados
+  // (`STEAM_PURGE_CRON`; ADR-012).
+  "triggers": { "crons": ["17 3 * * *", "*/5 * * * *"] },
   "vars": {
     // Con "0", la micro-API responde 503 a todo (CA4.7): es el interruptor para apagarla. Encendida
     // el 16-11-2026, con los textos legales ya completos (`scripts/legal-guard.test.ts`).
