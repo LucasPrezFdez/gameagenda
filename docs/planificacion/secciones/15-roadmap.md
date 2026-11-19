@@ -132,3 +132,5 @@ Sin colchón: para planificar se suma un 20 % (ver §16, R-13). Aparte van las e
 ### 15.8 Fase 2
 
 Cada bloque tendrá su ADR (la §5.6 reserva el ADR-012 para la cuenta de Steam) y sus criterios al cerrar M4: «Iniciar sesión con Steam» e importación que solo propone (ver §10); IGDB y otras plataformas (ver §17); DLC notables con insignia; marcas propias; avisos de lanzamiento; interfaz en inglés.
+
+La importación de Steam va en cuatro partes: 1, Mi lista con miles de juegos (en producción desde el 17-11-2026; DECISIONES §10.48); 2, iniciar sesión y traer la biblioteca y los deseados, sin tocar la agenda (hecha el 19-11-2026 en la rama `steam-parte-2`, apagada en producción; ADR-012 y §10.49); 3, revisar y aplicar, con Deshacer; y 4, los logros.

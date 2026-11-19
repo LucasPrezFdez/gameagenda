@@ -1686,6 +1686,7 @@ Tuteo, frases cortas, pretérito perfecto, sin exclamaciones y teclas con su nom
 **Fase 2.** La cuenta de Steam es una ayuda opcional para importar, nunca un requisito: apuntar funciona sin cuenta y sin red. Reglas fijas:
 
 - **Ninguna llamada a Steam por usuario, con clave o sin ella, antes de un login OpenID verificado.** El prototipo (M0–M4) no hace ninguna.
+- **Estado (19-11-2026):** la parte 1 (Mi lista con miles de juegos) está en producción, y la parte 2 (iniciar sesión y traer la biblioteca y los deseados, sin tocar la agenda) está hecha en la rama `steam-parte-2`, con `STEAM_ENABLED` a `"0"` en producción (ADR-012; DECISIONES §10.49). Faltan la 3 (revisar y aplicar) y la 4 (logros).
 - La importación solo **propone**: el usuario revisa y aplica, con Deshacer.
 - Las respuestas de Steam no se guardan en D1.
 
@@ -1707,15 +1708,17 @@ Fuentes: <https://partner.steamgames.com/doc/webapi/IPlayerService> · <https://
 
 ### 10.2 Identificación: «Iniciar sesión con Steam»
 
-Steam solo ofrece **OpenID 2.0** a terceros (sin OIDC ni OAuth abierto). La micro-API usa **`steam-signin` 1.0.5**: sin clave, devuelve solo el SteamID64. Como usa `https`, `querystring` y `Buffer` de Node, el Worker necesita `nodejs_compat` (a verificar en Fase 2); si no bastara, se porta su `verifyLogin` (MIT, una función corta) a `fetch`.
+Steam solo ofrece **OpenID 2.0** a terceros (sin OIDC ni OAuth abierto). La micro-API **porta el `verifyLogin` de `steam-signin` 1.0.5** (MIT) a `fetch` (`worker/steam-openid.ts`): sin clave, devuelve solo el SteamID64. La librería tal cual pedía `nodejs_compat` (usa `https`, `querystring` y `Buffer` de Node), y medido el 19-11-2026 añadía 5,1 KiB y ≈14 ms al arranque del Worker; portada, 0,6 KiB y nada de arranque. Además, se prueba con el `fetch` falso de las pruebas, y lleva un tiempo de espera que la librería no tiene (ADR-012).
 
 Comprobaciones obligatorias (omitirlas es un fallo recurrente, p. ej. CVE-2026-82183):
 
-1. `check_authentication` por POST del servidor a la URL **fija** `https://steamcommunity.com/openid/login`, nunca al `op_endpoint` recibido.
+1. `check_authentication` por POST del servidor a la URL **fija** `https://steamcommunity.com/openid/login`, nunca al `op_endpoint` recibido (que además tiene que ser ese; si no, ni se pregunta).
 2. `claimed_id`, `return_to` y `response_nonce` dentro de `openid.signed`.
 3. `return_to` idéntico al emitido, ticket incluido: `steam-signin` solo compara esquema y host, así que la ruta y el ticket los comprueba la micro-API.
 4. `claimed_id` con `^https?://steamcommunity\.com/openid/id/(\d{17})/?$`.
 5. Ticket de un solo uso que caduca en 10 min y solo se canjea con su verificador: una aserción capturada no sirve para otro ticket ni para colar un login ajeno (*login CSRF*).
+
+Y un parámetro repetido (p. ej., dos `claimed_id`) no vale: lo que comprueba la micro-API y lo que lee Steam podrían no coincidir. Cada comprobación tiene una prueba que falla sin ella (24 mutaciones, todas detectadas; ADR-012).
 
 **Canje tipo PKCE:** las apps de la pantalla de inicio de iOS tienen un almacén de cookies distinto del de Safari, donde acaba el login, y una cookie de estado no llegaría a la app. Por eso el ticket se liga a un `challenge` (SHA-256 de un verificador aleatorio de 256 bits que solo conoce la app) y lo canjea la propia app. El envoltorio Tauri (ver §17.3) usa el mismo flujo con el navegador del sistema, sin esquema propio ni puerto local.
 
@@ -1740,27 +1743,31 @@ sequenceDiagram
   App->>App: verificador aleatorio, challenge = SHA-256(verificador)
   App->>API: POST /api/v1/steam/start {challenge}
   API-->>App: {ticket, url}, caduca en 10 min
-  App->>OID: abre la url (realm = origen de ga-web)
+  App->>U: botón oficial de Steam (un enlace, en otra ventana)
+  U->>OID: pulsa el botón (realm = origen de ga-web)
   U->>OID: inicia sesión
   OID->>API: vuelta a /api/v1/steam/callback?t=ticket con openid.*
   API->>OID: POST check_authentication
   OID-->>API: is_valid:true
   API->>API: comprobaciones de §10.2, ticket hecho con el SteamID64
   API-->>U: «Listo. Vuelve a GameAgenda»
+  U->>App: vuelve a la app (foco o «Ya he iniciado sesión»)
   App->>API: POST /api/v1/steam/redeem {ticket, verificador}
-  API->>W: GetOwnedGames (x-webapi-key) y GetWishlist
+  API->>W: GetOwnedGames (x-webapi-key) y GetWishlist, a la vez
   W-->>API: juegos, horas y deseados
-  API-->>App: propuestas y token de importación (no-store)
-  App->>U: «287 comprados y 25 deseados» [Revisar] [Aplicar]
-  U->>App: Aplicar (Dexie y outbox, con Deshacer)
+  API-->>App: los dos cuerpos de Steam tal cual, en streaming (no-store)
+  App->>U: «Hemos encontrado 287 juegos en tu biblioteca y 25 deseados»
+  Note over App,U: Parte 3: [Revisar] [Aplicar] (Dexie y outbox, con Deshacer)
 ```
+
+Con `redeem` antes del login, la micro-API responde 202 y no gasta el ticket. El Worker no lee la biblioteca: con 5 000 juegos pesa ≈1,7 MB, y leerla y validarla con Zod le costaba 17–23 ms de CPU en frío; pasarla en *streaming*, ≈0,3 ms. La valida la app, juego a juego (ADR-012).
 
 ### 10.4 Qué se guarda y cómo se prueba
 
-- **Servidor:** las respuestas de Steam solo viajan hasta el dispositivo (`Cache-Control: no-store`, sin registros en `/api/v1/steam/*`). D1 guarda solo el ticket (*hash*, `challenge`, caducidad y, tras el login, el SteamID64) ≤10 min; Time Travel lo conserva 7 días más (ver §11.2). Con las propuestas llega un *token* de importación firmado (HMAC, 15 min, solo en memoria) para los lotes de logros.
+- **Servidor:** las respuestas de Steam solo viajan hasta el dispositivo (`Cache-Control: no-store`, sin registros en `/api/v1/steam/*`). D1 guarda solo el ticket (*hash*, `challenge`, caducidad y, tras el login, el SteamID64): caduca a los 10 min y un Cron Trigger cada 5 min borra los caducados, así que el SteamID64 dura ≤15 min; Time Travel lo conserva 7 días más (ver §11.2). El *token* de importación firmado (HMAC, 15 min, solo en memoria) para los lotes de logros se decide en la parte 4. La parte 2 no lo necesita.
 - **Dispositivo:** las marcas aceptadas son datos de la agenda y se sincronizan como cualquier cambio. Los metadatos de importación (`rtime_last_played` por `appid`, esquemas) van en `meta` (ver §7); «Desconectar Steam y borrar datos» los elimina.
 - **Clave:** pasa a ser también un secreto del Worker (`wrangler secret put`). La búsqueda de nombres (`x-webapi-key` y el de la variable) se limita entonces a los *assets* del cliente; la del valor lo cubre todo (ver §12).
-- **Pruebas:** las comprobaciones de la §10.2, con aserciones grabadas en `fixtures/` (firma falsa, campos sin firmar, `return_to` ajeno, ticket repetido) y `app.request()` de Hono; el CI nunca llama a Steam. El login real se prueba a mano con un túnel `cloudflared` (HTTPS en el puerto 443): `steam-signin` descarta el puerto del *realm* y OpenID 2.0 exige el mismo puerto en `return_to`, así que `http://localhost:8787` no sirve. Casos: perfil privado, biblioteca vacía, juego compartido en familia y juego privado.
+- **Pruebas:** las comprobaciones de la §10.2, con aserciones con la forma de las de Steam en `fixtures/steam/openid/` (firma falsa, campos sin firmar, `return_to` ajeno, ticket repetido), firmadas por un Steam falso que contesta `check_authentication` recalculando la firma, y `app.request()` de Hono; el CI nunca llama a Steam. Las respuestas de la Web API, en `fixtures/steam/webapi/`. El login real se prueba a mano con un túnel `cloudflared` (HTTPS en el puerto 443): `steam-signin` descarta el puerto del *realm* y OpenID 2.0 exige el mismo puerto en `return_to`, así que `http://localhost:8787` no sirve. Casos: perfil privado, biblioteca vacía, juego compartido en familia y juego privado.
 
 ## 11. Seguridad, privacidad y cumplimiento
 
@@ -1772,7 +1779,7 @@ Versión de julio de 2010 (verificada el 28-10-2026):
 
 | Obligación | Cómo se cumple |
 |---|---|
-| ≤100 000 llamadas/día en total, con clave o sin ella | Pipeline ≈220/día (≤230; ver §4); en Fase 2, importaciones a petición, incrementales y con tope por agenda |
+| ≤100 000 llamadas/día en total, con clave o sin ella | Pipeline ≈220/día (≤230; ver §4); en Fase 2, importaciones a petición, con un tope diario global en D1 (50 000 llamadas, sin datos de nadie) y un límite por IP (ADR-012). No es por agenda: importar no exige la sincronización |
 | Clave confidencial | Solo en secretos, enviada en `x-webapi-key` (ver §11.3) |
 | Política de privacidad; decir qué datos de Steam se guardan y en qué país | Política por capas (ver §11.2) y pantalla «Datos de Steam que guardamos»: qué; dónde (el dispositivo; la red global de Cloudflare, para el catálogo; D1 con jurisdicción UE, para la agenda desde M4; GitHub, en EE. UU., para el estado del pipeline); que la IP llega a Valve (EE. UU.) por las portadas, y botón de borrar |
 | Datos de un usuario solo a petición suya | Nada por usuario antes de un login OpenID verificado; sin perfiles pegados (ver §10.2) |
@@ -1828,7 +1835,9 @@ Quienes hacen la prueba guiada de M3 (ver §2.4) en el móvil y el PC del desarr
 | Enlaces del buzón | D1 | Hasta que una app de la agenda los apunta (200 pendientes como mucho) |
 | Caché de `resolve` (nombres públicos, no datos del usuario) | D1 | 30 días un nombre; 1 día «Steam no lo conoce» |
 | Contadores de peticiones (`ratelimits`, con el SHA-256 de la IP o del *token*) | Cloudflare | Unos segundos o minutos (periodos de 60 s) |
-| Ticket de login con SteamID64 (Fase 2) | D1 | ≤10 min |
+| Ticket de login con SteamID64 (Fase 2) | D1 | ≤15 min: caduca a los 10, y un Cron Trigger cada 5 min borra los caducados (ADR-012) |
+| Biblioteca y lista de deseados de Steam (Fase 2) | Dispositivo (el servidor solo las pasa, sin guardarlas) | En memoria mientras se importa; lo aplicado, como el resto de la agenda (parte 3) |
+| Llamadas a Steam de cada día (Fase 2; no son datos personales) | D1 | 7 días |
 
 Fuentes: <https://www.aepd.es/guias/guia-cookies.pdf> · <https://www.boe.es/buscar/act.php?id=BOE-A-2018-16673> · <https://developers.cloudflare.com/d1/reference/time-travel/> · <https://developers.cloudflare.com/d1/configuration/data-location/>
 
@@ -1845,7 +1854,7 @@ Fuentes: <https://www.aepd.es/guias/guia-cookies.pdf> · <https://www.boe.es/bus
   ```
 
   Más `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Cross-Origin-Opener-Policy: same-origin`, HSTS y una `Permissions-Policy` que desactiva lo que no se usa. El Service Worker aplica la CSP de su propio *script*, y sus descargas cuentan, en principio, como `connect-src`: esa CSP añade el CDN de portadas (a verificar en M2). En Fase 2, `img-src` añade `https://images.igdb.com` (ver §17). `ga-catalog` solo envía `Access-Control-Allow-Origin` para el origen de la app. Los e2e fallan ante cualquier violación de CSP (ver §12).
-- **Texto de Steam como texto:** Biome prohíbe `dangerouslySetInnerHTML`; las URL se construyen desde el `appid` y rutas validadas. Zod valida cada respuesta de Steam, cada entrada de la micro-API y cada importación (con tamaño máximo).
+- **Texto de Steam como texto:** Biome prohíbe `dangerouslySetInnerHTML`; las URL se construyen desde el `appid` y rutas validadas. Zod valida cada respuesta de Steam, cada entrada de la micro-API y cada importación (con tamaño máximo). La excepción es la biblioteca de Steam de la Fase 2: el Worker la pasa tal cual (con 5 000 juegos no le llega la CPU) y la valida la app, juego a juego (ADR-012).
 - **Clave de Steam:** solo en un secreto de GitHub y en `.env.local`; el CI falla si el *build* contiene su valor o la cadena `x-webapi-key` (ver §12). Si se filtra, se revoca, se crea otra y se actualiza el secreto.
 - **Cadena de suministro:** `save-exact=true`, *lockfile* y `npm ci`; *actions* fijadas por SHA con `permissions` mínimos; Dependabot semanal; secretos solo en los flujos que los usan (ver §12). El *token* de Cloudflare tiene el mínimo permiso, pero «Workers Scripts: Edit» abarca toda la cuenta: un pipeline comprometido (procesa datos no confiables) podría desplegar `ga-web`. Por eso, desde el 31-10-2026 `ga-catalog` va en otra cuenta gratuita (https://ga-catalog.gameagenda-cat.workers.dev). Su *token* solo tiene «Workers Scripts: Edit» en esa cuenta, y el de `ga-web` no está en ningún flujo del catálogo (ADR-003 y ADR-007).
 - **Integridad del catálogo:** *manifest* firmado con ed25519 (privada solo en un secreto de GitHub; pública en la app, con hueco para una segunda para rotarla). Desde M2, el PC nunca firma ni despliega `ga-catalog`. Si el pipeline se lanza desde el PC (429 en los *runners* compartidos o falta de minutos), el PC construye y sube las páginas crudas de Steam a la *Release* de preparación `catalog-staging`. Después, `catalog.yml` (`workflow_dispatch` con `source=staging`) vuelve a derivar el catálogo sin red, pasa las puertas, firma y publica (ver §4.5). `catalog:publish` se niega fuera de GitHub Actions.
@@ -1869,8 +1878,8 @@ Fuentes: <https://www.aepd.es/guias/guia-cookies.pdf> · <https://www.boe.es/bus
   - un juego que ya espera no se repite (200; si no, 201), y con 200 pendientes en la agenda responde 409 `inbox_full`;
   - todas sus respuestas llevan un `message` en español, que es lo que enseña el Atajo, también las de error que salen antes de la ruta (interruptor, tipo de contenido, tamaño y cuerpo).
 - **`resolve`** (DECISIONES §10.40 y §10.43): valida el `appid` (1 a 10 cifras, sin ceros delante y de 32 bits; si no, 404 sin llamar a nadie) y pregunta a `IStoreBrowseService/GetItems/v1` sin clave, en español y para España (y para EE. UU. si allí está bloqueado), con 2 s de espera. La respuesta se lee con tope (64 KiB, `readCapped`), pasa por Zod y el nombre se limpia: sin caracteres de control y 200 caracteres como mucho. Es un GET que escribe en la caché, pero son datos públicos y nada de un usuario cambia. La app lo pide sin cookies (`credentials: 'omit'`), sin `Referer` y sin caché, y solo si sincroniza (ver §7.3): viaja el `appid`, y la IP llega a Cloudflare como con cualquier fichero de la app.
-- **Peticiones:** nada cambia por GET; el resto exige `Content-Type: application/json` y `Origin` propio, salvo el buzón: el Atajo de iOS no envía `Origin` (a verificar en el iPhone; si lo enviara, da igual), así que esa ruta no lo comprueba ni acepta la cookie, solo su *token*, aunque sí exige JSON. La app manda todas sus peticiones a la micro-API con `referrerPolicy: 'no-referrer'`: con la `Referrer-Policy` global, `Referer` llevaba la ruta y la consulta de la página (búsquedas, filtros, fichas). Zod rechaza campos desconocidos, cada ruta tiene tamaño máximo y no se aceptan HLC más de 5 min por delante del servidor: cada respuesta de `sync` trae la hora del servidor, con la que el cliente corrige su desfase y vuelve a sellar lo rechazado (ver §7.4). `Cache-Control: no-store` y registros sin cuerpos ni *tokens*. Solo se llama a `api.steampowered.com` (en Fase 2, también a `steamcommunity.com`): nunca es un *proxy* abierto.
-- **Rate limiting** en las rutas sin autenticar (crear agenda, canjear emparejamiento o código, `resolve`; en Fase 2, las de Steam) y por *token* en el buzón, con el *binding* `ratelimits` (10 o 60 s; contadores aproximados por ubicación; plan gratuito a verificar al desplegar: la documentación no lo dice). Crear agenda (`RL_AGENDA`), 5 por minuto, y canjear un código (`RL_REDEEM`), 10 por minuto; al *binding* le llega el SHA-256 de la IP, no la IP (ADR-011). Desde el 08-11-2026, también `resolve` (`RL_RESOLVE`), 30 por minuto y por IP, y el buzón (`RL_INBOX`), 30 por minuto y por el SHA-256 del *token*. Adivinar ≥128 bits es inviable: el límite protege la cuota gratuita de 100 000 peticiones/día, y si se agota, buscar y apuntar siguen funcionando (ver §5).
+- **Peticiones:** nada cambia por GET, salvo la vuelta del login de Steam (`GET /api/v1/steam/callback`, Fase 2), que lo exige OpenID 2.0 y solo escribe con una aserción verificada por Steam para un ticket vigente; el resto exige `Content-Type: application/json` y `Origin` propio, salvo el buzón: el Atajo de iOS no envía `Origin` (a verificar en el iPhone; si lo enviara, da igual), así que esa ruta no lo comprueba ni acepta la cookie, solo su *token*, aunque sí exige JSON. La app manda todas sus peticiones a la micro-API con `referrerPolicy: 'no-referrer'`: con la `Referrer-Policy` global, `Referer` llevaba la ruta y la consulta de la página (búsquedas, filtros, fichas). Zod rechaza campos desconocidos, cada ruta tiene tamaño máximo y no se aceptan HLC más de 5 min por delante del servidor: cada respuesta de `sync` trae la hora del servidor, con la que el cliente corrige su desfase y vuelve a sellar lo rechazado (ver §7.4). `Cache-Control: no-store` y registros sin cuerpos ni *tokens*. Solo se llama a `api.steampowered.com` (en Fase 2, también a la URL fija de OpenID de `steamcommunity.com`): nunca es un *proxy* abierto.
+- **Rate limiting** en las rutas sin autenticar (crear agenda, canjear emparejamiento o código, `resolve`; en Fase 2, `start` y `redeem` de Steam con `RL_STEAM`, 10 por minuto y por IP) y por *token* en el buzón, con el *binding* `ratelimits` (10 o 60 s; contadores aproximados por ubicación; plan gratuito a verificar al desplegar: la documentación no lo dice). Crear agenda (`RL_AGENDA`), 5 por minuto, y canjear un código (`RL_REDEEM`), 10 por minuto; al *binding* le llega el SHA-256 de la IP, no la IP (ADR-011). Desde el 08-11-2026, también `resolve` (`RL_RESOLVE`), 30 por minuto y por IP, y el buzón (`RL_INBOX`), 30 por minuto y por el SHA-256 del *token*. Adivinar ≥128 bits es inviable: el límite protege la cuota gratuita de 100 000 peticiones/día, y si se agota, buscar y apuntar siguen funcionando (ver §5).
 
 Fuentes: <https://developers.cloudflare.com/workers/static-assets/headers/> · <https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/>
 
@@ -1956,7 +1965,7 @@ Las medidas son las mismas en los tests y en el panel: `performance.measure` y, 
 | `catalog.yml` | Diario a las 04:17 UTC, con la variable `CATALOG_SCHEDULE` = `on`, y manual (ver §4) | Canario, pipeline, puertas (también las de calidad de búsqueda, ver §8.10), firma, `ga-catalog` con la versión anterior, prueba de humo, estado en la *Release*, *issue* si falla y *dead-man switch* | `STEAM_API_TOKEN` (la clave, que el flujo pasa como `STEAM_WEB_API_KEY`), `CATALOG_SIGNING_KEY`, `CATALOG_CLOUDFLARE_API_TOKEN` y `CATALOG_CLOUDFLARE_ACCOUNT_ID` (los de la cuenta de `ga-catalog`), `HEALTHCHECKS_PING_URL`. Variables y *runbook*: ADR-007 |
 
 - **Repositorio público** desde M0 (el plan lo daba por privado; ver ADR-003). Con el plan Free, un repositorio público también admite entornos y protección de ramas, pero de momento bastan los secretos de repositorio, legibles por cualquier flujo. Se acepta con una sola persona con escritura: solo dos flujos los citan, con `permissions` mínimos (`catalog.yml` añade `contents: write` e `issues: write`), *actions* fijadas por SHA y sin `pull_request_target`; el *token* de Cloudflare solo tiene «Workers Scripts: Edit» (y D1 en M4; alcance: ver §11). Con colaboradores, un entorno protegido para los secretos de despliegue.
-- **Búsqueda de la clave:** `scripts/scan-secrets.ts` falla si `dist/` contiene `x-webapi-key`, `STEAM_WEB_API_KEY` o una palabra de 32 caracteres alfanuméricos cuyo SHA-256, tal cual o en mayúsculas, coincida con la variable `STEAM_KEY_SHA256`: `ci.yml` no necesita la clave. La clave son 32 dígitos hexadecimales (128 bits) que Steam muestra en mayúsculas; Valve no lo documenta y se verificó en fuentes secundarias el 30-10-2026. `catalog.yml` revisa `pipeline/out/` con el valor real.
+- **Búsqueda de la clave:** `scripts/scan-secrets.ts` falla si `dist/` contiene `x-webapi-key`, `STEAM_WEB_API_KEY` o una palabra de 32 caracteres alfanuméricos cuyo SHA-256, tal cual o en mayúsculas, coincida con la variable `STEAM_KEY_SHA256`: `ci.yml` no necesita la clave. La clave son 32 dígitos hexadecimales (128 bits) que Steam muestra en mayúsculas; Valve no lo documenta y se verificó en fuentes secundarias el 30-10-2026. `catalog.yml` revisa `pipeline/out/` con el valor real. Desde la Fase 2 la clave también es un secreto del Worker (la importación de Steam, ADR-012): `ci.yml` pasa `scan-secrets.ts --key-only` (solo el valor, por su *hash*; los nombres sí van en el Worker) sobre el *bundle* de `wrangler deploy --dry-run --outdir`.
 - No se fusiona en rojo y solo se despliega un SHA con el CI en verde: [`workflow_run`](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows) se dispara sea cual sea el resultado, también tras el CI de una PR, y de ahí sus condiciones (verificado el 28-10-2026). *Rollback*: [`npx wrangler rollback`](https://developers.cloudflare.com/workers/configuration/versions-and-deployments/rollbacks/).
 - **Minutos:** en un repositorio público, los de los *runners* estándar no cuentan. El primer `ci.yml` tardó 2 min 52 s, con sus tres trabajos en paralelo (30-10-2026). Si pasara a privado, la estimación es ≈1 070–1 140 de los 2 000 al mes (`catalog.yml` ≈330–400: 30–31 ejecuciones × ≈11–13 min, ver §4.7; `ci.yml` ≈640 en 80 ejecuciones; despliegues ≈100).
 - **App de escritorio (M3):** el CI no compila Rust, así que sigue en ≤10 min y no gasta minutos en *runners* de Windows. Sí vigila sin Rust lo que importa para la seguridad: `apps/desktop/desktop.test.ts`, dentro de `npm run check`, falla si aparecen *capabilities* u órdenes propias, si el nombre del evento del atajo no coincide entre Rust y la web o si un *crate* no va fijado. Las pruebas de Rust (`cargo test`) y `clippy` se pasan en el PC. El instalador se genera en el PC con `npm run desktop:build` y se publica en la *Release* de la etiqueta del hito (`gh release create v0.3.0 <instalador>`); la parte nativa se prueba a mano con CA3.7 y CA3.8 (ver §15.6).
@@ -2285,6 +2294,8 @@ Sin colchón: para planificar se suma un 20 % (ver §16, R-13). Aparte van las e
 ### 15.8 Fase 2
 
 Cada bloque tendrá su ADR (la §5.6 reserva el ADR-012 para la cuenta de Steam) y sus criterios al cerrar M4: «Iniciar sesión con Steam» e importación que solo propone (ver §10); IGDB y otras plataformas (ver §17); DLC notables con insignia; marcas propias; avisos de lanzamiento; interfaz en inglés.
+
+La importación de Steam va en cuatro partes: 1, Mi lista con miles de juegos (en producción desde el 17-11-2026; DECISIONES §10.48); 2, iniciar sesión y traer la biblioteca y los deseados, sin tocar la agenda (hecha el 19-11-2026 en la rama `steam-parte-2`, apagada en producción; ADR-012 y §10.49); 3, revisar y aplicar, con Deshacer; y 4, los logros.
 
 ## 16. Riesgos y mitigaciones
 

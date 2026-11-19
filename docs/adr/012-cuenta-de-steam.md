@@ -44,7 +44,7 @@ Opciones elegidas por el usuario el 19-11-2026 («sigue», sobre las recomendaci
 
 ### Rutas (`apps/web/worker/routes/steam.ts`)
 
-Todas bajo `/api/v1/steam/`, con las reglas de la §11.4 (`Origin` propio y JSON en los POST, `Cache-Control: no-store` y las demás cabeceras de `apiHeaders`) y sin registrar nada: ni la URL (lleva el ticket y la aserción), ni los cuerpos, ni el SteamID64. Un error inesperado deja, como en el resto de la micro-API, solo su nombre y la ruta sin consulta.
+Todas bajo `/api/v1/steam/`, con las reglas de la §11.4 (`Origin` propio y JSON en los POST, `Cache-Control: no-store` y las demás cabeceras de `apiHeaders`) y sin registrar nada: ni la URL (lleva el ticket y la aserción), ni los cuerpos, ni el SteamID64. Un error inesperado deja, como en el resto de la micro-API, solo su nombre y la ruta sin consulta; y si Steam rechaza la clave (401 o 403 en `GetOwnedGames`), una línea con ese código, sin nada de la cuenta, para saber que hay que cambiarla.
 
 - **`POST /api/v1/steam/start`** `{ challenge }` → 201 `{ ticket, url, expiresAt }`.
   - `challenge` es `BASE64URL(SHA-256(verificador))`, como `S256` de PKCE (RFC 7636): 43 caracteres. El verificador son 256 bits aleatorios en base64url (43 caracteres) que solo conoce la app.
@@ -59,7 +59,7 @@ Todas bajo `/api/v1/steam/`, con las reglas de la §11.4 (`Origin` propio y JSON
   - **202** `{ status: "pending" }` si el ticket existe, no ha caducado, su `challenge` es el del verificador y aún no hay login. No lo gasta. Es un 2xx para que preguntar al volver a la app no deje errores en la consola.
   - **410** `steam_ticket_invalid` si no existe, ha caducado, ya se canjeó o el verificador no es el suyo: las cuatro dan la misma respuesta.
   - Si no, lo canjea con un `DELETE … RETURNING steam_id` (**comprobación 5**: un solo uso, y solo con el verificador). Suma 2 llamadas al contador del día y pide **a la vez** `IPlayerService/GetOwnedGames/v1` (`include_appinfo`, `include_played_free_games`, `skip_unvetted_apps=false`; la clave en `x-webapi-key`, nunca en la URL; 15 s de espera) e `IWishlistService/GetWishlist/v1` (sin clave; 5 s).
-  - **200** `{"owned": <el cuerpo de GetOwnedGames tal cual>, "wishlist": [{ appid, priority, dateAdded }] | null}` en *streaming* (ver abajo). `wishlist` es `null` si Steam no la ha dado.
+  - **200** `{"owned": <el cuerpo de GetOwnedGames tal cual>, "wishlist": <el de GetWishlist tal cual> | null}` en *streaming* (ver abajo). `wishlist` es `null` si Steam no la ha dado.
   - **502** `steam_unavailable` si `GetOwnedGames` no responde 200 con `application/json`. El ticket ya está gastado: se vuelve a empezar, y Steam suele recordar la sesión.
 
 Si Steam falla en el canje, la app no puede reintentar con el mismo ticket: es el precio del solo uso, y con él una respuesta interceptada no sirve para pedir otra biblioteca.
@@ -68,10 +68,10 @@ Si Steam falla en el canje, la app no puede reintentar con el mismo ticket: es e
 
 Medido con una *fixture* de 5 000 juegos con `include_appinfo` (1,7 MB) en V8 (Node 24): solo decodificar y `JSON.parse`, 6–7 ms en frío; con Zod, 17–23 ms en frío y un p99 de 18 ms en caliente; normalizar y volver a serializar, 21–23 ms. Pasarla en *streaming*, contando bytes, 0,3 ms en caliente (p99 de 1,3 ms).
 
-- El Worker comprueba el estado 200 y `Content-Type: application/json`, escribe `{"owned":`, pasa los trozos de Steam contando bytes (tope de 16 MiB: si se pasa, corta el *stream* y la app ve una respuesta rota) y, al acabar, `,"wishlist":…}`.
-- Lo que escribe el Worker va **después** del cuerpo de Steam: si ese cuerpo trajera una clave `wishlist`, `JSON.parse` se queda con la última, la del Worker.
-- **Excepción a la §11.3** («Zod valida cada respuesta de Steam»): la biblioteca la valida Zod en el dispositivo (`steamOwnedGamesSchema`, en `@gameagenda/core/api`), con tope de juegos y de longitud del nombre. La lista de deseados, que pesa pocos KB, sí se valida y se compacta en el Worker.
-- Pesar 1,7 MB también en el móvil: si leerla da una tarea de más de 50 ms con CPU ×4, se lee fuera del hilo principal (se mide en los E2E).
+- El Worker comprueba el estado 200 y `Content-Type: application/json`, escribe `{"owned":`, pasa los trozos de Steam contando bytes (tope de 16 MiB, `STEAM_IMPORT_MAX_BYTES`: si se pasa, corta el *stream* y la app ve una respuesta rota) y, al acabar, `,"wishlist":` y la lista de deseados, y `}`.
+- **La lista de deseados también va tal cual** (cambio sobre la propuesta, que la compactaba en el Worker): se lee entera, con tope de 1 MiB (≈19 000 deseados), y solo se comprueba que es JSON, para que un fallo suyo salga como `null` y no rompa la respuesta. Así el Worker no valida nada de Steam y su CPU no depende de lo que traiga. Todo lo que va en la respuesta es de Steam, así que una clave `wishlist` colada en el cuerpo de la biblioteca no cambia de quién son los datos (y `JSON.parse` se queda con la última, la de `GetWishlist`).
+- **Excepción a la §11.3** («Zod valida cada respuesta de Steam»): la biblioteca y los deseados los valida Zod en el dispositivo (`steamImportResponseSchema` y, juego a juego, `steamOwnedGameSchema` y `steamWishlistItemSchema`, en `@gameagenda/core/api`): uno raro no tira el resto, y los nombres se limpian (sin caracteres de control, 200 caracteres como mucho).
+- **En el móvil:** con 5 000 juegos, el bloque más largo de leerla es el `JSON.parse` (4–10 ms con CPU ×1, medido con un juego abierto en el PC): la app cede el turno después de leer el JSON y cada 500 juegos validados.
 
 ### Verificar el login sin `nodejs_compat` (1B)
 
@@ -111,31 +111,50 @@ Solo aditiva (§10.47): la versión anterior del código funciona con la base nu
 
 **Retención.** El ticket caduca a los 10 min y se borra al canjearlo, al fallar la aserción, y en cada `start` los caducados. Un ticket abandonado lo borra un segundo Cron Trigger, `*/5 * * * *`, que solo hace eso. Así un SteamID64 está en D1 **como mucho 15 min**, no los 10 que decía la §11.2: los 10 min son los del ticket, y los 5 más, el margen del *cron*. Time Travel lo conserva 7 días más, como todo lo de D1.
 
-### En la app
+### En la app (`src/steam/` y `screens/settings/SteamImport.tsx`)
 
-- La entrada «Importar desde Steam», con el botón oficial de Steam, va en Ajustes › Datos, en el *chunk* de Ajustes; el flujo, en un *chunk* diferido que se pide al pulsar.
-- Al pulsar: el verificador (`crypto.getRandomValues`) y el `challenge` (`crypto.subtle.digest`), `start` y la URL de Steam en otra ventana. En la app de escritorio, `on_new_window` ya la abre en el navegador del sistema (ADR-010).
-- **Al volver:** la app pide `redeem` cuando recupera el foco o vuelve a estar a la vista, y con un botón «Continuar». Funciona igual en la pestaña, en la PWA de iOS y en la app de escritorio, porque el canje lo hace la app con su verificador, venga de donde venga la vuelta de Steam.
-- Estados, en `role="status"`: esperando, perfil privado (la guía de la §10.1), biblioteca vacía, error, sin red y ticket caducado (con «Volver a empezar»). Y el resumen: «Hemos encontrado 287 juegos en tu biblioteca y 25 deseados».
+- **Dos pasos.** «Importar desde Steam» genera el verificador (`crypto.getRandomValues`) y el `challenge` (`crypto.subtle.digest`) y pide `start`: es la primera petición a `/api`, y antes del clic no hay ninguna. Después, el **botón oficial de Steam** (la imagen «Sign in through Steam», que dice «This site not associated with Valve Corp.», con el nombre accesible «Iniciar sesión con Steam») es un enlace de verdad a la URL de OpenID, en otra ventana. Abrirla con `window.open` tras el `await` de `start` la bloquearía Safari; un enlace que pulsa el usuario, no. En la app de escritorio, `on_new_window` lo abre en el navegador del sistema (ADR-010), y en la PWA de iOS, en Safari.
+- **Al volver:** la app pide `redeem` cuando recupera el foco o vuelve a la vista, y con «Ya he iniciado sesión». Funciona igual en la pestaña, en la PWA de iOS y en la app de escritorio, porque el canje lo hace la app con su verificador, venga de donde venga la vuelta de Steam. Foco y vista llegan juntos: un solo canje a la vez.
+- **El flujo** (`steam/steam-flow.ts`) es un almacén pequeño que sobrevive a salir de Ajustes. Las peticiones van sin *cookies* (`credentials: 'omit'`), sin `Referer` y sin caché. El verificador solo está en memoria: si el sistema cierra la app, se vuelve a empezar. La caducidad la decide el servidor (410): con el reloj del dispositivo desfasado, comprobarla aquí daría por caducado un ticket vigente.
+- **Estados**, en `role="status"`: esperando (y «aún no has terminado» tras «Ya he iniciado sesión» sin login), trayendo la biblioteca, el resumen («Hemos encontrado 287 juegos en tu biblioteca y 25 deseados», con «De momento no hemos cambiado nada de tu lista»), perfil privado (la guía de la §10.1 y el enlace a la privacidad de Steam), biblioteca vacía, caducado, sin red (reintenta con el mismo ticket), Steam caído, tope del día, demasiados intentos y apagada. Los textos, en `steam/texts.ts`: en `i18n/es.ts` subían el JS inicial 0,6 KB.
 - Lo traído se queda **en memoria** hasta la parte 3. No cambia la agenda.
+- **`__STEAM_IMPORT__`**, una constante de compilación de `vite.config.ts` (como `__APP_VERSION__`): `true` en desarrollo y en los E2E, `false` en producción hasta la parte 3, salvo con `VITE_STEAM_IMPORT=1` al construir (la prueba a mano). Con `false` no queda nada en el *build*: el mismo JS inicial que `main` (141,4 KB), sin *chunks* de Steam y con el botón (`public/steam/`) fuera de la precaché del Service Worker. Dos intentos que no valieron: importar la imagen y un `import()` dentro de un módulo que se descarta los publicaba igual; y `SteamImport` como *chunk* propio, anidado en el de Ajustes, hacía que Rolldown partiera el JS inicial en tres ficheros (142,7 KB con la importación activada). Va dentro del *chunk* de Ajustes.
+- **Service Worker:** servía el `index.html` para cualquier navegación del origen, también a `/api/`. La vuelta de Steam es una navegación: en el mismo navegador que la app, el usuario habría visto la app en vez de «Listo». Ahora las navegaciones a `/api/` van a la red (lo encontró el E2E).
 
 ### Consecuencias
 
 - Bien, porque ninguna llamada a la Web API sale antes de un login verificado por Steam, y una aserción o un ticket robados no sirven sin el verificador.
 - Bien, porque el Worker no lee la biblioteca: la CPU de `redeem` no crece con ella.
 - Bien, porque no hay dependencias nuevas ni `nodejs_compat`.
-- Mal, porque la biblioteca no la valida el servidor (excepción a la §11.3), y la app tiene que leer hasta 1,7 MB.
+- Mal, porque lo de Steam no lo valida el servidor (excepción a la §11.3), y la app tiene que leer hasta 1,7 MB.
+- Mal, porque la vuelta de Steam escribe en D1 con un GET (lo exige OpenID 2.0; solo con una aserción verificada).
 - Mal, porque un SteamID64 puede estar en D1 hasta 15 min, no 10.
 - Mal, porque si Steam falla durante el canje, hay que volver a empezar.
 - Pendiente: qué campos devuelve Steam de verdad (familia, juegos privados, lista de deseados privada o vacía), en la prueba a mano.
 - Pendiente: la parte 3 decide dónde se guarda lo traído y cómo se aplica sin 15 operaciones por juego en la `outbox`.
 
+### CPU por petición (19-11-2026)
+
+`node scripts/api-cpu.ts`, con un juego abierto en el PC (los tiempos salen inflados: `sync` que sube 200 operaciones dio un p99 de 6,52 ms, cuando el 08-11-2026 dio 2,38):
+
+| Petición | p50 (ms) | p99 (ms) | Primera (ms) |
+|---|---|---|---|
+| `start` | 0,19 | 0,48 | 8,25 |
+| `callback` (con `check_authentication` falso, sin esperar) | 0,38 | 0,84 | 2,39 |
+| `redeem` con 5 000 juegos (1,7 MB), leída entera sin parsear | 3,47 | 6,95 | 6,02 |
+
+En `redeem`, ≈2,9 ms (p50) son de los *streams* de Node que lo rodean en la prueba (el Steam falso que reparte los trozos y el lector), que en `workerd` son nativos: lo que añade el Worker son ≈0,25 ms (`.cache/steam-probe/stream-cost.mts`). `redeem` tiene su propio presupuesto en el script, 10 ms (el límite gratuito); el resto, el de CA4.6. La primera petición de un *isolate* es como la de las demás rutas (de 2 a 10 ms). Lo que cierra la medida es el panel de Workers.
+
 ### Confirmación
 
-- Pruebas de la micro-API con `app.request()`, D1 sobre `node:sqlite` y aserciones de OpenID grabadas en *fixtures*: cada comprobación con su prueba (firma falsa, campo sin firmar, `op_endpoint` ajeno, `return_to` con otra ruta u otro ticket, `claimed_id` con otro formato, ticket repetido, caducado y verificador equivocado), y una que demuestra que `start` y un `callback` no válido no llaman a la Web API.
-- `scripts/api-cpu.ts`, con `redeem` y una biblioteca de 5 000 juegos.
-- Que la clave no está en el *bundle* del Worker (`wrangler deploy --dry-run --outdir`) ni en el de la app (`scan-secrets`).
-- E2E en Chromium y WebKit con el Steam falso: la pestaña, el canje desde otro contexto (la PWA de iOS) y axe; y que la app no pide nada a `/api` antes del clic.
+- **Micro-API**, con `app.request()`, D1 sobre `node:sqlite` y aserciones de OpenID con la forma de las de Steam (`fixtures/steam/openid/`), firmadas por un Steam falso que contesta `check_authentication` recalculando la firma (`worker/test/steam-support.ts`):
+  - cada comprobación con su prueba: firma falsa, campo sin firmar, `op_endpoint` ajeno, `return_to` con otra ruta, otro ticket u otro origen, `claimed_id` con otro formato, parámetros repetidos, ticket repetido, caducado y verificador equivocado; y que `start` y un `callback` no válido no llaman a la Web API;
+  - **mutaciones:** se quitó cada comprobación de `callback` (15) y cada condición de `redeem` (9) una a una, y en las 24 alguna prueba falla (`.cache/steam-probe/mutate*.mjs`);
+  - el interruptor, `RL_STEAM`, el tope diario, la purga y los fallos de Steam.
+- **El flujo de la app** contra la micro-API real (`worker/test/steam-client.test.ts`, 14) y el lector (`steam-library.test.ts`, 8).
+- **E2E** (`steam-import.spec.ts`, 7 pruebas en Chromium y en WebKit, con axe en cada estado): nada a `/api` antes del clic y después solo `start`, sin cookies ni `Referer`; la pestaña con Steam en otra ventana; la PWA de iOS con el login en otro contexto; perfil privado; caducado; sin red; apagada. La página de Steam la hace una ruta de Playwright que vuelve a `return_to` con una aserción firmada (con una página que redirige sola: el WebKit de Playwright no deja responder con un 302). En la vista previa, la app pide `/api/v1/steam/*` sin cookies y la vuelta de Steam sí las lleva, así que todo lo de Steam va a un mundo por proyecto (`steam-http` y `steam-https`), para que las dos lleguen a la misma D1 y un proyecto no apague la importación del otro.
+- **La clave:** `scan-secrets.ts --key-only` sobre `wrangler deploy --dry-run --outdir`, en el CI (el *bundle* del Worker lleva los nombres, nunca el valor), y el de siempre sobre el de la app.
+- **`legal-guard`:** `STEAM_ENABLED` a "1" solo con la política al día.
 - La prueba a mano con Steam de verdad, con un túnel `cloudflared`.
 
 ## Pros y contras de las opciones

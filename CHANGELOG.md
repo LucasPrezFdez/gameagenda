@@ -11,6 +11,7 @@ Cambios de GameAgenda por versión. Cada hito cierra una versión SemVer 0.x (§
 - **Sincronización entre dispositivos** (07-11-2026; en producción desde el 16-11-2026; ADR-011, DECISIONES §10.36–§10.37): en Ajustes › Sincronización se activa con la declaración de edad y se guarda una vez un código de recuperación. Otro dispositivo se empareja con un código o un QR de 10 min. Los cambios se sincronizan solos al abrir la app, al volver a ella, al recuperar la red y poco después de apuntar algo. Hay lista de dispositivos para desemparejarlos, y «Borrar todos mis datos» borra también la copia del servidor. Si se borran los datos del navegador, la agenda vuelve sola o con el código de recuperación.
 - **Atajo de iOS** (08-11-2026; en producción desde el 16-11-2026; ADR-011, DECISIONES §10.39): desde Ajustes › Sincronización se crea un token de solo escritura para la app Atajos del iPhone o el iPad, con la dirección y los pasos. Compartir un juego desde Safari o la app de Steam lo deja en un buzón, y la siguiente sincronización lo apunta en Quiero jugar, con un aviso. Lo que ya está en la lista no cambia. El token sale en «Dispositivos», donde se desempareja.
 - **El nombre de un juego que aún no está en el catálogo** (08-11-2026, en la misma rama; DECISIONES §10.40): con la sincronización activada, un enlace de un juego recién publicado se apunta al instante como provisional, y su nombre llega de Steam en un segundo, si hay conexión. Sin sincronizar, espera a que llegue al catálogo.
+- **Política de privacidad, versión 2** (19-11-2026, en la rama `steam-parte-2`; ADR-012): cuenta «Importar desde Steam» (qué se trae, que el número de la cuenta de Steam se queda en el servidor 15 min como mucho y que la biblioteca no se guarda en él), aunque la importación aún no se ve. El registro de actividades, también en su versión 2.
 - **Política de privacidad y aviso legal** (08-11-2026, en la misma rama; DECISIONES §10.41): en `/privacidad` y `/aviso-legal`, enlazados desde Ajustes › Privacidad, Acerca de y la sincronización, que lleva al lado la primera capa. El nombre y el correo del responsable, desde el 16-11-2026.
 - **Pulido visual y animaciones** (10-11-2026; DECISIONES §10.44, opciones elegidas por el usuario en `docs/diseno/pulido/`):
   - la paleta se abre en el centro de la pantalla (PC), con el campo grande; la barra lateral marca lo activo con tinta y lleva los contadores en píldora; la cápsula del móvil, con una píldora de tinta que se desliza;
@@ -25,6 +26,10 @@ Cambios de GameAgenda por versión. Cada hito cierra una versión SemVer 0.x (§
 
 #### Ingeniería
 
+- **Importar desde Steam, parte 2: iniciar sesión y traer la biblioteca** (19-11-2026, en la rama `steam-parte-2`, apagada en producción; Fase 2; ADR-012 y DECISIONES §10.49). Lo verá el usuario con la parte 3 (revisar y aplicar):
+  - en la micro-API, `POST /api/v1/steam/start`, `GET /api/v1/steam/callback` (las cinco comprobaciones de OpenID 2.0, con el `verifyLogin` de `steam-signin` portado a `fetch`) y `POST /api/v1/steam/redeem` (canje tipo PKCE, y `GetOwnedGames` y `GetWishlist` tal cual, en *streaming*). La migración `0003` (tickets y contador diario), un Cron Trigger cada 5 min que borra los tickets caducados, `RL_STEAM`, un tope de 50 000 llamadas a Steam al día y el interruptor `STEAM_ENABLED`, a `"0"`;
+  - en la app, «Importar desde Steam» en Ajustes › Datos, con el botón oficial de Steam, la vuelta a la app en la pestaña, la PWA de iOS y la app de escritorio, los estados y el resumen. Solo existe en el *build* con `__STEAM_IMPORT__` (desarrollo, E2E o `VITE_STEAM_IMPORT=1`): en producción, el JS inicial y la precaché no cambian;
+  - `scan-secrets.ts --key-only` sobre el *bundle* del Worker, en el CI, y `legal-guard`, que no deja `STEAM_ENABLED` a `"1"` sin la política al día.
 - **Micro-API, parte 5: el despliegue** (16-11-2026, en producción; ADR-011, «Despliegue», y DECISIONES §10.47):
   - la base D1 `ga-agenda`, creada en la jurisdicción UE;
   - `deploy-web` aplica las migraciones de D1 antes de desplegar, y su prueba de humo comprueba también la micro-API;
@@ -75,6 +80,7 @@ Cambios de GameAgenda por versión. Cada hito cierra una versión SemVer 0.x (§
 
 ### Corregido
 
+- **El Service Worker servía la app en las navegaciones a `/api/`** (19-11-2026, en la rama `steam-parte-2`; ADR-012): con la app instalada, abrir una dirección de la micro-API en el mismo navegador enseñaba la app. Lo encontró el E2E de la vuelta del login de Steam, que es una navegación. Ahora van a la red.
 - **Intro apuntaba otro juego** (16-11-2026, revisión; DECISIONES §10.46). Si se elegía una fila con ↑/↓ antes de que llegaran los resultados de la última tecla, Intro apuntaba la primera de los nuevos. Ahora apunta la elegida, o nada si ya no está.
 - **Los enlaces de juegos para adultos** (`store.steampowered.com/agecheck/app/…`) no se reconocían y acababan en un alta a mano con la dirección como título.
 - **La fila de Mi lista entre 768 y 1 000 px:** con la barra lateral abierta, el título se quedaba en nada o se cortaba con un hueco vacío al lado, porque las acciones rápidas, aun invisibles, ocupaban su sitio. Ahora salen sobre el final del título con el puntero encima, y con la lista estrecha no salen (quedan el menú «…» y los atajos).
