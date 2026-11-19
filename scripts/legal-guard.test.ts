@@ -1,9 +1,16 @@
 // CA4.7 (§11.2 de prototipe.md): la micro-API no se enciende sin los textos legales publicados. Si
 // `apps/web/wrangler.jsonc` pone `SYNC_ENABLED` a "1", el responsable (`legal/controller.ts`) tiene
 // que tener nombre y correo: si no, la política diría «pendiente» justo cuando empieza a valer.
+// Y la importación de Steam (Fase 2; ADR-012) tampoco: con `STEAM_ENABLED` a "1", la política
+// tiene que contar qué se trae de Steam, el SteamID64 y cuánto dura en D1.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { CONTROLLER, controllerReady } from '../apps/web/src/legal/controller.ts';
+import {
+  privacyPolicy,
+  STEAM_ID_RETENTION_MINUTES,
+  STEAM_IMPORT_SECTION,
+} from '../apps/web/src/legal/texts.ts';
 
 /** JSONC → JSON: fuera los comentarios de línea y de bloque (sin tocar las cadenas). */
 function stripJsonComments(text: string): string {
@@ -37,13 +44,41 @@ function stripJsonComments(text: string): string {
   return out.replace(/,(\s*[}\]])/g, '$1');
 }
 
+function wranglerVars(): Record<string, string> {
+  const config = JSON.parse(stripJsonComments(readFileSync('apps/web/wrangler.jsonc', 'utf8'))) as {
+    vars?: Record<string, string>;
+  };
+  return config.vars ?? {};
+}
+
+/** La política cuenta «Importar desde Steam»: su sección, el SteamID64 y cuánto dura en D1. */
+function policyCoversSteamImport(): boolean {
+  const policy = privacyPolicy(CONTROLLER);
+  const section = policy.sections.find((s) => s.id === STEAM_IMPORT_SECTION);
+  if (section === undefined) return false;
+  const text = JSON.stringify(section);
+  return text.includes('SteamID64') && text.includes(`${STEAM_ID_RETENTION_MINUTES} minutos`);
+}
+
 describe('textos legales antes de encender la micro-API (CA4.7)', () => {
   it('con SYNC_ENABLED a "1", el responsable tiene nombre y correo', () => {
-    const config = JSON.parse(
-      stripJsonComments(readFileSync('apps/web/wrangler.jsonc', 'utf8')),
-    ) as { vars?: Record<string, string> };
+    const config = { vars: wranglerVars() };
     const enabled = config.vars?.SYNC_ENABLED === '1';
     if (enabled) expect(controllerReady(CONTROLLER), 'apps/web/src/legal/controller.ts').toBe(true);
     else expect(config.vars?.SYNC_ENABLED).toBe('0');
+  });
+
+  it('con STEAM_ENABLED a "1", la política cuenta la importación de Steam (ADR-012)', () => {
+    const steam = wranglerVars().STEAM_ENABLED;
+    if (steam === '1') {
+      expect(policyCoversSteamImport(), 'apps/web/src/legal/texts.ts').toBe(true);
+      expect(controllerReady(CONTROLLER), 'apps/web/src/legal/controller.ts').toBe(true);
+    } else {
+      expect(steam).toBe('0');
+    }
+  });
+
+  it('la política de hoy ya la cuenta', () => {
+    expect(policyCoversSteamImport()).toBe(true);
   });
 });

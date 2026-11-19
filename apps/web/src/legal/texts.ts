@@ -6,7 +6,7 @@
 //
 // Al cambiar algo que importe (qué datos, para qué, con quién, cuánto tiempo), sube `LEGAL_VERSION`
 // y la fecha, y cuéntalo en el CHANGELOG.
-import { DEFAULT_MIN_AGE } from '@gameagenda/core/api';
+import { DEFAULT_MIN_AGE, STEAM_TICKET_TTL_MS } from '@gameagenda/core/api';
 import {
   CONTROLLER,
   type Controller,
@@ -20,9 +20,18 @@ import {
 
 export type { Inline } from './controller.ts';
 
-export const LEGAL_VERSION = '1';
-/** Día de esta versión de los textos (dd-mm-aaaa). */
-export const LEGAL_UPDATED = '08-11-2026';
+export const LEGAL_VERSION = '2';
+/** Día de esta versión de los textos (dd-mm-aaaa). La 2 añade «Importar desde Steam» (ADR-012). */
+export const LEGAL_UPDATED = '19-11-2026';
+
+/**
+ * Lo más que guarda D1 el SteamID64 de un login con Steam: los 10 min del ticket
+ * (`STEAM_TICKET_TTL_MS`) y los 5 del Cron Trigger que borra los caducados (ADR-012).
+ */
+export const STEAM_ID_RETENTION_MINUTES = STEAM_TICKET_TTL_MS / 60_000 + 5;
+
+/** Id de la sección de la política sobre «Importar desde Steam» (la exige `legal-guard`). */
+export const STEAM_IMPORT_SECTION = 'importar-steam';
 
 export type Block =
   | { readonly kind: 'p'; readonly parts: readonly Inline[] }
@@ -76,6 +85,7 @@ export function privacyPolicy(c: Controller = CONTROLLER): LegalDocument {
             'Sin sincronizar, tu lista, tus ajustes y lo demás se quedan en tu dispositivo. No los recibimos.',
             'Las portadas de los juegos se piden a los servidores de Valve (Steam), que reciben tu dirección IP. Puedes desactivarlas.',
             'Si activas la sincronización, guardamos tu agenda en servidores de Cloudflare en la Unión Europea, para que la tengas en tus dispositivos. No sabemos quién eres: no hay nombre, email ni IP guardados.',
+            `Si importas tu biblioteca de Steam, inicias sesión en Steam, no aquí. Tus juegos y tu lista de deseados pasan por nuestro servidor hasta tu dispositivo sin quedarse en él, y en el servidor solo queda el número de tu cuenta de Steam, ${STEAM_ID_RETENTION_MINUTES} minutos como mucho.`,
             'Puedes exportar tus datos, corregirlos y borrarlos desde la app, también los del servidor.',
           ),
         ],
@@ -116,7 +126,10 @@ export function privacyPolicy(c: Controller = CONTROLLER): LegalDocument {
             '6. Atajo de iOS, si lo creas. Guardamos los enlaces de Steam que mandas con el atajo hasta que una app tuya los apunta, y entonces los borramos. Base: el servicio que pides (art. 6.1.b del RGPD).',
           ),
           p(
-            '7. Seguridad. Para que nadie abuse del servicio, contamos las peticiones de cada dirección IP durante unos segundos o minutos. Al contador le llega un resumen (hash) de la IP, nunca la IP, y no se guarda. Base: nuestro interés legítimo en proteger el servicio (art. 6.1.f del RGPD).',
+            '7. Importar desde Steam, si lo usas: tu biblioteca y tu lista de deseados de Steam, y el número de tu cuenta de Steam mientras inicias sesión. Lo explicamos más abajo, en «Importar desde Steam». Base: el servicio que pides al importar (art. 6.1.b del RGPD).',
+          ),
+          p(
+            '8. Seguridad. Para que nadie abuse del servicio, contamos las peticiones de cada dirección IP durante unos segundos o minutos. Al contador le llega un resumen (hash) de la IP, nunca la IP, y no se guarda. También contamos cuántas consultas hacemos a Steam cada día, sin saber de quién son, para no pasar del límite que pone Valve. Base: nuestro interés legítimo en proteger el servicio (art. 6.1.f del RGPD).',
           ),
           p('No tomamos decisiones automatizadas sobre ti ni hacemos perfiles.'),
         ],
@@ -156,6 +169,27 @@ export function privacyPolicy(c: Controller = CONTROLLER): LegalDocument {
         ],
       },
       {
+        id: STEAM_IMPORT_SECTION,
+        title: 'Importar desde Steam',
+        blocks: [
+          p(
+            'Desde Ajustes › Datos puedes traer los juegos de tu biblioteca de Steam y tu lista de deseados, para no tener que apuntarlos uno a uno. Solo pasa si tú lo pides, y no hace falta tener la sincronización activada.',
+          ),
+          list(
+            'Inicias sesión en la web de Steam, con su botón oficial. Nunca vemos tu contraseña ni nada de tu cuenta, salvo lo que se dice aquí.',
+            'Steam le dice a nuestro servidor el número de tu cuenta (SteamID64), y con él le pedimos tu biblioteca (qué juegos tienes, las horas jugadas y cuándo jugaste por última vez) y tu lista de deseados. No pedimos tu nombre, tu avatar ni tu ubicación.',
+            'Tu biblioteca y tu lista de deseados pasan por nuestro servidor hasta tu dispositivo, sin que el servidor las guarde ni las anote en ningún registro. En tu dispositivo, lo que decidas aplicar pasa a ser parte de tu lista, como cualquier juego que apuntes.',
+            `Mientras inicias sesión, el servidor guarda el número de tu cuenta junto a un código de un solo uso que solo tu dispositivo puede canjear. El código caduca a los ${STEAM_TICKET_TTL_MS / 60_000} minutos, y en ${STEAM_ID_RETENTION_MINUTES} minutos como mucho ya no queda nada.`,
+            'Si tu perfil de Steam no deja ver los detalles de juegos, Steam no nos da la biblioteca, y la app te dice cómo cambiarlo. Los juegos que hayas marcado como privados en Steam no aparecen.',
+          ),
+          p(
+            'Al iniciar sesión hablas directamente con Steam: lo que recoja su web lo trata Valve según su ',
+            link('política de privacidad', VALVE_PRIVACY),
+            '. Base: el servicio que pides al importar (art. 6.1.b del RGPD).',
+          ),
+        ],
+      },
+      {
         id: 'edad',
         title: 'Edad',
         blocks: [
@@ -177,7 +211,7 @@ export function privacyPolicy(c: Controller = CONTROLLER): LegalDocument {
               '.',
             ],
             [
-              'Valve Corporation (EE. UU.) recibe tu IP cuando tu navegador pide las portadas, y el número de un juego cuando nuestro servidor le pregunta su nombre. Valve decide por su cuenta qué hace con ello: su ',
+              'Valve Corporation (EE. UU.) recibe tu IP cuando tu navegador pide las portadas, el número de un juego cuando nuestro servidor le pregunta su nombre y, si importas desde Steam, el número de tu cuenta cuando nuestro servidor le pide tu biblioteca. Valve decide por su cuenta qué hace con ello: su ',
               link('política de privacidad', VALVE_PRIVACY),
               '.',
             ],
@@ -246,6 +280,16 @@ export function privacyPolicy(c: Controller = CONTROLLER): LegalDocument {
                 'Cloudflare D1, en la UE',
                 '30 días',
               ],
+              [
+                'Número de tu cuenta de Steam, al importar, con su código de un solo uso',
+                'Cloudflare D1, en la UE',
+                `${STEAM_ID_RETENTION_MINUTES} minutos como mucho (el código caduca a los ${STEAM_TICKET_TTL_MS / 60_000})`,
+              ],
+              [
+                'Tu biblioteca y tu lista de deseados de Steam',
+                'Tu dispositivo',
+                'Solo mientras importas; lo que apliques, como el resto de tu lista',
+              ],
               ['Contadores de peticiones', 'Cloudflare', 'Unos segundos o minutos'],
             ],
           },
@@ -298,7 +342,7 @@ export function privacyPolicy(c: Controller = CONTROLLER): LegalDocument {
         title: 'Seguridad',
         blocks: [
           p(
-            'Todo viaja cifrado (HTTPS). El servidor solo guarda resúmenes (hash) de las credenciales y de los códigos, nunca los originales. La credencial de cada dispositivo va en una cookie que ningún script puede leer. Los códigos de emparejamiento sirven una sola vez y caducan a los 10 minutos.',
+            'Todo viaja cifrado (HTTPS). El servidor solo guarda resúmenes (hash) de las credenciales y de los códigos, nunca los originales. La credencial de cada dispositivo va en una cookie que ningún script puede leer. Los códigos de emparejamiento sirven una sola vez y caducan a los 10 minutos. El inicio de sesión con Steam lo comprueba Steam, y solo lo puede canjear el dispositivo que lo empezó. La clave con la que pedimos datos a Steam nunca sale del servidor.',
           ),
         ],
       },

@@ -5,6 +5,7 @@ import {
   DEVICE_COOKIE,
   PAIRING_TTL_MS,
   RESOLVE_TTL_MS,
+  STEAM_TICKET_TTL_MS,
   SYNC_HINT_COOKIE,
 } from '@gameagenda/core/api';
 import { PURGE_AFTER_DAYS } from '@gameagenda/core/sync';
@@ -12,7 +13,14 @@ import { describe, expect, it } from 'vitest';
 import { LEGAL_PATHS, parseRoute } from '../router/routes.ts';
 import { type Controller, controllerReady, NOTICE_PATH, PRIVACY_PATH } from './controller.ts';
 import { syncFirstLayer } from './first-layer.ts';
-import { type Inline, type LegalDocument, legalNotice, privacyPolicy } from './texts.ts';
+import {
+  type Inline,
+  type LegalDocument,
+  legalNotice,
+  privacyPolicy,
+  STEAM_ID_RETENTION_MINUTES,
+  STEAM_IMPORT_SECTION,
+} from './texts.ts';
 
 const READY: Controller = { name: 'Responsable de prueba', email: 'privacidad@example.org' };
 const PENDING: Controller = { name: null, email: null };
@@ -108,5 +116,26 @@ describe('textos legales', () => {
     expect(text).toContain('7 días');
     // La cookie dura lo que `DEVICE_COOKIE_MAX_AGE_S`.
     expect(text).toContain('400 días');
+    // El ticket del login con Steam y lo más que dura el SteamID64 en D1 (ADR-012): los 10 min del
+    // ticket y los 5 del Cron Trigger que borra los caducados.
+    expect(STEAM_ID_RETENTION_MINUTES).toBe(STEAM_TICKET_TTL_MS / 60_000 + 5);
+    expect(text).toContain(`caduca a los ${STEAM_TICKET_TTL_MS / 60_000} minutos`);
+    expect(text).toContain(`${STEAM_ID_RETENTION_MINUTES} minutos como mucho`);
+  });
+
+  it('la política cuenta «Importar desde Steam» (Fase 2; ADR-012)', () => {
+    const policy = privacyPolicy(READY);
+    const section = policy.sections.find((s) => s.id === STEAM_IMPORT_SECTION);
+    expect(section?.title).toBe('Importar desde Steam');
+    const text = textOf(policy);
+    for (const needed of [
+      'SteamID64',
+      'No pedimos tu nombre, tu avatar ni tu ubicación',
+      'sin que el servidor las guarde ni las anote',
+      'el número de tu cuenta cuando nuestro servidor le pide tu biblioteca',
+      'cuántas consultas hacemos a Steam cada día',
+    ]) {
+      expect(text, needed).toContain(needed);
+    }
   });
 });

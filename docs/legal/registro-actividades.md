@@ -2,7 +2,7 @@
 
 Registro del art. 30 RGPD. Es obligatorio aunque el proyecto sea pequeño, porque la exención del art. 30.5 no cubre los tratamientos habituales (§11.2 de `prototipe.md`). Es un documento interno y no se publica. Lo que ven los usuarios está en la política de privacidad (`apps/web/src/legal/texts.ts`, en `/privacidad`).
 
-- **Versión:** 1, del 08-11-2026, con la versión 1 de los textos legales (M4, CA4.7).
+- **Versión:** 2, del 19-11-2026, con la versión 2 de los textos legales: añade la actividad 6, «Importar desde Steam» (Fase 2, ADR-012). La 1, del 08-11-2026, iba con la versión 1 (M4, CA4.7).
 - **Cómo se hizo:** a partir de la estructura de Facilita RGPD de la AEPD, para tratamientos de bajo riesgo.
 - **Revisión:** cada vez que cambie qué datos se tratan, para qué, con quién o durante cuánto tiempo. Hay que cambiar a la vez este registro, la política y su `LEGAL_VERSION`.
 
@@ -66,10 +66,23 @@ Registro del art. 30 RGPD. Es obligatorio aunque el proyecto sea pequeño, porqu
 
 | Campo | Contenido |
 |---|---|
-| Finalidad | Evitar abusos y agotar la cuota gratuita (100 000 peticiones al día) |
+| Finalidad | Evitar abusos y agotar la cuota gratuita (100 000 peticiones al día), y no pasar del límite de la Steam Web API (100 000 llamadas al día) |
 | Base jurídica | Art. 6.1.f RGPD, interés legítimo en la seguridad del servicio (considerando 49) |
-| Datos | El SHA-256 de la IP, o del *token* en el buzón, en los contadores aproximados de Cloudflare (`ratelimits`) |
-| Plazos | Lo que dure la ventana del contador: 60 s |
+| Datos | El SHA-256 de la IP, o del *token* en el buzón, en los contadores aproximados de Cloudflare (`ratelimits`). Las llamadas a Steam de cada día (`steam_quota` en D1): el día y un número, sin datos de nadie |
+| Plazos | Lo que dure la ventana del contador: 60 s. El contador de llamadas a Steam, 7 días |
+
+## Actividad 6 · Importar desde Steam (Fase 2)
+
+| Campo | Contenido |
+|---|---|
+| Finalidad | Traer al dispositivo la biblioteca de Steam del usuario (juegos, horas y última partida) y su lista de deseados, para que la revise y la aplique a su agenda |
+| Base jurídica | Art. 6.1.b RGPD: lo pide el usuario con «Importar desde Steam» e iniciando sesión en Steam |
+| Interesados | Usuarios que importan desde Steam. No hace falta la sincronización |
+| Datos | El SteamID64, que da Steam tras un login OpenID 2.0 verificado, en D1 junto al SHA-256 del ticket, su `challenge` y su caducidad. La biblioteca y la lista de deseados pasan por el Worker hasta el dispositivo en *streaming*, sin guardarse ni registrarse. No se pide el perfil (`GetPlayerSummaries`): ni nombre, ni avatar, ni ubicación. Ni contraseñas ni *tokens* de Steam |
+| Destinatarios | Cloudflare, Inc., como encargado (ver la actividad 1). Valve Corporation (EE. UU.) recibe el SteamID64 cuando el Worker le pide la biblioteca y los deseados, y lo que recoja su web durante el login, como responsable de su propio tratamiento |
+| Transferencias | Como en la actividad 1. Valve declara estar adherida al Marco de Privacidad de Datos UE-EE. UU. |
+| Plazos | El ticket caduca a los 10 min; canjearlo, o una aserción que Steam no da por buena, lo borra, y un Cron Trigger cada 5 min borra los caducados: el SteamID64 está en D1 como mucho 15 min. Time Travel de D1 lo conserva 7 días más. En el dispositivo, lo traído se queda en memoria hasta que el usuario lo aplique (parte 3) |
+| Medidas de seguridad | Las cinco comprobaciones de OpenID 2.0 (§10.2) y canje tipo PKCE: el ticket solo lo canjea quien tiene el verificador. La clave de la Steam Web API, solo en un secreto del Worker y en `x-webapi-key`, nunca en la URL, los registros ni el cliente (el CI lo comprueba en los dos *bundles*). `Origin` propio y JSON en los POST, límite por IP (`RL_STEAM`), tope diario de llamadas e interruptor `STEAM_ENABLED`. ADR-012 |
 
 ## Lo que no se trata
 
@@ -83,5 +96,6 @@ Registro del art. 30 RGPD. Es obligatorio aunque el proyecto sea pequeño, porqu
 - Rectificación: editar en la app.
 - Supresión: «Borrar todos mis datos», que también borra la agenda del servidor si está emparejado.
 - Oposición a las portadas: «Cargar portadas».
+- Importar desde Steam: no deja nada en el servidor pasados 15 min, y en el dispositivo se borra con lo demás.
 - Por correo: plazo de un mes (art. 12.3).
 - Sin identificadores, el responsable no puede encontrar una agenda a partir de un correo (art. 11 RGPD). Por eso se ayuda al usuario a hacerlo desde un dispositivo emparejado, y nunca se pide el código de recuperación.
