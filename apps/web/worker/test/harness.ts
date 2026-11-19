@@ -5,7 +5,9 @@
 import { DEFAULT_MIN_AGE } from '@gameagenda/core/api';
 import { createApp } from '../app.ts';
 import type { Env, RateLimit, SteamFetch } from '../env.ts';
+import { STEAM_OPENID } from '../steam-openid.ts';
 import { SqliteD1 } from './d1-sqlite.ts';
+import { FakeSteamOpenId } from './steam-support.ts';
 
 export const ORIGIN = 'https://ga-web.test';
 /** 06-11-2026 12:00 UTC. */
@@ -108,18 +110,26 @@ export class Client {
 }
 
 /**
- * Steam falso para `resolve`: `GetItems` de un juego, con los nombres de `names` (en España) y
+ * Steam falso. Para `resolve`, `GetItems` de un juego, con los nombres de `names` (en España) y
  * `blockedInEs` (bloqueados en España, con su nombre en EE. UU.). `fail` hace que la llamada
- * falle (`'network'`, `'status'` o `'garbage'`). Guarda las URL que le piden.
+ * falle (`'network'`, `'status'` o `'garbage'`). Para el login de la importación de Steam,
+ * `check_authentication` (`openid`). Guarda las URL que le piden, todas.
  */
 export class FakeSteam {
   readonly names = new Map<number, string>();
   readonly blockedInEs = new Map<number, string>();
   readonly calls: string[] = [];
   fail: 'network' | 'status' | 'garbage' | 'huge' | null = null;
+  readonly openid = new FakeSteamOpenId();
 
-  readonly fetch: SteamFetch = async (url) => {
+  readonly fetch: SteamFetch = async (url, init) => {
     this.calls.push(url);
+    if (url === STEAM_OPENID && init.method === 'POST') {
+      return this.openid.check(new URLSearchParams(String(init.body)));
+    }
+    if (!url.startsWith('https://api.steampowered.com/IStoreBrowseService/GetItems/v1/?')) {
+      return new Response('Not Found', { status: 404 });
+    }
     if (this.fail === 'network') throw new TypeError('fetch failed');
     if (this.fail === 'status') return new Response('Bad gateway', { status: 502 });
     if (this.fail === 'garbage') return new Response('{"response":{"store_items":"no"}}');
