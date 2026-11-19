@@ -51,10 +51,17 @@ export interface Env {
   RL_INBOX: RateLimit;
   /** `resolve` (nombre de un `appid` con `GetItems` de Steam), por IP. */
   RL_RESOLVE: RateLimit;
+  /** Importar desde Steam (`start` y `redeem`), por IP (ADR-012). */
+  RL_STEAM: RateLimit;
   /** `'1'` activa la micro-API; con otro valor responde 503 (CA4.7: no antes de los textos legales). */
   SYNC_ENABLED: string;
   /** Edad mínima que se declara al activar la sincronización (14; R-10). */
   MIN_AGE: string;
+  /**
+   * `'1'` activa la importación de Steam (`/api/v1/steam/*`); con otro valor, o sin
+   * `STEAM_WEB_API_KEY`, responde 503 `steam_disabled` (ADR-012). Va aparte de `SYNC_ENABLED`.
+   */
+  STEAM_ENABLED: string;
   /**
    * Clave de la Steam Web API (secreto del Worker, `wrangler secret put`; en local, `.dev.vars`).
    * Solo la usa `redeem`, en `x-webapi-key`. Nunca va en la URL, los registros ni el cliente.
@@ -91,6 +98,8 @@ export interface Deps {
   steamFetch?: SteamFetch;
   /** Cambios por página de `sync` (`SYNC_PAGE_SIZE`); las pruebas la bajan para paginar. */
   pageSize?: number;
+  /** Tope diario de llamadas a Steam (`STEAM_DAILY_CALLS`); las pruebas lo bajan. */
+  steamDailyCalls?: number;
 }
 
 /** Tipos de Hono para la app: `c.env` y `c.var`. */

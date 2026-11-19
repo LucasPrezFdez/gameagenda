@@ -4,7 +4,14 @@
 // qué ha pasado y que vuelva a GameAgenda, que canjea el ticket por su cuenta. Sin *scripts* ni
 // estilos (la CSP de la micro-API, `default-src 'none'`, no los deja) y solo con textos fijos.
 
-export type SteamPageKind = 'done' | 'cancelled' | 'invalid' | 'expired' | 'unavailable';
+export type SteamPageKind =
+  | 'done'
+  | 'cancelled'
+  | 'invalid'
+  | 'expired'
+  | 'unavailable'
+  | 'busy'
+  | 'disabled';
 
 const PAGES: Readonly<Record<SteamPageKind, { readonly title: string; readonly text: string }>> = {
   done: {
@@ -26,6 +33,14 @@ const PAGES: Readonly<Record<SteamPageKind, { readonly title: string; readonly t
   unavailable: {
     title: 'Steam no responde',
     text: 'Recarga esta página dentro de un momento. Si sigue igual, vuelve a GameAgenda y empieza otra vez más tarde.',
+  },
+  busy: {
+    title: 'Hoy ya no se puede importar más',
+    text: 'Hemos llegado al máximo de consultas a Steam de hoy. Vuelve a GameAgenda y prueba mañana.',
+  },
+  disabled: {
+    title: 'La importación de Steam no está disponible',
+    text: 'Ahora mismo no se puede importar desde Steam. Vuelve a GameAgenda y prueba más tarde.',
   },
 };
 

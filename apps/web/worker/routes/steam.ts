@@ -13,6 +13,10 @@
 //   y la lista de deseados (`steam-library.ts`), tal cual, en *streaming*. Es la primera y única
 //   llamada a la Web API de Steam, y solo con un login verificado (§10).
 //
+// Con `STEAM_ENABLED` distinto de `'1'`, o sin `STEAM_WEB_API_KEY`, todas dan 503
+// `steam_disabled` sin tocar D1. `start` y `redeem` tienen límite por IP (`RL_STEAM`), y las
+// llamadas a Steam, un tope diario (`steam-quota.ts`).
+//
 // Nada de estas rutas se registra: ni la URL (lleva el ticket y la aserción), ni los cuerpos, ni el
 // SteamID64 (§10.4).
 
@@ -26,9 +30,10 @@ import type { Context, Hono } from 'hono';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import { newSteamTicket, sha256Base64url, sha256Hex } from '../crypto.ts';
 import type { AppEnv, Deps } from '../env.ts';
-import { apiError, iso, parseBody } from '../http.ts';
+import { apiError, iso, parseBody, rateLimited } from '../http.ts';
 import { fetchLibrary } from '../steam-library.ts';
 import {
+  CALLBACK_PATH,
   checkAssertion,
   checkAuthentication,
   hasRepeatedParams,
@@ -36,6 +41,7 @@ import {
   steamReturnTo,
 } from '../steam-openid.ts';
 import { type SteamPageKind, steamPage } from '../steam-page.ts';
+import { STEAM_DAILY_CALLS, spendSteamCalls } from '../steam-quota.ts';
 
 const MAX_BODY = 1024;
 /** Una vuelta de Steam lleva ≈1 KB de consulta; lo que pase de esto no es suyo. */
@@ -47,6 +53,8 @@ const PAGE_STATUS: Readonly<Record<SteamPageKind, ContentfulStatusCode>> = {
   invalid: 400,
   expired: 410,
   unavailable: 502,
+  busy: 503,
+  disabled: 503,
 };
 
 function page(c: Context<AppEnv>, kind: SteamPageKind): Response {
@@ -55,8 +63,18 @@ function page(c: Context<AppEnv>, kind: SteamPageKind): Response {
 
 export function steamRoutes(api: Hono<AppEnv>, deps: Deps): void {
   const steamFetch = deps.steamFetch ?? ((url, init) => fetch(url, init));
+  const dailyCalls = deps.steamDailyCalls ?? STEAM_DAILY_CALLS;
+
+  // El interruptor: sin él, ni D1 ni Steam. La vuelta de Steam es una página, no JSON.
+  api.use('/steam/*', async (c, next) => {
+    const key = c.env.STEAM_WEB_API_KEY;
+    if (c.env.STEAM_ENABLED === '1' && key !== undefined && key !== '') return next();
+    return c.req.path === CALLBACK_PATH ? page(c, 'disabled') : apiError(c, 'steam_disabled');
+  });
 
   api.post('/steam/start', async (c) => {
+    const limited = await rateLimited(c, c.env.RL_STEAM);
+    if (limited) return limited;
     const body = await parseBody(c, steamStartRequestSchema, MAX_BODY);
     if (!body.ok) return body.response;
     const now = deps.now();
@@ -103,6 +121,8 @@ export function steamRoutes(api: Hono<AppEnv>, deps: Deps): void {
       await burn();
       return page(c, check.reason === 'cancel' ? 'cancelled' : 'invalid');
     }
+    // El tope del día, antes de la primera llamada a Steam. El ticket se queda (caduca solo).
+    if (!(await spendSteamCalls(db, deps.now(), 1, dailyCalls))) return page(c, 'busy');
     // Comprobación 1. Si Steam no contesta, el ticket se queda: recargar la página lo reintenta.
     const verdict = await checkAuthentication(query, steamFetch);
     if (verdict === 'failed') return page(c, 'unavailable');
@@ -121,11 +141,12 @@ export function steamRoutes(api: Hono<AppEnv>, deps: Deps): void {
   });
 
   api.post('/steam/redeem', async (c) => {
+    const limited = await rateLimited(c, c.env.RL_STEAM);
+    if (limited) return limited;
     const body = await parseBody(c, steamRedeemRequestSchema, MAX_BODY);
     if (!body.ok) return body.response;
-    // Sin la clave no se gasta el ticket: no se podría traer la biblioteca.
-    const key = c.env.STEAM_WEB_API_KEY;
-    if (key === undefined || key === '') return apiError(c, 'steam_disabled');
+    // El interruptor ya ha comprobado que está.
+    const key = c.env.STEAM_WEB_API_KEY ?? '';
     const db = c.env.DB;
     const hash = await sha256Hex(body.data.ticket);
     const challenge = await sha256Base64url(body.data.verifier);
@@ -152,6 +173,7 @@ export function steamRoutes(api: Hono<AppEnv>, deps: Deps): void {
         ? apiError(c, 'steam_ticket_invalid')
         : c.json({ status: 'pending' }, 202);
     }
+    if (!(await spendSteamCalls(db, deps.now(), 2, dailyCalls))) return apiError(c, 'steam_busy');
     const library = await fetchLibrary(redeemed.steam_id, key, steamFetch);
     if (!library.ok) {
       // Sin nada de la cuenta: solo el código de Steam, para ver si la clave ya no vale (401 o 403).

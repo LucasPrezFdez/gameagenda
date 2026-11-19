@@ -229,10 +229,11 @@ describe('peticiones que no valen', () => {
     expect(await steamIdOf(h, ticket)).toBe(STEAM_ID);
   });
 
-  it('sin la clave en el Worker, 503 steam_disabled y el ticket sigue sin gastar', async () => {
-    const h = createHarness({ STEAM_WEB_API_KEY: '' });
+  it('si quitan la clave tras el login, 503 steam_disabled y el ticket sigue sin gastar', async () => {
+    const h = createHarness();
     const pc = h.client();
     const { ticket, verifier } = await loggedIn(h, pc);
+    h.env.STEAM_WEB_API_KEY = '';
     const response = await redeem(pc, ticket, verifier);
     expect(response.status).toBe(503);
     expect(response.json).toEqual({ error: 'steam_disabled' });

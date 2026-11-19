@@ -187,6 +187,7 @@ export interface Harness {
     redeem: CountingLimit;
     inbox: CountingLimit;
     resolve: CountingLimit;
+    steam: CountingLimit;
   };
   steam: FakeSteam;
   client(ip?: string): Client;
@@ -197,6 +198,8 @@ export interface HarnessOptions {
   db?: SqliteD1;
   /** Cambios por página de `sync`. */
   pageSize?: number;
+  /** Tope diario de llamadas a Steam. */
+  steamDailyCalls?: number;
 }
 
 export function createHarness(overrides: Partial<Env> = {}, options: HarnessOptions = {}): Harness {
@@ -207,6 +210,7 @@ export function createHarness(overrides: Partial<Env> = {}, options: HarnessOpti
     redeem: new CountingLimit(),
     inbox: new CountingLimit(),
     resolve: new CountingLimit(),
+    steam: new CountingLimit(),
   };
   const steam = new FakeSteam();
   const env: Env = {
@@ -216,8 +220,10 @@ export function createHarness(overrides: Partial<Env> = {}, options: HarnessOpti
     RL_REDEEM: limits.redeem,
     RL_INBOX: limits.inbox,
     RL_RESOLVE: limits.resolve,
+    RL_STEAM: limits.steam,
     SYNC_ENABLED: '1',
     MIN_AGE: String(DEFAULT_MIN_AGE),
+    STEAM_ENABLED: '1',
     STEAM_WEB_API_KEY: TEST_STEAM_KEY,
     ...overrides,
   };
@@ -225,6 +231,7 @@ export function createHarness(overrides: Partial<Env> = {}, options: HarnessOpti
     now: () => clock.ms,
     steamFetch: steam.fetch,
     ...(options.pageSize === undefined ? {} : { pageSize: options.pageSize }),
+    ...(options.steamDailyCalls === undefined ? {} : { steamDailyCalls: options.steamDailyCalls }),
   });
   let nextIp = 1;
   const harness: Harness = {
