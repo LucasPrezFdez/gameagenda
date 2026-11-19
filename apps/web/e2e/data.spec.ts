@@ -32,7 +32,7 @@ async function download(page: Page, button: string) {
 }
 
 async function importFile(page: Page, path: string) {
-  await page.getByLabel('Importar').setInputFiles(path);
+  await page.getByLabel('Importar', { exact: true }).setInputFiles(path);
 }
 
 async function deleteAll(page: Page) {
@@ -142,7 +142,7 @@ test('un fichero que no es una copia no cambia nada y deja elegir otro', async (
   await capture(page, 'celeste', 'Celeste');
   await expectStored(page, 'steam:504230', { title: 'Celeste' });
   await openData(page);
-  await page.getByLabel('Importar').setInputFiles({
+  await page.getByLabel('Importar', { exact: true }).setInputFiles({
     name: 'otra-app.json',
     mimeType: 'application/json',
     buffer: Buffer.from('{"format":"otra-app","items":[]}'),

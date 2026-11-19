@@ -183,7 +183,7 @@ function pickGames(catalog: CoreCatalog) {
 
 async function importAgenda(page: Page, json: string): Promise<void> {
   await page.goto('/ajustes/datos');
-  await page.getByLabel('Importar').setInputFiles({
+  await page.getByLabel('Importar', { exact: true }).setInputFiles({
     name: 'perf-500.json',
     mimeType: 'application/json',
     buffer: Buffer.from(json),

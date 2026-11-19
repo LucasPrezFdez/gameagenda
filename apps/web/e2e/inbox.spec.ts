@@ -10,6 +10,7 @@
 import { DEFAULT_MIN_AGE } from '@gameagenda/core/api';
 import type { APIRequestContext, Page } from '@playwright/test';
 import { E2E_API_COOKIE } from '../e2e-api-plugin.ts';
+import { privacyPolicy } from '../src/legal/texts.ts';
 import { expectAccessible, openPalette, setup, toast } from './helpers.ts';
 import { expectStored } from './storage.ts';
 import { expect, serverAgenda, test } from './sync-server.ts';
@@ -200,8 +201,9 @@ test('los textos legales: la primera capa junto a «Activar», la política y el
     page.getByRole('heading', { level: 1, name: 'Política de privacidad' }),
   ).toBeVisible();
   await expect(page).toHaveTitle(/Política de privacidad/);
+  // Una por sección de la política (12 desde la versión 2, con «Importar desde Steam»).
   await expect(page.getByRole('navigation', { name: 'Secciones' }).getByRole('link')).toHaveCount(
-    11,
+    privacyPolicy().sections.length,
   );
   await page
     .getByRole('navigation', { name: 'Secciones' })
