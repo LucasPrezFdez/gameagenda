@@ -53,9 +53,10 @@
     "SYNC_ENABLED": "1",
     // Edad mínima declarada al activar la sincronización (art. 7 LOPDGDD; R-10: puede pasar a 16).
     "MIN_AGE": "14",
-    // Importar desde Steam (Fase 2; ADR-012): apagado en producción hasta la parte 3. Con "1",
-    // necesita además el secreto `STEAM_WEB_API_KEY` (`wrangler secret put`) y la política de
-    // privacidad al día (`scripts/legal-guard.test.ts`).
-    "STEAM_ENABLED": "0"
+    // Importar desde Steam (Fase 2; ADR-012): encendido el 20-11-2026, con la parte 3. Necesita
+    // además el secreto `STEAM_WEB_API_KEY` (`wrangler secret put`; sin él, responde
+    // `steam_disabled`) y la política de privacidad al día (`scripts/legal-guard.test.ts`). Con
+    // "0", la micro-API deja de llamar a Steam y la app dice que no está disponible.
+    "STEAM_ENABLED": "1"
   }
 }

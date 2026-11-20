@@ -46,8 +46,8 @@ export default defineConfig(({ mode }) => ({
       injectRegister: false,
       injectManifest: {
         globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'],
-        // El botón oficial de Steam (`public/steam/`): sin red no se puede importar, y en producción
-        // la importación está apagada (`__STEAM_IMPORT__`).
+        // El botón oficial de Steam (`public/steam/`): sin red no se puede importar, así que no
+        // hace falta en la precaché.
         globIgnores: ['steam/**'],
         // Sin `import` en el Service Worker: así vale también donde no hay módulos en SW.
         rollupFormat: 'iife',
@@ -97,11 +97,12 @@ export default defineConfig(({ mode }) => ({
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
     __APP_SHA__: JSON.stringify(gitSha()),
-    // «Importar desde Steam» (Fase 2; ADR-012): en desarrollo y en los E2E, sí; en producción, no
-    // hasta la parte 3, salvo con `VITE_STEAM_IMPORT=1` al construir (la prueba a mano con el
-    // túnel). Como constante, en producción desaparece todo lo de la importación del *build*.
+    // «Importar desde Steam» (Fase 2; ADR-012): encendida en todos los *builds* desde la parte 3
+    // (20-11-2026). Con `VITE_STEAM_IMPORT=0` al construir, desaparece todo lo de la importación
+    // del *build* (el JS inicial vuelve a un fichero). Para apagarla deprisa basta `STEAM_ENABLED`
+    // en `wrangler.jsonc`: la app dice entonces que no está disponible.
     __STEAM_IMPORT__: JSON.stringify(
-      mode !== 'production' || process.env.VITE_STEAM_IMPORT === '1',
+      mode !== 'production' || process.env.VITE_STEAM_IMPORT !== '0',
     ),
   },
   // Solo la interfaz local: evita el aviso del cortafuegos de Windows (ver §13.3).
