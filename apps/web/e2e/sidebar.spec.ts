@@ -1,7 +1,7 @@
 // Navegación (DECISIONES §10.33): en el PC, la barra lateral se encoge a un riel de iconos y lo
 // recuerda (`sidebarCollapsed`, en la tabla `settings`); en el móvil, las secciones van en una
 // cápsula flotante, con el buscador redondo aparte.
-import { expect, type Page, test } from '@playwright/test';
+import { devices, expect, type Page, test } from '@playwright/test';
 import { capture, paletteInput, setup } from './helpers.ts';
 
 /** El ajuste guardado en Dexie (una fila por clave), para no recargar antes de que se escriba. */
@@ -111,6 +111,84 @@ test('en el PC, la barra lateral lleva las vistas con su contador y lo que se es
   await expect(page.getByRole('group', { name: 'Vistas' })).toBeVisible();
   await page.getByRole('button', { name: 'Barra lateral' }).click();
   await checks.expectClean();
+});
+
+test('en la tablet, la barra lateral empieza encogida y recuerda aparte lo que se elija allí', async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, 'en el móvil no hay barra lateral');
+  const checks = await setup(page);
+  await page.setViewportSize({ width: 900, height: 1100 });
+  await page.goto('/');
+  // Con algún juego: con la lista vacía no hay pestañas de vista.
+  await capture(page, 'hades ii', 'Hades II');
+  const toggle = page.getByRole('button', { name: 'Barra lateral' });
+  const nav = page.getByRole('navigation', { name: 'Principal' });
+  const navWidth = async () => (await nav.boundingBox())?.width ?? 0;
+
+  // Encogida sin haberla tocado: el contenido se queda con casi todo el ancho y las pestañas de
+  // vista vuelven arriba.
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  expect(await navWidth()).toBeLessThan(80);
+  await expect(page.getByRole('group', { name: 'Vistas' })).toBeVisible();
+
+  // Abierta a mano en la tablet: se recuerda solo para la tablet.
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await expect.poll(() => storedSetting(page, 'sidebarCollapsedNarrow')).toBe(false);
+
+  // En el PC sigue su propio ajuste (abierta por defecto); encogerla allí no toca la de la tablet.
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect.poll(() => storedSetting(page, 'sidebarCollapsed')).toBe(true);
+  await page.setViewportSize({ width: 900, height: 1100 });
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Barra lateral' })).toHaveAttribute(
+    'aria-expanded',
+    'true',
+  );
+  await checks.expectClean();
+});
+
+test.describe('un móvil en horizontal', () => {
+  // Pixel 7 girado: 915 × 412. Más de 768 px de ancho, pero con 412 de alto no cabe la barra.
+  test.use({
+    viewport: { width: 915, height: 412 },
+    deviceScaleFactor: devices['Pixel 7'].deviceScaleFactor,
+    userAgent: devices['Pixel 7'].userAgent,
+    isMobile: true,
+    hasTouch: true,
+  });
+  test.skip(({ browserName }) => browserName !== 'chromium', 'emulación táctil: solo Chromium');
+
+  test('lleva la maqueta del móvil: cápsula abajo, sin barra lateral, y la paleta como hoja', async ({
+    page,
+  }) => {
+    const checks = await setup(page);
+    await page.goto('/');
+    await expect(page.getByRole('button', { name: 'Barra lateral' })).toBeHidden();
+    await expect(page.getByRole('navigation', { name: 'Vistas' })).toBeHidden();
+    const box = await page.getByRole('navigation', { name: 'Principal' }).boundingBox();
+    expect(box).not.toBeNull();
+    expect(412 - ((box?.y ?? 0) + (box?.height ?? 0))).toBeGreaterThanOrEqual(8);
+    expect(box?.height ?? 0).toBeLessThan(80);
+
+    // La paleta se abre a pantalla completa, como en el móvil en vertical.
+    await paletteInput(page).click();
+    await expect(paletteInput(page)).toBeFocused();
+    const sheet = await page.locator('.app-header > .palette.is-open').boundingBox();
+    expect(sheet?.width ?? 0).toBe(915);
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    expect(overflow).toBe(0);
+    await checks.expectClean();
+  });
 });
 
 test('en el móvil, las secciones van en la cápsula flotante y no hay botón de encoger', async ({

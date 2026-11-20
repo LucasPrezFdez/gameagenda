@@ -1,3 +1,9 @@
+/* Ajustes es un formulario con explicaciones: se queda en 960 px aunque la columna crezca en
+   pantallas anchas (`--content-max`), para que sus textos no pasen de unas 90 letras por línea. */
+.screen.settings {
+  max-width: 60rem;
+}
+
 .settings__layout {
   display: grid;
   grid-template-columns: 14rem minmax(0, 1fr);
@@ -206,7 +212,7 @@
   font-size: var(--text-sm);
 }
 
-@media (max-width: 767px) {
+@media (max-width: 767px), (max-height: 500px) and (pointer: coarse) {
   .settings__layout {
     grid-template-columns: minmax(0, 1fr);
   }

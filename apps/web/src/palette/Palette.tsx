@@ -33,6 +33,7 @@ import { Icon } from '../components/icons.tsx';
 import { attachLongPress } from '../gestures/long-press.ts';
 import { attachSheetDismiss } from '../gestures/sheet-dismiss.ts';
 import { es } from '../i18n/es.ts';
+import { MOBILE_MEDIA } from '../lib/breakpoints.ts';
 import { isEditableTarget } from '../lib/hooks.ts';
 import { type FeedbackTiming, measureToNextFrame } from '../perf/measures.ts';
 import { type CoreGame, canSearchCatalog } from '../search-client/index.ts';
@@ -54,7 +55,7 @@ const canPaste =
   typeof navigator !== 'undefined' && typeof navigator.clipboard?.readText === 'function';
 
 /** En el móvil, la paleta abierta es una hoja a pantalla completa (ver `palette.css`). */
-const SHEET_MEDIA = '(max-width: 767px)';
+const SHEET_MEDIA = MOBILE_MEDIA;
 
 /** Intro espera como mucho esto a los resultados del texto escrito (ver §8.7). */
 export const ENTER_WAIT_MS = 500;

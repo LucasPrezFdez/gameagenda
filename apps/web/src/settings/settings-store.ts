@@ -31,6 +31,11 @@ export interface UiSettings {
   readonly coverNotice: CoverNoticeState;
   /** La barra lateral del PC, encogida a un riel de iconos (DECISIONES §10.33). */
   readonly sidebarCollapsed: boolean;
+  /**
+   * La misma barra en la tablet (768–1 023 px), donde va encogida por defecto: se recuerda aparte,
+   * así que abrirla allí no la abre en el PC ni al revés (revisión responsive del 20-11-2026).
+   */
+  readonly sidebarCollapsedNarrow: boolean;
   /** El Catálogo, en lista o en cuadrícula de portadas (DECISIONES §10.45). */
   readonly catalogView: CatalogView;
 }
@@ -53,6 +58,7 @@ export const DEFAULT_SETTINGS: UiSettings = {
   loadCovers: true,
   coverNotice: 'unseen',
   sidebarCollapsed: false,
+  sidebarCollapsedNarrow: true,
   catalogView: 'list',
 };
 
@@ -74,6 +80,7 @@ function validValue(key: SettingKey, value: unknown): UiSettings[SettingKey] | u
     case 'showAdult':
     case 'loadCovers':
     case 'sidebarCollapsed':
+    case 'sidebarCollapsedNarrow':
       return typeof value === 'boolean' ? value : undefined;
     case 'listSearch':
       return typeof value === 'string' && value.length <= MAX_LIST_SEARCH ? value : undefined;

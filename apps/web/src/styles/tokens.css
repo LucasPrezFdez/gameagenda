@@ -1,6 +1,25 @@
 /* Tokens de la §9.8: claro por defecto; oscuro con el sistema o con el selector de Ajustes.
    Dirección «Tinta» del rediseño visual (05-11-2026, docs/diseno/rediseno-visual/propuesta.md):
    neutros fríos, el acento es la propia tinta y el color lo ponen las portadas y los estados. */
+
+/* Puntos de corte (revisión responsive del 20-11-2026). Las variables no valen dentro de `@media`,
+   así que cada hoja repite la condición tal cual; los de JavaScript están en `lib/breakpoints.ts`.
+
+     Móvil       (max-width: 767px), (max-height: 500px) and (pointer: coarse)
+                 Cabecera arriba, cápsula abajo y la ficha a pantalla completa. Incluye el móvil
+                 en horizontal (844 × 390 o 932 × 430): con 390 px de alto, la barra lateral no
+                 cabe.
+     PC          (min-width: 768px) and (not ((max-height: 500px) and (pointer: coarse)))
+                 Barra lateral; es lo contrario de «Móvil».
+       Tablet    768–1 023 px: la barra lateral, encogida por defecto (`sidebarCollapsedNarrow`).
+       Ficha     768–1 279 px, superpuesta; desde 1 280 px, al lado de la lista.
+     Fila        ≤479 px: el estado baja a la segunda línea («Estado debajo», list.css).
+     Contenido   `--content-max`: 960 px hasta unos 1 600 px de ventana; luego crece con ella hasta
+                 1 440 px (unos 2 240 px de ventana).
+
+   Además, *container queries* donde la pieza depende de su hueco y no de la ventana: las acciones
+   rápidas de la fila (`entry-list`, 640 px) y el índice de Ajustes. Con el dedo (`pointer:
+   coarse`), objetivos de 44 px. */
 :root {
   color-scheme: light;
   --bg: #f6f6f7;
@@ -82,7 +101,17 @@
   --radius: 10px;
   --radius-lg: 14px;
   --gap: 12px;
+  /* Margen interior de las piezas (ficha, diálogos, avisos). */
   --gutter: 16px;
+  /* Margen de la página alrededor del contenido: 16 px en el móvil, hasta 32 px en una pantalla
+     ancha. */
+  --page-gutter: clamp(16px, 1.25vw + 4px, 32px);
+  /* Ancho máximo del contenido (opción A de la revisión responsive, 20-11-2026; sustituye al
+     «Centrado» de 960 px fijos de DECISIONES §10.44): 960 px hasta unos 1 600 px de ventana y
+     luego crece con ella, sin saltos, hasta 1 440 px. Así a 1 920 px usa unos 1 200. */
+  --content-max: clamp(60rem, 75vw - 15rem, 90rem);
+  /* Texto de lectura (textos legales y explicaciones): unas 75 letras por línea. */
+  --reading-max: 44rem;
   /* Alto de la cabecera del móvil; en el PC no hay cabecera encima del contenido (abajo). */
   --header-h: 52px;
   /* Móvil: lo que tapan abajo la cápsula flotante (60 px a 12 del borde) y su hueco. */
@@ -187,7 +216,7 @@
   --next-chip: #3a2224;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 768px) and (not ((max-height: 500px) and (pointer: coarse))) {
   :root {
     --header-h: 0px;
   }

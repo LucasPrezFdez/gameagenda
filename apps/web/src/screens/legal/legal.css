@@ -1,11 +1,15 @@
 /* Textos legales (M4; CA4.7): una columna de lectura, con el índice arriba. A 320 px las tablas se
    leen sin desplazar la página: el texto de cada celda se parte (WCAG 1.4.10). */
 
+/* La pantalla entera, título incluido, en la columna de lectura y centrada. */
+.screen.legal {
+  max-width: var(--reading-max);
+}
+
 .legal__body {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  max-width: 44rem;
   line-height: 1.6;
 }
 

@@ -22,6 +22,7 @@ import { SidebarLibrary } from './components/SidebarLibrary.tsx';
 import { DetailsProvider } from './details/details-context.tsx';
 import { ErrorBoundary } from './errors/ErrorBoundary.tsx';
 import { es } from './i18n/es.ts';
+import { DESKTOP_MEDIA, NARROW_DESKTOP_MEDIA, WIDE_MEDIA } from './lib/breakpoints.ts';
 import { useMediaQuery, useOnline } from './lib/hooks.ts';
 import { sharedText, useLinkCapture } from './links/link-capture.ts';
 import type { NoticeCenter } from './notices/notice-center.ts';
@@ -270,13 +271,17 @@ function AppShell() {
   const { route, search } = useLocation();
   const { notices, settings: settingsStore } = useServices();
   const settings = useSettings();
-  const collapsed = settings.sidebarCollapsed;
   const commands = useCommands();
   const canUndo = useCanUndo();
   const online = useOnline();
-  const wide = useMediaQuery('(min-width: 1280px)');
+  const wide = useMediaQuery(WIDE_MEDIA);
   // La barra lateral (con sus vistas y portadas) solo existe en el PC; en el móvil no se monta.
-  const desktop = useMediaQuery('(min-width: 768px)');
+  const desktop = useMediaQuery(DESKTOP_MEDIA);
+  // En la tablet (768–1 023 px), la barra lateral va encogida por defecto: abierta deja al contenido
+  // menos de 520 px. Cada tramo recuerda lo que se elija a mano en él (revisión responsive del
+  // 20-11-2026).
+  const narrow = useMediaQuery(NARROW_DESKTOP_MEDIA);
+  const collapsed = narrow ? settings.sidebarCollapsedNarrow : settings.sidebarCollapsed;
   const paletteRef = useRef<PaletteHandle>(null);
   const [helpOpen, setHelpOpen] = useState(false);
   const openHelp = useCallback(() => setHelpOpen(true), []);
@@ -399,7 +404,13 @@ function AppShell() {
                 aria-expanded={!collapsed}
                 aria-controls="app-nav"
                 title={collapsed ? es.shell.expandSidebar : es.shell.collapseSidebar}
-                onClick={() => settingsStore.update({ sidebarCollapsed: !collapsed })}
+                onClick={() =>
+                  settingsStore.update(
+                    narrow
+                      ? { sidebarCollapsedNarrow: !collapsed }
+                      : { sidebarCollapsed: !collapsed },
+                  )
+                }
               >
                 <Icon name="sidebar" />
               </button>

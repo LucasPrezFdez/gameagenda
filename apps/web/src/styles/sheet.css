@@ -263,7 +263,7 @@
   border-color: var(--line);
 }
 
-@media (min-width: 1280px) {
+@media (min-width: 1280px) and (not ((max-height: 500px) and (pointer: coarse))) {
   .app[data-route="game"] .app-main {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 440px;
@@ -279,7 +279,9 @@
   }
 }
 
-@media (min-width: 768px) and (max-width: 1279px) {
+@media (min-width: 768px) and (max-width: 1279px) and (
+    not ((max-height: 500px) and (pointer: coarse))
+  ) {
   .app[data-route="game"] .sheet {
     position: fixed;
     top: var(--header-h);
@@ -319,7 +321,7 @@
   }
 }
 
-@media (max-width: 767px) {
+@media (max-width: 767px), (max-height: 500px) and (pointer: coarse) {
   .app[data-route="game"] .screen-slot--list {
     display: none;
   }
@@ -339,7 +341,7 @@
 
   /* Sin caja, el color llega hasta los bordes de la pantalla y bajo la cabecera. */
   .sheet__ambient {
-    inset: calc(-1 * var(--gutter)) calc(-1 * var(--gutter)) auto;
+    inset: calc(-1 * var(--page-gutter)) calc(-1 * var(--page-gutter)) auto;
     border-radius: 0;
   }
 

@@ -117,7 +117,7 @@
 }
 
 /* En el móvil, el filtro va arriba, en su sitio: abajo está la cápsula flotante (ver §9.1). */
-@media (max-width: 767px) {
+@media (max-width: 767px), (max-height: 500px) and (pointer: coarse) {
   .catalog__filter {
     max-width: none;
   }
