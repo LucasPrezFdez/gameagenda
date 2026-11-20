@@ -1,6 +1,6 @@
 # ADR-012 · Cuenta de Steam: OpenID 2.0 con canje tipo PKCE y la biblioteca en *streaming*
 
-- **Estado:** propuesta. Pasa a «aceptada» con la prueba a mano con Steam de verdad (paso 5 del encargo) y la verificación final de la parte 2.
+- **Estado:** aceptada el 20-11-2026, tras la prueba a mano con Steam de verdad (abajo, «Prueba a mano») y la verificación final de la parte 2.
 - **Fecha:** 19-11-2026 (Fase 2, parte 2 de la importación de Steam)
 - **Deciden:** el usuario y el asistente
 
@@ -130,7 +130,7 @@ Solo aditiva (§10.47): la versión anterior del código funciona con la base nu
 - Mal, porque la vuelta de Steam escribe en D1 con un GET (lo exige OpenID 2.0; solo con una aserción verificada).
 - Mal, porque un SteamID64 puede estar en D1 hasta 15 min, no 10.
 - Mal, porque si Steam falla durante el canje, hay que volver a empezar.
-- Pendiente: qué campos devuelve Steam de verdad (familia, juegos privados, lista de deseados privada o vacía), en la prueba a mano.
+- Sin comprobar con Steam de verdad: el perfil privado, la biblioteca vacía, la lista de deseados vacía o privada, el juego compartido en familia y el juego privado (abajo, «Prueba a mano»).
 - Pendiente: la parte 3 decide dónde se guarda lo traído y cómo se aplica sin 15 operaciones por juego en la `outbox`.
 
 ### CPU por petición (19-11-2026)
@@ -155,7 +155,17 @@ En `redeem`, ≈2,9 ms (p50) son de los *streams* de Node que lo rodean en la pr
 - **E2E** (`steam-import.spec.ts`, 7 pruebas en Chromium y en WebKit, con axe en cada estado): nada a `/api` antes del clic y después solo `start`, sin cookies ni `Referer`; la pestaña con Steam en otra ventana; la PWA de iOS con el login en otro contexto; perfil privado; caducado; sin red; apagada. La página de Steam la hace una ruta de Playwright que vuelve a `return_to` con una aserción firmada (con una página que redirige sola: el WebKit de Playwright no deja responder con un 302). En la vista previa, la app pide `/api/v1/steam/*` sin cookies y la vuelta de Steam sí las lleva, así que todo lo de Steam va a un mundo por proyecto (`steam-http` y `steam-https`), para que las dos lleguen a la misma D1 y un proyecto no apague la importación del otro.
 - **La clave:** `scan-secrets.ts --key-only` sobre `wrangler deploy --dry-run --outdir`, en el CI (el *bundle* del Worker lleva los nombres, nunca el valor), y el de siempre sobre el de la app.
 - **`legal-guard`:** `STEAM_ENABLED` a "1" solo con la política al día.
-- La prueba a mano con Steam de verdad, con un túnel `cloudflared`.
+- La prueba a mano con Steam de verdad (abajo).
+
+### Prueba a mano (20-11-2026)
+
+Con `wrangler dev` en `http://127.0.0.1:8787` (D1 local, `STEAM_ENABLED` a "1", la clave de `.env.local` y el *build* de producción con `VITE_STEAM_IMPORT=1`), la cuenta de Steam del usuario y su navegador.
+
+- **Sin túnel.** El modo automático no deja al asistente abrir un túnel público, y no hacía falta: Steam acepta el *realm* `http://127.0.0.1:8787`, con puerto, y la vuelta la hace el navegador del mismo PC. El origen de la petición y el `Origin` coinciden. La §10.4 decía que `localhost:8787` no servía porque `steam-signin` descarta el puerto del *realm*; el `verifyLogin` portado no lo hace.
+- **Resultado:** el login y el canje, a la primera. La vuelta de Steam, 200 en 316 ms (con `check_authentication` de verdad); `redeem`, 200 en 634 ms. La app: «Hemos encontrado 105 juegos en tu biblioteca y 7 deseados». `wrangler dev` solo apunta la ruta de cada petición, sin la consulta: ni el ticket ni la aserción quedan en su registro.
+- **Lo que devuelve Steam** (solo la forma, con `.cache/steam-probe/steam-shape.ts`, que no escribe nada de la cuenta): `GetOwnedGames`, 200 con `game_count` y `games` (105 juegos, 34,6 KB, ≈0,5 s); `GetWishlist`, 200 con `items` (7, ≈0,3 s). Todos pasan los esquemas de `core`. Las *fixtures* tenían `has_dlc`, que Steam no manda, y no `has_leaderboards`; `playtime_2weeks` va justo tras `name`, y `has_community_visible_stats` a veces falta (no viene a `false`). Ajustadas, con lo comprobado en `fixtures/steam/webapi/README.md`.
+- **Sin comprobar:** el perfil privado (el usuario no quiso cambiar su privacidad), la biblioteca vacía y la lista de deseados vacía o privada (no hay otra cuenta), y el juego compartido en familia y el privado. Los cubren las *fixtures* y los E2E con la forma documentada (§10.1). La clave es de la misma cuenta, así que esta prueba no diría si Steam esconde los juegos privados a otras claves.
+- **El catálogo, en local:** el *build* de producción solo acepta catálogos firmados con la clave de producción, y `ga-catalog` solo admite por CORS su origen. Hay que copiar el publicado en `dist/catalog-dev/`; sin él, la app no busca ni pone nombres.
 
 ## Pros y contras de las opciones
 

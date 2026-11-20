@@ -30,6 +30,7 @@ Cambios de GameAgenda por versión. Cada hito cierra una versión SemVer 0.x (§
   - en la micro-API, `POST /api/v1/steam/start`, `GET /api/v1/steam/callback` (las cinco comprobaciones de OpenID 2.0, con el `verifyLogin` de `steam-signin` portado a `fetch`) y `POST /api/v1/steam/redeem` (canje tipo PKCE, y `GetOwnedGames` y `GetWishlist` tal cual, en *streaming*). La migración `0003` (tickets y contador diario), un Cron Trigger cada 5 min que borra los tickets caducados, `RL_STEAM`, un tope de 50 000 llamadas a Steam al día y el interruptor `STEAM_ENABLED`, a `"0"`;
   - en la app, «Importar desde Steam» en Ajustes › Datos, con el botón oficial de Steam, la vuelta a la app en la pestaña, la PWA de iOS y la app de escritorio, los estados y el resumen. Solo existe en el *build* con `__STEAM_IMPORT__` (desarrollo, E2E o `VITE_STEAM_IMPORT=1`): en producción, el JS inicial y la precaché no cambian;
   - `scan-secrets.ts --key-only` sobre el *bundle* del Worker, en el CI, y `legal-guard`, que no deja `STEAM_ENABLED` a `"1"` sin la política al día.
+  - probada a mano con Steam de verdad el 20-11-2026, con la cuenta del usuario: el inicio de sesión y la biblioteca (105 juegos y 7 deseados), a la primera. Las respuestas de prueba de la Web API, ajustadas a lo que manda Steam.
 - **Micro-API, parte 5: el despliegue** (16-11-2026, en producción; ADR-011, «Despliegue», y DECISIONES §10.47):
   - la base D1 `ga-agenda`, creada en la jurisdicción UE;
   - `deploy-web` aplica las migraciones de D1 antes de desplegar, y su prueba de humo comprueba también la micro-API;
