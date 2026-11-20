@@ -688,6 +688,48 @@
   padding: 4px 10px;
 }
 
+/* La fila ancha (revisión responsive del 20-11-2026, opción A): con la lista de 880 px o más, entre
+   el título y el estado salen dos columnas, «Juego en» y la fecha que toca según el estado
+   (EntryRow.tsx). El estado tiene ancho fijo para que las columnas queden alineadas de una fila a
+   otra, también entre secciones. Por debajo no hay sitio: están en la ficha. */
+.entry-row__facts {
+  display: none;
+}
+
+@container entry-list (min-width: 880px) {
+  .entry-row__facts {
+    display: flex;
+    flex: none;
+    gap: 16px;
+    color: var(--text);
+    font-size: var(--text-sm);
+    line-height: 1.35;
+  }
+
+  .entry-row__fact {
+    width: 7.5rem;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .entry-row__fact + .entry-row__fact {
+    width: 8.5rem;
+  }
+
+  .entry-row__fact-label {
+    display: block;
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+  }
+
+  .entry-row__body > .menu:nth-last-child(2) {
+    flex: none;
+    width: 9rem;
+  }
+}
+
 .flag-toggle[aria-pressed="true"].flag-toggle--owned {
   background: var(--owned-chip);
   color: var(--owned);

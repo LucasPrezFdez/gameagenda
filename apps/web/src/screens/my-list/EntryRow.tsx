@@ -15,11 +15,13 @@ import {
 import { Cover, FlagBadges } from '../../components/bits.tsx';
 import { Icon } from '../../components/icons.tsx';
 import { MenuButton, type MenuItem } from '../../components/MenuButton.tsx';
+import { formatAgendaDay } from '../../details/release-text.ts';
 import { es } from '../../i18n/es.ts';
 import { popIcon } from '../../lib/motion.ts';
 import type { FeedbackTiming } from '../../perf/measures.ts';
 import { Link } from '../../router/router.tsx';
 import { gamePath } from '../../router/routes.ts';
+import { rowDate } from './list-model.ts';
 import type { VirtualRowProps } from './SectionRows.tsx';
 
 /** Lo que una fila pide a la agenda; la pantalla lo conecta con `useCommands()`. */
@@ -185,6 +187,7 @@ function EntryRowView({
             ))}
           </div>
         </div>
+        <RowFacts entry={entry} />
         <MenuButton
           label={es.changeStatus(entry.status, entry.title)}
           items={statusItems}
@@ -238,3 +241,33 @@ export const EntryRow = memo(
     a.virtual?.index === b.virtual?.index &&
     a.virtual?.setSize === b.virtual?.setSize,
 );
+
+/**
+ * «Juego en» y la fecha que toca, en dos columnas alineadas entre el título y el estado (revisión
+ * responsive del 20-11-2026, opción A). Solo se ven con la lista ancha (*container query* de
+ * list.css); por debajo, están en la ficha. Las celdas vacías conservan su ancho, para que las
+ * columnas no se tuerzan.
+ */
+function RowFacts({ entry }: { entry: AgendaEntry }) {
+  const date = rowDate(entry);
+  return (
+    <span className="entry-row__facts">
+      <span className="entry-row__fact">
+        {entry.platform !== null && (
+          <>
+            <span className="entry-row__fact-label">{es.game.platform}</span>{' '}
+            {es.platform[entry.platform]}
+          </>
+        )}
+      </span>
+      <span className="entry-row__fact">
+        {date !== null && (
+          <>
+            <span className="entry-row__fact-label">{es.game.date[date.field]}</span>{' '}
+            {formatAgendaDay(date.day)}
+          </>
+        )}
+      </span>
+    </span>
+  );
+}

@@ -6,6 +6,7 @@
 import {
   type AgendaEntry,
   compareRank,
+  type DateField,
   type EntryView,
   STATUSES,
   type Status,
@@ -278,4 +279,25 @@ export function priorityOf(
   const view = viewOf(entry);
   const siblings = entries.filter((e) => viewOf(e) === view).sort(compareRank);
   return { position: siblings.findIndex((e) => e.id === entry.id) + 1, total: siblings.length };
+}
+
+/**
+ * La fecha que enseña una fila de Mi lista con la lista ancha (revisión responsive del 20-11-2026):
+ * la que más dice de su estado. Completado, la de terminarlo; Jugando, En pausa y Abandonado, la de
+ * empezarlo; los demás, la de apuntarlo. Si falta, la anterior que haya.
+ */
+export function rowDate(
+  entry: AgendaEntry,
+): { readonly field: DateField; readonly day: string } | null {
+  const order: readonly DateField[] =
+    entry.status === 'completed'
+      ? ['completedAt', 'startedAt', 'addedAt']
+      : entry.status === 'playing' || entry.status === 'on_hold' || entry.status === 'dropped'
+        ? ['startedAt', 'addedAt']
+        : ['addedAt'];
+  for (const field of order) {
+    const day = entry[field];
+    if (day !== null && day !== '') return { field, day };
+  }
+  return null;
 }

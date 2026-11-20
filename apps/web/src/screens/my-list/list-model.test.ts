@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { AgendaEntry, Flags, Status } from '../../agenda/types.ts';
 import { dayNumber, type ReleaseInfo } from '../../details/release.ts';
+import { formatAgendaDay } from '../../details/release-text.ts';
 import {
   buildSections,
   countUpcoming,
@@ -10,6 +11,7 @@ import {
   parseListParams,
   priorityOf,
   type ReleaseLookup,
+  rowDate,
 } from './list-model.ts';
 
 function entry(id: string, status: Status, rank: number, flags: Flags = {}): AgendaEntry {
@@ -145,5 +147,37 @@ describe('Próximos y orden por lanzamiento (M2, §9.2)', () => {
       'Manual',
     ]);
     expect(listSearchParams(params).toString()).toBe('vista=todos&orden=lanzamiento');
+  });
+});
+
+describe('la fecha de la fila ancha (revisión responsive)', () => {
+  it('enseña la que más dice de su estado y, si falta, la anterior', () => {
+    const base = entry('Hades II', 'want_to_play', 5);
+    expect(rowDate(base)).toEqual({ field: 'addedAt', day: '2026-10-05' });
+    expect(rowDate({ ...base, status: 'playing' })).toEqual({
+      field: 'addedAt',
+      day: '2026-10-05',
+    });
+    expect(rowDate({ ...base, status: 'on_hold', startedAt: '2026-11' })).toEqual({
+      field: 'startedAt',
+      day: '2026-11',
+    });
+    expect(
+      rowDate({ ...base, status: 'completed', startedAt: '2026', completedAt: '2026-11-20' }),
+    ).toEqual({
+      field: 'completedAt',
+      day: '2026-11-20',
+    });
+    expect(rowDate({ ...base, status: 'not_started', startedAt: '2026-11-01' })).toEqual({
+      field: 'addedAt',
+      day: '2026-10-05',
+    });
+    expect(rowDate({ ...base, addedAt: null })).toBeNull();
+  });
+
+  it('las fechas parciales se escriben como tales', () => {
+    expect(formatAgendaDay('2026')).toBe('2026');
+    expect(formatAgendaDay('2026-10')).toBe('oct 2026');
+    expect(formatAgendaDay('2026-10-28')).toBe('28 oct 2026');
   });
 });

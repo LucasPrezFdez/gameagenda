@@ -13,6 +13,7 @@ interface Formats {
   readonly day: Intl.DateTimeFormat;
   readonly dayWithWeekday: Intl.DateTimeFormat;
   readonly month: Intl.DateTimeFormat;
+  readonly shortMonth: Intl.DateTimeFormat;
   readonly relative: Intl.RelativeTimeFormat;
 }
 
@@ -35,6 +36,11 @@ function f(): Formats {
       timeZone: 'UTC',
     }),
     month: new Intl.DateTimeFormat('es-ES', { month: 'long', year: 'numeric', timeZone: 'UTC' }),
+    shortMonth: new Intl.DateTimeFormat('es-ES', {
+      month: 'short',
+      year: 'numeric',
+      timeZone: 'UTC',
+    }),
     relative: new Intl.RelativeTimeFormat('es-ES', { numeric: 'auto' }),
   };
   return formats;
@@ -56,6 +62,14 @@ export function monthLabel(y: number, m: number): string {
 /** «28 oct 2026». */
 export function formatDay(y: number, m: number, d: number): string {
   return f().day.format(utc(y, m, d));
+}
+
+/** Una fecha de la agenda (`Day`), que puede ser parcial: «2026», «oct 2026» o «28 oct 2026». */
+export function formatAgendaDay(day: string): string {
+  const [y = 0, m, d] = day.split('-').map(Number);
+  if (m === undefined) return String(y);
+  if (d === undefined) return f().shortMonth.format(utc(y, m, 1));
+  return formatDay(y, m, d);
 }
 
 /**
