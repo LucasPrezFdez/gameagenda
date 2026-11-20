@@ -1,7 +1,18 @@
 // Modelo de la entrada de la agenda (§3.3 y §7.2 de prototipe.md).
 
-/** Estados, en el orden de la §3.3. `want_to_play` es el de por defecto. */
-export const STATUSES = ['want_to_play', 'playing', 'on_hold', 'completed', 'dropped'] as const;
+/**
+ * Estados, en el orden de la §3.3. `want_to_play` es el de por defecto. `not_started` («Sin
+ * empezar», 20-11-2026): lo tienes, pero no has decidido jugarlo (los juegos de Steam sin jugar);
+ * va el último para no mover los atajos 1–5.
+ */
+export const STATUSES = [
+  'want_to_play',
+  'playing',
+  'on_hold',
+  'completed',
+  'dropped',
+  'not_started',
+] as const;
 export type Status = (typeof STATUSES)[number];
 export const DEFAULT_STATUS: Status = 'want_to_play';
 

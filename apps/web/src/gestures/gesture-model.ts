@@ -18,11 +18,13 @@ const RUBBER_BAND_PX = 24;
 
 /**
  * El estado al que avanza una fila al deslizarla a la derecha, o `null` si ya no avanza:
- * Quiero jugar → Jugando («Empezar»), En pausa → Jugando («Retomar») y Jugando → Completado.
+ * Quiero jugar y Sin empezar → Jugando («Empezar»), En pausa → Jugando («Retomar») y Jugando →
+ * Completado.
  */
 export function advanceStatus(status: Status): Status | null {
   switch (status) {
     case 'want_to_play':
+    case 'not_started':
     case 'on_hold':
       return 'playing';
     case 'playing':

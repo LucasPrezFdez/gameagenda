@@ -40,6 +40,9 @@
   --completed-chip: #ede8f8;
   --dropped: #5e6977;
   --dropped-chip: #ecedef;
+  /* Sin empezar (20-11-2026): la caja de cartón, un marrón apagado. */
+  --not_started: #7a5c2e;
+  --not_started-chip: #f2ece2;
   /* Platinado en platino (trofeo a tres tintas, ver base.css) y Próximo en rojo (05-11-2026). */
   --platinum: #56657a;
   --platinum-chip: #eceff4;
@@ -122,6 +125,8 @@
     --completed-chip: #2f2f45;
     --dropped: #9aa5b4;
     --dropped-chip: #2b3139;
+    --not_started: #d4b483;
+    --not_started-chip: #352e24;
     --platinum: #c9d4e2;
     --platinum-chip: #2a2f37;
     --platinum-metal: #b4c1d2;
@@ -162,6 +167,8 @@
   --completed-chip: #2f2f45;
   --dropped: #9aa5b4;
   --dropped-chip: #2b3139;
+  --not_started: #d4b483;
+  --not_started-chip: #352e24;
   --platinum: #c9d4e2;
   --platinum-chip: #2a2f37;
   --platinum-metal: #b4c1d2;

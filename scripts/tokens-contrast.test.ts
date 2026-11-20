@@ -46,7 +46,14 @@ function contrast(a: string, b: string): number {
   return (hi + 0.05) / (lo + 0.05);
 }
 
-const STATES = ['want_to_play', 'playing', 'on_hold', 'completed', 'dropped'] as const;
+const STATES = [
+  'want_to_play',
+  'playing',
+  'on_hold',
+  'completed',
+  'dropped',
+  'not_started',
+] as const;
 const FLAGS = ['owned', 'platinum', 'next'] as const;
 const SURFACES = ['bg', 'surface', 'surface-2'] as const;
 

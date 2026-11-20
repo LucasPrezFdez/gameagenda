@@ -282,6 +282,10 @@
   border-color: var(--dropped);
   background: var(--dropped);
 }
+.sidebar-views__dot--not_started {
+  border-color: var(--not_started);
+  background: var(--not_started);
+}
 
 .sidebar-views__count {
   min-width: 1ch;

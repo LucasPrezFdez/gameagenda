@@ -78,6 +78,7 @@ Cada entrada tiene siempre **un estado** exclusivo y cualquier combinación de *
 | `on_hold` | En pausa | Empezado y aparcado, con intención de volver |
 | `completed` | Completado | Terminada la historia principal o el objetivo que el usuario considere |
 | `dropped` | Abandonado | Dejado sin intención de terminarlo; la entrada se conserva |
+| `not_started` | Sin empezar | Lo tienes, pero no has decidido jugarlo (desde el 20-11-2026; DECISIONES §10.50). Es donde entran los juegos de Steam sin jugar: la importación no sabe cuáles quieres jugar. No sale en «Pendientes» |
 
 Se permiten todas las transiciones, porque manda el usuario (por ejemplo, puede pasar a Completado un juego terminado hace años). Las flechas con nombre son acciones de un toque; las demás se hacen con el selector de estado.
 
@@ -89,6 +90,7 @@ stateDiagram-v2
   state "En pausa" as on_hold
   state "Completado" as completed
   state "Abandonado" as dropped
+  state "Sin empezar" as not_started
   [*] --> want_to_play: Apuntar
   want_to_play --> playing: Empezar
   playing --> on_hold: Pausar
@@ -98,6 +100,7 @@ stateDiagram-v2
   dropped --> playing: Retomar
   completed --> playing: Rejugar
   want_to_play --> on_hold
+  not_started --> playing: Empezar
   want_to_play --> completed
   want_to_play --> dropped
   playing --> want_to_play

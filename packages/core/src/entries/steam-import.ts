@@ -5,8 +5,9 @@
 // Lo que decidió el usuario (20-11-2026):
 // - Todos los juegos de la biblioteca entran como Comprado y, si tienen todos los logros, como
 //   Platinado (que los pone en Completado, con la fecha del último logro).
-// - Los demás, según lo jugado: sin jugar, Quiero jugar; jugados en las últimas dos semanas,
-//   Jugando; jugados antes, En pausa.
+// - Los demás, según lo jugado: sin jugar, Sin empezar (la importación no sabe cuáles quieres
+//   jugar: Quiero jugar lo decide el usuario); jugados en las últimas dos semanas, Jugando;
+//   jugados antes, En pausa.
 // - Lo que ya estaba apuntado no cambia de estado: solo gana Comprado y, si toca, Platinado.
 // - La lista de deseados, si se pide, a Quiero jugar (sin Comprado), detrás de lo demás.
 
@@ -105,7 +106,7 @@ const collator = new Intl.Collator('es', { sensitivity: 'base', numeric: true })
 
 /** El estado de un juego nuevo de la biblioteca (sin contar el platino). */
 export function statusOfPlayed(game: SteamImportGame, nowMs: number): Status {
-  if (game.minutes <= 0) return 'want_to_play';
+  if (game.minutes <= 0) return 'not_started';
   if (game.lastPlayedAt !== null && nowMs - game.lastPlayedAt < RECENT_PLAY_MS) return 'playing';
   return 'on_hold';
 }
@@ -118,6 +119,7 @@ export function planSteamImport(input: SteamImportInput): SteamImportPlan {
     on_hold: 0,
     completed: 0,
     dropped: 0,
+    not_started: 0,
   };
   let markedOwned = 0;
   let platinum = 0;
@@ -172,10 +174,17 @@ export function planSteamImport(input: SteamImportInput): SteamImportPlan {
       platinumAt,
       wish: false,
     };
-    // Jugando, En pausa y Completado: lo último jugado primero. Quiero jugar: por nombre.
-    const group = { playing: 0, on_hold: 1, completed: 2, want_to_play: 3, dropped: 4 }[status];
+    // Jugando, En pausa y Completado: lo último jugado primero. Sin empezar: por nombre.
+    const group = {
+      playing: 0,
+      on_hold: 1,
+      completed: 2,
+      want_to_play: 3,
+      dropped: 4,
+      not_started: 5,
+    }[status];
     const key =
-      status === 'want_to_play' ? [group, title] : [group, lastPlayed(game), title, game.appid];
+      status === 'not_started' ? [group, title] : [group, lastPlayed(game), title, game.appid];
     fresh.push({ item, key });
   }
 
@@ -202,7 +211,7 @@ export function planSteamImport(input: SteamImportInput): SteamImportPlan {
         wish: true,
       },
       // El orden de Steam (0, sin orden, al final) y, a igual, el más antiguo primero.
-      key: [5, wish.priority > 0 ? wish.priority : Number.MAX_SAFE_INTEGER, wish.addedAt ?? 0],
+      key: [6, wish.priority > 0 ? wish.priority : Number.MAX_SAFE_INTEGER, wish.addedAt ?? 0],
     });
   }
 

@@ -44,7 +44,7 @@ export const steamTexts = {
   reviewStatus: {
     playing: (count: number) => `${formatCount(count)} a Jugando`,
     on_hold: (count: number) => `${formatCount(count)} a En pausa`,
-    want_to_play: (count: number) => `${formatCount(count)} a Quiero jugar`,
+    not_started: (count: number) => `${formatCount(count)} a Sin empezar (no los has jugado)`,
     completed: (count: number) =>
       `${formatCount(count)} a Completado, con Platinado (tienen todos los logros)`,
   },

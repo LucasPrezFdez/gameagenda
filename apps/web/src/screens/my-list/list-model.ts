@@ -53,6 +53,7 @@ const VIEW_SLUGS: Readonly<Record<ListView, string>> = {
   on_hold: 'en-pausa',
   completed: 'completado',
   dropped: 'abandonado',
+  not_started: 'sin-empezar',
   all: 'todos',
 };
 const PURCHASE_SLUGS: Readonly<Record<PurchaseFilter, string>> = {
@@ -97,7 +98,13 @@ export function listSearchParams(list: ListParams): URLSearchParams {
 /** Secciones de «Pendientes» y de «Todos», en este orden (ver §9.1). */
 export type SectionId = EntryView;
 const PENDING_SECTIONS: readonly SectionId[] = ['playing', 'next', 'want_to_play', 'on_hold'];
-const ALL_SECTIONS: readonly SectionId[] = [...PENDING_SECTIONS, 'completed', 'dropped'];
+/** «Sin empezar» va la última de Todos, plegada: puede ser una biblioteca entera de Steam. */
+const ALL_SECTIONS: readonly SectionId[] = [
+  ...PENDING_SECTIONS,
+  'completed',
+  'dropped',
+  'not_started',
+];
 
 export interface ListSection {
   /** Clave estable de la sección (React y el `id` de su título). */
@@ -217,7 +224,9 @@ export function buildSections(
       key: id,
       id,
       entries: visible.filter((entry) => viewOf(entry) === id),
-      collapsible: params.view === 'pending' && id === 'on_hold',
+      collapsible:
+        (params.view === 'pending' && id === 'on_hold') ||
+        (params.view === 'all' && id === 'not_started'),
       ranked: id === 'want_to_play',
     }))
     .filter((section) => section.entries.length > 0);

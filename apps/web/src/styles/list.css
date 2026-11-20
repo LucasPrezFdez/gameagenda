@@ -15,6 +15,9 @@
 .status-text--dropped {
   color: var(--dropped);
 }
+.status-text--not_started {
+  color: var(--not_started);
+}
 .status-text--platinum {
   color: var(--platinum);
 }
@@ -209,7 +212,8 @@
     [data-section="want_to_play"],
     [data-section="on_hold"],
     [data-section="completed"],
-    [data-section="dropped"]
+    [data-section="dropped"],
+    [data-section="not_started"]
   )
   h2::before {
   content: "";
@@ -234,6 +238,9 @@
 }
 .list-section[data-section="dropped"] h2::before {
   background: var(--dropped);
+}
+.list-section[data-section="not_started"] h2::before {
+  background: var(--not_started);
 }
 
 /* «Arrastra :: o usa Alt+↑/↓» (§9.3); con el dedo, sin las teclas. Con puntero fino solo sale al
@@ -750,6 +757,9 @@
 }
 .status-button.status-text--dropped::before {
   background: var(--dropped);
+}
+.status-button.status-text--not_started::before {
+  background: var(--not_started);
 }
 
 .status-button__chevron {

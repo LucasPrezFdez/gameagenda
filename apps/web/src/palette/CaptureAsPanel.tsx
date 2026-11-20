@@ -26,11 +26,13 @@ const DIGITS: Readonly<Record<string, Status>> = {
   Digit3: 'on_hold',
   Digit4: 'completed',
   Digit5: 'dropped',
+  Digit6: 'not_started',
   Numpad1: 'want_to_play',
   Numpad2: 'playing',
   Numpad3: 'on_hold',
   Numpad4: 'completed',
   Numpad5: 'dropped',
+  Numpad6: 'not_started',
 };
 
 export function CaptureAsPanel({ title, onCapture, onBack }: CaptureAsPanelProps) {

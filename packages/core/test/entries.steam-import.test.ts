@@ -58,7 +58,7 @@ function agenda(...list: Entry[]) {
 }
 
 describe('planSteamImport: lo que decidió el usuario', () => {
-  it('sin jugar, Quiero jugar; jugado hace menos de 14 días, Jugando; antes, En pausa', () => {
+  it('sin jugar, Sin empezar (nunca Quiero jugar); jugado hace menos de 14 días, Jugando; antes, En pausa', () => {
     const plan = planSteamImport(
       input({
         owned: [
@@ -72,13 +72,14 @@ describe('planSteamImport: lo que decidió el usuario', () => {
     const status = Object.fromEntries(
       plan.items.map((i) => [i.appid, i.kind === 'add' ? i.status : 'mark']),
     );
-    expect(status).toEqual({ 10: 'want_to_play', 20: 'playing', 30: 'on_hold', 40: 'on_hold' });
+    expect(status).toEqual({ 10: 'not_started', 20: 'playing', 30: 'on_hold', 40: 'on_hold' });
     expect(plan.counts.added).toEqual({
-      want_to_play: 1,
+      want_to_play: 0,
       playing: 1,
       on_hold: 2,
       completed: 0,
       dropped: 0,
+      not_started: 1,
     });
     for (const item of plan.items) expect(item.kind === 'add' && item.owned).toBe(true);
   });
@@ -168,7 +169,7 @@ describe('planSteamImport: lo que decidió el usuario', () => {
     expect(titles).toEqual({ 10: 'Juego 10', 20: 'Juego de Steam 20', 30: 'Del catálogo' });
   });
 
-  it('el orden: Jugando, En pausa y Completado por última partida; Quiero jugar por nombre; deseados detrás', () => {
+  it('el orden: Jugando, En pausa y Completado por última partida; Sin empezar por nombre; deseados detrás', () => {
     const plan = planSteamImport(
       input({
         owned: [

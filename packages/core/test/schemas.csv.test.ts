@@ -27,6 +27,7 @@ const LABELS: StatusLabels = {
   on_hold: 'En pausa',
   completed: 'Completado',
   dropped: 'Abandonado',
+  not_started: 'Sin empezar',
 };
 const HEADER = CSV_COLUMNS.join(';');
 

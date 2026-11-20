@@ -356,7 +356,7 @@ describe('parte 3: logros, resumen, aplicar y deshacer', () => {
     s.flow.subscribe(() => seen.push(s.flow.getSnapshot().kind));
     const review = await toReview(s);
     expect(review.plan.counts).toEqual({
-      added: { playing: 1, on_hold: 1, want_to_play: 1, completed: 1, dropped: 0 },
+      added: { playing: 1, on_hold: 1, want_to_play: 0, completed: 1, dropped: 0, not_started: 1 },
       wishes: 0,
       markedOwned: 0,
       platinum: 1,
@@ -402,7 +402,8 @@ describe('parte 3: logros, resumen, aplicar y deshacer', () => {
       title: 'Half-Life 2 (catálogo)',
     });
     expect(get('steam:413150')).toMatchObject({ status: 'playing', flags: { owned: true } });
-    expect(get('steam:1145360')).toMatchObject({ status: 'want_to_play', flags: { owned: true } });
+    // Sin jugar: Sin empezar, nunca Quiero jugar (eso lo decide el usuario).
+    expect(get('steam:1145360')).toMatchObject({ status: 'not_started', flags: { owned: true } });
     for (const appid of [1086940, 367520, 1245620]) {
       expect(get(`steam:${appid}`)).toMatchObject({
         status: 'want_to_play',

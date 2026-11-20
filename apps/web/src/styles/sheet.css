@@ -230,6 +230,11 @@
   background: var(--dropped-chip);
   color: var(--dropped);
 }
+.chip-button.status-text--not_started[aria-pressed="true"] {
+  border-color: var(--not_started);
+  background: var(--not_started-chip);
+  color: var(--not_started);
+}
 .chip-button.status-text--owned[aria-pressed="true"] {
   border-color: var(--owned);
   background: var(--owned-chip);

@@ -28,7 +28,8 @@ Cambios de GameAgenda por versión. Cada hito cierra una versión SemVer 0.x (§
 
 - **Importar desde Steam, parte 3: los logros, el resumen y aplicar** (20-11-2026, en la rama `steam-parte-3`, apagada en producción; Fase 2; ADR-012, «Parte 3», y DECISIONES §10.50):
   - en la micro-API, el pase de la importación (el SteamID64 cifrado, 15 min) en `redeem` y `POST /api/v1/steam/achievements` (`GetPlayerAchievements`, 40 juegos por petición y 8 a la vez, `RL_STEAM_ACH` y el tope diario);
-  - en core, `planSteamImport` y `applySteamImport` (todos como Comprado; Platinado con el día del último logro; los nuevos según lo jugado) y un alta compacta de 5 a 9 operaciones en vez de 15;
+  - en core, `planSteamImport` y `applySteamImport` (todos como Comprado; Platinado con el día del último logro; los nuevos según lo jugado, y los sin jugar en Sin empezar, nunca en Quiero jugar) y un alta compacta de 5 a 9 operaciones en vez de 15;
+  - un estado nuevo, **Sin empezar**: lo tienes, pero no has decidido jugarlo. No sale en Pendientes; en Todos va el último, plegable, y tiene su vista, su atajo (6) y su icono (una caja);
   - en la app, los logros por lotes con su progreso, un resumen antes de tocar nada (con la lista de deseados como casilla), «Aplicar» por lotes y un solo «Deshacer»;
   - la política de privacidad y el registro de actividades, en su versión 3.
 - **Importar desde Steam, parte 2: iniciar sesión y traer la biblioteca** (19-11-2026, en la rama `steam-parte-2`, apagada en producción; Fase 2; ADR-012 y DECISIONES §10.49). Lo verá el usuario con la parte 3 (revisar y aplicar):

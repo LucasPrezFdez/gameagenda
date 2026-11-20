@@ -3,7 +3,14 @@
 import type { ActionContext, Entry, UndoStep } from '@gameagenda/core/entries';
 import type { Op } from '@gameagenda/core/sync';
 
-export const STATUSES = ['want_to_play', 'playing', 'on_hold', 'completed', 'dropped'] as const;
+export const STATUSES = [
+  'want_to_play',
+  'playing',
+  'on_hold',
+  'completed',
+  'dropped',
+  'not_started',
+] as const;
 export type Status = (typeof STATUSES)[number];
 
 /** Orden de las marcas en la interfaz: Comprado, Platinado, Próximo. */

@@ -31,6 +31,7 @@ const VIEWS: readonly ListView[] = [
   'on_hold',
   'completed',
   'dropped',
+  'not_started',
   'upcoming',
   'all',
 ];

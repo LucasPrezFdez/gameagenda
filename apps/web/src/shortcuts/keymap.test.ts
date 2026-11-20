@@ -40,7 +40,7 @@ describe('readShortcut', () => {
     }
   });
 
-  it('1–5 por `event.code`: también con Mayús o en otro teclado', () => {
+  it('1–6 por `event.code`: también con Mayús o en otro teclado', () => {
     STATUSES.forEach((status, index) => {
       const digit = String(index + 1);
       expect(readShortcut(press(digit, { code: `Digit${digit}` }), true)).toEqual({
@@ -61,7 +61,11 @@ describe('readShortcut', () => {
       kind: 'status',
       status: 'want_to_play',
     });
-    expect(readShortcut(press('6', { code: 'Digit6' }), true)).toBeNull();
+    expect(readShortcut(press('6', { code: 'Digit6' }), true)).toEqual({
+      kind: 'status',
+      status: 'not_started',
+    });
+    expect(readShortcut(press('7', { code: 'Digit7' }), true)).toBeNull();
     expect(readShortcut(press('0', { code: 'Digit0' }), true)).toBeNull();
   });
 

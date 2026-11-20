@@ -11,7 +11,7 @@
 
 | Dato | Endpoint | ¿Clave? | Qué propone |
 |---|---|---|---|
-| Biblioteca y horas | `IPlayerService/GetOwnedGames/v1` (`include_appinfo`, `include_played_free_games`, `skip_unvetted_apps=false`) | Sí | **Comprado** en todos (decisión del usuario, 20-11-2026). Los que no estaban entran según lo jugado: sin jugar, Quiero jugar; jugados en los últimos 14 días, Jugando; los demás, En pausa. Los que estaban no cambian de estado: solo ganan la marca. Nunca los `family_shared` (`GetOwnedGames` no los da); `ownedAt` queda vacío |
+| Biblioteca y horas | `IPlayerService/GetOwnedGames/v1` (`include_appinfo`, `include_played_free_games`, `skip_unvetted_apps=false`) | Sí | **Comprado** en todos (decisión del usuario, 20-11-2026). Los que no estaban entran según lo jugado: sin jugar, **Sin empezar** (no Quiero jugar: la importación no sabe cuáles quieres jugar; ver §3.3); jugados en los últimos 14 días, Jugando; los demás, En pausa. Los que estaban no cambian de estado: solo ganan la marca. Nunca los `family_shared` (`GetOwnedGames` no los da); `ownedAt` queda vacío |
 | Lista de deseados | `IWishlistService/GetWishlist/v1` (`steamid`) | No (no documentado) | **Quiero jugar**, al final de la lista, si se marca la casilla del resumen (sale desmarcada) |
 | Logros | `ISteamUserStats/GetPlayerAchievements/v1`, un juego por llamada. `IPlayerService/GetAchievementsProgress` (varios por llamada) pide la sesión del usuario: con clave, 401 (20-11-2026) | Sí | **Platinado** (y Completado) si tiene todos los logros, con el día del último (decisión del usuario, 20-11-2026) |
 

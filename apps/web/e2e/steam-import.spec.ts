@@ -169,8 +169,8 @@ test('en una pestaña: Steam en otra ventana y, al volver, el resumen sin tocar 
   const counts = steamStatus(page).getByRole('listitem');
   await expect(counts).toHaveText([
     '2 a En pausa',
-    '1 a Quiero jugar',
     '1 a Completado, con Platinado (tienen todos los logros)',
+    '1 a Sin empezar (no los has jugado)',
   ]);
   const wishlist = steamSection(page).getByRole('checkbox', {
     name: 'Añadir también tu lista de deseados a Quiero jugar (3 juegos)',
@@ -217,14 +217,20 @@ test('«Aplicar»: entran como Comprados (Outer Wilds, Platinado) y «Deshacer»
     flags: { owned: true },
   });
   expect(await storedEntry(page, 'steam:1245620')).toMatchObject({ status: 'want_to_play' });
-  // A Mi lista sin recargar (el flujo vive en memoria, como en la app): Quiero jugar, a la vista;
-  // En pausa (Stardew Valley y Half-Life 2), plegada.
+  // A Mi lista sin recargar (el flujo vive en memoria, como en la app). En Pendientes: Quiero jugar,
+  // solo con los deseados; En pausa (Stardew Valley y Half-Life 2), plegada; y Hades, sin jugar, no
+  // sale: está en Sin empezar.
   await page.getByRole('link', { name: 'Mi lista' }).first().click();
-  await expect(page.getByRole('region', { name: 'Quiero jugar (4)' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Quiero jugar (3)' })).toBeVisible();
   await expect(page.getByRole('region', { name: 'En pausa (2)' })).toBeVisible();
   await expect(
-    page.getByRole('button', { name: 'Quiero jugar: cambiar estado de Hades' }),
+    page.getByRole('button', { name: 'Quiero jugar: cambiar estado de Hollow Knight' }),
   ).toBeVisible();
+  await expect(page.getByRole('button', { name: /cambiar estado de Hades$/ })).toHaveCount(0);
+  expect(await storedEntry(page, 'steam:1145360')).toMatchObject({
+    status: 'not_started',
+    flags: { owned: true },
+  });
   // Y de vuelta a Ajustes, con «Atrás».
   await page.goBack();
   await button(page, 'Deshacer').click();

@@ -18,8 +18,11 @@ const STEAM_PRIVACY_URL = 'https://steamcommunity.com/my/edit/settings';
  */
 const SIGN_IN_IMAGE = '/steam/sign-in-through-steam.png';
 
-/** El orden de las líneas del resumen: el de las secciones de Mi lista. */
-const REVIEW_ORDER = ['playing', 'on_hold', 'want_to_play', 'completed'] as const;
+/**
+ * El orden de las líneas del resumen: el de las secciones de Mi lista. Los juegos de la biblioteca
+ * nunca van a Quiero jugar (eso lo decide el usuario); los sin jugar, a Sin empezar.
+ */
+const REVIEW_ORDER = ['playing', 'on_hold', 'completed', 'not_started'] as const;
 
 function statusText(state: SteamImportState): string {
   switch (state.kind) {
