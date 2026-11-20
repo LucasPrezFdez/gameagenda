@@ -693,3 +693,4 @@ Resueltos a partir de las mediciones y de los conflictos detectados entre seccio
       - el Catálogo es para buscar y apuntar deprisa, no para hojear: más portadas por fila alargan el recorrido de la vista sin ayudar a encontrar un juego;
       - con 8 columnas, cada portada mide unos 170 px, como en la biblioteca de Steam.
       Si el usuario lo quiere, el cambio es pequeño: `MAX_COLUMNS` en `CatalogScreen.tsx` y un `max-width` propio para la vista en cuadrícula.
+    - **Despliegue (20-11-2026):** `main` avanzó hasta la rama (`0c3fa7f`). `ci` 44810799091 y `deploy-web` 44811564946, en verde; `smoke:web`, «Todo en orden»; y las 108 medidas, repetidas en producción, iguales a las del *build* de la rama.
