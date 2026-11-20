@@ -1,6 +1,6 @@
 # ADR-012 · Cuenta de Steam: OpenID 2.0 con canje tipo PKCE y la biblioteca en *streaming*
 
-- **Estado:** aceptada el 20-11-2026, tras la prueba a mano con Steam de verdad (abajo, «Prueba a mano») y la verificación final de la parte 2.
+- **Estado:** aceptada el 20-11-2026, tras la prueba a mano con Steam de verdad (abajo, «Prueba a mano») y la verificación final de la parte 2. La parte 3 (los logros, el resumen y aplicar) la amplía el mismo día (abajo, «Parte 3»).
 - **Fecha:** 19-11-2026 (Fase 2, parte 2 de la importación de Steam)
 - **Deciden:** el usuario y el asistente
 
@@ -166,6 +166,33 @@ Con `wrangler dev` en `http://127.0.0.1:8787` (D1 local, `STEAM_ENABLED` a "1", 
 - **Lo que devuelve Steam** (solo la forma, con `.cache/steam-probe/steam-shape.ts`, que no escribe nada de la cuenta): `GetOwnedGames`, 200 con `game_count` y `games` (105 juegos, 34,6 KB, ≈0,5 s); `GetWishlist`, 200 con `items` (7, ≈0,3 s). Todos pasan los esquemas de `core`. Las *fixtures* tenían `has_dlc`, que Steam no manda, y no `has_leaderboards`; `playtime_2weeks` va justo tras `name`, y `has_community_visible_stats` a veces falta (no viene a `false`). Ajustadas, con lo comprobado en `fixtures/steam/webapi/README.md`.
 - **Sin comprobar:** el perfil privado (el usuario no quiso cambiar su privacidad), la biblioteca vacía y la lista de deseados vacía o privada (no hay otra cuenta), y el juego compartido en familia y el privado. Los cubren las *fixtures* y los E2E con la forma documentada (§10.1). La clave es de la misma cuenta, así que esta prueba no diría si Steam esconde los juegos privados a otras claves.
 - **El catálogo, en local:** el *build* de producción solo acepta catálogos firmados con la clave de producción, y `ga-catalog` solo admite por CORS su origen. Hay que copiar el publicado en `dist/catalog-dev/`; sin él, la app no busca ni pone nombres.
+
+## Parte 3: los logros, el resumen y aplicar (20-11-2026)
+
+En la rama `steam-parte-3`; el detalle, en DECISIONES §10.50.
+
+- **Qué hace:** tras traer la biblioteca, la app pregunta por los logros de los juegos jugados con estadísticas y enseña un resumen sin tocar la agenda. Con «Aplicar», todos los juegos de la biblioteca entran como Comprado (y Platinado si tienen todos los logros, con el día del último), los nuevos según lo jugado (Quiero jugar, Jugando o En pausa), y los que ya estaban solo ganan las marcas. La lista de deseados, si se marca la casilla, a Quiero jugar. Un solo «Deshacer».
+- **La API de logros:** `ISteamUserStats/GetPlayerAchievements/v1`, con la clave en `x-webapi-key`, un juego por llamada. Con clave no hay otra (paso 0, con la cuenta del usuario): `IPlayerService/GetAchievementsProgress` pide la sesión del usuario (401) y `GetTopAchievementsForGames` no dice cuántos se tienen.
+- **El pase:** `redeem` da, delante de la biblioteca, el SteamID64 y su caducidad (15 min) cifrados con AES-GCM, con una clave derivada de `STEAM_WEB_API_KEY` por HKDF (`worker/steam-token.ts`). La app lo presenta en cada lote; D1 no guarda nada más, ni el SteamID64 dura más allá de sus 15 minutos de ticket.
+- **`POST /api/v1/steam/achievements`** `{ token, appids }`: 40 juegos por petición como mucho, 8 llamadas a la vez, `RL_STEAM_ACH` (60 por minuto y por IP) y el tope diario. Con el pase caducado o que no se abre, 410 `steam_token_invalid`, sin llamar a Steam. A la app solo le llega si cada juego tiene todos los logros (con el último `unlocktime`), no, no tiene logros, Steam no los enseña (403 en JSON) o no ha contestado.
+- **El alta compacta:** un juego que no estaba en la agenda se apunta con 5 a 9 operaciones en vez de 15 (`addImported` de core): lo que queda como en un esqueleto no se escribe, y la entrada es la misma en todos los dispositivos.
+
+### Consecuencias de la parte 3
+
+- Bien, porque el SteamID64 sigue sin quedarse en el servidor: el pase lo lleva la app, cifrado, 15 minutos.
+- Bien, porque no hace falta otro secreto, y la clave de Steam sigue sin salir del Worker.
+- Bien, porque una importación de 5 000 juegos escribe en D1 unas 30 000 filas, no 75 000.
+- Mal, porque es una llamada a Steam por juego jugado con estadísticas: una biblioteca de 5 000 puede gastar 3 000 del tope diario de 50 000.
+- Mal, porque si Steam cuenta en un juego los logros de sus DLC, Platinado se queda corto (nunca se pasa).
+- Mal, porque con la importación encendida, el JS inicial pasa de 141,5 a 143,0 KB, en tres ficheros (las partes de core que comparten la agenda y el *chunk* de Steam).
+
+### Confirmación de la parte 3
+
+- **Micro-API:** `steam-achievements.test.ts` (27) y `steam-redeem.test.ts` (30, con el pase: cifrado, 15 min, distinto en cada canje, no se abre con otra clave).
+- **Core:** `entries.steam-import.test.ts` (23): el plan con las reglas del usuario, el orden, el alta compacta (con una prueba de propiedades de 300 casos), las marcas y los lotes con un solo Deshacer.
+- **El flujo de la app contra la micro-API real**, con una agenda sobre `fake-indexeddb` (`steam-client.test.ts`, 10 nuevas): de punta a punta, la `outbox` (42 operaciones para 7 juegos), lo ya apuntado, lo apuntado mientras se mira el resumen, los lotes de 40 con su progreso, un lote que falla y los logros ocultos.
+- **E2E** (`steam-import.spec.ts`, 9 en Chromium y en WebKit, con axe): el resumen sin tocar la agenda, «Aplicar», Mi lista, «Deshacer» y lo que ya se tenía.
+- **Pendiente:** la prueba a mano con la cuenta del usuario.
 
 ## Pros y contras de las opciones
 

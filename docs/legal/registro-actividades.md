@@ -2,7 +2,7 @@
 
 Registro del art. 30 RGPD. Es obligatorio aunque el proyecto sea pequeño, porque la exención del art. 30.5 no cubre los tratamientos habituales (§11.2 de `prototipe.md`). Es un documento interno y no se publica. Lo que ven los usuarios está en la política de privacidad (`apps/web/src/legal/texts.ts`, en `/privacidad`).
 
-- **Versión:** 2, del 19-11-2026, con la versión 2 de los textos legales: añade la actividad 6, «Importar desde Steam» (Fase 2, ADR-012). La 1, del 08-11-2026, iba con la versión 1 (M4, CA4.7).
+- **Versión:** 3, del 20-11-2026, con la versión 3 de los textos legales: la actividad 6 cuenta los logros y el pase de la importación (Fase 2, parte 3). La 2, del 19-11-2026, añadió la actividad 6, «Importar desde Steam» (ADR-012). La 1, del 08-11-2026, iba con la versión 1 (M4, CA4.7).
 - **Cómo se hizo:** a partir de la estructura de Facilita RGPD de la AEPD, para tratamientos de bajo riesgo.
 - **Revisión:** cada vez que cambie qué datos se tratan, para qué, con quién o durante cuánto tiempo. Hay que cambiar a la vez este registro, la política y su `LEGAL_VERSION`.
 
@@ -75,14 +75,14 @@ Registro del art. 30 RGPD. Es obligatorio aunque el proyecto sea pequeño, porqu
 
 | Campo | Contenido |
 |---|---|
-| Finalidad | Traer al dispositivo la biblioteca de Steam del usuario (juegos, horas y última partida) y su lista de deseados, para que la revise y la aplique a su agenda |
+| Finalidad | Traer al dispositivo la biblioteca de Steam del usuario (juegos, horas y última partida), su lista de deseados y si tiene todos los logros de los juegos jugados, para que lo revise y lo aplique a su agenda (como Comprado y, con todos los logros, Platinado) |
 | Base jurídica | Art. 6.1.b RGPD: lo pide el usuario con «Importar desde Steam» e iniciando sesión en Steam |
 | Interesados | Usuarios que importan desde Steam. No hace falta la sincronización |
-| Datos | El SteamID64, que da Steam tras un login OpenID 2.0 verificado, en D1 junto al SHA-256 del ticket, su `challenge` y su caducidad. La biblioteca y la lista de deseados pasan por el Worker hasta el dispositivo en *streaming*, sin guardarse ni registrarse. No se pide el perfil (`GetPlayerSummaries`): ni nombre, ni avatar, ni ubicación. Ni contraseñas ni *tokens* de Steam |
-| Destinatarios | Cloudflare, Inc., como encargado (ver la actividad 1). Valve Corporation (EE. UU.) recibe el SteamID64 cuando el Worker le pide la biblioteca y los deseados, y lo que recoja su web durante el login, como responsable de su propio tratamiento |
+| Datos | El SteamID64, que da Steam tras un login OpenID 2.0 verificado, en D1 junto al SHA-256 del ticket, su `challenge` y su caducidad. La biblioteca y la lista de deseados pasan por el Worker hasta el dispositivo en *streaming*, sin guardarse ni registrarse. De los logros (`GetPlayerAchievements`, un juego por llamada, solo de los jugados con estadísticas) al dispositivo solo llega si están todos y el día del último. Para esas llamadas, `redeem` da al dispositivo un pase con el SteamID64 cifrado (AES-GCM, clave derivada de la de Steam), que caduca a los 15 min, vive solo en la memoria de la app y no se guarda en el servidor. No se pide el perfil (`GetPlayerSummaries`): ni nombre, ni avatar, ni ubicación. Ni contraseñas ni *tokens* de Steam |
+| Destinatarios | Cloudflare, Inc., como encargado (ver la actividad 1). Valve Corporation (EE. UU.) recibe el SteamID64 cuando el Worker le pide la biblioteca, los deseados y los logros, y lo que recoja su web durante el login, como responsable de su propio tratamiento |
 | Transferencias | Como en la actividad 1. Valve declara estar adherida al Marco de Privacidad de Datos UE-EE. UU. |
-| Plazos | El ticket caduca a los 10 min; canjearlo, o una aserción que Steam no da por buena, lo borra, y un Cron Trigger cada 5 min borra los caducados: el SteamID64 está en D1 como mucho 15 min. Time Travel de D1 lo conserva 7 días más. En el dispositivo, lo traído se queda en memoria hasta que el usuario lo aplique (parte 3) |
-| Medidas de seguridad | Las cinco comprobaciones de OpenID 2.0 (§10.2) y canje tipo PKCE: el ticket solo lo canjea quien tiene el verificador. La clave de la Steam Web API, solo en un secreto del Worker y en `x-webapi-key`, nunca en la URL, los registros ni el cliente (el CI lo comprueba en los dos *bundles*). `Origin` propio y JSON en los POST, límite por IP (`RL_STEAM`), tope diario de llamadas e interruptor `STEAM_ENABLED`. ADR-012 |
+| Plazos | El ticket caduca a los 10 min; canjearlo, o una aserción que Steam no da por buena, lo borra, y un Cron Trigger cada 5 min borra los caducados: el SteamID64 está en D1 como mucho 15 min. Time Travel de D1 lo conserva 7 días más. En el dispositivo, lo traído (con el pase, 15 min como mucho) se queda en memoria hasta que el usuario lo aplica o cancela; lo aplicado es parte de la agenda (actividad 1) |
+| Medidas de seguridad | Las cinco comprobaciones de OpenID 2.0 (§10.2) y canje tipo PKCE: el ticket solo lo canjea quien tiene el verificador. La clave de la Steam Web API, solo en un secreto del Worker y en `x-webapi-key`, nunca en la URL, los registros ni el cliente (el CI lo comprueba en los dos *bundles*). `Origin` propio y JSON en los POST, límite por IP (`RL_STEAM`, y `RL_STEAM_ACH` en los lotes de logros), tope diario de llamadas e interruptor `STEAM_ENABLED`. ADR-012 |
 
 ## Lo que no se trata
 

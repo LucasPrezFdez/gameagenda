@@ -1686,7 +1686,7 @@ Tuteo, frases cortas, pretérito perfecto, sin exclamaciones y teclas con su nom
 **Fase 2.** La cuenta de Steam es una ayuda opcional para importar, nunca un requisito: apuntar funciona sin cuenta y sin red. Reglas fijas:
 
 - **Ninguna llamada a Steam por usuario, con clave o sin ella, antes de un login OpenID verificado.** El prototipo (M0–M4) no hace ninguna.
-- **Estado (19-11-2026):** la parte 1 (Mi lista con miles de juegos) está en producción, y la parte 2 (iniciar sesión y traer la biblioteca y los deseados, sin tocar la agenda) está hecha en la rama `steam-parte-2`, con `STEAM_ENABLED` a `"0"` en producción (ADR-012; DECISIONES §10.49), y probada a mano con Steam de verdad el 20-11-2026. Faltan la 3 (revisar y aplicar) y la 4 (logros). Para la 3, el usuario decidió el 20-11-2026 añadir todos los juegos de la biblioteca como «Comprado» y, si tienen todos los logros, también «Platinado» (DECISIONES §10.49), lo que adelanta a la 3 una parte de la 4 y cambia la tabla de la §10.1.
+- **Estado (20-11-2026):** la parte 1 (Mi lista con miles de juegos) está en producción; la parte 2 (iniciar sesión y traer la biblioteca y los deseados), en `main` y desplegada desde el 20-11-2026, con `STEAM_ENABLED` a `"0"` en producción (ADR-012; DECISIONES §10.49); y la parte 3 (los logros, el resumen y aplicar, con Deshacer), hecha el 20-11-2026 en la rama `steam-parte-3` (ADR-012, «Parte 3»; DECISIONES §10.50). La 4 queda para lo que falte de los logros (repasarlos más tarde, los conjuntos de logros).
 - La importación solo **propone**: el usuario revisa y aplica, con Deshacer.
 - Las respuestas de Steam no se guardan en D1.
 
@@ -1694,15 +1694,15 @@ Tuteo, frases cortas, pretérito perfecto, sin exclamaciones y teclas con su nom
 
 | Dato | Endpoint | ¿Clave? | Qué propone |
 |---|---|---|---|
-| Biblioteca y horas | `IPlayerService/GetOwnedGames/v1` (`include_appinfo`, `include_played_free_games`, `skip_unvetted_apps=false`) | Sí | **Comprado** en las entradas existentes; añadir el resto como «Quiero jugar» (p. ej., solo los no jugados) es opcional. Nunca los `family_shared`. Las horas, solo como pista; `ownedAt` queda vacío |
-| Lista de deseados | `IWishlistService/GetWishlist/v1` (`steamid`) | No (no documentado) | **Quiero jugar**, al final de la lista |
-| Logros | `IPlayerService/GetUserAchievements` + `GetGameAchievements` (no documentados); alternativa con clave: `ISteamUserStats/GetPlayerAchievements` + `GetSchemaForGame` | No / Sí | **Platinado**, solo como sugerencia: conjuntos del juego base (`dlcappid=0`) completados |
+| Biblioteca y horas | `IPlayerService/GetOwnedGames/v1` (`include_appinfo`, `include_played_free_games`, `skip_unvetted_apps=false`) | Sí | **Comprado** en todos (decisión del usuario, 20-11-2026). Los que no estaban entran según lo jugado: sin jugar, Quiero jugar; jugados en los últimos 14 días, Jugando; los demás, En pausa. Los que estaban no cambian de estado: solo ganan la marca. Nunca los `family_shared` (`GetOwnedGames` no los da); `ownedAt` queda vacío |
+| Lista de deseados | `IWishlistService/GetWishlist/v1` (`steamid`) | No (no documentado) | **Quiero jugar**, al final de la lista, si se marca la casilla del resumen (sale desmarcada) |
+| Logros | `ISteamUserStats/GetPlayerAchievements/v1`, un juego por llamada. `IPlayerService/GetAchievementsProgress` (varios por llamada) pide la sesión del usuario: con clave, 401 (20-11-2026) | Sí | **Platinado** (y Completado) si tiene todos los logros, con el día del último (decisión del usuario, 20-11-2026) |
 
 No se usa `GetPlayerSummaries`: importar no necesita nombre, avatar ni ubicación. Matices (verificados el 28-10-2026):
 
 - **Privacidad:** hace falta «Detalles de juegos: Público»; si no, `GetOwnedGames` responde `200 {"response":{}}` sin `game_count` y la app muestra una guía corta (`communityvisibilitystate` mide el perfil y no lo detecta). Los juegos marcados como privados no aparecen: la importación puede salir incompleta.
-- **Achievement Sets** (beta anunciada el 16-10-2026): los logros archivados no cuentan, los DLC van en conjuntos aparte y un conjunto completado sigue completado. Por eso Platinado sigue siendo manual.
-- **Coste:** ≈1 llamada por juego con logros (≈300 en una biblioteca de 500), con los esquemas cacheados por `schema_hash` en el dispositivo. El escaneo lo lanza el usuario, es incremental (solo juegos con `rtime_last_played` nuevo), va en lotes de ≤20 juegos (el plan gratuito de Workers admite 50 subpeticiones por invocación) y respeta los 429; un 401 no se reintenta. Todas las llamadas del servidor cuentan para el límite de los ToU (ver §11.1).
+- **Achievement Sets** (beta anunciada el 16-10-2026): los logros archivados no cuentan, los DLC van en conjuntos aparte y un conjunto completado sigue completado. La parte 3 marca Platinado solo cuando `GetPlayerAchievements` da todos los logros del juego por conseguidos: si cuenta también los de los DLC, se queda corta, nunca se pasa. Lo demás, a mano.
+- **Coste (parte 3):** 1 llamada por juego jugado con estadísticas (`has_community_visible_stats`): 73 de 105 en la cuenta del usuario, porque ninguno con logros iba sin esa marca. No se pregunta por los que ya son Platinado en la agenda. Van en lotes de 40 por petición a la micro-API (el plan gratuito de Workers admite 50 subpeticiones por invocación), 8 a la vez, y cuentan para el tope diario y el límite de los ToU (ver §11.1). Si un lote falla, la importación sigue sin esos logros y el resumen lo dice. Repasar solo lo jugado desde la última vez queda para la parte 4.
 
 Fuentes: <https://partner.steamgames.com/doc/webapi/IPlayerService> · <https://developers.cloudflare.com/workers/platform/limits/>
 
@@ -1755,17 +1755,23 @@ sequenceDiagram
   App->>API: POST /api/v1/steam/redeem {ticket, verificador}
   API->>W: GetOwnedGames (x-webapi-key) y GetWishlist, a la vez
   W-->>API: juegos, horas y deseados
-  API-->>App: los dos cuerpos de Steam tal cual, en streaming (no-store)
-  App->>U: «Hemos encontrado 287 juegos en tu biblioteca y 25 deseados»
-  Note over App,U: Parte 3: [Revisar] [Aplicar] (Dexie y outbox, con Deshacer)
+  API-->>App: el pase (15 min) y los dos cuerpos de Steam tal cual, en streaming (no-store)
+  loop lotes de 40 juegos jugados con estadísticas (parte 3)
+    App->>API: POST /api/v1/steam/achievements {pase, appids}
+    API->>W: GetPlayerAchievements (x-webapi-key), 8 a la vez
+    API-->>App: por juego: todos (y el día del último), no, sin logros u ocultos
+  end
+  App->>U: resumen: cuántos entran y dónde, y la casilla de los deseados
+  U->>App: Aplicar
+  App->>App: por lotes de 250 (Dexie y outbox), con un solo Deshacer
 ```
 
 Con `redeem` antes del login, la micro-API responde 202 y no gasta el ticket. El Worker no lee la biblioteca: con 5 000 juegos pesa ≈1,7 MB, y leerla y validarla con Zod le costaba 17–23 ms de CPU en frío; pasarla en *streaming*, ≈0,3 ms. La valida la app, juego a juego (ADR-012).
 
 ### 10.4 Qué se guarda y cómo se prueba
 
-- **Servidor:** las respuestas de Steam solo viajan hasta el dispositivo (`Cache-Control: no-store`, sin registros en `/api/v1/steam/*`). D1 guarda solo el ticket (*hash*, `challenge`, caducidad y, tras el login, el SteamID64): caduca a los 10 min y un Cron Trigger cada 5 min borra los caducados, así que el SteamID64 dura ≤15 min; Time Travel lo conserva 7 días más (ver §11.2). El *token* de importación firmado (HMAC, 15 min, solo en memoria) para los lotes de logros se decide en la parte 4. La parte 2 no lo necesita.
-- **Dispositivo:** las marcas aceptadas son datos de la agenda y se sincronizan como cualquier cambio. Los metadatos de importación (`rtime_last_played` por `appid`, esquemas) van en `meta` (ver §7); «Desconectar Steam y borrar datos» los elimina.
+- **Servidor:** las respuestas de Steam solo viajan hasta el dispositivo (`Cache-Control: no-store`, sin registros en `/api/v1/steam/*`). D1 guarda solo el ticket (*hash*, `challenge`, caducidad y, tras el login, el SteamID64): caduca a los 10 min y un Cron Trigger cada 5 min borra los caducados, así que el SteamID64 dura ≤15 min; Time Travel lo conserva 7 días más (ver §11.2). El pase de la importación (parte 3): el SteamID64 cifrado con AES-GCM, con una clave que sale de la de Steam por HKDF (sin otro secreto), que caduca a los 15 min. Lo da `redeem`, sirve para los lotes de logros y solo vive en la memoria de la app: D1 no lo guarda.
+- **Dispositivo:** lo aplicado son datos de la agenda y se sincroniza como cualquier cambio. Cada juego nuevo entra con un alta compacta, de 5 a 9 operaciones en vez de 15 (D1 guarda una fila por campo; DECISIONES §10.50). La parte 3 no guarda nada de Steam en el dispositivo: lo traído (con el pase) vive en memoria hasta «Aplicar» o «Cancelar».
 - **Clave:** pasa a ser también un secreto del Worker (`wrangler secret put`). La búsqueda de nombres (`x-webapi-key` y el de la variable) se limita entonces a los *assets* del cliente; la del valor lo cubre todo (ver §12).
 - **Pruebas:** las comprobaciones de la §10.2, con aserciones con la forma de las de Steam en `fixtures/steam/openid/` (firma falsa, campos sin firmar, `return_to` ajeno, ticket repetido), firmadas por un Steam falso que contesta `check_authentication` recalculando la firma, y `app.request()` de Hono; el CI nunca llama a Steam. Las respuestas de la Web API, en `fixtures/steam/webapi/`. El login real se prueba a mano con `wrangler dev` en `http://127.0.0.1:8787`, sin túnel (20-11-2026; ADR-012, «Prueba a mano»): Steam acepta un *realm* con puerto, y la vuelta la hace el navegador del mismo PC. Lo que se creía antes («`localhost:8787` no sirve») venía de `steam-signin`, que descarta el puerto del *realm*; el `verifyLogin` portado no lo hace. El túnel `cloudflared` solo hace falta para probar desde otro dispositivo. Casos: la cuenta del usuario, comprobada; perfil privado, biblioteca vacía, juego compartido en familia y juego privado, sin comprobar.
 
@@ -1836,7 +1842,8 @@ Quienes hacen la prueba guiada de M3 (ver §2.4) en el móvil y el PC del desarr
 | Caché de `resolve` (nombres públicos, no datos del usuario) | D1 | 30 días un nombre; 1 día «Steam no lo conoce» |
 | Contadores de peticiones (`ratelimits`, con el SHA-256 de la IP o del *token*) | Cloudflare | Unos segundos o minutos (periodos de 60 s) |
 | Ticket de login con SteamID64 (Fase 2) | D1 | ≤15 min: caduca a los 10, y un Cron Trigger cada 5 min borra los caducados (ADR-012) |
-| Biblioteca y lista de deseados de Steam (Fase 2) | Dispositivo (el servidor solo las pasa, sin guardarlas) | En memoria mientras se importa; lo aplicado, como el resto de la agenda (parte 3) |
+| Biblioteca y lista de deseados de Steam, y si cada juego tiene todos los logros (Fase 2) | Dispositivo (el servidor solo las pasa, sin guardarlas) | En memoria mientras se importa; lo aplicado, como el resto de la agenda |
+| Pase de la importación: el SteamID64 cifrado (Fase 2, parte 3) | Dispositivo, solo en memoria | ≤15 min (ADR-012) |
 | Llamadas a Steam de cada día (Fase 2; no son datos personales) | D1 | 7 días |
 
 Fuentes: <https://www.aepd.es/guias/guia-cookies.pdf> · <https://www.boe.es/buscar/act.php?id=BOE-A-2018-16673> · <https://developers.cloudflare.com/d1/reference/time-travel/> · <https://developers.cloudflare.com/d1/configuration/data-location/>
@@ -2295,7 +2302,7 @@ Sin colchón: para planificar se suma un 20 % (ver §16, R-13). Aparte van las e
 
 Cada bloque tendrá su ADR (la §5.6 reserva el ADR-012 para la cuenta de Steam) y sus criterios al cerrar M4: «Iniciar sesión con Steam» e importación que solo propone (ver §10); IGDB y otras plataformas (ver §17); DLC notables con insignia; marcas propias; avisos de lanzamiento; interfaz en inglés.
 
-La importación de Steam va en cuatro partes: 1, Mi lista con miles de juegos (en producción desde el 17-11-2026; DECISIONES §10.48); 2, iniciar sesión y traer la biblioteca y los deseados, sin tocar la agenda (hecha el 19-11-2026 en la rama `steam-parte-2`, apagada en producción; ADR-012 y §10.49); 3, revisar y aplicar, con Deshacer; y 4, los logros.
+La importación de Steam va en cuatro partes: 1, Mi lista con miles de juegos (en producción desde el 17-11-2026; DECISIONES §10.48); 2, iniciar sesión y traer la biblioteca y los deseados (en `main` y desplegada desde el 20-11-2026, apagada en producción; ADR-012 y §10.49); 3, los logros, el resumen y aplicar, con Deshacer (hecha el 20-11-2026 en la rama `steam-parte-3`; §10.50); y 4, lo que falte de los logros (repasarlos más tarde, los conjuntos de logros).
 
 ## 16. Riesgos y mitigaciones
 

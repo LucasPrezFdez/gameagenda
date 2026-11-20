@@ -26,6 +26,11 @@ Cambios de GameAgenda por versión. Cada hito cierra una versión SemVer 0.x (§
 
 #### Ingeniería
 
+- **Importar desde Steam, parte 3: los logros, el resumen y aplicar** (20-11-2026, en la rama `steam-parte-3`, apagada en producción; Fase 2; ADR-012, «Parte 3», y DECISIONES §10.50):
+  - en la micro-API, el pase de la importación (el SteamID64 cifrado, 15 min) en `redeem` y `POST /api/v1/steam/achievements` (`GetPlayerAchievements`, 40 juegos por petición y 8 a la vez, `RL_STEAM_ACH` y el tope diario);
+  - en core, `planSteamImport` y `applySteamImport` (todos como Comprado; Platinado con el día del último logro; los nuevos según lo jugado) y un alta compacta de 5 a 9 operaciones en vez de 15;
+  - en la app, los logros por lotes con su progreso, un resumen antes de tocar nada (con la lista de deseados como casilla), «Aplicar» por lotes y un solo «Deshacer»;
+  - la política de privacidad y el registro de actividades, en su versión 3.
 - **Importar desde Steam, parte 2: iniciar sesión y traer la biblioteca** (19-11-2026, en la rama `steam-parte-2`, apagada en producción; Fase 2; ADR-012 y DECISIONES §10.49). Lo verá el usuario con la parte 3 (revisar y aplicar):
   - en la micro-API, `POST /api/v1/steam/start`, `GET /api/v1/steam/callback` (las cinco comprobaciones de OpenID 2.0, con el `verifyLogin` de `steam-signin` portado a `fetch`) y `POST /api/v1/steam/redeem` (canje tipo PKCE, y `GetOwnedGames` y `GetWishlist` tal cual, en *streaming*). La migración `0003` (tickets y contador diario), un Cron Trigger cada 5 min que borra los tickets caducados, `RL_STEAM`, un tope de 50 000 llamadas a Steam al día y el interruptor `STEAM_ENABLED`, a `"0"`;
   - en la app, «Importar desde Steam» en Ajustes › Datos, con el botón oficial de Steam, la vuelta a la app en la pestaña, la PWA de iOS y la app de escritorio, los estados y el resumen. Solo existe en el *build* con `__STEAM_IMPORT__` (desarrollo, E2E o `VITE_STEAM_IMPORT=1`): en producción, el JS inicial y la precaché no cambian;

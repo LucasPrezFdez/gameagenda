@@ -123,7 +123,7 @@ describe('textos legales', () => {
     expect(text).toContain(`${STEAM_ID_RETENTION_MINUTES} minutos como mucho`);
   });
 
-  it('la política cuenta «Importar desde Steam» (Fase 2; ADR-012)', () => {
+  it('la política cuenta «Importar desde Steam», con los logros y el pase (Fase 2; ADR-012)', () => {
     const policy = privacyPolicy(READY);
     const section = policy.sections.find((s) => s.id === STEAM_IMPORT_SECTION);
     expect(section?.title).toBe('Importar desde Steam');
@@ -131,9 +131,13 @@ describe('textos legales', () => {
     for (const needed of [
       'SteamID64',
       'No pedimos tu nombre, tu avatar ni tu ubicación',
-      'sin que el servidor las guarde ni las anote',
-      'el número de tu cuenta cuando nuestro servidor le pide tu biblioteca',
+      'sin que el servidor los guarde ni los anote',
+      'el número de tu cuenta cuando nuestro servidor le pide tu biblioteca y tus logros',
       'cuántas consultas hacemos a Steam cada día',
+      // Parte 3: los logros y el pase.
+      'si los tienes todos y el día del último, no cuáles son',
+      'un pase cifrado con el número de tu cuenta, que caduca a los 15 minutos',
+      'Pase de la importación',
     ]) {
       expect(text, needed).toContain(needed);
     }

@@ -65,7 +65,8 @@ Quienes hacen la prueba guiada de M3 (ver §2.4) en el móvil y el PC del desarr
 | Caché de `resolve` (nombres públicos, no datos del usuario) | D1 | 30 días un nombre; 1 día «Steam no lo conoce» |
 | Contadores de peticiones (`ratelimits`, con el SHA-256 de la IP o del *token*) | Cloudflare | Unos segundos o minutos (periodos de 60 s) |
 | Ticket de login con SteamID64 (Fase 2) | D1 | ≤15 min: caduca a los 10, y un Cron Trigger cada 5 min borra los caducados (ADR-012) |
-| Biblioteca y lista de deseados de Steam (Fase 2) | Dispositivo (el servidor solo las pasa, sin guardarlas) | En memoria mientras se importa; lo aplicado, como el resto de la agenda (parte 3) |
+| Biblioteca y lista de deseados de Steam, y si cada juego tiene todos los logros (Fase 2) | Dispositivo (el servidor solo las pasa, sin guardarlas) | En memoria mientras se importa; lo aplicado, como el resto de la agenda |
+| Pase de la importación: el SteamID64 cifrado (Fase 2, parte 3) | Dispositivo, solo en memoria | ≤15 min (ADR-012) |
 | Llamadas a Steam de cada día (Fase 2; no son datos personales) | D1 | 7 días |
 
 Fuentes: <https://www.aepd.es/guias/guia-cookies.pdf> · <https://www.boe.es/buscar/act.php?id=BOE-A-2018-16673> · <https://developers.cloudflare.com/d1/reference/time-travel/> · <https://developers.cloudflare.com/d1/configuration/data-location/>
