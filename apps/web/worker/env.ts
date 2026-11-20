@@ -70,6 +70,11 @@ export interface Env {
    * importación (`steam-token.ts`). Nunca va en la URL, los registros ni el cliente.
    */
   STEAM_WEB_API_KEY?: string;
+  /**
+   * `'1'` activa las llaves de acceso (`/api/v1/passkeys/*`; ADR-013); con otro valor responden
+   * 503 `passkeys_disabled`. Va aparte de `SYNC_ENABLED`, que lo apaga todo.
+   */
+  PASSKEYS_ENABLED: string;
 }
 
 export interface DeviceAuth {

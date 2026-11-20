@@ -6,13 +6,17 @@
 # producción: el origen de `ga-catalog` en `connect-src` (el mismo que `VITE_CATALOG_URL` en
 # `deploy-web.yml`, que lo comprueba) y `upgrade-insecure-requests`. `ga-catalog` va en su propia
 # cuenta de Cloudflare, en `gameagenda-cat.workers.dev` (§11.3). Máximo, 2 000 caracteres por cabecera.
+#
+# `Permissions-Policy`: todo apagado salvo las llaves de acceso (ADR-013), que se crean y se usan en
+# este origen, `(self)`. Con `publickey-credentials-get=()` el navegador las bloqueaba (lo comprueba
+# `scripts/web-headers.test.ts`: la vista previa de los E2E no sirve este fichero).
 /*
   Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https://shared.akamai.steamstatic.com; connect-src 'self' https://ga-catalog.gameagenda-cat.workers.dev; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Cross-Origin-Opener-Policy: same-origin
   Strict-Transport-Security: max-age=31536000; includeSubDomains
-  Permissions-Policy: accelerometer=(), autoplay=(), browsing-topics=(), camera=(), display-capture=(), encrypted-media=(), geolocation=(), gyroscope=(), hid=(), idle-detection=(), magnetometer=(), microphone=(), midi=(), payment=(), publickey-credentials-get=(), screen-wake-lock=(), serial=(), usb=(), xr-spatial-tracking=()
+  Permissions-Policy: accelerometer=(), autoplay=(), browsing-topics=(), camera=(), display-capture=(), encrypted-media=(), geolocation=(), gyroscope=(), hid=(), idle-detection=(), magnetometer=(), microphone=(), midi=(), payment=(), publickey-credentials-create=(self), publickey-credentials-get=(self), screen-wake-lock=(), serial=(), usb=(), xr-spatial-tracking=()
 
 # Los ficheros de Vite llevan su *hash* en el nombre: se cachean un año sin revalidar. El resto
 # (`index.html`, `sw.js`, `manifest.webmanifest`, iconos) conserva el valor por defecto de Workers

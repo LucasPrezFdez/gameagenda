@@ -57,6 +57,10 @@
     // además el secreto `STEAM_WEB_API_KEY` (`wrangler secret put`; sin él, responde
     // `steam_disabled`) y la política de privacidad al día (`scripts/legal-guard.test.ts`). Con
     // "0", la micro-API deja de llamar a Steam y la app dice que no está disponible.
-    "STEAM_ENABLED": "1"
+    "STEAM_ENABLED": "1",
+    // Llaves de acceso (ADR-013): con "0", `/api/v1/passkeys/*` responde 503 `passkeys_disabled` y
+    // la app esconde los botones, sin apagar la sincronización. Necesita la política de privacidad
+    // al día (`scripts/legal-guard.test.ts`) y `publickey-credentials-*` en `public/_headers`.
+    "PASSKEYS_ENABLED": "1"
   }
 }

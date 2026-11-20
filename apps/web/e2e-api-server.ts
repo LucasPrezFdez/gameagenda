@@ -221,6 +221,7 @@ function world(id: string): World {
       MIN_AGE: String(DEFAULT_MIN_AGE),
       STEAM_ENABLED: '1',
       STEAM_WEB_API_KEY: TEST_STEAM_KEY,
+      PASSKEYS_ENABLED: '1',
     },
     app: createApp({ now: () => Date.now() + created.offsetMs, steamFetch: fakeSteam }),
     offsetMs: 0,

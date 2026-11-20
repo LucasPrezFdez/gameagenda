@@ -11,6 +11,7 @@ import { agendaRoutes } from './routes/agenda.ts';
 import { deviceRoutes } from './routes/devices.ts';
 import { inboxRoutes } from './routes/inbox.ts';
 import { pairingRoutes } from './routes/pairing.ts';
+import { passkeyRoutes } from './routes/passkeys.ts';
 import { resolveRoutes } from './routes/resolve.ts';
 import { steamRoutes } from './routes/steam.ts';
 import { syncRoutes } from './routes/sync.ts';
@@ -23,6 +24,7 @@ export function createApp(deps: Deps = { now: Date.now }): Hono<AppEnv> {
   agendaRoutes(api, deps);
   deviceRoutes(api);
   pairingRoutes(api, deps);
+  passkeyRoutes(api, deps);
   inboxRoutes(api, deps);
   resolveRoutes(api, deps);
   steamRoutes(api, deps);

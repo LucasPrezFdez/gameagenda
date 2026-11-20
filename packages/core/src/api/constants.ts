@@ -81,12 +81,44 @@ export const STEAM_IMPORT_TOKEN_PATTERN = /^[A-Za-z0-9_-]{60,120}$/;
  */
 export const STEAM_ACHIEVEMENTS_BATCH = 40;
 
+/**
+ * Llaves de acceso (ADR-013): el reto para crear una o para entrar con ella vale un solo uso y
+ * 5 min (el diálogo del navegador se cierra antes).
+ */
+export const PASSKEY_CHALLENGE_TTL_MS = 5 * 60_000;
+/** Llaves por agenda, como mucho: con más, `options` responde 409 `passkeys_full`. */
+export const PASSKEYS_MAX = 10;
+/**
+ * Algoritmos COSE que se admiten, por orden de preferencia: Ed25519 (-8), ES256 (-7) y RS256
+ * (-257, el de Windows Hello con TPM).
+ */
+export const PASSKEY_ALGORITHMS = [-8, -7, -257] as const;
+export type PasskeyAlgorithm = (typeof PASSKEY_ALGORITHMS)[number];
+/** Transportes de una llave que se guardan (los demás se ignoran: puede haber nuevos). */
+export const PASSKEY_TRANSPORTS = [
+  'ble',
+  'cable',
+  'hybrid',
+  'internal',
+  'nfc',
+  'smart-card',
+  'usb',
+] as const;
+/** El sitio y la cuenta que enseña el llavero (`rp.name`, `user.name` y `user.displayName`). */
+export const PASSKEY_RP_NAME = 'GameAgenda';
+export const PASSKEY_USER_NAME = 'Mi agenda de GameAgenda';
+
 /** Códigos de error de la micro-API: la app los traduce a sus textos. */
 export const API_ERRORS = {
   invalid_body: 400,
   invalid_code: 400,
   /** El buzón solo admite enlaces de Steam (§11.4). */
   invalid_link: 400,
+  /**
+   * Entrar o crear con una llave de acceso: el reto no vale (gastado, caducado o de otro), la llave
+   * no está en ninguna agenda o la firma no cuadra. Todas dan la misma respuesta (ADR-013).
+   */
+  invalid_passkey: 400,
   unauthorized: 401,
   bad_origin: 403,
   not_found: 404,
@@ -94,6 +126,8 @@ export const API_ERRORS = {
   age_policy_changed: 409,
   /** Hay `INBOX_MAX_PENDING` enlaces sin recoger: hay que abrir la app para que los apunte. */
   inbox_full: 409,
+  /** La agenda ya tiene `PASSKEYS_MAX` llaves: hay que quitar alguna. */
+  passkeys_full: 409,
   payload_too_large: 413,
   unsupported_media_type: 415,
   rate_limited: 429,
@@ -113,6 +147,8 @@ export const API_ERRORS = {
   sync_disabled: 503,
   /** `STEAM_ENABLED` no vale `'1'`, o falta la clave de la Steam Web API en el Worker. */
   steam_disabled: 503,
+  /** `PASSKEYS_ENABLED` no vale `'1'`: las llaves de acceso están apagadas (ADR-013). */
+  passkeys_disabled: 503,
   /** Se ha llegado al tope diario de llamadas a Steam (los ToU, §11.1): mañana. */
   steam_busy: 503,
   /** Otro dispositivo escribía a la vez y los reintentos no bastaron: probar más tarde. */

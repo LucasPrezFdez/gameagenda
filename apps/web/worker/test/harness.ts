@@ -236,6 +236,7 @@ export function createHarness(overrides: Partial<Env> = {}, options: HarnessOpti
     MIN_AGE: String(DEFAULT_MIN_AGE),
     STEAM_ENABLED: '1',
     STEAM_WEB_API_KEY: TEST_STEAM_KEY,
+    PASSKEYS_ENABLED: '1',
     ...overrides,
   };
   const app = createApp({

@@ -13,7 +13,8 @@
 // purga algo.
 //
 // Además, cada 5 min (`STEAM_PURGE_CRON`), fuera los tickets de Steam caducados: así un SteamID64
-// está en D1, como mucho, los 10 min del ticket y 5 más (§11.2).
+// está en D1, como mucho, los 10 min del ticket y 5 más (§11.2). Y los retos de las llaves de
+// acceso caducados (ADR-013): los de entrar no son de ninguna agenda, y nada más los borraría.
 
 import { purgeCutoff } from '@gameagenda/core/sync';
 import type { D1Database, D1PreparedStatement } from './env.ts';
@@ -56,6 +57,7 @@ export function maintenanceStatements(db: D1Database, nowMs: number): D1Prepared
     db.prepare('DELETE FROM pairing_token WHERE expires_at <= ?1').bind(iso(nowMs)),
     db.prepare('DELETE FROM agenda WHERE last_sync_at < ?1').bind(cutoff.toISOString()),
     steamTicketPurge(db, nowMs),
+    passkeyChallengePurge(db, nowMs),
     db
       .prepare('DELETE FROM steam_quota WHERE day < ?1')
       .bind(utcDay(nowMs - STEAM_QUOTA_KEEP_DAYS * 86_400_000)),
@@ -79,9 +81,13 @@ function steamTicketPurge(db: D1Database, nowMs: number): D1PreparedStatement {
   return db.prepare('DELETE FROM steam_ticket WHERE expires_at <= ?1').bind(iso(nowMs));
 }
 
-/** Lo que hace el *cron* de cada 5 min: fuera los tickets de Steam caducados. */
+function passkeyChallengePurge(db: D1Database, nowMs: number): D1PreparedStatement {
+  return db.prepare('DELETE FROM webauthn_challenge WHERE expires_at <= ?1').bind(iso(nowMs));
+}
+
+/** Lo que hace el *cron* de cada 5 min: fuera los tickets de Steam y los retos caducados. */
 export async function purgeSteamTickets(db: D1Database, nowMs: number): Promise<void> {
-  await steamTicketPurge(db, nowMs).run();
+  await db.batch([steamTicketPurge(db, nowMs), passkeyChallengePurge(db, nowMs)]);
 }
 
 export async function runMaintenance(db: D1Database, nowMs: number): Promise<void> {

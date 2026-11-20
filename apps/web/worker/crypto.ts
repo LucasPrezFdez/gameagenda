@@ -9,7 +9,7 @@ function randomBytes(length: number): Uint8Array {
   return crypto.getRandomValues(new Uint8Array(length));
 }
 
-function base64url(bytes: Uint8Array): string {
+export function base64url(bytes: Uint8Array): string {
   let binary = '';
   for (const b of bytes) binary += String.fromCharCode(b);
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -22,6 +22,16 @@ export function newDeviceToken(): string {
 
 /** Ticket del login con Steam (ADR-012): 256 bits en base64url, como la credencial. */
 export function newSteamTicket(): string {
+  return base64url(randomBytes(32));
+}
+
+/** Reto de una llave de acceso (ADR-013): 256 bits en base64url. D1 solo guarda su SHA-256. */
+export function newPasskeyChallenge(): string {
+  return base64url(randomBytes(32));
+}
+
+/** El `user.id` de las llaves de una agenda (ADR-013): 32 bytes aleatorios, no el id de la agenda. */
+export function newPasskeyUserId(): string {
   return base64url(randomBytes(32));
 }
 
