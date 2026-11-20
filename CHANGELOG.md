@@ -13,7 +13,7 @@ Cambios de GameAgenda por versión. Cada hito cierra una versión SemVer 0.x (§
 - **El nombre de un juego que aún no está en el catálogo** (08-11-2026, en la misma rama; DECISIONES §10.40): con la sincronización activada, un enlace de un juego recién publicado se apunta al instante como provisional, y su nombre llega de Steam en un segundo, si hay conexión. Sin sincronizar, espera a que llegue al catálogo.
 - **Política de privacidad, versión 2** (19-11-2026, en la rama `steam-parte-2`; ADR-012): cuenta «Importar desde Steam» (qué se trae, que el número de la cuenta de Steam se queda en el servidor 15 min como mucho y que la biblioteca no se guarda en él), aunque la importación aún no se ve. El registro de actividades, también en su versión 2.
 - **Política de privacidad y aviso legal** (08-11-2026, en la misma rama; DECISIONES §10.41): en `/privacidad` y `/aviso-legal`, enlazados desde Ajustes › Privacidad, Acerca de y la sincronización, que lleva al lado la primera capa. El nombre y el correo del responsable, desde el 16-11-2026.
-- **El Catálogo, en cuadrícula** (10-11-2026; en la rama `responsive` desde el 20-11-2026; DECISIONES §10.45): un conmutador Lista / Cuadrícula junto a los filtros. La cuadrícula enseña las portadas en grande, como la búsqueda instantánea de SteamDB, con `(+)` sobre cada una y el estado de los juegos que ya están en la lista. Se recuerda, y el teclado funciona igual (← → ↑ ↓ entre tarjetas).
+- **El Catálogo, en cuadrícula** (10-11-2026; en producción desde el 20-11-2026; DECISIONES §10.45): un conmutador Lista / Cuadrícula junto a los filtros. La cuadrícula enseña las portadas en grande, como la búsqueda instantánea de SteamDB, con `(+)` sobre cada una y el estado de los juegos que ya están en la lista. Se recuerda, y el teclado funciona igual (← → ↑ ↓ entre tarjetas).
 - **Pulido visual y animaciones** (10-11-2026; DECISIONES §10.44, opciones elegidas por el usuario en `docs/diseno/pulido/`):
   - la paleta se abre en el centro de la pantalla (PC), con el campo grande; la barra lateral marca lo activo con tinta y lleva los contadores en píldora; la cápsula del móvil, con una píldora de tinta que se desliza;
   - las portadas de las filas llevan sombra y, en el móvil, el título ocupa todo el ancho, con el estado debajo; las secciones llevan el punto de su estado; el contenido va centrado en pantallas anchas y las tarjetas cambian el filo por una sombra fina;
@@ -62,7 +62,7 @@ Cambios de GameAgenda por versión. Cada hito cierra una versión SemVer 0.x (§
 
 ### Cambiado
 
-- **La app se adapta a cualquier pantalla** (20-11-2026, en la rama `responsive`; DECISIONES §10.51):
+- **La app se adapta a cualquier pantalla** (20-11-2026, en producción; DECISIONES §10.51):
   - en pantallas anchas, el contenido crece hasta 1 440 px y las filas de Mi lista enseñan «Juego en» y una fecha según el estado; la ficha va junto a la lista, sin hueco entre las dos;
   - en la tablet, la barra lateral empieza encogida y Ajustes pone su índice en pestañas;
   - el móvil en horizontal usa la maqueta del móvil;
@@ -94,7 +94,7 @@ Cambios de GameAgenda por versión. Cada hito cierra una versión SemVer 0.x (§
 
 ### Corregido
 
-- **La cápsula del móvil en los textos legales** (20-11-2026, en la rama `responsive`; DECISIONES §10.51): «Ajustes» no se veía (blanco sobre blanco), la píldora se quedaba bajo «Mi lista» y a la derecha sobraba un hueco. Las listas de los textos legales tampoco llevaban viñetas.
+- **La cápsula del móvil en los textos legales** (20-11-2026, en producción; DECISIONES §10.51): «Ajustes» no se veía (blanco sobre blanco), la píldora se quedaba bajo «Mi lista» y a la derecha sobraba un hueco. Las listas de los textos legales tampoco llevaban viñetas.
 - **El Service Worker servía la app en las navegaciones a `/api/`** (19-11-2026, en la rama `steam-parte-2`; ADR-012): con la app instalada, abrir una dirección de la micro-API en el mismo navegador enseñaba la app. Lo encontró el E2E de la vuelta del login de Steam, que es una navegación. Ahora van a la red.
 - **Intro apuntaba otro juego** (16-11-2026, revisión; DECISIONES §10.46). Si se elegía una fila con ↑/↓ antes de que llegaran los resultados de la última tecla, Intro apuntaba la primera de los nuevos. Ahora apunta la elegida, o nada si ya no está.
 - **Los enlaces de juegos para adultos** (`store.steampowered.com/agecheck/app/…`) no se reconocían y acababan en un alta a mano con la dirección como título.
