@@ -264,17 +264,22 @@
 }
 
 @media (min-width: 1280px) and (not ((max-height: 500px) and (pointer: coarse))) {
+  /* La lista y la ficha, centradas juntas. Antes la lista se centraba en su hueco y la ficha se
+     pegaba al borde derecho: a 3 840 px quedaban 1 088 px vacíos entre las dos (revisión
+     responsive del 20-11-2026). La ficha crece un poco con la ventana, de 440 a 520 px. */
   .app[data-route="game"] .app-main {
+    --sheet-w: clamp(440px, 20vw + 56px, 520px);
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 440px;
+    grid-template-columns: minmax(0, var(--content-max)) var(--sheet-w);
+    justify-content: center;
     align-items: start;
-    gap: var(--gutter);
+    gap: var(--page-gutter);
   }
 
   .app[data-route="game"] .sheet {
     position: sticky;
-    top: calc(var(--header-h) + var(--gutter));
-    max-height: calc(100dvh - var(--header-h) - 2 * var(--gutter));
+    top: calc(var(--header-h) + var(--page-gutter));
+    max-height: calc(100dvh - var(--header-h) - 2 * var(--page-gutter));
     overflow: auto;
   }
 }
@@ -298,6 +303,25 @@
 
   .sheet__ambient {
     border-radius: 0;
+  }
+
+  /* La lista de detrás, oscurecida como con la paleta: sin esto asomaban tiras de lista cortadas
+     entre la barra lateral y el panel (revisión responsive del 20-11-2026). Solo se ve: la lista
+     ya es `inert`. La barra lateral no se oscurece, porque se puede usar. */
+  .app[data-route="game"] .screen-slot--list::after {
+    content: "";
+    position: fixed;
+    inset: var(--header-h) 0 0 var(--sidebar-w);
+    z-index: calc(var(--z-overlay) - 1);
+    background: var(--backdrop);
+    pointer-events: none;
+    animation: scrim-in calc(var(--motion) * 1.5) linear;
+  }
+}
+
+@keyframes scrim-in {
+  from {
+    opacity: 0;
   }
 }
 
