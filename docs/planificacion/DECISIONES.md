@@ -653,3 +653,27 @@ Resueltos a partir de las mediciones y de los conflictos detectados entre seccio
     - **Comprobado:** `check` (1 477 pruebas con «Sin empezar», JS inicial de 141,6 KB en producción y 143,1 KB con la importación encendida) y `steam-import.spec.ts` (9 pruebas en Chromium y WebKit, 18 de 18, con axe en el resumen y tras aplicar). La batería E2E entera: Chromium, en el CI de la rama (44752908424); WebKit, en local, 115 en verde y 33 omitidas, con `boot.spec.ts:273` en rojo, la intermitente conocida (4 de 5 al repetirla).
     - **Comprobado también:** la prueba a mano con la cuenta del usuario (20-11-2026, en `wrangler dev` en `127.0.0.1:8787` con el catálogo publicado), con «Sin empezar»: «vale todo ok». La vuelta de Steam, 0,40 s; `redeem`, 0,53 s; y los logros de sus 73 juegos jugados con estadísticas, en dos lotes de 2,2 y 1,5 s.
     - **En producción:** en producción y encendida desde el 20-11-2026 (con el visto bueno del usuario, «A main y encenderla»: `main` avanzó hasta `783fc54`; `ci` 44783034568 y `deploy-web` 44783715656 en verde, con `STEAM_ENABLED` a "1", `RL_STEAM_ACH` y el secreto `STEAM_WEB_API_KEY`, que puso el usuario). La importación va ahora dentro del *build* por defecto (`VITE_STEAM_IMPORT=0` la quita), para que el CI, el despliegue y el `check` local construyan lo mismo: JS inicial de 143,0 KB. Comprobado en producción: `start` (201, *realm* de `ga-web`), `achievements` (410 con un pase inventado), Ajustes › Datos y «Sin empezar» en la barra lateral, y `smoke:web`.
+51. **Revisión responsive (20-11-2026, en la rama `responsive`; pedida por el usuario; cambia §9.1 y el «Centrado» de §10.44).** El usuario pidió que la app se viera equilibrada en cualquier resolución, de 320 a 3 840 px, y eligió entre las opciones de una auditoría hecha sobre producción: 18 tamaños y 6 pantallas, medidos con Playwright. No había desplazamiento horizontal en ninguno, pero desde 1 920 px el contenido usaba entre el 25 y el 50 % de la pantalla, y había fallos en la tablet y en el móvil.
+    - **Pantallas anchas (opción A):**
+      - `--content-max` es `clamp(60rem, 75vw - 15rem, 90rem)`: 960 px hasta unos 1 600 px de ventana y, desde ahí, crece sin saltos hasta 1 440 px (1 200 a 1 920 px);
+      - Ajustes se queda en 960 px y los textos legales, en la columna de lectura (`--reading-max`, 44rem);
+      - con la lista de 880 px o más (*container query* `entry-list`), cada fila de Mi lista enseña «Juego en» y la fecha que toca según el estado, en columnas alineadas. La fecha es la de terminarlo en Completado; la de empezarlo en Jugando, En pausa y Abandonado; la de apuntarlo en los demás; y, si falta, la anterior que haya (`rowDate`). El estado tiene ancho fijo, para que las columnas no se tuerzan.
+    - **El Catálogo en cuadrícula** (§10.45) entra en esta rama.
+    - **Tablet (768–1 023 px):** la barra lateral va encogida por defecto, y lo que se elija allí se recuerda aparte (`sidebarCollapsedNarrow`): abrirla en la tablet no la abre en el PC. A 768 px, la lista pasa de 488 a 672 px.
+    - **Móvil en horizontal** (táctil y ≤500 px de alto, como 844 × 390): lleva la maqueta del móvil. Antes recibía la barra lateral de 248 px con 390 px de alto y la pista «Ctrl+K».
+      - Los márgenes respetan el notch con `env(safe-area-inset-*)`, porque la app usa `viewport-fit=cover`.
+      - Los puntos de corte que necesita JavaScript están en `lib/breakpoints.ts`, y la tabla completa, al principio de `tokens.css`.
+    - **Letra:** solo el `h1` es fluido (`--text-display`, de 24 a 32 px; en la ficha, como mucho 28). El resto no crece con la ventana: ya la agrandan la escala de Windows y el zoom.
+    - **Arreglos:**
+      - **La ficha desde 1 280 px:** la lista y el panel van centrados juntos; antes quedaban hasta 1 088 px vacíos entre los dos. El panel crece de 440 a 520 px.
+      - **La cápsula del móvil en los textos legales:** la píldora se quedaba bajo Mi lista, con «Ajustes» en blanco sobre blanco, y a la derecha quedaba un hueco de 84 px. Ahora la píldora sigue al enlace con `aria-current`, y la cápsula llega al borde cuando no hay buscador redondo. Los dos `:has()` miran solo la cabecera y la cápsula (§9.5, regla 7).
+      - **Ajustes con menos de 44rem (la tablet):** el índice pasa a pestañas encima de la sección (*container query*); antes, la sección se quedaba en unos 210 px de ancho.
+      - **La ficha superpuesta (768–1 279 px)** oscurece la lista de detrás; la barra lateral no, porque se puede usar.
+      - **Con el dedo, los campos `.field` van a 16 px:** con 15, iOS ampliaba la página al tocar «Filtrar lista…», la nota o las fechas.
+      - **Las filas de pestañas y chips que se desplazan de lado** llevan un fundido en el borde por donde siguen. Lo mueve el propio desplazamiento (`animation-timeline: scroll()`), y en Firefox no hay fundido, como antes. Esas animaciones no acaban nunca, así que las pruebas que esperan a las animaciones (`expectAccessible`, `covers.spec.ts`) esperan solo a las de `document.timeline`.
+      - **Los textos legales:** las listas llevan viñetas y los títulos, sin mayúsculas.
+      - **La cápsula en horizontal** mide como mucho 28rem.
+    - **Lo que no se hace, a propósito:**
+      - `overflow-x: hidden` en `body`: escondería los desbordes y rompe los `sticky`;
+      - letra en `vw`;
+      - Mi lista en dos columnas de secciones: rompería la lista virtual de §10.48, y las secciones miden muy distinto.
