@@ -38,9 +38,12 @@ async function pairOf(h: Harness, options: ReplicaOptions = {}) {
   return { a, b };
 }
 
-/** Espera a que se cumpla, cediendo el turno; si no llega, falla (en vez de colgarse). */
+/** Espera a que se cumpla, cediendo el turno; si no llega en 5 s, falla (en vez de colgarse). */
 async function until(what: string, condition: () => boolean): Promise<void> {
-  for (let i = 0; i < 500; i++) {
+  // Por tiempo, no por vueltas: mientras `crypto.subtle` trabaja en otro hilo, las vueltas pasan
+  // en vacío, y en un *runner* lento 500 no bastaron (CI 44810227449, 20-11-2026).
+  const deadline = Date.now() + 5_000;
+  while (Date.now() < deadline) {
     if (condition()) return;
     await new Promise((resolve) => setImmediate(resolve));
   }
