@@ -780,7 +780,9 @@
     background: var(--bg);
   }
 
-  /* La cápsula de las secciones, flotante. Deja sitio al buscador redondo donde lo hay (Mi lista). */
+  /* La cápsula de las secciones, flotante. Deja sitio al buscador redondo donde lo hay (Mi lista).
+     Con un móvil en horizontal no pasa de 28rem: estirada a 740 px, cada sección quedaba lejos de
+     su icono. Centrada en su hueco. */
   .app-nav {
     position: fixed;
     --capsule-left: max(16px, env(safe-area-inset-left));
@@ -788,7 +790,9 @@
     inset: auto calc(68px + var(--capsule-right)) calc(12px + env(safe-area-inset-bottom))
       var(--capsule-left);
     z-index: var(--z-sticky);
+    max-width: 28rem;
     height: 60px;
+    margin-inline: auto;
     padding: 4px;
     border: 1px solid var(--line);
     border-radius: 999px;
@@ -796,9 +800,11 @@
     box-shadow: var(--shadow);
   }
 
-  .app[data-route="catalog"] .app-nav,
-  .app[data-route="settings"] .app-nav,
-  .app[data-route="game"] .app-nav {
+  /* Sin el buscador redondo (todo lo que no es Mi lista: Catálogo, Ajustes, la ficha, los textos
+     legales, la página que no existe), la cápsula llega hasta el borde. Antes era una lista de
+     rutas, y en /privacidad quedaba un hueco de 84 px (revisión responsive del 20-11-2026). El
+     `:has()` mira solo los hijos de la cabecera (§9.5, regla 7). */
+  .app-header:has(> .palette.is-barless) ~ .app-nav {
     right: var(--capsule-right);
   }
 
@@ -823,8 +829,11 @@
   }
 
   /* «Tinta» y «La píldora se desliza» (pulido visual, DECISIONES §10.44): una sola píldora de
-     tinta, como el botón del buscador, que viaja a la sección activa. Su sitio sale de
-     `data-route`, sin JavaScript; las tres secciones miden lo mismo. */
+     tinta, como el botón del buscador, que viaja a la sección activa. Su sitio sale del enlace
+     marcado (`aria-current`), sin JavaScript; las tres secciones miden lo mismo. Antes salía de
+     `data-route`, y en los textos legales, que marcan Ajustes, la píldora se quedaba bajo Mi
+     lista: «Ajustes» en blanco sobre blanco y «Mi lista» en gris sobre tinta (revisión responsive
+     del 20-11-2026). El `:has()` mira solo las tres secciones. */
   .app-nav ul {
     position: relative;
   }
@@ -843,15 +852,15 @@
     transition: translate calc(var(--motion) * 1.6) var(--ease);
   }
 
-  .app[data-route="catalog"] .app-nav ul::before {
+  .app-nav ul:has(> li:nth-child(2) > [aria-current="page"])::before {
     translate: calc(100% + 2px) 0;
   }
 
-  .app[data-route="settings"] .app-nav ul::before {
+  .app-nav ul:has(> li:nth-child(3) > [aria-current="page"])::before {
     translate: calc(200% + 4px) 0;
   }
 
-  .app[data-route="notFound"] .app-nav ul::before {
+  .app-nav ul:not(:has([aria-current="page"]))::before {
     display: none;
   }
 
@@ -888,12 +897,14 @@
     );
     left: 50%;
     bottom: var(--notices-bottom);
-    width: calc(100vw - 2 * var(--gutter));
+    width: min(36rem, calc(100vw - 2 * var(--gutter)));
   }
 
   .app[data-route="catalog"] :is(.toaster, .cover-notice),
   .app[data-route="game"] :is(.toaster, .cover-notice),
-  .app[data-route="settings"] :is(.toaster, .cover-notice) {
+  .app[data-route="settings"] :is(.toaster, .cover-notice),
+  .app[data-route="legal"] :is(.toaster, .cover-notice),
+  .app[data-route="notFound"] :is(.toaster, .cover-notice) {
     --notices-bottom: calc(var(--tabbar-h) + 12px + env(safe-area-inset-bottom));
   }
 

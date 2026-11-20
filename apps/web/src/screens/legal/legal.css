@@ -27,6 +27,21 @@
   padding-left: 1.4em;
 }
 
+/* El índice, sin sangría: es una lista de enlaces dentro de su caja. */
+.legal__toc ol {
+  padding-left: 0;
+}
+
+/* Las listas del texto, con viñetas: la regla general de `ul` y `ol` las quita, y quedaban como
+   párrafos sangrados (revisión responsive del 20-11-2026). */
+.legal__section ul {
+  list-style: disc;
+}
+
+.legal__section ol {
+  list-style: decimal;
+}
+
 .legal__toc {
   padding: 12px 16px;
   border: 1px solid var(--line);
@@ -41,10 +56,14 @@
   padding-top: 8px;
 }
 
+/* Un título de lectura, no la etiqueta en mayúsculas y gris de la regla general de `h2`. */
 .legal__section h2 {
   margin: 0;
+  color: var(--text);
   font-size: var(--text-lg);
   font-weight: 650;
+  letter-spacing: 0;
+  text-transform: none;
   scroll-margin-top: 16px;
 }
 
