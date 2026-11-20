@@ -677,3 +677,11 @@ Resueltos a partir de las mediciones y de los conflictos detectados entre seccio
       - `overflow-x: hidden` en `body`: escondería los desbordes y rompe los `sticky`;
       - letra en `vw`;
       - Mi lista en dos columnas de secciones: rompería la lista virtual de §10.48, y las secciones miden muy distinto.
+    - **Pruebas:**
+      - en `sidebar.spec.ts`, la barra en la tablet (empieza encogida y recuerda aparte) y el móvil en horizontal (Pixel 7 girado: cápsula, sin barra lateral y la paleta como hoja);
+      - en `list-model.test.ts`, `rowDate` y las fechas parciales;
+      - medido de nuevo a 18 tamaños × 6 pantallas: ningún desplazamiento horizontal ni elemento fuera de la pantalla. La lista usa el 63 % de la pantalla a 1 920 px (antes, el 50 %) y el 38 % a 3 840 (antes, el 25 %); a 768 px, el 88 % (antes, el 64 %).
+    - **CI 44798755726 en la rama, en verde:** comprobaciones, E2E de Chromium y rendimiento, con las 18 medidas con presupuesto dentro. El JS inicial pesa 143,3 KB (antes, 143,0).
+    - **En local, con los dos navegadores:**
+      - 262 pruebas E2E pasan y fallan 3 de tiempos de WebKit (101 y 113 ms con un límite de 100, y una petición al desplazarse). Esas tres fallan con la batería entera y pasan 3 de 3 solas, como en la Fase 2.
+      - Una tanda se colgó al cerrar WebKit y dejó un proceso de red que Windows no deja parar.
