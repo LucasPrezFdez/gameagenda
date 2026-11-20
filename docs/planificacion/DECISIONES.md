@@ -718,6 +718,7 @@ Resueltos a partir de las mediciones y de los conflictos detectados entre seccio
       - `e2e/passkeys.spec.ts`: dos pruebas en Chromium con su autenticador virtual, por `localhost`, porque una IP no vale como `rp.id`. WebKit no tiene autenticador virtual;
       - `check` en verde: 1 511 pruebas y JS inicial de 144,0 KB (antes, 143,3);
       - los E2E de sincronización, Ajustes, textos legales, WCAG y llaves, en Chromium y WebKit: 54 en verde (las 6 omitidas no son de WebKit);
+      - el CI de la rama (44830007457), en verde: comprobaciones, la batería E2E de Chromium y rendimiento;
       - de paso, `steam-achievements.test.ts` («cambiado en cualquier carácter») fallaba 1 vez de cada 16: cambiaba el último carácter del pase en base64url por uno que solo difiere en los 2 bits de relleno. Ahora cambia el bit alto.
     - **Queda:**
       - la prueba del usuario en sus dispositivos: Face ID con iCloud en el iPhone, también en la app de la pantalla de inicio; Windows Hello en Edge y en la app de escritorio; y del móvil al PC con el QR;
