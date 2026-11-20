@@ -182,8 +182,15 @@ function escapeRegExp(text: string): string {
 /** axe-core sin violaciones graves ni críticas (RNF-09, CA1.10). */
 export async function expectAccessible(page: Page, label: string) {
   // Con una animación a medias (p. ej., la entrada del aviso), el contraste medido sería falso.
+  // Solo las de tiempo: las que mueve el desplazamiento (el fundido de las filas de chips,
+  // `animation-timeline: scroll()`) no acaban nunca.
   await page.evaluate(() =>
-    Promise.all(document.getAnimations().map((a) => a.finished.catch(() => undefined))),
+    Promise.all(
+      document
+        .getAnimations()
+        .filter((a) => a.timeline === document.timeline)
+        .map((a) => a.finished.catch(() => undefined)),
+    ),
   );
   const results = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])

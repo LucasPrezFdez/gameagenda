@@ -172,7 +172,10 @@ test('el aviso de Deshacer va justo encima del de las portadas, que no tapa la p
     Promise.all(
       document
         .getAnimations()
-        .filter((a) => (a as CSSAnimation).animationName !== 'toast-time')
+        .filter(
+          (a) =>
+            a.timeline === document.timeline && (a as CSSAnimation).animationName !== 'toast-time',
+        )
         .map((a) => a.finished.catch(() => undefined)),
     ),
   );

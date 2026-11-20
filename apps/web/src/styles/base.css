@@ -349,3 +349,53 @@ kbd {
     transform: scale(0.96);
   }
 }
+
+/* Filas que se desplazan de lado (las pestañas y los chips del móvil, las pestañas de Ajustes en la
+   tablet): un fundido en el borde por donde siguen, para que «Quiero ju…» no parezca texto cortado
+   (revisión responsive del 20-11-2026). Lo mueve el propio desplazamiento (`animation-timeline`):
+   al principio, solo a la derecha; al final, solo a la izquierda; si todo cabe, ninguno. Donde no
+   se admite (Firefox), sin fundido, como antes. */
+@property --fade-start {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --fade-end {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@supports (animation-timeline: scroll()) {
+  .chips,
+  .settings__nav ul {
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      #000 var(--fade-start),
+      #000 calc(100% - var(--fade-end)),
+      transparent
+    );
+    animation: scroll-fade linear both;
+    animation-timeline: scroll(self inline);
+  }
+}
+
+@keyframes scroll-fade {
+  0% {
+    --fade-start: 0px;
+    --fade-end: 32px;
+  }
+
+  12%,
+  88% {
+    --fade-start: 32px;
+    --fade-end: 32px;
+  }
+
+  100% {
+    --fade-start: 32px;
+    --fade-end: 0px;
+  }
+}
