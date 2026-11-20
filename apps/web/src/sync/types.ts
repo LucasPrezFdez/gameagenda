@@ -4,7 +4,7 @@
 // o cuando la interfaz pide activar, emparejar o recuperar. La sincronización nunca pregunta
 // (RF-26): va sola al arrancar, al volver el foco o la red, al cambiar la visibilidad y unos 2 s
 // después de cada cambio local.
-import type { ApiErrorCode, DeviceInfo } from '@gameagenda/core/api';
+import type { ApiErrorCode, DeviceInfo, PasskeyInfo } from '@gameagenda/core/api';
 
 /**
  * - `off`: este navegador no sincroniza (nunca se activó, se desemparejó o se borró la agenda).
@@ -41,7 +41,18 @@ export type SyncActivity = 'idle' | 'syncing' | 'offline' | 'error' | 'disabled'
  * - `storage`: no se ha podido leer o guardar en IndexedDB durante la ronda;
  * - `unavailable`: no hay IndexedDB (la agenda vive solo en memoria): no se puede sincronizar.
  */
-export type SyncErrorCode = ApiErrorCode | 'network' | 'bad_response' | 'storage' | 'unavailable';
+export type SyncErrorCode =
+  | ApiErrorCode
+  | 'network'
+  | 'bad_response'
+  | 'storage'
+  | 'unavailable'
+  /** Llaves de acceso (ADR-013): el usuario cerró el diálogo del navegador (no es un error). */
+  | 'passkey_cancelled'
+  /** Ese llavero ya tiene una llave de esta agenda. */
+  | 'passkey_exists'
+  /** El navegador no pudo crear la llave o firmar (o no sabe dar su clave pública). */
+  | 'passkey_failed';
 
 /** Lo que lanzan las operaciones de `SyncService`. */
 export class SyncError extends Error {
@@ -129,6 +140,23 @@ export interface SyncService {
   createInboxToken(label: string): Promise<{ readonly deviceId: string; readonly token: string }>;
   /** Dispositivos de la agenda (`current` marca este), incluido el buzón del Atajo de iOS. */
   listDevices(): Promise<readonly DeviceInfo[]>;
+  /**
+   * Llaves de acceso (ADR-013). «Entrar con una llave de acceso»: el navegador enseña las llaves
+   * de este sitio, y la elegida abre su agenda en este dispositivo, como `redeemRecoveryCode`.
+   * Errores: `passkey_cancelled` (se cerró el diálogo), `invalid_passkey` (la llave ya no abre
+   * ninguna agenda, o el reto caducó), `passkey_failed`, `already_paired` y los de red.
+   */
+  redeemPasskey(label: string): Promise<void>;
+  /**
+   * Crea una llave de esta agenda en el llavero del dispositivo y la guarda en el servidor.
+   * Devuelve la lista nueva. Errores: `passkey_cancelled`, `passkey_exists` (ese llavero ya
+   * tiene una), `passkeys_full`, `passkey_failed` y los de red.
+   */
+  createPasskey(): Promise<readonly PasskeyInfo[]>;
+  /** Las llaves de la agenda. */
+  listPasskeys(): Promise<readonly PasskeyInfo[]>;
+  /** Quita una llave (deja de abrir la agenda) y pide al llavero que la olvide, si puede. */
+  removePasskey(id: string): Promise<readonly PasskeyInfo[]>;
   /**
    * Revoca un dispositivo. Si es este (`self: true`), es «Desemparejar este dispositivo»: el
    * servidor quita las cookies, el estado pasa a `off` y la agenda local se queda como está. Una

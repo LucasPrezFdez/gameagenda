@@ -25,6 +25,8 @@ import {
   type PairingLink,
   type PanelMessage,
   pairingDeadline,
+  passkeyDetails,
+  passkeysAvailable,
   pendingText,
   readCode,
   remainingMs,
@@ -411,5 +413,42 @@ describe('textos que se cumplen', () => {
   it('el aviso habla de las dos cookies que se crean', () => {
     expect(es.syncPanel.cookie).toMatch(/guarda dos cookies/);
     expect(es.syncPanel.cookie).not.toMatch(/una cookie/);
+  });
+});
+
+describe('llaves de acceso (ADR-013)', () => {
+  const now = new Date(2026, 10, 7, 20, 0, 0).getTime();
+  const passkey = (patch: { lastUsedAt?: string | null }) => ({
+    id: 'k1',
+    label: 'Chrome en Windows',
+    createdAt: new Date(2026, 10, 1, 9, 0, 0).toISOString(),
+    lastUsedAt: null,
+    ...patch,
+  });
+
+  it('el día en que se creó y la última vez que abrió la agenda, o «sin usar»', () => {
+    expect(passkeyDetails(passkey({}), now)).toBe('El 1 nov 2026 · Sin usar todavía');
+    const used = new Date(2026, 10, 6, 23, 30, 0).toISOString();
+    expect(passkeyDetails(passkey({ lastUsedAt: used }), now)).toBe(
+      'El 1 nov 2026 · Usada por última vez: ayer',
+    );
+  });
+
+  it('los botones salen solo con WebAuthn y en un contexto seguro', () => {
+    class PublicKeyCredential {}
+    expect(passkeysAvailable({ isSecureContext: true, PublicKeyCredential })).toBe(true);
+    expect(passkeysAvailable({ isSecureContext: false, PublicKeyCredential })).toBe(false);
+    expect(passkeysAvailable({ isSecureContext: true })).toBe(false);
+    expect(passkeysAvailable({})).toBe(false);
+  });
+
+  it('cada error de las llaves tiene su texto', () => {
+    const t = es.syncPanel.errors;
+    expect(syncErrorText('invalid_passkey', 'passkeyJoin')).toBe(t.invalidPasskey);
+    expect(syncErrorText('passkey_exists', 'passkeyCreate')).toBe(t.passkeyExists);
+    expect(syncErrorText('passkey_failed', 'passkeyCreate')).toBe(t.passkeyFailed);
+    expect(syncErrorText('passkeys_full', 'passkeyCreate')).toMatch(/10 llaves/);
+    expect(syncErrorText('passkeys_disabled', 'passkeyJoin')).toBe(t.passkeysDisabled);
+    expect(syncErrorText('not_found', 'passkeyRemove')).toBe(t.passkeyNotFound);
   });
 });

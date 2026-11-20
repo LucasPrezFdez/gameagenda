@@ -1,4 +1,5 @@
 import { execSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
@@ -29,6 +30,17 @@ const PREVIEW_CSP = [
   "form-action 'self'",
   "frame-ancestors 'none'",
 ].join('; ');
+
+/**
+ * La `Permissions-Policy` de producción (`public/_headers`), también en la vista previa: así los
+ * E2E de las llaves de acceso (ADR-013) prueban la de verdad, que antes las bloqueaba.
+ */
+function productionHeader(name: string): string {
+  const headers = readFileSync(new URL('./public/_headers', import.meta.url), 'utf8');
+  const line = headers.split('\n').find((l) => l.trimStart().startsWith(`${name}:`));
+  if (line === undefined) throw new Error(`public/_headers no lleva ${name}`);
+  return line.slice(line.indexOf(':') + 1).trim();
+}
 
 const repoRoot = fileURLToPath(new URL('../..', import.meta.url));
 
@@ -111,7 +123,10 @@ export default defineConfig(({ mode }) => ({
     host: '127.0.0.1',
     port: 4173,
     strictPort: true,
-    headers: { 'Content-Security-Policy': PREVIEW_CSP },
+    headers: {
+      'Content-Security-Policy': PREVIEW_CSP,
+      'Permissions-Policy': productionHeader('Permissions-Policy'),
+    },
   },
   // `es` y no `iife`: el Worker de búsqueda necesita chunks diferidos (ver §6.2).
   worker: { format: 'es' },

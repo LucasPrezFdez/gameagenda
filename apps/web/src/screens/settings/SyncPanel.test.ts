@@ -45,6 +45,10 @@ const sync: SyncService = {
   createInboxToken: never,
   listDevices: never,
   revokeDevice: never,
+  redeemPasskey: never,
+  createPasskey: never,
+  listPasskeys: never,
+  removePasskey: never,
   deleteServerAgenda: never,
   syncNow: never,
   forget: never,
@@ -64,6 +68,8 @@ const ids: PanelIds = {
   unpaired: 'unpaired',
   forget: 'forget',
   reveal: 'reveal',
+  passkeys: 'passkeys',
+  passkeyJoin: 'passkey-join',
 };
 
 const labelProps: LabelProps = {

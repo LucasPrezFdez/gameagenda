@@ -8,7 +8,7 @@
 // Por eso `meta.syncState` solo cambia con `updateRecord`, que relee lo guardado y no lo vuelve a
 // crear si ya no está; la ronda que se encuentra sin él acaba con `aborted` y no se trata como
 // buena; y borrar la agenda del servidor espera su turno en el Web Lock.
-import { parseCode } from '@gameagenda/core/api';
+import { type PasskeyInfo, parseCode } from '@gameagenda/core/api';
 import type { HlcClock } from '@gameagenda/core/sync';
 import type { CopyReminderStore } from '../data/copy-reminder.ts';
 import { type GameAgendaDb, META_KEYS } from '../db/database.ts';
@@ -16,6 +16,13 @@ import { es } from '../i18n/es.ts';
 import type { NoticeCenter } from '../notices/notice-center.ts';
 import { createApiClient, type FetchLike, type SyncApi } from './api-client.ts';
 import { createSyncEngine, type EngineOptions, type RoundResult } from './engine.ts';
+import {
+  createPasskeyCredential,
+  forgetPasskey,
+  getPasskeyAssertion,
+  keepOnlyPasskeys,
+  type WebAuthnHost,
+} from './passkeys.ts';
 import {
   createScheduler,
   DEFAULT_TIMINGS,
@@ -87,6 +94,8 @@ export interface RuntimeHost {
   readonly copyReminder: CopyReminderStore | null;
   /** Apunta los enlaces del buzón del Atajo de iOS (`links/inbox-capture.ts`). */
   readonly inbox?: InboxSink;
+  /** `navigator.credentials` por defecto (llaves de acceso; las pruebas pasan uno falso). */
+  readonly webAuthn?: WebAuthnHost;
   readHint(): boolean;
   getRecord(): SyncRecord | null;
   /** `meta.syncState` ya guardado (o borrado): la fachada recalcula el estado. */
@@ -116,6 +125,11 @@ export interface SyncRuntime {
   /** Ver `SyncService.createInboxToken`. */
   createInboxToken(label: string): Promise<{ deviceId: string; token: string }>;
   listDevices(): Promise<readonly DeviceInfo[]>;
+  /** Ver `SyncService.redeemPasskey` y las demás de las llaves de acceso (ADR-013). */
+  redeemPasskey(label: string): Promise<void>;
+  createPasskey(): Promise<readonly PasskeyInfo[]>;
+  listPasskeys(): Promise<readonly PasskeyInfo[]>;
+  removePasskey(id: string): Promise<readonly PasskeyInfo[]>;
   /** Ver `SyncService.revokeDevice`. */
   revokeDevice(id: string): Promise<{ self: boolean }>;
   /** Ver `SyncService.deleteServerAgenda` (con un 401, rechaza con `unauthorized`). */
@@ -398,6 +412,31 @@ export function createRuntime(host: RuntimeHost): SyncRuntime {
         await updateRecord({ deviceId: current.id });
       return devices;
     },
+    async redeemPasskey(label) {
+      const challenge = await api.passkeyChallenge();
+      const body = await getPasskeyAssertion(challenge, label, host.webAuthn);
+      const { deviceId } = await api.redeemPasskey(body);
+      await join(deviceId, false);
+    },
+    async createPasskey() {
+      const options = await authed(() => api.passkeyOptions());
+      const body = await createPasskeyCredential(options, host.webAuthn);
+      return (await authed(() => api.addPasskey(body))).passkeys;
+    },
+    async listPasskeys() {
+      return (await authed(() => api.passkeys())).passkeys;
+    },
+    async removePasskey(id) {
+      const { passkeys, userId, rpId } = await authed(() => api.removePasskey(id));
+      forgetPasskey(rpId, id);
+      if (userId !== null)
+        keepOnlyPasskeys(
+          rpId,
+          userId,
+          passkeys.map((p) => p.id),
+        );
+      return passkeys;
+    },
     async revokeDevice(id) {
       // Desemparejar este dispositivo: sin rondas nuevas durante la llamada. La que ya esté en
       // marcha acaba, y su 401 (o su 200) tardío ya no vuelve a crear el estado (`updateRecord`).
@@ -430,8 +469,11 @@ export function createRuntime(host: RuntimeHost): SyncRuntime {
           // 401: revocado desde otro dispositivo, o la agenda ya no existe. El servidor no los
           // distingue, así que no se da por borrada: queda desemparejado por el servidor y se
           // relanza (`authed`). Lo local no se toca.
+          // Las llaves, para decir luego al llavero que ya no vale ninguna (si falla, sin aviso).
+          const keys = await api.passkeys().catch(() => null);
           await authed(() => api.deleteAgenda());
           await clearRecord();
+          if (keys !== null && keys.userId !== null) keepOnlyPasskeys(keys.rpId, keys.userId, []);
         });
       } catch (error) {
         if (resumed && asSyncError(error)?.code !== 'unauthorized') scheduler.start();

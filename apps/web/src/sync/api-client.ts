@@ -16,7 +16,15 @@ import {
   inboxTokenResponseSchema,
   okResponseSchema,
   type PairingResponse,
+  type PasskeyChallengeResponse,
+  type PasskeyCreateRequest,
+  type PasskeyCreationOptions,
+  type PasskeyRedeemRequest,
+  type PasskeysResponse,
   pairingResponseSchema,
+  passkeyChallengeResponseSchema,
+  passkeyCreationOptionsSchema,
+  passkeysResponseSchema,
   type RecoveryResponse,
   type RedeemResponse,
   recoveryResponseSchema,
@@ -58,6 +66,14 @@ export interface SyncApi {
   /** El *token* del buzón para el Atajo de iOS (se muestra una vez). */
   createInboxToken(label: string): Promise<InboxTokenResponse>;
   sync(request: SyncCall): Promise<SyncResponse>;
+  /** Llaves de acceso (ADR-013): las opciones para crear una, con su reto. */
+  passkeyOptions(): Promise<PasskeyCreationOptions>;
+  addPasskey(body: PasskeyCreateRequest): Promise<PasskeysResponse>;
+  passkeys(): Promise<PasskeysResponse>;
+  removePasskey(id: string): Promise<PasskeysResponse>;
+  /** Un reto para entrar con una llave (sin cookie). */
+  passkeyChallenge(): Promise<PasskeyChallengeResponse>;
+  redeemPasskey(body: PasskeyRedeemRequest): Promise<RedeemResponse>;
 }
 
 interface Schema<T> {
@@ -136,5 +152,12 @@ export function createApiClient(options: ApiClientOptions = {}): SyncApi {
     },
     createInboxToken: (label) => post('/inbox/token', { label }, inboxTokenResponseSchema),
     sync: (request) => post('/sync', request, syncResponseSchema),
+    passkeyOptions: () => post('/passkeys/options', {}, passkeyCreationOptionsSchema),
+    addPasskey: (body) => post('/passkeys', body, passkeysResponseSchema),
+    passkeys: () => call('GET', '/passkeys', undefined, passkeysResponseSchema),
+    removePasskey: (id) =>
+      post(`/passkeys/${encodeURIComponent(id)}/remove`, {}, passkeysResponseSchema),
+    passkeyChallenge: () => post('/passkeys/challenge', {}, passkeyChallengeResponseSchema),
+    redeemPasskey: (body) => post('/passkeys/redeem', body, redeemResponseSchema),
   };
 }

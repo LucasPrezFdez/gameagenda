@@ -191,3 +191,63 @@ export function tamper(field: string, index = 10): string {
   bytes[index] = (bytes[index] ?? 0) ^ 0x01;
   return b64u(bytes);
 }
+
+function buffer(text: string): ArrayBuffer {
+  return fromB64u(text).buffer;
+}
+
+/**
+ * Un `navigator.credentials` falso para la app (`WebAuthnHost`): crea y firma con `key`, como el
+ * llavero del navegador. Con `fail`, rechaza como lo haría el navegador (`NotAllowedError` si el
+ * usuario cierra el diálogo; `InvalidStateError` si ese llavero ya tiene una llave de la agenda).
+ */
+export function webAuthnHost(key: FakeAuthenticator, fail?: { name: string }) {
+  const reject = () => Promise.reject(new DOMException('falso', fail?.name));
+  return {
+    credentials: {
+      async create(options?: CredentialCreationOptions): Promise<Credential | null> {
+        if (fail) return reject();
+        const publicKey = options?.publicKey;
+        if (!publicKey) throw new TypeError('sin publicKey');
+        const body = await key.register({
+          challenge: b64u(new Uint8Array(publicKey.challenge as ArrayBuffer)),
+          rpId: publicKey.rp.id ?? RP_ID,
+          userId: b64u(new Uint8Array(publicKey.user.id as ArrayBuffer)),
+        });
+        return {
+          type: 'public-key',
+          id: body.id,
+          response: {
+            clientDataJSON: buffer(body.clientDataJSON),
+            getAuthenticatorData: () => buffer(body.authenticatorData),
+            getPublicKey: () => buffer(body.publicKey),
+            getPublicKeyAlgorithm: () => body.publicKeyAlgorithm,
+            getTransports: () => body.transports,
+          },
+        } as unknown as Credential;
+      },
+      async get(options?: CredentialRequestOptions): Promise<Credential | null> {
+        if (fail) return reject();
+        const publicKey = options?.publicKey;
+        if (!publicKey) throw new TypeError('sin publicKey');
+        const body = await key.assert(
+          {
+            challenge: b64u(new Uint8Array(publicKey.challenge as ArrayBuffer)),
+            rpId: publicKey.rpId ?? RP_ID,
+          },
+          '',
+        );
+        return {
+          type: 'public-key',
+          id: body.id,
+          response: {
+            clientDataJSON: buffer(body.clientDataJSON),
+            authenticatorData: buffer(body.authenticatorData),
+            signature: buffer(body.signature),
+            userHandle: body.userHandle === null ? null : buffer(body.userHandle),
+          },
+        } as unknown as Credential;
+      },
+    },
+  };
+}

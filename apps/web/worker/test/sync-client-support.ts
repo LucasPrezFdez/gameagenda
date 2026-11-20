@@ -25,6 +25,7 @@ import { createInboxSink } from '../../src/links/inbox-capture.ts';
 import type { NoticeCenter } from '../../src/notices/notice-center.ts';
 import type { FetchLike } from '../../src/sync/api-client.ts';
 import { createSyncService, type SyncController, trackLocalWrites } from '../../src/sync/facade.ts';
+import type { WebAuthnHost } from '../../src/sync/passkeys.ts';
 import type { LockManagerLike, RuntimeTimings } from '../../src/sync/runtime.ts';
 import type { SchedulerEnv } from '../../src/sync/scheduler.ts';
 import type { Client, Harness } from './harness.ts';
@@ -160,6 +161,8 @@ export interface ReplicaOptions {
    */
   readonly inbox?: boolean;
   readonly catalog?: ReadonlyMap<number, string>;
+  /** El llavero del navegador (llaves de acceso; ver `passkey-support.ts`). */
+  readonly webAuthn?: WebAuthnHost;
 }
 
 let replicas = 0;
@@ -295,6 +298,7 @@ export class Replica {
         ? { inbox: this.inboxSink(this.agendaOrNull) }
         : {}),
       fetch: this.fetch,
+      ...(this.options.webAuthn ? { webAuthn: this.options.webAuthn } : {}),
       ...(this.options.timings ? { timings: this.options.timings } : {}),
       engine: {
         ...(this.options.batchSize ? { batchSize: this.options.batchSize } : {}),

@@ -759,6 +759,39 @@ export const es = {
     inboxDone: 'Ya he creado el atajo',
     inboxCreated: (label: string) => `Hemos creado el token de «${label}».`,
 
+    // Llaves de acceso (ADR-013): otra forma de entrar en la agenda desde otro dispositivo, sin
+    // código, con la llave del llavero de iCloud, Google o Windows.
+    passkeysTitle: 'Llaves de acceso',
+    passkeysIntro:
+      'Con una llave de acceso entras en tu agenda desde otro dispositivo con la cara, la huella o el PIN, sin escribir ningún código. Se guarda en el llavero de iCloud, Google o Windows, así que sigue ahí aunque pierdas este dispositivo.',
+    passkeysNone:
+      'Aún no tienes ninguna. Crea una para no depender solo del código de recuperación.',
+    passkeysLoading: 'Cargando las llaves…',
+    passkeyCreate: 'Crear una llave de acceso',
+    /** Mientras el navegador enseña su diálogo (la cara, la huella o el PIN). */
+    passkeyCreating: 'Esperando a la llave…',
+    passkeyCreated: 'Hemos guardado la llave. Ya puedes entrar con ella desde otro dispositivo.',
+    passkeysFullNote: (max: number) =>
+      `Ya tienes ${max} llaves, el máximo. Quita alguna para crear otra.`,
+    passkeyName: (label: string) => `Creada en «${label}»`,
+    passkeySince: (date: string) => `El ${date}`,
+    passkeyLastUsed: (when: string) => `Usada por última vez: ${when}`,
+    passkeyNeverUsed: 'Sin usar todavía',
+    passkeyRemove: 'Quitar',
+    passkeyRemoving: 'Quitando…',
+    passkeyRemoveLabel: (label: string) => `Quitar la llave creada en «${label}»`,
+    passkeyRemoveConfirm: (label: string) =>
+      `¿Quitar la llave creada en «${label}»? Dejará de abrir tu agenda. Si tu llavero no la borra solo, bórrala también allí.`,
+    passkeyRemoved: 'Hemos quitado la llave.',
+    passkeyJoinTitle: 'Entrar con una llave de acceso',
+    passkeyJoinIntro:
+      'Si guardaste una llave de acceso de tu agenda en iCloud, Google o Windows, úsala aquí. El navegador te pedirá la cara, la huella o el PIN.',
+    passkeyJoin: 'Entrar con una llave de acceso',
+    passkeyJoining: 'Esperando a la llave…',
+    /** Tras el código de recuperación, al activar. */
+    passkeyOffer:
+      'Guarda también una llave de acceso: si pierdes este código, con ella podrás entrar en tu agenda desde otro dispositivo.',
+
     newRecoveryTitle: 'Código de recuperación',
     newRecoveryIntro:
       'Si has perdido el tuyo o alguien lo ha visto, crea uno nuevo. El anterior dejará de valer.',
@@ -812,6 +845,16 @@ export const es = {
       unavailable:
         'Este navegador no deja guardar datos (quizá es una ventana privada), así que no puede sincronizar.',
       server: 'Algo ha fallado en el servidor. Vuelve a intentarlo dentro de un rato.',
+      invalidPasskey:
+        'Esa llave no ha abierto ninguna agenda: puede que se quitara, que se borrara la agenda o que el diálogo estuviera abierto demasiado tiempo. Vuelve a intentarlo, o usa tu código de recuperación.',
+      passkeyExists: 'Este llavero ya tiene una llave de tu agenda: no hace falta otra.',
+      passkeyFailed:
+        'El navegador no ha podido usar la llave de acceso. Vuelve a intentarlo, o usa un código.',
+      passkeysFull: (max: number) =>
+        `Ya tienes ${max} llaves, el máximo. Quita alguna para crear otra.`,
+      passkeysDisabled:
+        'Las llaves de acceso no están disponibles ahora mismo. Vuelve a intentarlo más adelante, o usa un código.',
+      passkeyNotFound: 'Esa llave ya no estaba.',
     },
   },
 

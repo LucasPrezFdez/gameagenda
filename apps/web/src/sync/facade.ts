@@ -16,6 +16,7 @@ import type { NoticeCenter } from '../notices/notice-center.ts';
 import type { FetchLike } from './api-client.ts';
 import { installSyncTestHooks, syncTestOptions } from './e2e-hooks.ts';
 import type { EngineOptions } from './engine.ts';
+import type { WebAuthnHost } from './passkeys.ts';
 import type { LockManagerLike, RuntimeHost, RuntimeTimings, SyncRuntime } from './runtime.ts';
 import type { SchedulerEnv } from './scheduler.ts';
 import { countPendingEntries, hasSyncHint, parseSyncRecord, type SyncRecord } from './state.ts';
@@ -49,6 +50,8 @@ export interface SyncServiceOptions {
   /** `navigator.locks` por defecto. */
   readonly locks?: LockManagerLike | null;
   readonly fetch?: FetchLike;
+  /** `navigator.credentials` por defecto (llaves de acceso). */
+  readonly webAuthn?: WebAuthnHost;
   readonly timings?: Partial<RuntimeTimings>;
   readonly engine?: Pick<EngineOptions, 'batchSize' | 'maxRequests' | 'yieldToMain'>;
   /** Carga el motor (por defecto, `import('./runtime.ts')`). */
@@ -271,6 +274,7 @@ export function createSyncService(options: SyncServiceOptions): SyncController {
       env: options.env ?? browserEnv(),
       locks: options.locks === undefined ? browserLocks() : options.locks,
       ...(options.fetch ? { fetch: options.fetch } : {}),
+      ...(options.webAuthn ? { webAuthn: options.webAuthn } : {}),
       timings,
       ...(options.engine ? { engine: options.engine } : {}),
       notices: options.notices ?? null,
@@ -408,6 +412,21 @@ export function createSyncService(options: SyncServiceOptions): SyncController {
     async revokeDevice(id) {
       requireActive();
       return (await ensureRuntime()).revokeDevice(id);
+    },
+    async redeemPasskey(label) {
+      await (await ensureRuntime()).redeemPasskey(label);
+    },
+    async createPasskey() {
+      requireActive();
+      return (await ensureRuntime()).createPasskey();
+    },
+    async listPasskeys() {
+      requireActive();
+      return (await ensureRuntime()).listPasskeys();
+    },
+    async removePasskey(id) {
+      requireActive();
+      return (await ensureRuntime()).removePasskey(id);
     },
     async deleteServerAgenda() {
       if (db === null || snapshot.status === 'off') return;

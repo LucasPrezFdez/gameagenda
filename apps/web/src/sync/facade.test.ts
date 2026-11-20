@@ -60,6 +60,10 @@ function fakeRuntime() {
     createInboxToken: async () => ({ deviceId: 'I', token: 'T' }),
     listDevices: async () => [],
     revokeDevice: async () => ({ self: false }),
+    redeemPasskey: async () => undefined,
+    createPasskey: async () => [],
+    listPasskeys: async () => [],
+    removePasskey: async () => [],
     deleteServerAgenda: async () => undefined,
     forget: async () => undefined,
   };

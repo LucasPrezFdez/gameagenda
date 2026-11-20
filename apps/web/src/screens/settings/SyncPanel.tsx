@@ -7,7 +7,7 @@
 //   sincronización»; aparte, canjear un código de emparejamiento o el de recuperación;
 // - recién activada (o con un código de recuperación nuevo): el código, una sola vez;
 // - emparejada: el estado, «Emparejar otro dispositivo» (código y QR de 10 min), los dispositivos,
-//   el *token* del Atajo de iOS (se ve una vez, con los pasos para crear el atajo), un código de
+//   las llaves de acceso (ADR-013), el *token* del Atajo de iOS (se ve una vez, con los pasos para crear el atajo), un código de
 //   recuperación nuevo y «Desemparejar este dispositivo»;
 // - desemparejada (por el servidor o sin cookies): lo dice y ofrece el código de recuperación.
 // La sincronización en sí nunca pregunta (RF-26): aquí solo hay gestos explícitos. Las
@@ -19,6 +19,8 @@ import {
   CODE_INPUT_MAX,
   DEFAULT_INBOX_LABEL,
   DEFAULT_MIN_AGE,
+  PASSKEYS_MAX,
+  type PasskeyInfo,
 } from '@gameagenda/core/api';
 import {
   type ReactNode,
@@ -63,6 +65,8 @@ import {
   type PanelMessage,
   type PanelView,
   pairingDeadline,
+  passkeyDetails,
+  passkeysAvailable,
   pendingText,
   readCode,
   remainingMs,
@@ -489,18 +493,29 @@ export function OffView({
         takeLabel={labelProps.takeLabel}
         onJoined={onJoined}
       />
+      <PasskeyJoin
+        sync={sync}
+        headingId={ids.passkeyJoin}
+        takeLabel={labelProps.takeLabel}
+        onJoined={onJoined}
+      />
     </>
   );
 }
 
 /** El código de recuperación, una sola vez (§11.4), con el foco en su encabezado. */
 function RecoveryReveal({
+  sync,
   code,
   headingId,
+  offerPasskey,
   onDone,
 }: {
+  sync: SyncService;
   code: string;
   headingId: string;
+  /** Al activar: ofrece guardar también una llave de acceso (ADR-013). */
+  offerPasskey: boolean;
   onDone: () => void;
 }) {
   useEffect(() => focusWhenReady(headingId), [headingId]);
@@ -515,8 +530,14 @@ function RecoveryReveal({
       </p>
       <h4 className="sync__label">{t.recoveryCode}</h4>
       <CodeBox key={code} code={code} />
+      {offerPasskey && <PasskeyOffer sync={sync} afterId={`${headingId}-done`} />}
       <div className="settings__buttons">
-        <button type="button" className="btn btn--primary" onClick={onDone}>
+        <button
+          id={`${headingId}-done`}
+          type="button"
+          className="btn btn--primary"
+          onClick={onDone}
+        >
           {t.saved}
         </button>
       </div>
@@ -941,6 +962,291 @@ function DevicesSection({
   );
 }
 
+/**
+ * «Entrar con una llave de acceso» (sin sincronizar o desemparejado; ADR-013): el navegador enseña
+ * las llaves de este sitio y la elegida une este dispositivo a su agenda, como el código de
+ * recuperación. Cerrar el diálogo no es un error. Sin WebAuthn, no sale.
+ */
+function PasskeyJoin({
+  sync,
+  headingId,
+  takeLabel,
+  onJoined,
+}: {
+  sync: SyncService;
+  headingId: string;
+  takeLabel: () => string | null;
+  onJoined: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
+  if (!passkeysAvailable()) return null;
+
+  async function join(): Promise<void> {
+    if (busy) return;
+    setFailure(null);
+    const label = takeLabel();
+    if (label === null) return;
+    setBusy(true);
+    const result = await attempt(() => sync.redeemPasskey(label));
+    setBusy(false);
+    if (result.ok) onJoined();
+    else if (result.code !== 'passkey_cancelled') {
+      setFailure(syncErrorText(result.code, 'passkeyJoin'));
+    }
+  }
+
+  return (
+    <section className="sync__block" aria-labelledby={headingId}>
+      <h3 id={headingId} tabIndex={-1} className="settings__subtitle">
+        {t.passkeyJoinTitle}
+      </h3>
+      <p>{t.passkeyJoinIntro}</p>
+      <div className="settings__buttons">
+        <button type="button" className="btn" aria-disabled={busy} onClick={() => void join()}>
+          {busy ? t.passkeyJoining : t.passkeyJoin}
+        </button>
+      </div>
+      <div className="settings__import-result" role="status">
+        {failure !== null && <p className="sync__error">{failure}</p>}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Tras el código de recuperación, al activar: guardar también una llave de acceso, por si se pierde
+ * el código. Al guardarla, el foco va a `afterId` («Ya lo he guardado»).
+ */
+function PasskeyOffer({ sync, afterId }: { sync: SyncService; afterId: string }) {
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
+  if (!passkeysAvailable()) return null;
+
+  async function create(): Promise<void> {
+    if (busy || done) return;
+    setBusy(true);
+    setFailure(null);
+    const result = await attempt(() => sync.createPasskey());
+    setBusy(false);
+    if (result.ok) {
+      setDone(true);
+      focusWhenReady(afterId);
+    } else if (result.code !== 'passkey_cancelled') {
+      setFailure(syncErrorText(result.code, 'passkeyCreate'));
+    }
+  }
+
+  return (
+    <div className="sync__offer">
+      <p>{t.passkeyOffer}</p>
+      {!done && (
+        <div className="settings__buttons">
+          <button type="button" className="btn" aria-disabled={busy} onClick={() => void create()}>
+            {busy ? t.passkeyCreating : t.passkeyCreate}
+          </button>
+        </div>
+      )}
+      <div className="settings__import-result" role="status">
+        {done && <p>{t.passkeyCreated}</p>}
+        {failure !== null && <p className="sync__error">{failure}</p>}
+      </div>
+    </div>
+  );
+}
+
+type PasskeysState =
+  | { readonly kind: 'loading' }
+  | { readonly kind: 'ready'; readonly passkeys: readonly PasskeyInfo[] }
+  | { readonly kind: 'error'; readonly message: string }
+  | { readonly kind: 'disabled' };
+
+/**
+ * Las llaves de acceso de la agenda (sincronizada; ADR-013): la lista, crear otra y quitar, con la
+ * confirmación en el sitio, como los dispositivos. Con las llaves apagadas en el servidor no sale;
+ * sin WebAuthn en este navegador, solo la lista (para poder quitarlas), si hay alguna.
+ */
+function PasskeysSection({ sync, headingId }: { sync: SyncService; headingId: string }) {
+  const id = useId();
+  const [state, setState] = useState<PasskeysState>({ kind: 'loading' });
+  const [creating, setCreating] = useState(false);
+  const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
+  const [confirming, setConfirming] = useState<string | null>(null);
+  const [removing, setRemoving] = useState(false);
+  const [removeFailure, setRemoveFailure] = useState<string | null>(null);
+  useTick(60_000);
+  const now = Date.now();
+
+  const load = useCallback(async () => {
+    const result = await attempt(() => sync.listPasskeys());
+    if (result.ok) setState({ kind: 'ready', passkeys: result.value });
+    else if (result.code === 'passkeys_disabled') setState({ kind: 'disabled' });
+    else setState({ kind: 'error', message: syncErrorText(result.code, 'passkeys') });
+  }, [sync]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const supported = passkeysAvailable();
+  const list = state.kind === 'ready' ? state.passkeys : null;
+  if (state.kind === 'disabled') return null;
+  if (!supported && list !== null && list.length === 0) return null;
+  const full = list !== null && list.length >= PASSKEYS_MAX;
+
+  async function create(): Promise<void> {
+    if (creating || full) return;
+    setCreating(true);
+    setMessage(null);
+    const result = await attempt(() => sync.createPasskey());
+    setCreating(false);
+    if (result.ok) {
+      setState({ kind: 'ready', passkeys: result.value });
+      setMessage({ text: t.passkeyCreated, error: false });
+    } else if (result.code !== 'passkey_cancelled') {
+      setMessage({ text: syncErrorText(result.code, 'passkeyCreate'), error: true });
+    }
+  }
+
+  async function remove(passkey: PasskeyInfo): Promise<void> {
+    if (removing) return;
+    setRemoving(true);
+    setRemoveFailure(null);
+    const result = await attempt(() => sync.removePasskey(passkey.id));
+    setRemoving(false);
+    if (result.ok || result.code === 'not_found') {
+      setConfirming(null);
+      setState({
+        kind: 'ready',
+        passkeys: result.ok ? result.value : (list ?? []).filter((p) => p.id !== passkey.id),
+      });
+      setMessage({ text: t.passkeyRemoved, error: false });
+      focusWhenReady(headingId);
+      return;
+    }
+    setRemoveFailure(syncErrorText(result.code, 'passkeyRemove'));
+  }
+
+  return (
+    <section className="sync__block" aria-labelledby={headingId}>
+      <h3 id={headingId} tabIndex={-1} className="settings__subtitle">
+        {t.passkeysTitle}
+      </h3>
+      <p>{t.passkeysIntro}</p>
+      {state.kind === 'loading' && (
+        <p className="muted" aria-busy="true">
+          {t.passkeysLoading}
+        </p>
+      )}
+      {state.kind === 'error' && (
+        <div className="settings__import-result" role="status">
+          <p className="sync__error">{state.message}</p>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => {
+              focusWhenReady(headingId);
+              setState({ kind: 'loading' });
+              void load();
+            }}
+          >
+            {t.devicesRetry}
+          </button>
+        </div>
+      )}
+      {list !== null && list.length === 0 && <p className="muted">{t.passkeysNone}</p>}
+      {list !== null && list.length > 0 && (
+        <ul className="sync__devices" aria-labelledby={headingId}>
+          {list.map((passkey) => {
+            const confirmId = `${id}-confirm-${passkey.id}`;
+            const startId = `${id}-remove-${passkey.id}`;
+            return (
+              <li key={passkey.id} className="sync__device" data-passkey-id={passkey.id}>
+                <div className="sync__device-main">
+                  <p className="sync__device-name">
+                    <span>{t.passkeyName(passkey.label)}</span>
+                  </p>
+                  <p className="muted">{passkeyDetails(passkey, now)}</p>
+                </div>
+                {confirming === passkey.id ? (
+                  // biome-ignore lint/a11y/useSemanticElements: una confirmación con su pregunta y dos botones, no un formulario.
+                  <div className="sync__confirm" role="group" aria-labelledby={confirmId}>
+                    <p id={confirmId}>{t.passkeyRemoveConfirm(passkey.label)}</p>
+                    <div className="settings__buttons">
+                      <button
+                        type="button"
+                        className="btn"
+                        onClick={() => {
+                          setConfirming(null);
+                          setRemoveFailure(null);
+                          focusWhenReady(startId);
+                        }}
+                      >
+                        {t.cancel}
+                      </button>
+                      <button
+                        id={`${confirmId}-do`}
+                        type="button"
+                        className="btn btn--danger"
+                        aria-disabled={removing}
+                        aria-label={removing ? undefined : t.passkeyRemoveLabel(passkey.label)}
+                        onClick={() => void remove(passkey)}
+                      >
+                        {removing ? t.passkeyRemoving : t.passkeyRemove}
+                      </button>
+                    </div>
+                    <div className="settings__import-result" role="status">
+                      {removeFailure !== null && <p className="sync__error">{removeFailure}</p>}
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    id={startId}
+                    type="button"
+                    className="btn btn--danger"
+                    aria-label={t.passkeyRemoveLabel(passkey.label)}
+                    onClick={() => {
+                      setConfirming(passkey.id);
+                      setRemoveFailure(null);
+                      focusWhenReady(`${confirmId}-do`);
+                    }}
+                  >
+                    {t.passkeyRemove}
+                  </button>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {supported && list !== null && (
+        <div className="settings__buttons">
+          <button
+            type="button"
+            className="btn"
+            aria-disabled={creating || full}
+            aria-describedby={full ? `${id}-full` : undefined}
+            onClick={() => void create()}
+          >
+            {creating ? t.passkeyCreating : t.passkeyCreate}
+          </button>
+        </div>
+      )}
+      {full && (
+        <p id={`${id}-full`} className="muted">
+          {t.passkeysFullNote(PASSKEYS_MAX)}
+        </p>
+      )}
+      <div className="settings__import-result" role="status">
+        {message !== null && (
+          <p className={message.error ? 'sync__error' : undefined}>{message.text}</p>
+        )}
+      </div>
+    </section>
+  );
+}
+
 /** Un valor para copiar en el atajo (la dirección o el encabezado), en monoespaciada. */
 function CopyValue({
   id,
@@ -1294,6 +1600,7 @@ export function PairedView({
         }}
       />
       <InboxSection sync={sync} headingId={ids.inbox} onCreated={() => void load()} />
+      <PasskeysSection sync={sync} headingId={ids.passkeys} />
       <ConfirmAction
         headingId={ids.recovery}
         title={t.newRecoveryTitle}
@@ -1387,6 +1694,12 @@ export function UnpairedView({
         takeLabel={labelProps.takeLabel}
         onJoined={onJoined}
       />
+      <PasskeyJoin
+        sync={sync}
+        headingId={ids.passkeyJoin}
+        takeLabel={labelProps.takeLabel}
+        onJoined={onJoined}
+      />
       <ConfirmAction
         headingId={ids.forget}
         title={t.forget}
@@ -1419,6 +1732,8 @@ export interface PanelIds {
   readonly unpaired: string;
   readonly forget: string;
   readonly reveal: string;
+  readonly passkeys: string;
+  readonly passkeyJoin: string;
 }
 
 export function SyncPanel() {
@@ -1438,6 +1753,8 @@ export function SyncPanel() {
       unpaired: `${base}-unpaired`,
       forget: `${base}-forget`,
       reveal: `${base}-reveal`,
+      passkeys: `${base}-passkeys`,
+      passkeyJoin: `${base}-passkey-join`,
     }),
     [base],
   );
@@ -1456,6 +1773,8 @@ export function SyncPanel() {
   );
   const [labelError, setLabelError] = useState<string | null>(null);
   const [revealed, setRevealed] = useState<string | null>(null);
+  // El código de recuperación recién activada (no uno nuevo): con la oferta de la llave.
+  const [offerPasskey, setOfferPasskey] = useState(false);
   const [activating, setActivating] = useState(false);
   const [message, setMessage] = useState<PanelMessage | null>(null);
   const messageCount = useRef(0);
@@ -1541,8 +1860,10 @@ export function SyncPanel() {
     case 'reveal':
       content = (
         <RecoveryReveal
+          sync={sync}
           code={revealed ?? ''}
           headingId={ids.reveal}
+          offerPasskey={offerPasskey}
           onDone={() => {
             setRevealed(null);
             focusWhenReady(ids.status);
@@ -1561,6 +1882,7 @@ export function SyncPanel() {
           onActivating={setActivating}
           onActivated={(code) => {
             setMessage(null);
+            setOfferPasskey(true);
             setRevealed(code);
           }}
           onJoined={onJoined}
@@ -1576,6 +1898,7 @@ export function SyncPanel() {
           fromLink={linkCode !== null}
           onNewRecovery={(code) => {
             setMessage(null);
+            setOfferPasskey(false);
             setRevealed(code);
           }}
           onLeft={onLeft}

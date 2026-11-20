@@ -328,11 +328,19 @@
 .sync__form,
 .sync__field,
 .sync__codebox,
-.sync__pairing-code {
+.sync__pairing-code,
+.sync__offer {
   display: flex;
   flex-direction: column;
   gap: 8px;
   min-width: 0;
+}
+
+/* Tras el código de recuperación, al activar: guardar también una llave de acceso (ADR-013). */
+.sync__offer {
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
 }
 
 .sync__block + .sync__block {

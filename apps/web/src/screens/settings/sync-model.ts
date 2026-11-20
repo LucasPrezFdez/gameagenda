@@ -1,7 +1,13 @@
 // Ajustes › Sincronización (M4; §9.1, §9.6, §9.9 y §11.4): lo que la pantalla calcula sin React,
 // para probarlo con Vitest. Va en el *chunk* diferido de Ajustes. De `@gameagenda/core/api` solo
 // usa los códigos y las constantes, que no importan Zod (`api/constants.ts` y `api/codes.ts`).
-import { CODE_GROUP, PAIRING_TTL_MS, parseCode } from '@gameagenda/core/api';
+import {
+  CODE_GROUP,
+  PAIRING_TTL_MS,
+  PASSKEYS_MAX,
+  type PasskeyInfo,
+  parseCode,
+} from '@gameagenda/core/api';
 import { es } from '../../i18n/es.ts';
 import { defaultDeviceLabel, LABEL_MAX } from '../../sync/device-label.ts';
 import type { DeviceInfo, SyncErrorCode, SyncState } from '../../sync/types.ts';
@@ -146,7 +152,11 @@ export type SyncOperation =
   | 'createInbox'
   | 'devices'
   | 'revoke'
-  | 'leave';
+  | 'leave'
+  | 'passkeyJoin'
+  | 'passkeyCreate'
+  | 'passkeyRemove'
+  | 'passkeys';
 
 /**
  * Por qué «Borrar todos mis datos» no ha borrado nada: con la sincronización activada, no borra lo
@@ -181,7 +191,18 @@ export function syncErrorText(code: SyncErrorCode, operation: SyncOperation): st
     case 'unauthorized':
       return t.unauthorized;
     case 'not_found':
-      return operation === 'revoke' ? t.notFound : t.server;
+      if (operation === 'revoke') return t.notFound;
+      return operation === 'passkeyRemove' ? t.passkeyNotFound : t.server;
+    case 'invalid_passkey':
+      return t.invalidPasskey;
+    case 'passkey_exists':
+      return t.passkeyExists;
+    case 'passkey_failed':
+      return t.passkeyFailed;
+    case 'passkeys_full':
+      return t.passkeysFull(PASSKEYS_MAX);
+    case 'passkeys_disabled':
+      return t.passkeysDisabled;
     case 'storage':
       return t.storage;
     case 'unavailable':
@@ -280,6 +301,27 @@ export function deviceDetails(device: DeviceInfo, now: number): string {
   if (Number.isFinite(created)) parts.push(es.syncPanel.deviceSince(dayFormat.format(created)));
   if (Number.isFinite(seen)) parts.push(es.syncPanel.deviceLastSeen(dayAgo(seen, now)));
   return parts.join(' · ');
+}
+
+/** «El 20 nov 2026 · Usada por última vez: hace 5 min» (o «Sin usar todavía»). */
+export function passkeyDetails(passkey: PasskeyInfo, now: number): string {
+  const t = es.syncPanel;
+  const created = Date.parse(passkey.createdAt);
+  const used = passkey.lastUsedAt === null ? Number.NaN : Date.parse(passkey.lastUsedAt);
+  const parts: string[] = [];
+  if (Number.isFinite(created)) parts.push(t.passkeySince(dayFormat.format(created)));
+  parts.push(Number.isFinite(used) ? t.passkeyLastUsed(dayAgo(used, now)) : t.passkeyNeverUsed);
+  return parts.join(' · ');
+}
+
+/**
+ * Si este navegador sabe de llaves de acceso (WebAuthn, en un contexto seguro). Si no, los
+ * botones de crear y de entrar no salen (ADR-013).
+ */
+export function passkeysAvailable(
+  scope: { isSecureContext?: boolean; PublicKeyCredential?: unknown } = globalThis,
+): boolean {
+  return scope.isSecureContext === true && typeof scope.PublicKeyCredential === 'function';
 }
 
 /**
