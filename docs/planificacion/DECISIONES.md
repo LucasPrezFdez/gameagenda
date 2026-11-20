@@ -694,7 +694,7 @@ Resueltos a partir de las mediciones y de los conflictos detectados entre seccio
       - con 8 columnas, cada portada mide unos 170 px, como en la biblioteca de Steam.
       Si el usuario lo quiere, el cambio es pequeño: `MAX_COLUMNS` en `CatalogScreen.tsx` y un `max-width` propio para la vista en cuadrícula.
     - **Despliegue (20-11-2026):** `main` avanzó hasta la rama (`0c3fa7f`). `ci` 44810799091 y `deploy-web` 44811564946, en verde; `smoke:web`, «Todo en orden»; y las 108 medidas, repetidas en producción, iguales a las del *build* de la rama.
-52. **Llaves de acceso (20-11-2026, en la rama `llaves-acceso`; pedidas por el usuario; ADR-013, propuesta).** El usuario preguntó por crear una cuenta para guardar la información; lo que le preocupa es perder los datos. El asistente desaconsejó el email con contraseña: un *hash* lento no cabe en los 10 ms de CPU del plan gratuito, hay que enviar correos, el email es un dato personal y §2 deja fuera las cuentas. Propuso llaves de acceso, y el usuario dijo «prepara lo de las llaves de acceso» y, con la propuesta delante, «si».
+52. **Llaves de acceso (20-11-2026, en producción desde el 21-11-2026; pedidas por el usuario; ADR-013, propuesta).** El usuario preguntó por crear una cuenta para guardar la información; lo que le preocupa es perder los datos. El asistente desaconsejó el email con contraseña: un *hash* lento no cabe en los 10 ms de CPU del plan gratuito, hay que enviar correos, el email es un dato personal y §2 deja fuera las cuentas. Propuso llaves de acceso, y el usuario dijo «prepara lo de las llaves de acceso» y, con la propuesta delante, «si».
     - **Qué hacen:** lo mismo que el código de recuperación. Abren la agenda en un dispositivo nuevo con la cara, la huella o el PIN, y la llave sigue en el llavero de iCloud, Google o Windows aunque se pierda el dispositivo. El código se sigue enseñando al activar: una llave de iCloud no pasa sola a Windows.
     - **Dónde:**
       - al activar, tras el código de recuperación, «Crear una llave de acceso»;
@@ -720,6 +720,8 @@ Resueltos a partir de las mediciones y de los conflictos detectados entre seccio
       - los E2E de sincronización, Ajustes, textos legales, WCAG y llaves, en Chromium y WebKit: 54 en verde (las 6 omitidas no son de WebKit);
       - el CI de la rama (44830007457), en verde: comprobaciones, la batería E2E de Chromium y rendimiento;
       - de paso, `steam-achievements.test.ts` («cambiado en cualquier carácter») fallaba 1 vez de cada 16: cambiaba el último carácter del pase en base64url por uno que solo difiere en los 2 bits de relleno. Ahora cambia el bit alto.
-    - **Queda:**
-      - la prueba del usuario en sus dispositivos: Face ID con iCloud en el iPhone, también en la app de la pantalla de inicio; Windows Hello en Edge y en la app de escritorio; y del móvil al PC con el QR;
-      - pasarla a `main` y desplegar, con su visto bueno.
+    - **En producción el 21-11-2026**, con el visto bueno del usuario («despliega»): `main` avanzó hasta la rama (`9b979c1`), que se conserva.
+      - el `ci` 44838295229 falló solo en `boot.spec.ts:273`, la intermitente conocida (el Worker se saltó `scan`), y pasó al repetir los trabajos fallidos. En la primera pasada, `perf`, que solo informa, contó una tarea larga al teclear; en la segunda, ninguna;
+      - `deploy-web` 44839354214 aplicó la migración `0004` y desplegó la versión `031d300f`, con la prueba de humo en verde;
+      - comprobado a mano en producción: la `Permissions-Policy` lleva `publickey-credentials-create=(self)` y `publickey-credentials-get=(self)`; `POST /api/v1/passkeys/challenge` da 201 con el `rpId` `ga-web.gameagenda.workers.dev` (la tabla nueva existe), y `GET /api/v1/passkeys` sin dispositivo, 401.
+    - **Queda:** la prueba del usuario en sus dispositivos: Face ID con iCloud en el iPhone, también en la app de la pantalla de inicio; Windows Hello en Edge y en la app de escritorio; y del móvil al PC con el QR. Después, el ADR-013 pasa a «aceptada».

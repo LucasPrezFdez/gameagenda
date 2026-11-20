@@ -1,6 +1,6 @@
 # ADR-013 · Llaves de acceso: otra forma de abrir la agenda sincronizada, sin email ni contraseña
 
-- **Estado:** propuesta. Construida el 20-11-2026 en la rama `llaves-acceso` (abajo, «Construida»). Pendiente de la prueba del usuario en sus dispositivos.
+- **Estado:** propuesta. Construida el 20-11-2026 (abajo, «Construida») y en producción desde el 21-11-2026 (DECISIONES §10.52). Pendiente de la prueba del usuario en sus dispositivos.
 - **Fecha:** 20-11-2026 (después de M4, a petición del usuario)
 - **Deciden:** el usuario y el asistente
 

@@ -29,7 +29,7 @@ Este registro recoge las decisiones de arquitectura de GameAgenda, en español y
 | 010 | App de escritorio: envoltorio Tauri de `ga-web` con atajo global | M3 | aceptada (02-11-2026, con CA3.7 y CA3.8) | [010-app-de-escritorio.md](010-app-de-escritorio.md) |
 | 011 | Sincronización: micro-API, D1 en la UE y emparejamiento | M4 | propuesta | [011-sincronizacion.md](011-sincronizacion.md) |
 | 012 | Cuenta de Steam: OpenID 2.0 con canje tipo PKCE y la biblioteca en *streaming* | Fase 2 | aceptada | [012-cuenta-de-steam.md](012-cuenta-de-steam.md) |
-| 013 | Llaves de acceso: otra forma de abrir la agenda sincronizada, sin email ni contraseña | Fase 2 | propuesta (construida en la rama `llaves-acceso`) | [013-llaves-de-acceso.md](013-llaves-de-acceso.md) |
+| 013 | Llaves de acceso: otra forma de abrir la agenda sincronizada, sin email ni contraseña | Fase 2 | propuesta (en producción desde el 21-11-2026) | [013-llaves-de-acceso.md](013-llaves-de-acceso.md) |
 
 Si M4 se adelanta a M3 (PA-01), la sincronización pasa a ser el ADR-009, y M3 se queda con los ADR-010 y 011 (§15.1).
 
