@@ -192,7 +192,7 @@ En la rama `steam-parte-3`; el detalle, en DECISIONES §10.50.
 - **Core:** `entries.steam-import.test.ts` (23): el plan con las reglas del usuario, el orden, el alta compacta (con una prueba de propiedades de 300 casos), las marcas y los lotes con un solo Deshacer.
 - **El flujo de la app contra la micro-API real**, con una agenda sobre `fake-indexeddb` (`steam-client.test.ts`, 10 nuevas): de punta a punta, la `outbox` (42 operaciones para 7 juegos), lo ya apuntado, lo apuntado mientras se mira el resumen, los lotes de 40 con su progreso, un lote que falla y los logros ocultos.
 - **E2E** (`steam-import.spec.ts`, 9 en Chromium y en WebKit, con axe): el resumen sin tocar la agenda, «Aplicar», Mi lista, «Deshacer» y lo que ya se tenía.
-- **Pendiente:** la prueba a mano con la cuenta del usuario.
+- **A mano:** la prueba a mano con la cuenta del usuario (20-11-2026, en `wrangler dev` en `127.0.0.1:8787` con el catálogo publicado), con «Sin empezar»: «vale todo ok». La vuelta de Steam, 0,40 s; `redeem`, 0,53 s; y los logros de sus 73 juegos jugados con estadísticas, en dos lotes de 2,2 y 1,5 s.
 
 ## Pros y contras de las opciones
 
