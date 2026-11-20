@@ -6,8 +6,6 @@
 
 import { type JSX, useId, useSyncExternalStore } from 'react';
 import { useServices } from '../../app/services.tsx';
-import { es } from '../../i18n/es.ts';
-import { displayName } from '../../palette/palette-model.ts';
 import { type SteamImportState, steamImportFlow } from '../../steam/steam-flow.ts';
 import { steamTexts as t } from '../../steam/texts.ts';
 
@@ -91,7 +89,7 @@ function Review({ state }: { state: Extract<SteamImportState, { kind: 'review' }
           <input
             type="checkbox"
             checked={state.withWishlist}
-            onChange={(event) => void flow.setWishlist(event.target.checked)}
+            onChange={(event) => flow.setWishlist(event.target.checked)}
           />
           {t.wishlistLabel(state.wishes)}
         </label>
@@ -108,9 +106,10 @@ export function SteamImport(): JSX.Element {
     agenda,
     catalogTitles: async (appids) => {
       const { found } = await search.lookup(appids);
-      return new Map(found.map((game) => [game.appid, displayName(game)]));
+      // Como `displayName` de la paleta (no se importa: partiría el JS inicial en *chunks*).
+      return new Map(found.map((game) => [game.appid, game.nameEs ?? game.name]));
     },
-    fallbackTitle: es.palette.steamGame,
+    fallbackTitle: t.steamGame,
   });
   const state = useSyncExternalStore(flow.subscribe, flow.getSnapshot);
   const id = useId();

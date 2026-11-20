@@ -44,9 +44,11 @@
 // apaga ni corta la importación del otro, que corre a la vez. Las rutas de apoyo:
 // - `POST /__e2e/steam/assertion` con `{ returnTo, steamId? }`: la vuelta de Steam firmada por el
 //   Steam falso (`{ query }`, lo que va detrás de `returnTo`), como si se hubiera iniciado sesión;
-// - `POST /__e2e/steam/library` con `{ steamId, owned?, wishlist? }`: lo que devuelven
-//   `GetOwnedGames` y `GetWishlist` para esa cuenta (cuerpos JSON; `wishlist: null`, que falle);
-//   sin nada, las *fixtures* de `fixtures/steam/webapi/`;
+// - `POST /__e2e/steam/library` con `{ steamId, owned?, wishlist?, achievements? }`: lo que
+//   devuelven `GetOwnedGames`, `GetWishlist` y `GetPlayerAchievements` para esa cuenta (cuerpos
+//   JSON; `wishlist: null`, que falle; `achievements`, `{ appid: 'complete' | 'incomplete' |
+//   'noAchievements' | 'private' }`); sin nada, las *fixtures* de `fixtures/steam/webapi/`, con
+//   Outer Wilds con todos los logros y Half-Life 2 con alguno;
 // - `POST /__e2e/steam/expire` con `{ ticket }`: caduca ese ticket ya;
 // - `POST /__e2e/steam/config` con `{ steamEnabled }`, y `POST /__e2e/steam/hold` y
 //   `/__e2e/steam/release`, como los de siempre, sobre ese mundo de Steam.
@@ -65,6 +67,9 @@ import { STEAM_OPENID } from './worker/steam-openid.ts';
 import { counterOpIds, entriesFromRows, type OpRow } from './worker/sync-plan.ts';
 import { SqliteD1 } from './worker/test/d1-sqlite.ts';
 import {
+  ACHIEVEMENTS_API_PREFIX,
+  ACHIEVEMENTS_FIXTURES,
+  type AchievementsReply,
   FakeSteamOpenId,
   OWNED_API_PREFIX,
   OWNED_FIXTURE,
@@ -127,20 +132,43 @@ const worlds = new Map<string, World>();
 const steam = { names: new Map<number, string>(), calls: new Map<number, number>() };
 
 /** La importación de Steam: el OpenID falso y lo que devuelve la Web API para cada cuenta. */
+interface SteamAccount {
+  owned: string;
+  wishlist: string | null;
+  achievements: ReadonlyMap<number, AchievementsReply>;
+}
+
+/** Los logros de las *fixtures*: Outer Wilds, todos; Half-Life 2, alguno; Stardew Valley, ninguno. */
+const DEFAULT_ACHIEVEMENTS: ReadonlyMap<number, AchievementsReply> = new Map([
+  [753640, ACHIEVEMENTS_FIXTURES.complete],
+  [220, ACHIEVEMENTS_FIXTURES.incomplete],
+  [413150, ACHIEVEMENTS_FIXTURES.noAchievements],
+]);
+
 const steamAccounts = {
   openid: new FakeSteamOpenId(),
-  libraries: new Map<string, { owned: string; wishlist: string | null }>(),
+  libraries: new Map<string, SteamAccount>(),
 };
 
 const STEAM_JSON = { 'Content-Type': 'application/json; charset=utf-8' };
 
-/** `GetOwnedGames` y `GetWishlist` falsos: lo de `POST /__e2e/steam/library`, o las *fixtures*. */
+/**
+ * `GetOwnedGames`, `GetWishlist` y `GetPlayerAchievements` falsos: lo de
+ * `POST /__e2e/steam/library`, o las *fixtures*.
+ */
 function fakeWebApi(url: string): Response {
-  const steamId = new URL(url).searchParams.get('steamid') ?? '';
+  const params = new URL(url).searchParams;
+  const steamId = params.get('steamid') ?? '';
   const library = steamAccounts.libraries.get(steamId) ?? {
     owned: OWNED_FIXTURE,
     wishlist: WISHLIST_FIXTURE,
+    achievements: DEFAULT_ACHIEVEMENTS,
   };
+  if (url.startsWith(ACHIEVEMENTS_API_PREFIX)) {
+    const reply =
+      library.achievements.get(Number(params.get('appid'))) ?? ACHIEVEMENTS_FIXTURES.noStats;
+    return new Response(reply.body, { status: reply.status, headers: STEAM_JSON });
+  }
   if (url.startsWith(OWNED_API_PREFIX)) return new Response(library.owned, { headers: STEAM_JSON });
   return library.wishlist === null
     ? new Response('Internal Server Error', { status: 500 })
@@ -152,7 +180,11 @@ const fakeSteam: SteamFetch = async (url, init) => {
   if (url === STEAM_OPENID && init.method === 'POST') {
     return steamAccounts.openid.check(new URLSearchParams(String(init.body)));
   }
-  if (url.startsWith(OWNED_API_PREFIX) || url.startsWith(WISHLIST_API_PREFIX)) {
+  if (
+    url.startsWith(OWNED_API_PREFIX) ||
+    url.startsWith(WISHLIST_API_PREFIX) ||
+    url.startsWith(ACHIEVEMENTS_API_PREFIX)
+  ) {
     return fakeWebApi(url);
   }
   const input = JSON.parse(new URL(url).searchParams.get('input_json') ?? '{}') as {
@@ -527,7 +559,16 @@ async function e2eRoute(req: IncomingMessage, res: ServerResponse, w: World): Pr
           : body.wishlist === null
             ? null
             : JSON.stringify(body.wishlist);
-      steamAccounts.libraries.set(body.steamId, { owned, wishlist });
+      const achievements =
+        body.achievements === undefined
+          ? DEFAULT_ACHIEVEMENTS
+          : new Map(
+              Object.entries(body.achievements as Record<string, string>).map(([appid, kind]) => [
+                Number(appid),
+                ACHIEVEMENTS_FIXTURES[kind as keyof typeof ACHIEVEMENTS_FIXTURES],
+              ]),
+            );
+      steamAccounts.libraries.set(body.steamId, { owned, wishlist, achievements });
       return sendJson(res, 200, { ok: true });
     }
     case 'POST /__e2e/steam/expire': {

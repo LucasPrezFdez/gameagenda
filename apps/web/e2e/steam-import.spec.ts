@@ -1,19 +1,27 @@
-// «Importar desde Steam» en Ajustes › Datos (Fase 2, parte 2; ADR-012), con la micro-API real de la
-// vista previa y el Steam falso de `e2e-api-server.ts`: Steam nunca se llama. La página de Steam la
-// sustituye una ruta de Playwright que hace lo que haría Steam al iniciar sesión: volver a
+// «Importar desde Steam» en Ajustes › Datos (Fase 2, partes 2 y 3; ADR-012), con la micro-API real
+// de la vista previa y el Steam falso de `e2e-api-server.ts`: Steam nunca se llama. La página de
+// Steam la sustituye una ruta de Playwright que hace lo que haría Steam al iniciar sesión: volver a
 // `return_to` con una aserción firmada por el Steam falso.
 //
 // - Nadie pide nada a `/api` hasta pulsar «Importar desde Steam», y entonces solo `start`, sin
 //   cookies ni `Referer`.
-// - En una pestaña: el botón oficial abre Steam en otra ventana, y al volver a la app, el resumen.
+// - En una pestaña: el botón oficial abre Steam en otra ventana, y al volver a la app, los logros y
+//   el resumen, sin tocar la lista. «Aplicar» la cambia, y «Deshacer» la deja como estaba.
 // - En la PWA de iOS (simulada): el login acaba en otro contexto (Safari, con otras cookies), y la
 //   app canjea el ticket por su cuenta al volver a la vista.
 // - El perfil privado, el ticket caducado, sin red y con la importación apagada en el servidor.
 // - axe en cada estado. Lo de Steam va a un mundo de Steam por proyecto en la vista previa
 //   (`e2e-api-server.ts`), compartido por las pruebas de este fichero, que por eso van en serie.
+import { addEntry, type Entry } from '@gameagenda/core/entries';
+import { formatHlc } from '@gameagenda/core/sync';
 import type { BrowserContext, Page } from '@playwright/test';
-import { expectAccessible, setup } from './helpers.ts';
+import { v7 as uuidv7 } from 'uuid';
+import { expectAccessible, setup, waitForSearch } from './helpers.ts';
+import { putEntries, storedEntry, storedMeta } from './storage.ts';
 import { expect, test } from './sync-server.ts';
+
+/** El resumen de las *fixtures* (Outer Wilds, con todos los logros). */
+const REVIEW = 'Se añadirán 4 juegos de tu biblioteca, como Comprados:';
 
 test.describe.configure({ mode: 'serial' });
 
@@ -157,16 +165,112 @@ test('en una pestaña: Steam en otra ventana y, al volver, el resumen sin tocar 
   await button(page, 'Importar desde Steam').click();
   await signInInPopup(page);
   await comeBack(page);
-  await expect(steamStatus(page)).toContainText(
-    'Hemos encontrado 4 juegos en tu biblioteca y 3 deseados.',
-  );
-  await expect(steamStatus(page)).toContainText('De momento no hemos cambiado nada de tu lista.');
+  await expect(steamStatus(page)).toContainText(REVIEW);
+  const counts = steamStatus(page).getByRole('listitem');
+  await expect(counts).toHaveText([
+    '2 a En pausa',
+    '1 a Quiero jugar',
+    '1 a Completado, con Platinado (tienen todos los logros)',
+  ]);
+  const wishlist = steamSection(page).getByRole('checkbox', {
+    name: 'Añadir también tu lista de deseados a Quiero jugar (3 juegos)',
+  });
+  await expect(wishlist).not.toBeChecked();
   await expectAccessible(page, 'Importar desde Steam, con el resumen');
-  // Vuelve a empezar desde cero, y la agenda sigue vacía: en esta parte no se aplica nada.
-  await button(page, 'Volver a empezar').click();
+  // «Cancelar»: vuelve a empezar desde cero, y la agenda sigue vacía.
+  expect(await storedEntry(page, 'steam:413150')).toBeNull();
+  await button(page, 'Cancelar').click();
   await expect(button(page, 'Importar desde Steam')).toBeVisible();
+  expect(await storedEntry(page, 'steam:413150')).toBeNull();
+  await checks.expectClean();
+});
+
+test('«Aplicar»: entran como Comprados (Outer Wilds, Platinado) y «Deshacer» lo quita todo', async ({
+  page,
+  context,
+}) => {
+  const steamId = newSteamId();
+  await actAsSteam(context, page, steamId);
+  const checks = await setup(page);
+  await openData(page);
+  await button(page, 'Importar desde Steam').click();
+  await signInInPopup(page);
+  await comeBack(page);
+  await expect(steamStatus(page)).toContainText(REVIEW);
+  await steamSection(page).getByRole('checkbox').check();
+  await expect(steamStatus(page)).toContainText(
+    'Y 3 deseados de tu lista de deseados, a Quiero jugar.',
+  );
+  await button(page, 'Aplicar').click();
+  await expect(steamStatus(page)).toContainText('Hecho: 7 juegos añadidos a tu lista.');
+  await expectAccessible(page, 'Importar desde Steam, aplicada');
+  await expect
+    .poll(() => storedEntry(page, 'steam:753640'))
+    .toMatchObject({
+      status: 'completed',
+      flags: { owned: true, platinum: true },
+      platinumAt: '2023-11-26',
+      title: 'Outer Wilds',
+    });
+  expect(await storedEntry(page, 'steam:220')).toMatchObject({
+    status: 'on_hold',
+    flags: { owned: true },
+  });
+  expect(await storedEntry(page, 'steam:1245620')).toMatchObject({ status: 'want_to_play' });
+  // A Mi lista sin recargar (el flujo vive en memoria, como en la app): Quiero jugar, a la vista;
+  // En pausa (Stardew Valley y Half-Life 2), plegada.
+  await page.getByRole('link', { name: 'Mi lista' }).first().click();
+  await expect(page.getByRole('region', { name: 'Quiero jugar (4)' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'En pausa (2)' })).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Quiero jugar: cambiar estado de Hades' }),
+  ).toBeVisible();
+  // Y de vuelta a Ajustes, con «Atrás».
+  await page.goBack();
+  await button(page, 'Deshacer').click();
+  await expect(steamStatus(page)).toContainText('Importación deshecha');
+  await expect
+    .poll(async () => ((await storedEntry(page, 'steam:753640')) as Entry).deletedAt)
+    .not.toBeNull();
+  await button(page, 'Listo').click();
+  await expect(button(page, 'Importar desde Steam')).toBeVisible();
+  await checks.expectClean();
+});
+
+test('lo que ya tenías: gana Comprado sin cambiar de estado', async ({ page, context }) => {
+  const steamId = newSteamId();
+  await actAsSteam(context, page, steamId);
+  const checks = await setup(page);
   await page.goto('/');
-  await expect(page.getByText('Stardew Valley')).toHaveCount(0);
+  await waitForSearch(page, 'full');
+  await expect.poll(() => storedMeta(page, 'searchIndexKey'), { timeout: 15_000 }).not.toBeNull();
+  const result = addEntry(
+    undefined,
+    { id: 'steam:1145360', title: 'Hades', status: 'dropped' },
+    {
+      hlc: formatHlc({ ms: Date.now() - 60_000, counter: 0, node: 'e2e00002' }),
+      today: new Date().toISOString().slice(0, 10),
+      newOpId: uuidv7,
+      lastRank: null,
+    },
+  );
+  if (!result) throw new Error('No se pudo apuntar Hades');
+  await putEntries(page, [result.entry]);
+  await page.reload();
+  await openData(page);
+  await button(page, 'Importar desde Steam').click();
+  await signInInPopup(page);
+  await comeBack(page);
+  await expect(steamStatus(page)).toContainText('Se añadirán 3 juegos de tu biblioteca');
+  await expect(steamStatus(page)).toContainText('Uno que ya tenías se marcará como Comprado.');
+  await button(page, 'Aplicar').click();
+  await expect(steamStatus(page)).toContainText(
+    'Hecho: 3 juegos añadidos a tu lista y 1 marcado como Comprado.',
+  );
+  expect(await storedEntry(page, 'steam:1145360')).toMatchObject({
+    status: 'dropped',
+    flags: { owned: true },
+  });
   await checks.expectClean();
 });
 
@@ -201,9 +305,7 @@ test('PWA de iOS: el login acaba en otro contexto y la app canjea el ticket al v
     await safari.close();
   }
   await comeBack(page);
-  await expect(steamStatus(page)).toContainText(
-    'Hemos encontrado 4 juegos en tu biblioteca y 3 deseados.',
-  );
+  await expect(steamStatus(page)).toContainText(REVIEW);
   await checks.expectClean();
 });
 
@@ -253,7 +355,7 @@ test('ticket caducado: lo dice y «Volver a empezar» da uno nuevo que vale', as
   expect(await ticketOf(page)).not.toBe(ticket);
   await signInInPopup(page);
   await comeBack(page);
-  await expect(steamStatus(page)).toContainText('Hemos encontrado 4 juegos');
+  await expect(steamStatus(page)).toContainText(REVIEW);
   await expectOnly(page, errors, /status of 410/);
 });
 
@@ -280,7 +382,7 @@ test('sin red al volver: lo dice, y «Reintentar» canjea el mismo ticket', asyn
     await page.request.post('/__e2e/steam/release');
   }
   await button(page, 'Reintentar').click();
-  await expect(steamStatus(page)).toContainText('Hemos encontrado 4 juegos');
+  await expect(steamStatus(page)).toContainText(REVIEW);
   await expectOnly(page, errors, /ERR_|Failed to load resource|Load failed|network/i);
 });
 

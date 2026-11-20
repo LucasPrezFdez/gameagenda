@@ -360,7 +360,7 @@ describe('parte 3: logros, resumen, aplicar y deshacer', () => {
       'review',
     ]);
 
-    await s.flow.setWishlist(true);
+    s.flow.setWishlist(true);
     expect(s.flow.getSnapshot()).toMatchObject({ kind: 'review', withWishlist: true });
     await s.flow.apply();
     expect(s.flow.getSnapshot()).toMatchObject({

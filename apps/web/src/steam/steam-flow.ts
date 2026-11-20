@@ -26,7 +26,7 @@
 // sincronización), sin `Referer` y sin caché.
 
 import { API_BASE, STEAM_ACHIEVEMENTS_BATCH } from '@gameagenda/core/api';
-import type { SteamImportCounts, SteamImportPlan } from '@gameagenda/core/entries';
+import { isLive, type SteamImportCounts, type SteamImportPlan } from '@gameagenda/core/entries';
 import type { ApplyOptions, SteamAgenda } from './steam-apply.ts';
 import type { SteamLibrary } from './steam-library.ts';
 
@@ -83,13 +83,13 @@ export interface SteamFlowDeps {
   readonly applyOptions?: ApplyOptions;
 }
 
-/** Lo traído, mientras dura el resumen. */
+/** Lo traído, mientras dura el resumen (con el *chunk* de la parte 3, ya cargado). */
 interface Fetched {
+  readonly mod: typeof import('./steam-apply.ts');
   readonly library: SteamLibrary;
   readonly platinum: ReadonlyMap<number, number | null>;
   readonly titles: ReadonlyMap<number, string>;
   readonly unknown: number;
-  plan: SteamImportPlan;
 }
 
 /** Una petición que no contesta en este tiempo cuenta como sin red (`redeem` espera a Steam). */
@@ -300,9 +300,12 @@ export class SteamImportFlow {
   }
 
   /** El *chunk* de la parte 3 (con `__STEAM_IMPORT__` a `false`, desaparece del *build*). */
-  private async applyModule(): Promise<typeof import('./steam-apply.ts')> {
-    if (!__STEAM_IMPORT__) throw new Error('steam_import_off');
-    return import('./steam-apply.ts');
+  private applyModule(): Promise<typeof import('./steam-apply.ts')> {
+    // Como expresión condicional, para que Rolldown la pliegue antes de armar los *chunks* (con un
+    // `if` con `throw`, el `import()` partía el JS inicial en seis ficheros: +4 KB).
+    return __STEAM_IMPORT__
+      ? import('./steam-apply.ts')
+      : Promise.reject(new Error('steam_import_off'));
   }
 
   /** Los logros, por lotes, y después el resumen. */
@@ -362,57 +365,49 @@ export class SteamImportFlow {
       // Sin catálogo: el nombre de Steam (el catálogo lo pondrá después; §7.3).
     }
     if (generation !== this.generation) return;
-    const fetched: Fetched = {
-      library,
-      platinum,
-      titles,
-      unknown,
-      plan: this.plan(mod, library, platinum, titles, false),
-    };
-    this.fetched = fetched;
-    this.showReview(mod, false);
+    this.fetched = { mod, library, platinum, titles, unknown };
+    this.showReview(false);
   }
 
-  private plan(
-    mod: typeof import('./steam-apply.ts'),
-    library: SteamLibrary,
-    platinum: ReadonlyMap<number, number | null>,
-    titles: ReadonlyMap<number, string>,
-    withWishlist: boolean,
-  ): SteamImportPlan {
+  private plan(fetched: Fetched, withWishlist: boolean): SteamImportPlan {
     const agenda = this.deps.agenda as SteamAgenda;
-    return mod.buildSteamPlan({
-      library,
-      platinum,
+    return fetched.mod.buildSteamPlan({
+      library: fetched.library,
+      platinum: fetched.platinum,
       withWishlist,
       nowMs: (this.deps.now ?? Date.now)(),
       dayOf: this.deps.dayOf ?? dayOfLocal,
       get: (id) => agenda.get(id),
-      titles,
+      titles: fetched.titles,
       fallbackTitle: this.deps.fallbackTitle ?? ((appid) => `Steam ${appid}`),
     });
   }
 
-  private showReview(mod: typeof import('./steam-apply.ts'), withWishlist: boolean): void {
+  /** Los deseados que se añadirían: ni de la biblioteca ni ya apuntados. */
+  private wishesFor(fetched: Fetched): number {
+    const agenda = this.deps.agenda as SteamAgenda;
+    const owned = new Set(fetched.library.owned.map((game) => game.appid));
+    return (fetched.library.wishlist ?? []).filter(
+      (wish) => !owned.has(wish.appid) && !isLive(agenda.get(`steam:${wish.appid}`)),
+    ).length;
+  }
+
+  private showReview(withWishlist: boolean): void {
     const fetched = this.fetched;
     if (fetched === null) return;
-    fetched.plan = this.plan(mod, fetched.library, fetched.platinum, fetched.titles, withWishlist);
-    const wishes = withWishlist
-      ? fetched.plan.counts.wishes
-      : this.plan(mod, fetched.library, fetched.platinum, fetched.titles, true).counts.wishes;
     this.set({
       kind: 'review',
-      plan: fetched.plan,
-      wishes,
+      plan: this.plan(fetched, withWishlist),
+      wishes: this.wishesFor(fetched),
       withWishlist,
       unknown: fetched.unknown,
     });
   }
 
-  /** La casilla de la lista de deseados del resumen. */
-  async setWishlist(withWishlist: boolean): Promise<void> {
+  /** La casilla de la lista de deseados del resumen (al momento: el *chunk* ya está cargado). */
+  setWishlist(withWishlist: boolean): void {
     if (this.state.kind !== 'review' || this.state.withWishlist === withWishlist) return;
-    this.showReview(await this.applyModule(), withWishlist);
+    this.showReview(withWishlist);
   }
 
   /** «Aplicar»: el plan del resumen, recalculado con la agenda de ahora, por lotes. */
@@ -421,10 +416,9 @@ export class SteamImportFlow {
     const agenda = this.deps.agenda;
     if (this.state.kind !== 'review' || fetched === null || agenda === undefined) return;
     const generation = this.generation;
-    const withWishlist = this.state.withWishlist;
-    const mod = await this.applyModule();
+    const { mod } = fetched;
     // Con la agenda de ahora: lo apuntado mientras se miraba el resumen no se pisa.
-    const plan = this.plan(mod, fetched.library, fetched.platinum, fetched.titles, withWishlist);
+    const plan = this.plan(fetched, this.state.withWishlist);
     this.set({ kind: 'applying', done: 0, total: plan.items.length });
     let outcome: Awaited<ReturnType<typeof mod.applySteamPlan>>;
     try {

@@ -12,6 +12,8 @@ function plural(count: number, one: string, many: string): string {
 
 export const steamTexts = {
   title: 'Importar desde Steam',
+  /** Lo que no está en el catálogo ni trae nombre de Steam (como `es.palette.steamGame`). */
+  steamGame: (appid: number) => `Juego de Steam ${appid}`,
   intro:
     'Trae los juegos de tu biblioteca de Steam y los apunta como Comprados, con Platinado si tienen todos los logros. Antes de cambiar nada, te enseña un resumen. Inicias sesión en Steam, no aquí: GameAgenda no ve tu contraseña.',
   start: 'Importar desde Steam',
@@ -71,7 +73,7 @@ export const steamTexts = {
     const parts = [];
     if (added > 0) parts.push(`${plural(added, 'juego añadido', 'juegos añadidos')} a tu lista`);
     if (counts.markedOwned > 0) {
-      parts.push(`${plural(counts.markedOwned, 'marcado', 'marcados')} como Comprados`);
+      parts.push(plural(counts.markedOwned, 'marcado como Comprado', 'marcados como Comprados'));
     }
     return parts.length === 0
       ? 'Hecho: tu lista ya estaba al día.'
