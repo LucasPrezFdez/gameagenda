@@ -169,7 +169,7 @@ Con `wrangler dev` en `http://127.0.0.1:8787` (D1 local, `STEAM_ENABLED` a "1", 
 
 ## Parte 3: los logros, el resumen y aplicar (20-11-2026)
 
-En la rama `steam-parte-3`; el detalle, en DECISIONES §10.50.
+En producción y encendida desde el 20-11-2026 (`deploy-web` 44783715656); el detalle, en DECISIONES §10.50.
 
 - **Qué hace:** tras traer la biblioteca, la app pregunta por los logros de los juegos jugados con estadísticas y enseña un resumen sin tocar la agenda. Con «Aplicar», todos los juegos de la biblioteca entran como Comprado (y Platinado si tienen todos los logros, con el día del último), los nuevos según lo jugado (Sin empezar, un estado nuevo, para los que no se han jugado: la importación no decide qué quieres jugar; Jugando o En pausa), y los que ya estaban solo ganan las marcas. La lista de deseados, si se marca la casilla, a Quiero jugar. Un solo «Deshacer».
 - **La API de logros:** `ISteamUserStats/GetPlayerAchievements/v1`, con la clave en `x-webapi-key`, un juego por llamada. Con clave no hay otra (paso 0, con la cuenta del usuario): `IPlayerService/GetAchievementsProgress` pide la sesión del usuario (401) y `GetTopAchievementsForGames` no dice cuántos se tienen.

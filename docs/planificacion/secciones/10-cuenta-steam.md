@@ -3,7 +3,7 @@
 **Fase 2.** La cuenta de Steam es una ayuda opcional para importar, nunca un requisito: apuntar funciona sin cuenta y sin red. Reglas fijas:
 
 - **Ninguna llamada a Steam por usuario, con clave o sin ella, antes de un login OpenID verificado.** El prototipo (M0–M4) no hace ninguna.
-- **Estado (20-11-2026):** la parte 1 (Mi lista con miles de juegos) está en producción; la parte 2 (iniciar sesión y traer la biblioteca y los deseados), en `main` y desplegada desde el 20-11-2026, con `STEAM_ENABLED` a `"0"` en producción (ADR-012; DECISIONES §10.49); y la parte 3 (los logros, el resumen y aplicar, con Deshacer), hecha el 20-11-2026 en la rama `steam-parte-3` (ADR-012, «Parte 3»; DECISIONES §10.50). La 4 queda para lo que falte de los logros (repasarlos más tarde, los conjuntos de logros).
+- **Estado (20-11-2026):** la parte 1 (Mi lista con miles de juegos) está en producción; la parte 2 (iniciar sesión y traer la biblioteca y los deseados), en `main` y desplegada desde el 20-11-2026, con `STEAM_ENABLED` a `"0"` en producción (ADR-012; DECISIONES §10.49); y la parte 3 (los logros, el resumen y aplicar, con Deshacer), en producción y encendida desde el 20-11-2026 (`STEAM_ENABLED` a `"1"`; ADR-012, «Parte 3»; DECISIONES §10.50). La 4 queda para lo que falte de los logros (repasarlos más tarde, los conjuntos de logros).
 - La importación solo **propone**: el usuario revisa y aplica, con Deshacer.
 - Las respuestas de Steam no se guardan en D1.
 
