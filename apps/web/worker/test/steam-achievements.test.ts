@@ -162,8 +162,11 @@ describe('el pase', () => {
     const h = createHarness();
     const pc = h.client();
     const token = await imported(h, pc);
+    // Se cambia el bit alto del carácter: en el último, los 2 bits bajos son relleno y el
+    // decodificador los ignora (con «B» → «A», el pase seguía valiendo 1 vez de cada 16).
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
     for (const index of [0, 5, 16, 40, token.length - 1]) {
-      const c = token[index] === 'A' ? 'B' : 'A';
+      const c = alphabet[alphabet.indexOf(token[index] ?? 'A') ^ 0b10_0000];
       await rejected(h, pc, token.slice(0, index) + c + token.slice(index + 1));
     }
   });
