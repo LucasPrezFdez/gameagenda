@@ -248,6 +248,16 @@ CREATE TABLE inbox_item (id TEXT PRIMARY KEY, url TEXT NOT NULL,  -- buzón
 CREATE TABLE resolve_cache (appid INTEGER PRIMARY KEY,  -- datos públicos
   name TEXT NOT NULL,                   -- '': Steam no lo conoce (1 día)
   fetched_at TEXT NOT NULL) STRICT;
+-- Llaves de acceso (ADR-013; migración 0004).
+ALTER TABLE agenda ADD COLUMN passkey_user_id TEXT;  -- user.id: 32 bytes aleatorios
+CREATE TABLE passkey (id TEXT PRIMARY KEY,  -- el de la credencial
+  agenda_id TEXT NOT NULL REFERENCES agenda (id) ON DELETE CASCADE,
+  public_key TEXT NOT NULL,  -- SPKI: la app la da con getPublicKey(), sin CBOR
+  alg INTEGER NOT NULL, sign_count INTEGER NOT NULL DEFAULT 0, transports TEXT NOT NULL,
+  label TEXT NOT NULL, created_at TEXT NOT NULL, last_used_at TEXT) STRICT;
+CREATE TABLE webauthn_challenge (challenge_hash TEXT PRIMARY KEY,  -- un uso, 5 min
+  agenda_id TEXT REFERENCES agenda (id) ON DELETE CASCADE,  -- NULL en los de entrar
+  kind TEXT NOT NULL CHECK (kind IN ('create', 'get')), expires_at TEXT NOT NULL) STRICT;
 ```
 
 **Sincronización** (`POST /api/v1/sync`, flujo en la §5; ADR-011): lotes de hasta 200 operaciones (`SYNC_BATCH_SIZE`), sin partir acciones. El servidor decide el LWW con la misma `applyOps()` de `core` que la app, no en SQL: lee en una transacción la `seq` de la agenda y las filas de las entradas tocadas, reconstruye cada entrada, le aplica el lote (con las derivadas y los reenvíos) y escribe las filas que cambian. En SQL, el desempate por valor compararía UTF-8, y en JavaScript se compara UTF-16. La escritura reserva *n* secuencias con concurrencia optimista ([JSON](https://developers.cloudflare.com/d1/sql-api/query-json/)):

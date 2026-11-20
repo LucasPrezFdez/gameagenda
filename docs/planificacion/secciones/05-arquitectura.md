@@ -74,6 +74,9 @@ Las flechas discontinuas llegan en M4; la Fase 2 no aparece. El navegador solo h
 | `POST /api/v1/pairing/redeem` | Lo canjea desde la app nueva y pone la cookie | *Token* en el cuerpo | Por IP (`RL_REDEEM`, 10/min) |
 | `POST /api/v1/recovery/redeem` | Canjea el código de recuperación y pone la cookie; el código sigue valiendo | Código en el cuerpo | Por IP (`RL_REDEEM`) |
 | `POST /api/v1/recovery` | Crea otro código de recuperación y anula el anterior (ADR-011) | Cookie | — |
+| `POST /api/v1/passkeys/options` · `POST /api/v1/passkeys` | Llaves de acceso (ADR-013): las opciones y el reto para crear una, y guardarla tras comprobarla (como mucho 10 por agenda) | Cookie | — |
+| `GET /api/v1/passkeys` · `POST /api/v1/passkeys/<id>/remove` | Lista y quita las llaves de la agenda | Cookie | — |
+| `POST /api/v1/passkeys/challenge` · `POST /api/v1/passkeys/redeem` | Un reto para entrar con una llave, y entrar: comprueba la firma, da de alta el dispositivo y pone la cookie, como el código de recuperación. Cualquier fallo da `invalid_passkey` | La firma de la llave | Por IP (`RL_REDEEM`) |
 | `GET /api/v1/devices` · `POST /api/v1/devices/<id>/revoke` | Lista y revoca dispositivos, incluido el *token* del buzón; revocar borra la fila | Cookie | — |
 | `POST /api/v1/inbox/token` | Crea un *token* del buzón para el Atajo de iOS (un `device` de tipo `inbox`; se muestra una vez). Puede haber varios | Cookie | — |
 | `POST /api/v1/inbox` | Deja en el buzón un enlace de Steam, o un texto de ≤2 KiB que lo lleve; guarda solo el enlace canónico de la tienda y no repite un juego que ya espera (ver §11.4) | `Authorization: Bearer` | Por *token* (`RL_INBOX`, 30/min) |

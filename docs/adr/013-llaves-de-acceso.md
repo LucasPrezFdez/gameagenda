@@ -1,6 +1,6 @@
 # ADR-013 · Llaves de acceso: otra forma de abrir la agenda sincronizada, sin email ni contraseña
 
-- **Estado:** propuesta
+- **Estado:** propuesta. Construida el 20-11-2026 en la rama `llaves-acceso` (abajo, «Construida»). Pendiente de la prueba del usuario en sus dispositivos.
 - **Fecha:** 20-11-2026 (después de M4, a petición del usuario)
 - **Deciden:** el usuario y el asistente
 
@@ -230,6 +230,24 @@ Solo añade, así que vale con el código de antes:
   - el iPhone, con Face ID e iCloud;
   - Windows Hello, en Edge y en la app de escritorio;
   - del móvil al PC con el QR.
+
+## Construida (20-11-2026)
+
+El usuario dio el visto bueno a la propuesta («si»). Se hizo como arriba, con estos detalles:
+
+- **Servidor:** `worker/webauthn.ts` (la verificación), `worker/routes/passkeys.ts` (las seis rutas) y la migración `0004_llaves.sql`. El reto de crear se busca y se gasta con el que dice `clientDataJSON`, y solo si es de la agenda del dispositivo. Una llave que ya estaba no se pisa (`ON CONFLICT DO NOTHING`), y su nombre es el del dispositivo que la crea, leído de D1.
+- **App:**
+  - `src/sync/passkeys.ts`, en el *chunk* diferido del motor, con `navigator.credentials`;
+  - los métodos nuevos de la fachada y del *runtime*;
+  - la pantalla, en `SyncPanel.tsx`: `PasskeyJoin`, `PasskeyOffer` y `PasskeysSection`.
+- **Errores del navegador:**
+  - `NotAllowedError` (cerrar el diálogo) es `passkey_cancelled`, y la pantalla no dice nada;
+  - `InvalidStateError` al crear es `passkey_exists`;
+  - lo demás, `passkey_failed`.
+- **Señales:** al quitar una llave y al borrar la agenda, sí se avisa al llavero. Al entrar con una llave que ya no vale, no: el servidor responde lo mismo que con un reto caducado, y se borraría del llavero una llave buena.
+- **La vista previa de los E2E sirve la `Permissions-Policy` de `_headers`** (`vite.config.ts`). Con la cabecera antigua, el E2E falla al entrar con la llave (comprobado).
+- **E2E por `localhost`:** la vista previa escucha en `127.0.0.1`, y una IP no vale como `rp.id`.
+- **Comprobado:** `check` en verde (1 511 pruebas; JS inicial de 144,0 KB, antes 143,3, por los textos), y los dos E2E de Chromium, 6 de 6 al repetirlos. El detalle, en DECISIONES §10.52.
 
 ## Pros y contras de las opciones
 

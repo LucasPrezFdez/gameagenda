@@ -694,3 +694,31 @@ Resueltos a partir de las mediciones y de los conflictos detectados entre seccio
       - con 8 columnas, cada portada mide unos 170 px, como en la biblioteca de Steam.
       Si el usuario lo quiere, el cambio es pequeño: `MAX_COLUMNS` en `CatalogScreen.tsx` y un `max-width` propio para la vista en cuadrícula.
     - **Despliegue (20-11-2026):** `main` avanzó hasta la rama (`0c3fa7f`). `ci` 44810799091 y `deploy-web` 44811564946, en verde; `smoke:web`, «Todo en orden»; y las 108 medidas, repetidas en producción, iguales a las del *build* de la rama.
+52. **Llaves de acceso (20-11-2026, en la rama `llaves-acceso`; pedidas por el usuario; ADR-013, propuesta).** El usuario preguntó por crear una cuenta para guardar la información; lo que le preocupa es perder los datos. El asistente desaconsejó el email con contraseña: un *hash* lento no cabe en los 10 ms de CPU del plan gratuito, hay que enviar correos, el email es un dato personal y §2 deja fuera las cuentas. Propuso llaves de acceso, y el usuario dijo «prepara lo de las llaves de acceso» y, con la propuesta delante, «si».
+    - **Qué hacen:** lo mismo que el código de recuperación. Abren la agenda en un dispositivo nuevo con la cara, la huella o el PIN, y la llave sigue en el llavero de iCloud, Google o Windows aunque se pierda el dispositivo. El código se sigue enseñando al activar: una llave de iCloud no pasa sola a Windows.
+    - **Dónde:**
+      - al activar, tras el código de recuperación, «Crear una llave de acceso»;
+      - en la vista sincronizada, la sección «Llaves de acceso», con la lista, «Crear» y «Quitar» con la confirmación en el sitio;
+      - sin sincronizar o desemparejado, «Entrar con una llave de acceso».
+    - **Servidor:**
+      - seis rutas en `/api/v1/passkeys` (§5.2) y la migración `0004` (§7.7), que solo añade;
+      - verificación propia con `crypto.subtle` (`worker/webauthn.ts`, Ed25519, ES256 y RS256), sin librería: una traería CBOR, ASN.1 y atestaciones que no se usan, y alargaría el arranque en frío de todas las rutas;
+      - la app manda la clave en SPKI (`getPublicKey()`), y el servidor comprueba el id dentro de `authenticatorData`;
+      - retos de un uso y 5 min, con solo su SHA-256 en D1, purgados por el *cron* de 5 min;
+      - como mucho 10 llaves por agenda, `RL_REDEEM` al entrar, `invalid_passkey` para todo fallo y el interruptor `PASSKEYS_ENABLED`;
+      - el contador de firmas solo rechaza si el guardado y el nuevo son mayores que 0 y el nuevo no sube, porque las llaves sincronizadas mandan 0.
+    - **La cabecera que las bloqueaba:** la `Permissions-Policy` de producción llevaba `publickey-credentials-get=()`. Ahora lleva `(self)` para `get` y `create`. Lo comprueba `scripts/web-headers.test.ts`, y la vista previa de los E2E sirve la cabecera de `_headers`: el E2E falla con la antigua (comprobado).
+    - **Al quitar una llave o borrar la agenda,** la app avisa al llavero con la API de señales (`signalUnknownCredential` y `signalAllAcceptedCredentials`), donde exista. Al entrar con una llave que ya no vale no se avisa: el servidor no distingue ese caso de un reto caducado, y borraría del llavero una llave buena.
+    - **Textos legales, versión 4:** la sección «Llaves de acceso», una línea en el resumen y dos filas de plazos. El registro de actividades suma la actividad 7. `legal-guard` exige la sección con `PASSKEYS_ENABLED` a "1".
+    - **Paso 0 (comprobado):** la app de escritorio (WebView2, Edge 157) admite llaves, el QR del móvil, los orígenes relacionados y las señales. Con el autenticador virtual de Chromium, las tres firmas se verifican en Node en menos de 1 ms.
+    - **Pruebas:**
+      - `passkeys.test.ts`: 21 pruebas de las rutas y de cada rechazo. Tres mutantes (sin firma, sin UV y sin origen) se detectan;
+      - `sync-client-passkeys.test.ts`: el motor de la app contra la micro-API, con un llavero falso;
+      - el modelo, con los textos y cuándo salen los botones;
+      - `e2e/passkeys.spec.ts`: dos pruebas en Chromium con su autenticador virtual, por `localhost`, porque una IP no vale como `rp.id`. WebKit no tiene autenticador virtual;
+      - `check` en verde: 1 511 pruebas y JS inicial de 144,0 KB (antes, 143,3);
+      - los E2E de sincronización, Ajustes, textos legales, WCAG y llaves, en Chromium y WebKit: 54 en verde (las 6 omitidas no son de WebKit);
+      - de paso, `steam-achievements.test.ts` («cambiado en cualquier carácter») fallaba 1 vez de cada 16: cambiaba el último carácter del pase en base64url por uno que solo difiere en los 2 bits de relleno. Ahora cambia el bit alto.
+    - **Queda:**
+      - la prueba del usuario en sus dispositivos: Face ID con iCloud en el iPhone, también en la app de la pantalla de inicio; Windows Hello en Edge y en la app de escritorio; y del móvil al PC con el QR;
+      - pasarla a `main` y desplegar, con su visto bueno.
