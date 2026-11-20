@@ -15,7 +15,7 @@
 
 .catalog__filter .field {
   color: var(--text);
-  font-size: 1rem;
+  font-size: var(--text-input);
 }
 
 .catalog-skeleton {

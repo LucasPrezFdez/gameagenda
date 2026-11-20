@@ -69,6 +69,13 @@
   --text-lg: 1.0625rem;
   --text-xl: 1.25rem;
   --text-2xl: 1.75rem;
+  /* El título de cada pantalla (`h1`), el único texto fluido (revisión responsive, 20-11-2026,
+     elegido por el usuario): 24 px en un móvil de 320, unos 28 hacia 1 280 y 32 desde unos
+     2 000 px. El resto de la letra no crece con la ventana: ya la agrandan la escala de Windows y
+     el zoom del navegador. */
+  --text-display: clamp(1.5rem, 1.25rem + 0.6vw, 2rem);
+  /* Los campos de texto con el dedo: con menos de 16 px, iOS amplía la página al enfocarlos. */
+  --text-input: 1rem;
   /* Tres radios: pequeño (portadas, teclas, elementos de menú), controles y filas, y grupos y
      superficies flotantes. */
   --radius-sm: 6px;

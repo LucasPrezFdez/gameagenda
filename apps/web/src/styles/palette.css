@@ -38,7 +38,7 @@
   border: 0;
   background: transparent;
   /* ≥16 px: iOS no amplía la página al enfocar (ver §9.2). */
-  font-size: 1rem;
+  font-size: var(--text-input);
 }
 
 .palette__input:focus {
@@ -260,7 +260,7 @@
   border: 1px solid var(--control-border);
   border-radius: 4px;
   color: var(--text);
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
 }
 
 /* Alta manual */
@@ -279,7 +279,7 @@
 
 .field-error {
   color: var(--danger);
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
 }
 
 @media (min-width: 768px) {

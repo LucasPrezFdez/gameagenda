@@ -582,7 +582,7 @@
 
 .sheet__field .choice__label {
   color: var(--text-muted);
-  font-size: 0.8125rem;
+  font-size: var(--text-sm);
   font-weight: 600;
 }
 
@@ -926,7 +926,7 @@
 }
 
 .shortcut-help__header h2 {
-  font-size: 1.125rem;
+  font-size: var(--text-lg);
 }
 
 .shortcut-help__body {

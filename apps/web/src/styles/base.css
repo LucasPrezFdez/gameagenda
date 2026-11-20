@@ -35,7 +35,7 @@ p {
 }
 
 h1 {
-  font-size: var(--text-2xl);
+  font-size: var(--text-display);
   font-weight: 600;
   line-height: 1.2;
   letter-spacing: -0.015em;
@@ -58,6 +58,12 @@ ol {
 
 a {
   color: inherit;
+}
+
+/* Ninguna imagen sale de su caja ni pierde la proporción (las portadas fijan su propio tamaño). */
+img {
+  max-width: 100%;
+  height: auto;
 }
 
 button,
@@ -260,13 +266,21 @@ textarea {
   opacity: 1;
 }
 
+/* Con el dedo, los campos a 16 px: con 15, iOS ampliaba la página al tocar «Filtrar lista…», la
+   nota de la ficha o sus fechas (revisión responsive del 20-11-2026). */
+@media (max-width: 767px), (pointer: coarse) {
+  .field {
+    font-size: var(--text-input);
+  }
+}
+
 .muted {
   color: var(--text-muted);
 }
 
 kbd {
   font: inherit;
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   padding: 1px 6px;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);

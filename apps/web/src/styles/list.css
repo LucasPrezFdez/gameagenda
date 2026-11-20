@@ -40,7 +40,7 @@
   gap: 4px;
   padding: 1px 8px;
   border-radius: 999px;
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
 }
 
 .chip .icon {
@@ -442,7 +442,7 @@
   border: 0;
   border-radius: var(--radius-sm);
   background: var(--surface-2);
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   font-weight: 600;
   cursor: pointer;
 }
@@ -528,7 +528,7 @@
 
 .cover--sheet {
   width: 120px;
-  font-size: 1.75rem;
+  font-size: var(--text-2xl);
 }
 
 /* La imagen ocupa el hueco de la generada, que se ve mientras carga o si falla (§9.5). */

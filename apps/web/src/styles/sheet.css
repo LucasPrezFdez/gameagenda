@@ -91,6 +91,8 @@
 }
 
 .sheet__heading h1 {
+  /* La ficha tiene ancho fijo: su título no pasa de 28 px aunque la ventana sea ancha. */
+  font-size: min(var(--text-display), var(--text-2xl));
   overflow-wrap: anywhere;
 }
 
@@ -111,7 +113,7 @@
   flex-direction: column;
   gap: 4px;
   min-height: calc(3 * 1.45em + 8px);
-  font-size: 0.9375rem;
+  font-size: var(--text-md);
 }
 
 .sheet__details .skeleton--line {
@@ -124,7 +126,7 @@
   border: 1px solid var(--line);
   border-radius: 999px;
   color: var(--text);
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
 }
 
 .sheet__editor {
@@ -143,7 +145,7 @@
 
 .sheet__label {
   color: var(--text-muted);
-  font-size: 0.8125rem;
+  font-size: var(--text-sm);
   font-weight: 600;
 }
 
@@ -188,7 +190,7 @@
 }
 
 .date-field label {
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
 }
 
 .sheet__capture-actions,
