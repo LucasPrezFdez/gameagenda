@@ -184,6 +184,7 @@ function world(id: string): World {
       RL_INBOX: unlimited,
       RL_RESOLVE: unlimited,
       RL_STEAM: unlimited,
+      RL_STEAM_ACH: unlimited,
       SYNC_ENABLED: '1',
       MIN_AGE: String(DEFAULT_MIN_AGE),
       STEAM_ENABLED: '1',

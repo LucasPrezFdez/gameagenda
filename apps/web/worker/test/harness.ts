@@ -8,6 +8,7 @@ import type { Env, RateLimit, SteamFetch } from '../env.ts';
 import { STEAM_OPENID } from '../steam-openid.ts';
 import { SqliteD1 } from './d1-sqlite.ts';
 import {
+  ACHIEVEMENTS_API_PREFIX,
   FakeSteamOpenId,
   FakeSteamWebApi,
   OWNED_API_PREFIX,
@@ -40,6 +41,8 @@ export interface ApiResponse {
   status: number;
   // biome-ignore lint/suspicious/noExplicitAny: las pruebas miran el JSON tal cual llega.
   json: any;
+  /** El cuerpo tal cual (p. ej., para ver el orden de las claves). */
+  text: string;
   headers: Headers;
   setCookies: string[];
 }
@@ -104,7 +107,7 @@ export class Client {
     } catch {
       json = text;
     }
-    return { status: response.status, json, headers: response.headers, setCookies };
+    return { status: response.status, json, text, headers: response.headers, setCookies };
   }
 
   post(path: string, body?: unknown, options: Omit<CallOptions, 'body'> = {}) {
@@ -136,7 +139,11 @@ export class FakeSteam {
     if (url === STEAM_OPENID && init.method === 'POST') {
       return this.openid.check(new URLSearchParams(String(init.body)));
     }
-    if (url.startsWith(OWNED_API_PREFIX) || url.startsWith(WISHLIST_API_PREFIX)) {
+    if (
+      url.startsWith(OWNED_API_PREFIX) ||
+      url.startsWith(WISHLIST_API_PREFIX) ||
+      url.startsWith(ACHIEVEMENTS_API_PREFIX)
+    ) {
       return this.webapi.fetch(url, init);
     }
     if (!url.startsWith('https://api.steampowered.com/IStoreBrowseService/GetItems/v1/?')) {
@@ -189,6 +196,7 @@ export interface Harness {
     inbox: CountingLimit;
     resolve: CountingLimit;
     steam: CountingLimit;
+    steamAch: CountingLimit;
   };
   steam: FakeSteam;
   client(ip?: string): Client;
@@ -212,6 +220,7 @@ export function createHarness(overrides: Partial<Env> = {}, options: HarnessOpti
     inbox: new CountingLimit(),
     resolve: new CountingLimit(),
     steam: new CountingLimit(),
+    steamAch: new CountingLimit(),
   };
   const steam = new FakeSteam();
   const env: Env = {
@@ -222,6 +231,7 @@ export function createHarness(overrides: Partial<Env> = {}, options: HarnessOpti
     RL_INBOX: limits.inbox,
     RL_RESOLVE: limits.resolve,
     RL_STEAM: limits.steam,
+    RL_STEAM_ACH: limits.steamAch,
     SYNC_ENABLED: '1',
     MIN_AGE: String(DEFAULT_MIN_AGE),
     STEAM_ENABLED: '1',

@@ -53,6 +53,8 @@ export interface Env {
   RL_RESOLVE: RateLimit;
   /** Importar desde Steam (`start` y `redeem`), por IP (ADR-012). */
   RL_STEAM: RateLimit;
+  /** Los lotes de logros de la importación (`achievements`), por IP. */
+  RL_STEAM_ACH: RateLimit;
   /** `'1'` activa la micro-API; con otro valor responde 503 (CA4.7: no antes de los textos legales). */
   SYNC_ENABLED: string;
   /** Edad mínima que se declara al activar la sincronización (14; R-10). */
@@ -64,7 +66,8 @@ export interface Env {
   STEAM_ENABLED: string;
   /**
    * Clave de la Steam Web API (secreto del Worker, `wrangler secret put`; en local, `.dev.vars`).
-   * Solo la usa `redeem`, en `x-webapi-key`. Nunca va en la URL, los registros ni el cliente.
+   * La usan `redeem` y `achievements`, en `x-webapi-key`, y de ella sale la clave del pase de la
+   * importación (`steam-token.ts`). Nunca va en la URL, los registros ni el cliente.
    */
   STEAM_WEB_API_KEY?: string;
 }

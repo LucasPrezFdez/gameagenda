@@ -25,6 +25,8 @@ export interface SteamOwnedGame {
   readonly minutes: number;
   /** Última partida, en ms UTC; `null` si nunca. */
   readonly lastPlayedAt: number | null;
+  /** Tiene estadísticas en Steam (`has_community_visible_stats`): solo esos pueden tener logros. */
+  readonly stats: boolean;
 }
 
 export interface SteamWish {
@@ -36,6 +38,11 @@ export interface SteamWish {
 }
 
 export interface SteamLibrary {
+  /**
+   * El pase de los logros (`POST /steam/achievements`, 15 min; parte 3). Es un secreto: solo vive
+   * en memoria, en el flujo de la importación.
+   */
+  readonly token: string;
   /** `private`: «Detalles de juegos» no es público, y Steam no da la biblioteca. */
   readonly visibility: 'public' | 'private';
   readonly owned: readonly SteamOwnedGame[];
@@ -80,7 +87,7 @@ export async function readSteamImport(text: string): Promise<SteamLibrary | null
   }
   const parsed = steamImportResponseSchema.safeParse(json);
   if (!parsed.success) return null;
-  const { owned: ownedBody, wishlist: wishBody } = parsed.data;
+  const { token, owned: ownedBody, wishlist: wishBody } = parsed.data;
   const games = ownedBody.response.games;
   const visibility =
     games === undefined && ownedBody.response.game_count === undefined ? 'private' : 'public';
@@ -103,6 +110,7 @@ export async function readSteamImport(text: string): Promise<SteamLibrary | null
       name: cleanSteamName(game.data.name),
       minutes: game.data.playtime_forever ?? 0,
       lastPlayedAt: unixToMs(game.data.rtime_last_played),
+      stats: game.data.has_community_visible_stats === true,
     });
   }
 
@@ -124,5 +132,5 @@ export async function readSteamImport(text: string): Promise<SteamLibrary | null
       });
     }
   }
-  return { visibility, owned, wishlist, skipped };
+  return { token, visibility, owned, wishlist, skipped };
 }

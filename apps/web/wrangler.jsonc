@@ -38,7 +38,10 @@
     { "name": "RL_INBOX", "namespace_id": "1103", "simple": { "limit": 30, "period": 60 } },
     { "name": "RL_RESOLVE", "namespace_id": "1104", "simple": { "limit": 30, "period": 60 } },
     // Importar desde Steam (`start` y `redeem`), por IP (ADR-012).
-    { "name": "RL_STEAM", "namespace_id": "1105", "simple": { "limit": 10, "period": 60 } }
+    { "name": "RL_STEAM", "namespace_id": "1105", "simple": { "limit": 10, "period": 60 } },
+    // Los lotes de logros de la importación (40 juegos cada uno), por IP: con 60 por minuto, una
+    // biblioteca de 2 400 juegos jugados se comprueba en un minuto.
+    { "name": "RL_STEAM_ACH", "namespace_id": "1106", "simple": { "limit": 60, "period": 60 } }
   ],
   // Mantenimiento de D1 (`worker/maintenance.ts`): a diario, y la purga de lápidas los lunes.
   // A las 03:17 UTC, lejos del catálogo (04:17). Y cada 5 min, solo los tickets de Steam caducados

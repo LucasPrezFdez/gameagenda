@@ -1,6 +1,6 @@
 // Contrato entre la interfaz y la agenda (ver §3.3 y §7.2). Lo cumple `createAgenda()`: aplica en
 // memoria las acciones de `@gameagenda/core/entries` y las guarda después en Dexie.
-import type { Entry } from '@gameagenda/core/entries';
+import type { ActionContext, Entry, UndoStep } from '@gameagenda/core/entries';
 import type { Op } from '@gameagenda/core/sync';
 
 export const STATUSES = ['want_to_play', 'playing', 'on_hold', 'completed', 'dropped'] as const;
@@ -158,7 +158,27 @@ export interface AgendaData {
   backup(copy: unknown): Promise<void>;
   /** Aplica un resultado ya fusionado con `get` y espera a que esté guardado. */
   applyImport(result: ImportedChanges): Promise<void>;
+  /**
+   * Una acción de core sobre muchas entradas (importar de Steam, por lotes): la ejecuta con una HLC
+   * posterior a todas las de `ids`, la aplica en memoria y espera a que esté guardada. `null` si
+   * no cambia nada. Si no se puede guardar, lanza el error.
+   */
+  applyBatch(ids: readonly string[], action: BatchAction): Promise<BatchResult | null>;
+  /** El Deshacer de un paso (p. ej., los de todos los lotes de una importación juntos). */
+  undoer(step: UndoStep): () => void;
 }
+
+/** Lo que devuelve una acción de `applyBatch`. */
+export interface BatchResult {
+  readonly entries: readonly Entry[];
+  readonly ops: readonly Op[];
+  readonly undo: UndoStep;
+}
+
+export type BatchAction = (
+  ctx: ActionContext,
+  get: (id: string) => Entry | undefined,
+) => BatchResult | null;
 
 export interface ImportContext {
   readonly nowMs: number;

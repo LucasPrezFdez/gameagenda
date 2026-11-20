@@ -129,6 +129,19 @@ export const OWNED_PRIVATE_FIXTURE = webapiFixture('get-owned-games-private.json
 export const OWNED_EMPTY_FIXTURE = webapiFixture('get-owned-games-empty.json');
 export const WISHLIST_FIXTURE = webapiFixture('get-wishlist.json');
 export const WISHLIST_PRIVATE_FIXTURE = webapiFixture('get-wishlist-private.json');
+/** `GetPlayerAchievements` (parte 3): con todos, con alguno, sin logros, sin estadísticas y privado. */
+export const ACHIEVEMENTS_FIXTURES = {
+  complete: { status: 200, body: webapiFixture('get-player-achievements-complete.json') },
+  incomplete: { status: 200, body: webapiFixture('get-player-achievements-incomplete.json') },
+  noAchievements: {
+    status: 200,
+    body: webapiFixture('get-player-achievements-no-achievements.json'),
+  },
+  noStats: { status: 400, body: webapiFixture('get-player-achievements-no-stats.json') },
+  private: { status: 403, body: webapiFixture('get-player-achievements-private.json') },
+} as const;
+/** La fecha del último logro de `get-player-achievements-complete.json`. */
+export const COMPLETE_AT = 1701000000;
 
 /** El tope de `redeem` en las pruebas (en producción, `STEAM_IMPORT_MAX_BYTES`, 16 MiB). */
 export const TEST_IMPORT_MAX_BYTES = 1024 * 1024;
@@ -137,6 +150,8 @@ export const TEST_IMPORT_MAX_BYTES = 1024 * 1024;
 export const TEST_STEAM_KEY = '0123456789ABCDEF0123456789ABCDEF';
 export const OWNED_API_PREFIX = 'https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?';
 export const WISHLIST_API_PREFIX = 'https://api.steampowered.com/IWishlistService/GetWishlist/v1/?';
+export const ACHIEVEMENTS_API_PREFIX =
+  'https://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v1/?';
 
 export type WebApiFail =
   | 'network'
@@ -180,17 +195,33 @@ function endless(bytes: number): ReadableStream<Uint8Array> {
 
 const JSON_HEADERS = { 'Content-Type': 'application/json; charset=utf-8' };
 
-/** La Web API de Steam falsa: `GetOwnedGames` y `GetWishlist`, con lo que digan sus campos. */
+export interface AchievementsReply {
+  readonly status: number;
+  readonly body: string;
+}
+
+/**
+ * La Web API de Steam falsa: `GetOwnedGames`, `GetWishlist` y `GetPlayerAchievements`, con lo que
+ * digan sus campos.
+ */
 export class FakeSteamWebApi {
   owned = OWNED_FIXTURE;
   wishlist = WISHLIST_FIXTURE;
   ownedFail: WebApiFail | null = null;
   wishlistFail: WebApiFail | null = null;
+  /** Los logros de cada `appid` (para el `steamid` que sea); sin entrada, «sin estadísticas». */
+  readonly achievements = new Map<number, AchievementsReply>();
+  /** Los `appid` que fallan como `fail`. */
+  readonly achievementsFail = new Map<number, WebApiFail>();
+  /** Llamadas a `GetPlayerAchievements` en curso, y el máximo a la vez. */
+  inFlight = 0;
+  maxInFlight = 0;
   /** Cada petición, con sus cabeceras (para ver por dónde va la clave). */
   readonly requests: { url: string; headers: Headers }[] = [];
 
   async fetch(url: string, init: RequestInit): Promise<Response> {
     this.requests.push({ url, headers: new Headers(init.headers) });
+    if (url.startsWith(ACHIEVEMENTS_API_PREFIX)) return this.playerAchievements(url);
     const owned = url.startsWith(OWNED_API_PREFIX);
     const fail = owned ? this.ownedFail : this.wishlistFail;
     if (fail === 'network') throw new TypeError('fetch failed');
@@ -214,6 +245,37 @@ export class FakeSteamWebApi {
       return new Response(endless(2 * TEST_IMPORT_MAX_BYTES), { headers: JSON_HEADERS });
     }
     return new Response(chunked(owned ? this.owned : this.wishlist), { headers: JSON_HEADERS });
+  }
+
+  private async playerAchievements(url: string): Promise<Response> {
+    const appid = Number(new URL(url).searchParams.get('appid'));
+    this.inFlight++;
+    this.maxInFlight = Math.max(this.maxInFlight, this.inFlight);
+    try {
+      // Un respiro, para que las llamadas a la vez se solapen de verdad.
+      await new Promise((resolve) => setTimeout(resolve, 1));
+      const fail = this.achievementsFail.get(appid);
+      if (fail === 'network') throw new TypeError('fetch failed');
+      if (fail === 'status') return new Response('Internal Server Error', { status: 500 });
+      if (fail === 'unauthorized') {
+        return new Response('<html><body>Forbidden</body></html>', {
+          status: 403,
+          headers: { 'Content-Type': 'text/html' },
+        });
+      }
+      if (fail === 'rate_limited') return new Response('Too Many Requests', { status: 429 });
+      if (fail === 'html') {
+        return new Response('<html></html>', { headers: { 'Content-Type': 'text/html' } });
+      }
+      if (fail === 'garbage') return new Response('{"playerstats":', { headers: JSON_HEADERS });
+      if (fail === 'huge') {
+        return new Response(endless(2 * 1024 * 1024), { headers: JSON_HEADERS });
+      }
+      const reply = this.achievements.get(appid) ?? ACHIEVEMENTS_FIXTURES.noStats;
+      return new Response(chunked(reply.body), { status: reply.status, headers: JSON_HEADERS });
+    } finally {
+      this.inFlight--;
+    }
   }
 }
 

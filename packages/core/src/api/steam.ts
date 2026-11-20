@@ -6,7 +6,12 @@
 
 import '../zod-config.ts';
 import * as z from 'zod';
-import { STEAM_LIST_MAX, STEAM_SECRET_PATTERN } from './constants.ts';
+import {
+  STEAM_ACHIEVEMENTS_BATCH,
+  STEAM_IMPORT_TOKEN_PATTERN,
+  STEAM_LIST_MAX,
+  STEAM_SECRET_PATTERN,
+} from './constants.ts';
 
 const secretSchema = z.string().regex(STEAM_SECRET_PATTERN);
 const appidSchema = z.int().min(1).max(0xffff_ffff);
@@ -52,6 +57,8 @@ export const steamOwnedGameSchema = z.object({
   /** Minutos jugados en total. */
   playtime_forever: z.int().min(0).optional(),
   rtime_last_played: unixSchema.optional(),
+  /** Tiene estadísticas (y quizá logros) en la comunidad; si no, falta (no viene a `false`). */
+  has_community_visible_stats: z.boolean().optional(),
 });
 export type SteamOwnedGame = z.output<typeof steamOwnedGameSchema>;
 
@@ -77,11 +84,47 @@ export const steamWishlistSchema = z.object({
 export type SteamWishlist = z.output<typeof steamWishlistSchema>;
 
 /**
- * `redeem` con 200: `{"owned": …, "wishlist": …}` con los dos cuerpos de Steam tal cual.
- * `wishlist` es `null` si Steam no la ha dado (la biblioteca sí: sin ella, `redeem` da 502).
+ * `redeem` con 200: `{"token": …, "owned": …, "wishlist": …}`, con el pase de los logros y los dos
+ * cuerpos de Steam tal cual. `wishlist` es `null` si Steam no la ha dado (la biblioteca sí: sin
+ * ella, `redeem` da 502).
  */
 export const steamImportResponseSchema = z.object({
+  token: z.string().regex(STEAM_IMPORT_TOKEN_PATTERN),
   owned: steamOwnedGamesSchema,
   wishlist: steamWishlistSchema.nullable(),
 });
 export type SteamImportResponse = z.output<typeof steamImportResponseSchema>;
+
+/**
+ * `POST /api/v1/steam/achievements` (parte 3): el pase de `redeem` y hasta
+ * `STEAM_ACHIEVEMENTS_BATCH` juegos, sin repetir.
+ */
+export const steamAchievementsRequestSchema = z.strictObject({
+  token: z.string().regex(STEAM_IMPORT_TOKEN_PATTERN),
+  appids: z
+    .array(appidSchema)
+    .min(1)
+    .max(STEAM_ACHIEVEMENTS_BATCH)
+    .refine((list) => new Set(list).size === list.length, 'appids repetidos'),
+});
+export type SteamAchievementsRequest = z.input<typeof steamAchievementsRequestSchema>;
+
+/**
+ * Lo que se sabe de los logros de un juego: `complete` (todos; `at`, el último, en segundos Unix,
+ * o `null` si Steam no lo dice), `incomplete`, `none` (no tiene logros), `hidden` (Steam no los
+ * enseña: perfil o juego privado) o `unavailable` (Steam no ha contestado).
+ */
+export const steamAchievementsResultSchema = z.discriminatedUnion('result', [
+  z.object({ appid: appidSchema, result: z.literal('complete'), at: unixSchema.nullable() }),
+  z.object({
+    appid: appidSchema,
+    result: z.enum(['incomplete', 'none', 'hidden', 'unavailable']),
+  }),
+]);
+export type SteamAchievementsResult = z.output<typeof steamAchievementsResultSchema>;
+
+/** `achievements` con 200: uno por juego pedido, en su orden. */
+export const steamAchievementsResponseSchema = z.object({
+  games: z.array(steamAchievementsResultSchema).max(STEAM_ACHIEVEMENTS_BATCH),
+});
+export type SteamAchievementsResponse = z.output<typeof steamAchievementsResponseSchema>;

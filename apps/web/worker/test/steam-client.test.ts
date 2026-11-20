@@ -1,12 +1,25 @@
 // «Importar desde Steam» en la app (`src/steam/steam-flow.ts`; ADR-012) contra la micro-API de
 // verdad (`app.request()`, D1 sobre `node:sqlite` y Steam falso): el canje tipo PKCE de punta a
-// punta, la vuelta a la app y cada estado.
+// punta, la vuelta a la app y cada estado. Con una agenda (Dexie sobre `fake-indexeddb`), la
+// parte 3: los logros, el resumen, aplicar y deshacer.
 
-import { STEAM_TICKET_TTL_MS } from '@gameagenda/core/api';
+import { STEAM_ACHIEVEMENTS_BATCH, STEAM_TICKET_TTL_MS } from '@gameagenda/core/api';
+import { isLive } from '@gameagenda/core/entries';
 import { describe, expect, it } from 'vitest';
-import { SteamImportFlow, type SteamImportState } from '../../src/steam/steam-flow.ts';
+import { newBrowser, openTab, type TestTab } from '../../src/agenda/test-support.ts';
+import {
+  type SteamFlowDeps,
+  SteamImportFlow,
+  type SteamImportState,
+} from '../../src/steam/steam-flow.ts';
 import { createHarness, type Harness, ORIGIN } from './harness.ts';
-import { OWNED_PRIVATE_FIXTURE } from './steam-support.ts';
+import {
+  ACHIEVEMENTS_API_PREFIX,
+  ACHIEVEMENTS_FIXTURES,
+  bigLibrary,
+  COMPLETE_AT,
+  OWNED_PRIVATE_FIXTURE,
+} from './steam-support.ts';
 
 /** `window` y `document` falsos: solo los eventos de la vuelta a la app. */
 class FakePage {
@@ -32,11 +45,12 @@ interface Setup {
   net: { offline: boolean };
 }
 
-function setup(h = createHarness()): Setup {
+function setup(h = createHarness(), extra: Partial<SteamFlowDeps> = {}): Setup {
   const page = new FakePage();
   const requests: Setup['requests'] = [];
   const net = { offline: false };
   const flow = new SteamImportFlow({
+    ...extra,
     win: page.win as unknown as Window,
     doc: page.doc as unknown as Document,
     async fetch(path, init) {
@@ -96,8 +110,14 @@ describe('de punta a punta', () => {
         visibility: 'public',
         skipped: 0,
         owned: expect.arrayContaining([
-          { appid: 413150, name: 'Stardew Valley', minutes: 6120, lastPlayedAt: 1762905600000 },
-          { appid: 1145360, name: 'Hades', minutes: 0, lastPlayedAt: null },
+          {
+            appid: 413150,
+            name: 'Stardew Valley',
+            minutes: 6120,
+            lastPlayedAt: 1762905600000,
+            stats: true,
+          },
+          { appid: 1145360, name: 'Hades', minutes: 0, lastPlayedAt: null, stats: true },
         ]),
         wishlist: [
           { appid: 1086940, priority: 1, addedAt: 1700000000000 },
@@ -264,5 +284,244 @@ describe('lo que puede salir mal', () => {
     s.flow.reset();
     await redeeming;
     expect(s.flow.getSnapshot()).toEqual({ kind: 'idle' });
+  });
+});
+
+// --- Parte 3 ---------------------------------------------------------------------------------
+
+/** El 20-11-2025: Outer Wilds (última partida el 19-11-2025) cuenta como «jugado hace poco». */
+const NOW = Date.UTC(2025, 10, 20, 12);
+const utcDay = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+
+interface Part3 extends Setup {
+  tab: TestTab;
+}
+
+async function setup3(h = createHarness(), extra: Partial<SteamFlowDeps> = {}): Promise<Part3> {
+  const tab = await openTab(newBrowser());
+  const s = setup(h, {
+    agenda: tab.agenda,
+    catalogTitles: async (appids) =>
+      new Map(appids.filter((a) => a === 220).map((a) => [a, 'Half-Life 2 (catálogo)'])),
+    fallbackTitle: (appid) => `Juego de Steam ${appid}`,
+    dayOf: utcDay,
+    now: () => NOW,
+    applyOptions: { pause: async () => {} },
+    ...extra,
+  });
+  // Outer Wilds, con todos los logros; Half-Life 2, con alguno; Stardew Valley, sin logros.
+  h.steam.webapi.achievements.set(753640, ACHIEVEMENTS_FIXTURES.complete);
+  h.steam.webapi.achievements.set(220, ACHIEVEMENTS_FIXTURES.incomplete);
+  h.steam.webapi.achievements.set(413150, ACHIEVEMENTS_FIXTURES.noAchievements);
+  return { ...s, tab };
+}
+
+/** Inicia sesión, vuelve a la app y espera al resumen. */
+async function toReview(s: Setup): Promise<Extract<SteamImportState, { kind: 'review' }>> {
+  await s.flow.start();
+  s.flow.opened();
+  await signInOnSteam(s);
+  s.page.comeBack();
+  const review = await until(s, 'review');
+  if (review.kind !== 'review') throw new Error(review.kind);
+  return review;
+}
+
+const achievementRequests = (s: Setup) =>
+  s.requests.filter((r) => r.path === '/api/v1/steam/achievements');
+
+describe('parte 3: logros, resumen, aplicar y deshacer', () => {
+  it('de punta a punta: el resumen no toca la agenda; Aplicar sí; Deshacer lo quita todo', async () => {
+    const s = await setup3();
+    const seen: string[] = [];
+    s.flow.subscribe(() => seen.push(s.flow.getSnapshot().kind));
+    const review = await toReview(s);
+    expect(review.plan.counts).toEqual({
+      added: { playing: 1, on_hold: 1, want_to_play: 1, completed: 1, dropped: 0 },
+      wishes: 0,
+      markedOwned: 0,
+      platinum: 1,
+      unchanged: 0,
+    });
+    expect(review).toMatchObject({ wishes: 3, withWishlist: false, unknown: 0 });
+    // Los logros, solo de los jugados con estadísticas (Hades, sin jugar, no), en un lote.
+    expect(achievementRequests(s)).toHaveLength(1);
+    expect(JSON.parse(String(achievementRequests(s)[0]?.init.body)).appids).toEqual([
+      220, 413150, 753640,
+    ]);
+    expect(s.tab.agenda.allEntries()).toEqual([]);
+    expect(seen).toEqual([
+      'starting',
+      'ready',
+      'waiting',
+      'loading',
+      'checking',
+      'checking',
+      'review',
+    ]);
+
+    await s.flow.setWishlist(true);
+    expect(s.flow.getSnapshot()).toMatchObject({ kind: 'review', withWishlist: true });
+    await s.flow.apply();
+    expect(s.flow.getSnapshot()).toMatchObject({
+      kind: 'applied',
+      canUndo: true,
+      counts: { wishes: 3, platinum: 1 },
+    });
+    await s.tab.agenda.whenIdle();
+    const get = (id: string) => s.tab.agenda.get(id);
+    expect(get('steam:753640')).toMatchObject({
+      status: 'completed',
+      flags: { owned: true, platinum: true },
+      completedAt: utcDay(COMPLETE_AT * 1000),
+      platinumAt: utcDay(COMPLETE_AT * 1000),
+      title: 'Outer Wilds',
+    });
+    expect(get('steam:220')).toMatchObject({
+      status: 'on_hold',
+      flags: { owned: true },
+      title: 'Half-Life 2 (catálogo)',
+    });
+    expect(get('steam:413150')).toMatchObject({ status: 'playing', flags: { owned: true } });
+    expect(get('steam:1145360')).toMatchObject({ status: 'want_to_play', flags: { owned: true } });
+    for (const appid of [1086940, 367520, 1245620]) {
+      expect(get(`steam:${appid}`)).toMatchObject({
+        status: 'want_to_play',
+        title: `Juego de Steam ${appid}`,
+      });
+      expect(get(`steam:${appid}`)?.flags.owned ?? false).toBe(false);
+    }
+    // El alta compacta: 9 + 6 × 3 de la biblioteca y 5 × 3 de los deseados.
+    expect(await s.tab.db.outbox.count()).toBe(9 + 6 * 3 + 5 * 3);
+
+    s.flow.undo();
+    expect(s.flow.getSnapshot()).toEqual({ kind: 'undone' });
+    await s.tab.agenda.whenIdle();
+    expect(s.tab.agenda.allEntries().filter((e) => isLive(e))).toEqual([]);
+    s.flow.reset();
+    await s.tab.close();
+  });
+
+  it('lo ya apuntado no cambia de estado: gana Comprado (y Platinado si toca)', async () => {
+    const s = await setup3();
+    s.tab.agenda.capture({ id: 'steam:1145360', title: 'Hades' }, { status: 'dropped' });
+    s.tab.agenda.capture({ id: 'steam:753640', title: 'Outer Wilds' }, { status: 'playing' });
+    const review = await toReview(s);
+    expect(review.plan.counts).toMatchObject({ markedOwned: 2, platinum: 1 });
+    await s.flow.apply();
+    expect(s.tab.agenda.get('steam:1145360')).toMatchObject({
+      status: 'dropped',
+      flags: { owned: true },
+    });
+    expect(s.tab.agenda.get('steam:753640')).toMatchObject({
+      status: 'completed',
+      flags: { owned: true, platinum: true },
+    });
+    await s.tab.close();
+  });
+
+  it('un Platinado de la agenda no se vuelve a preguntar a Steam', async () => {
+    const s = await setup3();
+    s.tab.agenda.capture(
+      { id: 'steam:753640', title: 'Outer Wilds' },
+      { flags: { platinum: true } },
+    );
+    await toReview(s);
+    expect(JSON.parse(String(achievementRequests(s)[0]?.init.body)).appids).toEqual([220, 413150]);
+    await s.tab.close();
+  });
+
+  it('lo que se apunta mientras se mira el resumen no se pisa', async () => {
+    const s = await setup3();
+    await toReview(s);
+    s.tab.agenda.capture({ id: 'steam:220', title: 'Half-Life 2' }, { status: 'completed' });
+    await s.flow.apply();
+    expect(s.tab.agenda.get('steam:220')).toMatchObject({ status: 'completed', flags: {} });
+    await s.tab.close();
+  });
+
+  it('los logros, en lotes de 40, con el progreso', async () => {
+    const h = createHarness();
+    h.steam.webapi.owned = bigLibrary(150);
+    const s = await setup3(h);
+    const checking: number[] = [];
+    s.flow.subscribe(() => {
+      const state = s.flow.getSnapshot();
+      if (state.kind === 'checking') checking.push(state.done);
+    });
+    const review = await toReview(s);
+    const library = JSON.parse(bigLibrary(150)).response.games as Array<{
+      playtime_forever: number;
+      has_community_visible_stats: boolean;
+    }>;
+    const candidates = library.filter(
+      (g) => g.playtime_forever > 0 && g.has_community_visible_stats,
+    );
+    const batches = Math.ceil(candidates.length / STEAM_ACHIEVEMENTS_BATCH);
+    expect(achievementRequests(s)).toHaveLength(batches);
+    expect(h.steam.calls.filter((u) => u.startsWith(ACHIEVEMENTS_API_PREFIX))).toHaveLength(
+      candidates.length,
+    );
+    expect(checking[0]).toBe(0);
+    expect(checking.at(-1)).toBe(candidates.length);
+    // Sin logros en el Steam falso: «sin estadísticas», ninguno desconocido.
+    expect(review.unknown).toBe(0);
+    await s.tab.close();
+  });
+
+  it('si un lote de logros falla (el tope del día), sigue sin ellos y lo dice', async () => {
+    const h = createHarness({}, { steamDailyCalls: 3 });
+    const s = await setup3(h);
+    const review = await toReview(s);
+    expect(review.unknown).toBe(3);
+    expect(review.plan.counts.platinum).toBe(0);
+    expect(review.plan.counts.added.completed).toBe(0);
+    await s.tab.close();
+  });
+
+  it('un juego con los logros ocultos cuenta como desconocido', async () => {
+    const s = await setup3();
+    s.h.steam.webapi.achievements.set(220, ACHIEVEMENTS_FIXTURES.private);
+    expect((await toReview(s)).unknown).toBe(1);
+    await s.tab.close();
+  });
+
+  it('«Cancelar» en el resumen: no cambia nada y empieza de cero', async () => {
+    const s = await setup3();
+    await toReview(s);
+    s.flow.reset();
+    expect(s.flow.getSnapshot()).toEqual({ kind: 'idle' });
+    await s.flow.apply();
+    expect(s.tab.agenda.allEntries()).toEqual([]);
+    await s.tab.close();
+  });
+
+  it('con todo ya al día, el resumen lo dice y no hay nada que aplicar', async () => {
+    const s = await setup3();
+    for (const [id, title] of [
+      ['steam:220', 'A'],
+      ['steam:413150', 'B'],
+      ['steam:1145360', 'C'],
+      ['steam:753640', 'D'],
+    ] as const) {
+      s.tab.agenda.capture(
+        { id, title },
+        { flags: { owned: true, platinum: id === 'steam:753640' } },
+      );
+    }
+    const review = await toReview(s);
+    expect(review.plan.items).toEqual([]);
+    expect(review.plan.counts.unchanged).toBe(4);
+    await s.tab.close();
+  });
+
+  it('sin agenda (la parte 2), acaba en done, como antes', async () => {
+    const s = setup();
+    await s.flow.start();
+    s.flow.opened();
+    await signInOnSteam(s);
+    s.page.comeBack();
+    expect((await until(s, 'done')).kind).toBe('done');
+    expect(achievementRequests(s)).toEqual([]);
   });
 });

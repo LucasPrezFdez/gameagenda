@@ -29,6 +29,7 @@ import {
   type AgendaEffect,
   type AgendaResult,
   type AgendaStore,
+  type BatchAction,
   type CaptureOptions,
   type CaptureTarget,
   type CatalogCopy,
@@ -567,5 +568,16 @@ export function createAgenda(options: AgendaOptions): AgendaStore {
       await commit(result.entries, result.ops);
       if (failed.length > 0) throw new Error('No se ha podido guardar la importación');
     },
+    async applyBatch(ids: readonly string[], action: BatchAction) {
+      // El reloj, por delante de las entradas del lote: la sincronización o otra pestaña pueden
+      // haberlas cambiado desde el lote anterior.
+      receive(maxHlc(ids.map((id) => all.get(id)?.lastHlc ?? '')));
+      const result = action(context(), (id) => all.get(id));
+      if (!result || result.entries.length === 0) return null;
+      await commit(result.entries, result.ops);
+      if (failed.length > 0) throw new Error('No se ha podido guardar la importación');
+      return result;
+    },
+    undoer: (step: UndoStep) => undoOf(step),
   };
 }

@@ -7,6 +7,7 @@
 - `get-owned-games-empty.json`: una biblioteca sin juegos.
 - `get-wishlist.json`: `IWishlistService/GetWishlist/v1` (sin clave).
 - `get-wishlist-private.json`: una lista de deseados privada o vacía (a comprobar en la prueba a mano si Steam las distingue).
+- `get-player-achievements-*.json` (parte 3): `ISteamUserStats/GetPlayerAchievements/v1` con la forma que dio Steam el 20-11-2026 (los valores son inventados). `complete`, todos los logros (el último, el 26-11-2023); `incomplete`, alguno sin conseguir; `no-achievements`, un juego con estadísticas pero sin logros (200 sin `achievements`); `no-stats`, uno sin estadísticas (400 «Requested app has no stats»); y `private`, un juego cuyos logros Steam no enseña (403 «Profile is not public», en JSON).
 
 En la prueba a mano con Steam de verdad (paso 5 del encargo), se comparan con lo que devuelve Steam y se ajustan, sin copiar datos de la cuenta.
 

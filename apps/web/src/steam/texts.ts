@@ -1,9 +1,9 @@
-// Los textos de «Importar desde Steam» (Fase 2, parte 2; §10 y §9.9; ADR-012), en Ajustes › Datos.
-// Van aquí y no en `i18n/es.ts`, que está en el JS inicial: como los textos legales, solo los
-// descarga quien abre la importación. En esta parte solo se trae y se resume: revisar y aplicar es
-// la parte 3.
+// Los textos de «Importar desde Steam» (Fase 2, partes 2 y 3; §10 y §9.9; ADR-012), en Ajustes ›
+// Datos. Van aquí y no en `i18n/es.ts`, que está en el JS inicial: como los textos legales, solo los
+// descarga quien abre la importación.
 
 import { formatCount } from '@gameagenda/core';
+import type { SteamImportCounts } from '@gameagenda/core/entries';
 
 /** «1 juego», «287 juegos», «12 000 juegos» (millares con espacio fino desde cinco cifras). */
 function plural(count: number, one: string, many: string): string {
@@ -13,7 +13,7 @@ function plural(count: number, one: string, many: string): string {
 export const steamTexts = {
   title: 'Importar desde Steam',
   intro:
-    'Trae los juegos de tu biblioteca de Steam, con sus horas, y tu lista de deseados. Inicias sesión en Steam, no aquí: GameAgenda no ve tu contraseña.',
+    'Trae los juegos de tu biblioteca de Steam y los apunta como Comprados, con Platinado si tienen todos los logros. Antes de cambiar nada, te enseña un resumen. Inicias sesión en Steam, no aquí: GameAgenda no ve tu contraseña.',
   start: 'Importar desde Steam',
   starting: 'Preparando el inicio de sesión…',
   // El nombre accesible del botón oficial de Steam (la imagen dice «Sign in through Steam»).
@@ -32,6 +32,55 @@ export const steamTexts = {
       ? 'Tu biblioteca de Steam no tiene juegos.'
       : `Tu biblioteca de Steam no tiene juegos, y en tu lista de deseados hay ${formatCount(wishlist)}.`,
   noChanges: 'De momento no hemos cambiado nada de tu lista.',
+  // Parte 3: los logros, el resumen, aplicar y deshacer.
+  checking: (done: number, total: number) =>
+    total === 0
+      ? 'Preparando el resumen…'
+      : `Comprobando los logros: ${formatCount(done)} de ${formatCount(total)} juegos…`,
+  reviewAdded: (count: number) =>
+    `Se añadirán ${plural(count, 'juego', 'juegos')} de tu biblioteca, como Comprados:`,
+  reviewStatus: {
+    playing: (count: number) => `${formatCount(count)} a Jugando`,
+    on_hold: (count: number) => `${formatCount(count)} a En pausa`,
+    want_to_play: (count: number) => `${formatCount(count)} a Quiero jugar`,
+    completed: (count: number) =>
+      `${formatCount(count)} a Completado, con Platinado (tienen todos los logros)`,
+  },
+  reviewMarked: (count: number) =>
+    count === 1
+      ? 'Uno que ya tenías se marcará como Comprado.'
+      : `${formatCount(count)} que ya tenías se marcarán como Comprados.`,
+  reviewPlatinum: (count: number) =>
+    count === 1
+      ? 'Uno que ya tenías tiene todos los logros: se marcará como Platinado (y Completado).'
+      : `${formatCount(count)} que ya tenías tienen todos los logros: se marcarán como Platinados (y Completados).`,
+  reviewWishes: (count: number) =>
+    `Y ${plural(count, 'deseado', 'deseados')} de tu lista de deseados, a Quiero jugar.`,
+  reviewUnchanged: (count: number) =>
+    count === 1 ? 'Uno ya estaba al día.' : `${formatCount(count)} ya estaban al día.`,
+  reviewNothing: 'No hay nada que cambiar: tu lista ya está al día.',
+  wishlistLabel: (count: number) =>
+    `Añadir también tu lista de deseados a Quiero jugar (${plural(count, 'juego', 'juegos')})`,
+  unknownAchievements: (count: number) =>
+    `De ${plural(count, 'juego', 'juegos')} no hemos podido ver los logros: si alguno está platinado, márcalo a mano.`,
+  apply: 'Aplicar',
+  applying: (done: number, total: number) =>
+    `Añadiendo a tu lista: ${formatCount(done)} de ${formatCount(total)}…`,
+  applied: (counts: SteamImportCounts) => {
+    const added = Object.values(counts.added).reduce((a, b) => a + b, 0) + counts.wishes;
+    const parts = [];
+    if (added > 0) parts.push(`${plural(added, 'juego añadido', 'juegos añadidos')} a tu lista`);
+    if (counts.markedOwned > 0) {
+      parts.push(`${plural(counts.markedOwned, 'marcado', 'marcados')} como Comprados`);
+    }
+    return parts.length === 0
+      ? 'Hecho: tu lista ya estaba al día.'
+      : `Hecho: ${parts.join(' y ')}.`;
+  },
+  undo: 'Deshacer',
+  undone: 'Importación deshecha: tu lista está como antes.',
+  finish: 'Listo',
+  unsaved: 'No se ha podido guardar en este dispositivo. Vuelve a intentarlo.',
   hiddenGames: 'Los juegos que hayas marcado como privados en Steam no aparecen.',
   private: 'Tu biblioteca de Steam es privada, así que Steam no nos deja verla.',
   privateGuide:

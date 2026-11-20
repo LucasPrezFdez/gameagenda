@@ -6,7 +6,8 @@
 // come el presupuesto de CPU (17–23 ms en frío). La pasa tal cual, en *streaming*, contando bytes,
 // y la valida la app (`steamImportResponseSchema` de core). La lista de deseados, que pesa pocos
 // KB, se lee entera con tope y se comprueba que es JSON, para que un fallo suyo no rompa la
-// respuesta: sale `null`. La respuesta es `{"owned": <GetOwnedGames>, "wishlist": <GetWishlist>}`.
+// respuesta: sale `null`. La respuesta es
+// `{"token": <pase de los logros>, "owned": <GetOwnedGames>, "wishlist": <GetWishlist>}`.
 
 import { STEAM_IMPORT_MAX_BYTES } from '@gameagenda/core/api';
 import type { SteamFetch } from './env.ts';
@@ -67,11 +68,13 @@ export type LibraryResult =
 /**
  * Pide a la vez la biblioteca (con la clave en `x-webapi-key`, nunca en la URL) y la lista de
  * deseados (sin clave), y devuelve el cuerpo de la respuesta, que se escribe mientras llega la
- * biblioteca. Si pasa de `maxBytes` (`STEAM_IMPORT_MAX_BYTES`), el *stream* se corta con un error.
+ * biblioteca, con `token` (el pase de los logros) delante. Si pasa de `maxBytes`
+ * (`STEAM_IMPORT_MAX_BYTES`), el *stream* se corta con un error.
  */
 export async function fetchLibrary(
   steamId: string,
   key: string,
+  token: string,
   fetch: SteamFetch,
   maxBytes = STEAM_IMPORT_MAX_BYTES,
 ): Promise<LibraryResult> {
@@ -93,11 +96,15 @@ export async function fetchLibrary(
       status: owned.status,
     };
   }
-  return { ok: true, body: importStream(owned.body, wishlist, maxBytes) };
+  return { ok: true, body: importStream(token, owned.body, wishlist, maxBytes) };
 }
 
-/** `{"owned":` + la biblioteca tal cual + `,"wishlist":` + los deseados (o `null`) + `}`. */
+/**
+ * `{"token":"…","owned":` + la biblioteca tal cual + `,"wishlist":` + los deseados (o `null`) +
+ * `}`. El pase es base64url: no hay nada que escapar.
+ */
 function importStream(
+  token: string,
   owned: ReadableStream<Uint8Array>,
   wishlist: Promise<Uint8Array | null>,
   maxBytes: number,
@@ -110,7 +117,7 @@ function importStream(
     async pull(controller) {
       if (!started) {
         started = true;
-        controller.enqueue(encoder.encode('{"owned":'));
+        controller.enqueue(encoder.encode(`{"token":"${token}","owned":`));
         return;
       }
       const { done, value } = await reader.read();

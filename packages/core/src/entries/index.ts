@@ -5,11 +5,14 @@ export {
   type AddInput,
   addEntry,
   addEntryExact,
+  addImported,
   type CatalogCopy,
   type EntryPatch,
   editEntry,
+  type ImportedGame,
   linkCandidate,
   linkManual,
+  markImported,
   moveEntry,
   type NewEntryFields,
   provisionalInput,
@@ -71,3 +74,16 @@ export {
   viewOf,
 } from './model.ts';
 export { BASE62_DIGITS, isRankKey, keyBetween, moveNeighbors, rankBetween } from './rank.ts';
+export {
+  applySteamImport,
+  planSteamImport,
+  RECENT_PLAY_MS,
+  type SteamImportBatch,
+  type SteamImportCounts,
+  type SteamImportGame,
+  type SteamImportInput,
+  type SteamImportItem,
+  type SteamImportPlan,
+  type SteamImportWish,
+  statusOfPlayed,
+} from './steam-import.ts';

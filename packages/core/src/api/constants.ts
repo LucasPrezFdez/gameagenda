@@ -69,6 +69,17 @@ export const STEAM_SECRET_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 export const STEAM_IMPORT_MAX_BYTES = 16 * 1024 * 1024;
 /** Juegos de la biblioteca, y de la lista de deseados, que la app admite como mucho. */
 export const STEAM_LIST_MAX = 100_000;
+/**
+ * El pase de la importación (Fase 2, parte 3): lo da `redeem` y vale para pedir los logros durante
+ * 15 min. Es el SteamID64 cifrado (AES-GCM, `worker/steam-token.ts`): 79 caracteres en base64url.
+ */
+export const STEAM_IMPORT_TOKEN_TTL_MS = 15 * 60_000;
+export const STEAM_IMPORT_TOKEN_PATTERN = /^[A-Za-z0-9_-]{60,120}$/;
+/**
+ * Juegos por petición de `achievements`: uno por llamada a Steam, y el plan gratuito de Workers
+ * admite 50 subpeticiones por invocación.
+ */
+export const STEAM_ACHIEVEMENTS_BATCH = 40;
 
 /** Códigos de error de la micro-API: la app los traduce a sus textos. */
 export const API_ERRORS = {
@@ -92,6 +103,8 @@ export const API_ERRORS = {
    * suyo (las cuatro dan la misma respuesta). Hay que volver a empezar.
    */
   steam_ticket_invalid: 410,
+  /** Importar desde Steam: el pase de los logros no vale o ha caducado. Hay que volver a empezar. */
+  steam_token_invalid: 410,
   /**
    * `resolve`: Steam no ha contestado (o no como se esperaba) y no hay nada en la caché. Importar
    * desde Steam: `GetOwnedGames` no ha respondido como se esperaba.

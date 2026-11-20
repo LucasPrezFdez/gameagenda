@@ -1,10 +1,13 @@
-// «Importar desde Steam» en Ajustes › Datos (Fase 2, parte 2; §10; ADR-012). La pantalla pinta el
-// estado de `steam/steam-flow.ts`, que sigue vivo aunque se salga de Ajustes. En esta parte solo
-// resume lo traído: revisar y aplicar es la parte 3. Los estados van en `role="status"` (§9.7), y
-// el botón oficial de Steam lleva su nombre accesible en español. Sus textos van en
-// `steam/texts.ts`, fuera del JS inicial.
+// «Importar desde Steam» en Ajustes › Datos (Fase 2, partes 2 y 3; §10; ADR-012). La pantalla pinta
+// el estado de `steam/steam-flow.ts`, que sigue vivo aunque se salga de Ajustes: el login, los
+// logros, el resumen (sin tocar la agenda hasta «Aplicar») y el «Deshacer». Los estados van en
+// `role="status"` (§9.7), y el botón oficial de Steam lleva su nombre accesible en español. Sus
+// textos van en `steam/texts.ts`, fuera del JS inicial.
 
 import { type JSX, useId, useSyncExternalStore } from 'react';
+import { useServices } from '../../app/services.tsx';
+import { es } from '../../i18n/es.ts';
+import { displayName } from '../../palette/palette-model.ts';
 import { type SteamImportState, steamImportFlow } from '../../steam/steam-flow.ts';
 import { steamTexts as t } from '../../steam/texts.ts';
 
@@ -17,9 +20,13 @@ const STEAM_PRIVACY_URL = 'https://steamcommunity.com/my/edit/settings';
  */
 const SIGN_IN_IMAGE = '/steam/sign-in-through-steam.png';
 
+/** El orden de las líneas del resumen: el de las secciones de Mi lista. */
+const REVIEW_ORDER = ['playing', 'on_hold', 'want_to_play', 'completed'] as const;
+
 function statusText(state: SteamImportState): string {
   switch (state.kind) {
     case 'idle':
+    case 'review':
       return '';
     case 'starting':
       return t.starting;
@@ -29,6 +36,14 @@ function statusText(state: SteamImportState): string {
       return state.stillPending ? t.stillPending : t.waiting;
     case 'loading':
       return t.loading;
+    case 'checking':
+      return t.checking(state.done, state.total);
+    case 'applying':
+      return t.applying(state.done, state.total);
+    case 'applied':
+      return t.applied(state.counts);
+    case 'undone':
+      return t.undone;
     case 'done': {
       const { library } = state;
       if (library.visibility === 'private') return t.private;
@@ -40,11 +55,70 @@ function statusText(state: SteamImportState): string {
   }
 }
 
-export function SteamImport(): JSX.Element {
+/** El resumen de lo que va a cambiar (parte 3): por estado, las marcas y lo que ya estaba. */
+function Review({ state }: { state: Extract<SteamImportState, { kind: 'review' }> }): JSX.Element {
   const flow = steamImportFlow();
+  const { counts } = state.plan;
+  const added = REVIEW_ORDER.reduce((sum, status) => sum + counts.added[status], 0);
+  const platinumMarked = counts.platinum - counts.added.completed;
+  const nothing = state.plan.items.length === 0;
+  return (
+    <div className="settings__steam-review">
+      {nothing ? (
+        <p>{t.reviewNothing}</p>
+      ) : (
+        <>
+          {added > 0 && (
+            <>
+              <p>{t.reviewAdded(added)}</p>
+              <ul className="settings__steam-counts">
+                {REVIEW_ORDER.filter((status) => counts.added[status] > 0).map((status) => (
+                  <li key={status} data-steam-count={status}>
+                    {t.reviewStatus[status](counts.added[status])}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+          {counts.markedOwned > 0 && <p>{t.reviewMarked(counts.markedOwned)}</p>}
+          {platinumMarked > 0 && <p>{t.reviewPlatinum(platinumMarked)}</p>}
+          {counts.wishes > 0 && <p>{t.reviewWishes(counts.wishes)}</p>}
+        </>
+      )}
+      {counts.unchanged > 0 && <p className="muted">{t.reviewUnchanged(counts.unchanged)}</p>}
+      {(state.wishes > 0 || state.withWishlist) && (
+        <label className="settings__choice">
+          <input
+            type="checkbox"
+            checked={state.withWishlist}
+            onChange={(event) => void flow.setWishlist(event.target.checked)}
+          />
+          {t.wishlistLabel(state.wishes)}
+        </label>
+      )}
+      {state.unknown > 0 && <p className="muted">{t.unknownAchievements(state.unknown)}</p>}
+      <p className="muted">{t.hiddenGames}</p>
+    </div>
+  );
+}
+
+export function SteamImport(): JSX.Element {
+  const { agenda, search } = useServices();
+  const flow = steamImportFlow({
+    agenda,
+    catalogTitles: async (appids) => {
+      const { found } = await search.lookup(appids);
+      return new Map(found.map((game) => [game.appid, displayName(game)]));
+    },
+    fallbackTitle: es.palette.steamGame,
+  });
   const state = useSyncExternalStore(flow.subscribe, flow.getSnapshot);
   const id = useId();
-  const busy = state.kind === 'starting' || state.kind === 'loading';
+  const busy =
+    state.kind === 'starting' ||
+    state.kind === 'loading' ||
+    state.kind === 'checking' ||
+    state.kind === 'applying';
 
   let actions: JSX.Element | null = null;
   switch (state.kind) {
@@ -97,6 +171,41 @@ export function SteamImport(): JSX.Element {
           </button>
         );
       break;
+    case 'review':
+      actions = (
+        <>
+          {state.plan.items.length > 0 && (
+            <button type="button" className="btn btn--primary" onClick={() => void flow.apply()}>
+              {t.apply}
+            </button>
+          )}
+          <button type="button" className="btn btn--ghost" onClick={() => flow.reset()}>
+            {state.plan.items.length > 0 ? t.cancel : t.finish}
+          </button>
+        </>
+      );
+      break;
+    case 'applied':
+      actions = (
+        <>
+          {state.canUndo && (
+            <button type="button" className="btn" onClick={() => flow.undo()}>
+              {t.undo}
+            </button>
+          )}
+          <button type="button" className="btn btn--ghost" onClick={() => flow.reset()}>
+            {t.finish}
+          </button>
+        </>
+      );
+      break;
+    case 'undone':
+      actions = (
+        <button type="button" className="btn" onClick={() => flow.reset()}>
+          {t.finish}
+        </button>
+      );
+      break;
     case 'failed':
       actions = (
         <>
@@ -120,6 +229,7 @@ export function SteamImport(): JSX.Element {
   }
 
   const done = state.kind === 'done' ? state.library : null;
+  const text = statusText(state);
   return (
     <section
       className="settings__steam"
@@ -132,7 +242,8 @@ export function SteamImport(): JSX.Element {
       </h3>
       <p className="muted">{t.intro}</p>
       <div className="settings__steam-status" role="status">
-        {statusText(state) !== '' && <p>{statusText(state)}</p>}
+        {text !== '' && <p>{text}</p>}
+        {state.kind === 'review' && <Review state={state} />}
         {done?.visibility === 'private' && <p>{t.privateGuide}</p>}
         {done !== null && done.visibility === 'public' && (
           <>

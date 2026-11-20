@@ -10,19 +10,25 @@
 //   D1: lo exige OpenID 2.0, y solo escribe con una aserción verificada para un ticket vigente.
 // - `POST /steam/redeem` `{ ticket, verifier }`: lo canjea la app, con el verificador del
 //   `challenge`. Sin login aún, 202 `pending` (no lo gasta). Con él, lo gasta y trae la biblioteca
-//   y la lista de deseados (`steam-library.ts`), tal cual, en *streaming*. Es la primera y única
-//   llamada a la Web API de Steam, y solo con un login verificado (§10).
+//   y la lista de deseados (`steam-library.ts`), tal cual, en *streaming*, con el pase de los
+//   logros delante (`steam-token.ts`, 15 min). Es la primera llamada a la Web API de Steam, y solo
+//   con un login verificado (§10).
+// - `POST /steam/achievements` `{ token, appids }` (parte 3): con el pase de `redeem`, si cada
+//   juego tiene todos sus logros (`steam-achievements.ts`), hasta `STEAM_ACHIEVEMENTS_BATCH` por
+//   petición. Sin el pase, o caducado, 410 `steam_token_invalid`, sin llamar a Steam.
 //
 // Con `STEAM_ENABLED` distinto de `'1'`, o sin `STEAM_WEB_API_KEY`, todas dan 503
-// `steam_disabled` sin tocar D1. `start` y `redeem` tienen límite por IP (`RL_STEAM`), y las
-// llamadas a Steam, un tope diario (`steam-quota.ts`).
+// `steam_disabled` sin tocar D1. `start` y `redeem` tienen límite por IP (`RL_STEAM`), los lotes
+// de logros, el suyo (`RL_STEAM_ACH`), y las llamadas a Steam, un tope diario (`steam-quota.ts`).
 //
-// Nada de estas rutas se registra: ni la URL (lleva el ticket y la aserción), ni los cuerpos, ni el
-// SteamID64 (§10.4).
+// Nada de estas rutas se registra: ni la URL (lleva el ticket y la aserción), ni los cuerpos (el
+// pase, los juegos), ni el SteamID64 (§10.4).
 
 import {
+  STEAM_IMPORT_TOKEN_TTL_MS,
   STEAM_SECRET_PATTERN,
   STEAM_TICKET_TTL_MS,
+  steamAchievementsRequestSchema,
   steamRedeemRequestSchema,
   steamStartRequestSchema,
 } from '@gameagenda/core/api';
@@ -31,6 +37,7 @@ import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import { newSteamTicket, sha256Base64url, sha256Hex } from '../crypto.ts';
 import type { AppEnv, Deps } from '../env.ts';
 import { apiError, iso, parseBody, rateLimited } from '../http.ts';
+import { fetchAchievements } from '../steam-achievements.ts';
 import { fetchLibrary } from '../steam-library.ts';
 import {
   CALLBACK_PATH,
@@ -42,8 +49,11 @@ import {
 } from '../steam-openid.ts';
 import { type SteamPageKind, steamPage } from '../steam-page.ts';
 import { STEAM_DAILY_CALLS, spendSteamCalls } from '../steam-quota.ts';
+import { openImportToken, sealImportToken } from '../steam-token.ts';
 
 const MAX_BODY = 1024;
+/** `achievements`: el pase y 40 `appid` de 10 cifras caben de sobra. */
+const MAX_ACHIEVEMENTS_BODY = 2048;
 /** Una vuelta de Steam lleva ≈1 KB de consulta; lo que pase de esto no es suyo. */
 const MAX_CALLBACK_QUERY = 8 * 1024;
 
@@ -174,9 +184,15 @@ export function steamRoutes(api: Hono<AppEnv>, deps: Deps): void {
         : c.json({ status: 'pending' }, 202);
     }
     if (!(await spendSteamCalls(db, deps.now(), 2, dailyCalls))) return apiError(c, 'steam_busy');
+    const token = await sealImportToken(
+      key,
+      redeemed.steam_id,
+      deps.now() + STEAM_IMPORT_TOKEN_TTL_MS,
+    );
     const library = await fetchLibrary(
       redeemed.steam_id,
       key,
+      token,
       steamFetch,
       deps.steamImportMaxBytes,
     );
@@ -191,5 +207,22 @@ export function steamRoutes(api: Hono<AppEnv>, deps: Deps): void {
       status: 200,
       headers: { 'Content-Type': 'application/json; charset=utf-8' },
     });
+  });
+
+  api.post('/steam/achievements', async (c) => {
+    const limited = await rateLimited(c, c.env.RL_STEAM_ACH);
+    if (limited) return limited;
+    const body = await parseBody(c, steamAchievementsRequestSchema, MAX_ACHIEVEMENTS_BODY);
+    if (!body.ok) return body.response;
+    // El interruptor ya ha comprobado que está.
+    const key = c.env.STEAM_WEB_API_KEY ?? '';
+    const steamId = await openImportToken(key, body.data.token, deps.now());
+    if (steamId === null) return apiError(c, 'steam_token_invalid');
+    const { appids } = body.data;
+    if (!(await spendSteamCalls(c.env.DB, deps.now(), appids.length, dailyCalls))) {
+      return apiError(c, 'steam_busy');
+    }
+    const games = await fetchAchievements(steamId, appids, key, steamFetch);
+    return c.json({ games });
   });
 }

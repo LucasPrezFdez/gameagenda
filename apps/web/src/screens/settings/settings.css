@@ -118,6 +118,18 @@
   display: none;
 }
 
+/* El resumen de la parte 3, antes de «Aplicar». */
+.settings__steam-review {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings__steam-counts {
+  margin: 0;
+  padding-left: 20px;
+}
+
 /* El botón oficial de Steam, tal cual (sus colores son los suyos), con el tamaño mínimo de objetivo
    (`--target`) y el anillo de foco de siempre. */
 .settings__steam-signin {

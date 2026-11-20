@@ -1,14 +1,18 @@
 // `POST /api/v1/steam/redeem` (Fase 2, parte 2; §10.2 y §10.3 de prototipe.md; ADR-012): el canje
-// tipo PKCE del ticket y la biblioteca y la lista de deseados, tal cual las da Steam.
+// tipo PKCE del ticket y la biblioteca y la lista de deseados, tal cual las da Steam, con el pase de
+// los logros delante (parte 3).
 
 import {
   STEAM_IMPORT_MAX_BYTES,
+  STEAM_IMPORT_TOKEN_PATTERN,
+  STEAM_IMPORT_TOKEN_TTL_MS,
   STEAM_TICKET_TTL_MS,
   steamImportResponseSchema,
 } from '@gameagenda/core/api';
 import { describe, expect, it, vi } from 'vitest';
 import { ownedGamesUrl, wishlistUrl } from '../steam-library.ts';
 import { STEAM_OPENID } from '../steam-openid.ts';
+import { openImportToken } from '../steam-token.ts';
 import { type Client, createHarness, dumpAllText, type Harness } from './harness.ts';
 import {
   begin,
@@ -41,6 +45,9 @@ function redeem(client: Client, ticket: string, verifier: string) {
   return client.post('/api/v1/steam/redeem', { ticket, verifier });
 }
 
+/** El pase de los logros, delante de lo de Steam. */
+const TOKEN = expect.stringMatching(STEAM_IMPORT_TOKEN_PATTERN);
+
 /** Las llamadas a la Web API de Steam (no las de OpenID). */
 function webApiCalls(h: Harness): string[] {
   return h.steam.calls.filter((url) => url !== STEAM_OPENID);
@@ -56,11 +63,42 @@ describe('un canje bueno', () => {
     expect(response.headers.get('Content-Type')).toBe('application/json; charset=utf-8');
     expect(response.headers.get('Cache-Control')).toBe('no-store');
     expect(response.json).toEqual({
+      token: TOKEN,
       owned: JSON.parse(OWNED_FIXTURE),
       wishlist: JSON.parse(WISHLIST_FIXTURE),
     });
+    expect(response.text.startsWith('{"token":"')).toBe(true);
     expect(steamImportResponseSchema.safeParse(response.json).success).toBe(true);
     expect(h.db.rows('SELECT * FROM steam_ticket')).toEqual([]);
+  });
+
+  it('el pase es el SteamID64 del login, cifrado, y vale 15 min (parte 3)', async () => {
+    const h = createHarness();
+    const pc = h.client();
+    const { ticket, verifier } = await loggedIn(h, pc);
+    const { token } = (await redeem(pc, ticket, verifier)).json as { token: string };
+    expect(token).not.toContain(STEAM_ID);
+    expect(Buffer.from(token, 'base64url').toString('latin1')).not.toContain(STEAM_ID);
+    const issued = h.clock.ms;
+    expect(await openImportToken(TEST_STEAM_KEY, token, issued)).toBe(STEAM_ID);
+    expect(
+      await openImportToken(TEST_STEAM_KEY, token, issued + STEAM_IMPORT_TOKEN_TTL_MS - 1),
+    ).toBe(STEAM_ID);
+    expect(await openImportToken(TEST_STEAM_KEY, token, issued + STEAM_IMPORT_TOKEN_TTL_MS)).toBe(
+      null,
+    );
+    // Con otra clave de Steam (rotada), no se abre.
+    expect(await openImportToken('FEDCBA9876543210FEDCBA9876543210', token, issued)).toBe(null);
+  });
+
+  it('cada canje da un pase distinto, aunque sea la misma cuenta', async () => {
+    const h = createHarness();
+    const pc = h.client();
+    const first = await loggedIn(h, pc);
+    const a = (await redeem(pc, first.ticket, first.verifier)).json.token;
+    const second = await loggedIn(h, pc);
+    const b = (await redeem(pc, second.ticket, second.verifier)).json.token;
+    expect(a).not.toBe(b);
   });
 
   it('pide a Steam lo de la §10.1, con la clave en x-webapi-key y nunca en la URL', async () => {
@@ -125,7 +163,11 @@ describe('un canje bueno', () => {
     const { ticket, verifier } = await loggedIn(h, pc);
     const response = await redeem(pc, ticket, verifier);
     expect(response.status).toBe(200);
-    expect(response.json).toEqual({ owned: { response: {} }, wishlist: { response: {} } });
+    expect(response.json).toEqual({
+      token: TOKEN,
+      owned: { response: {} },
+      wishlist: { response: {} },
+    });
   });
 
   it('la biblioteca vacía, también', async () => {
@@ -286,7 +328,11 @@ describe('si Steam falla', () => {
       const { ticket, verifier } = await loggedIn(h, pc);
       const response = await redeem(pc, ticket, verifier);
       expect(response.status).toBe(200);
-      expect(response.json).toEqual({ owned: JSON.parse(OWNED_FIXTURE), wishlist: null });
+      expect(response.json).toEqual({
+        token: TOKEN,
+        owned: JSON.parse(OWNED_FIXTURE),
+        wishlist: null,
+      });
     });
   }
 

@@ -4,8 +4,9 @@ import { describe, expect, it, vi } from 'vitest';
 import * as yieldModule from '../lib/yield.ts';
 import { cleanSteamName, readSteamImport, VALIDATE_BATCH } from './steam-library.ts';
 
+const TOKEN = 'T'.repeat(79);
 const body = (owned: unknown, wishlist: unknown = { response: { items: [] } }) =>
-  JSON.stringify({ owned, wishlist });
+  JSON.stringify({ token: TOKEN, owned, wishlist });
 
 describe('readSteamImport', () => {
   it('la biblioteca y los deseados, con las fechas en ms y sin fecha si es 0', async () => {
@@ -21,6 +22,7 @@ describe('readSteamImport', () => {
                 playtime_forever: 1043,
                 rtime_last_played: 1592337498,
                 img_icon_url: 'x',
+                has_community_visible_stats: true,
               },
               { appid: 1145360, name: 'Hades', playtime_forever: 0, rtime_last_played: 0 },
             ],
@@ -34,10 +36,17 @@ describe('readSteamImport', () => {
       ),
     );
     expect(library).toEqual({
+      token: TOKEN,
       visibility: 'public',
       owned: [
-        { appid: 220, name: 'Half-Life 2', minutes: 1043, lastPlayedAt: 1592337498000 },
-        { appid: 1145360, name: 'Hades', minutes: 0, lastPlayedAt: null },
+        {
+          appid: 220,
+          name: 'Half-Life 2',
+          minutes: 1043,
+          lastPlayedAt: 1592337498000,
+          stats: true,
+        },
+        { appid: 1145360, name: 'Hades', minutes: 0, lastPlayedAt: null, stats: false },
       ],
       wishlist: [
         { appid: 1086940, priority: 1, addedAt: 1700000000000 },
@@ -78,7 +87,13 @@ describe('readSteamImport', () => {
       ),
     );
     expect(library?.owned.map((g) => g.appid)).toEqual([10, 30]);
-    expect(library?.owned[1]).toEqual({ appid: 30, name: null, minutes: 0, lastPlayedAt: null });
+    expect(library?.owned[1]).toEqual({
+      appid: 30,
+      name: null,
+      minutes: 0,
+      lastPlayedAt: null,
+      stats: false,
+    });
     expect(library?.wishlist).toEqual([{ appid: 1, priority: 0, addedAt: null }]);
     expect(library?.skipped).toBe(7);
   });
@@ -98,8 +113,16 @@ describe('readSteamImport', () => {
   });
 
   it('el wishlist que pone el Worker detrás manda sobre uno colado en el cuerpo de Steam', async () => {
-    const injected = `{"owned":{"response":{"games":[]},"x":1},"wishlist":{"response":{"items":[{"appid":7}]}},"wishlist":null}`;
+    const injected = `{"token":"${TOKEN}","owned":{"response":{"games":[]},"x":1},"wishlist":{"response":{"items":[{"appid":7}]}},"wishlist":null}`;
     expect((await readSteamImport(injected))?.wishlist).toBeNull();
+  });
+
+  it('sin el pase de los logros (o con otra forma), no vale', async () => {
+    const owned = { response: { games: [] } };
+    expect(await readSteamImport(JSON.stringify({ owned, wishlist: null }))).toBeNull();
+    expect(
+      await readSteamImport(JSON.stringify({ token: 'corto', owned, wishlist: null })),
+    ).toBeNull();
   });
 
   it('miles de juegos se validan a trozos, cediendo el turno entre uno y otro', async () => {

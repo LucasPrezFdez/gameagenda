@@ -349,6 +349,100 @@ export function removeEntry(prev: Entry | undefined, ctx: ActionContext): Action
   return single(prev, prev.id, [['deletedAt', hlcToIso(ctx.hlc)]], ctx);
 }
 
+/** Un juego que entra en la agenda al importar la biblioteca de Steam (Fase 2, parte 3). */
+export interface ImportedGame {
+  id: string;
+  title: string;
+  status: Status;
+  rank: string;
+  /** Comprado: los de la biblioteca sí, los de la lista de deseados no. */
+  owned: boolean;
+  /** El día del último logro si los tiene todos (Platinado, y entonces Completado); si no, `null`. */
+  platinumAt: Day;
+}
+
+/**
+ * Alta de un juego importado de Steam. Con todo exacto (`platinumAt` es el día del último logro,
+ * no el de hoy) y, si el juego no estaba en la agenda, **compacta**: solo escribe `status`, las
+ * marcas activas, `rank`, `addedAt`, las fechas del platino, `title` y `deletedAt`, de 6 a 10
+ * operaciones en vez de 15 (D1 guarda una fila por campo; DECISIONES §10.48). Lo demás se queda
+ * como en un esqueleto, que es lo que vería otro dispositivo al recibirlas, así que la entrada es
+ * la misma en todos. Sobre una lápida o un esqueleto, lo escribe todo, como `addEntryExact`, para
+ * empezar de cero. `null` si ya está apuntado.
+ */
+export function addImported(
+  prev: Entry | undefined,
+  game: ImportedGame,
+  ctx: ActionContext,
+): ActionResult | null {
+  checkContext(ctx, prev);
+  if (isLive(prev)) return null;
+  checkDay(game.platinumAt);
+  if (game.platinumAt !== null && game.status !== 'completed') {
+    throw new RangeError('addImported: un platinado va en Completado');
+  }
+  const platinum = game.platinumAt !== null;
+  if (prev !== undefined) {
+    const flags: Record<string, boolean> = {};
+    if (game.owned) flags.owned = true;
+    if (platinum) flags.platinum = true;
+    return single(
+      prev,
+      game.id,
+      newEntryValues(prev, {
+        id: game.id,
+        title: game.title,
+        cover: null,
+        status: game.status,
+        flags,
+        rank: game.rank,
+        note: '',
+        platform: null,
+        addedAt: ctx.today,
+        startedAt: null,
+        completedAt: game.platinumAt,
+        platinumAt: game.platinumAt,
+        ownedAt: null,
+      }),
+      ctx,
+    );
+  }
+  if (!isEntryId(game.id)) throw new TypeError(`addImported: id no válido: ${game.id}`);
+  checkTitle(game.title);
+  if (!isStatus(game.status)) throw new TypeError(`addImported: estado: ${String(game.status)}`);
+  keyBetween(game.rank, null); // valida la clave
+  const values: Values = [['status', game.status]];
+  if (game.owned) values.push([flagField('owned'), true]);
+  if (platinum) values.push([flagField('platinum'), true]);
+  values.push(['rank', game.rank], ['addedAt', ctx.today]);
+  if (platinum) values.push(['completedAt', game.platinumAt], ['platinumAt', game.platinumAt]);
+  values.push(['title', game.title], ['deletedAt', null]);
+  return single(prev, game.id, values, ctx);
+}
+
+/**
+ * Lo que la importación de Steam marca en un juego que ya estaba apuntado: Comprado y, si tiene
+ * todos los logros, Platinado (con Completado y las fechas del último logro, no las de hoy). No
+ * toca nada más ni quita nada. `null` si no hay nada que cambiar.
+ */
+export function markImported(
+  prev: Entry | undefined,
+  marks: { owned: boolean; platinumAt: Day },
+  ctx: ActionContext,
+): ActionResult | null {
+  checkContext(ctx, prev);
+  checkDay(marks.platinumAt);
+  if (!isLive(prev)) return null;
+  const values: Values = [];
+  if (marks.owned && prev.flags.owned !== true) values.push([flagField('owned'), true]);
+  if (marks.platinumAt !== null && prev.flags.platinum !== true) {
+    values.push([flagField('platinum'), true], ['status', 'completed']);
+    if (prev.completedAt === null) values.push(['completedAt', marks.platinumAt]);
+    values.push(['platinumAt', marks.platinumAt]);
+  }
+  return single(prev, prev.id, values, ctx);
+}
+
 /** Copia del catálogo (título y portada) para pintar sin él. */
 export interface CatalogCopy {
   title: string;
