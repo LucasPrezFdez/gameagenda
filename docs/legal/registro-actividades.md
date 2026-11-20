@@ -2,7 +2,7 @@
 
 Registro del art. 30 RGPD. Es obligatorio aunque el proyecto sea pequeño, porque la exención del art. 30.5 no cubre los tratamientos habituales (§11.2 de `prototipe.md`). Es un documento interno y no se publica. Lo que ven los usuarios está en la política de privacidad (`apps/web/src/legal/texts.ts`, en `/privacidad`).
 
-- **Versión:** 3, del 20-11-2026, con la versión 3 de los textos legales: la actividad 6 cuenta los logros y el pase de la importación (Fase 2, parte 3). La 2, del 19-11-2026, añadió la actividad 6, «Importar desde Steam» (ADR-012). La 1, del 08-11-2026, iba con la versión 1 (M4, CA4.7).
+- **Versión:** 4, del 20-11-2026, con la versión 4 de los textos legales: añade la actividad 7, las llaves de acceso (ADR-013). La 3, del mismo día, con la versión 3: la actividad 6 cuenta los logros y el pase de la importación (Fase 2, parte 3). La 2, del 19-11-2026, añadió la actividad 6, «Importar desde Steam» (ADR-012). La 1, del 08-11-2026, iba con la versión 1 (M4, CA4.7).
 - **Cómo se hizo:** a partir de la estructura de Facilita RGPD de la AEPD, para tratamientos de bajo riesgo.
 - **Revisión:** cada vez que cambie qué datos se tratan, para qué, con quién o durante cuánto tiempo. Hay que cambiar a la vez este registro, la política y su `LEGAL_VERSION`.
 
@@ -83,6 +83,19 @@ Registro del art. 30 RGPD. Es obligatorio aunque el proyecto sea pequeño, porqu
 | Transferencias | Como en la actividad 1. Valve declara estar adherida al Marco de Privacidad de Datos UE-EE. UU. |
 | Plazos | El ticket caduca a los 10 min; canjearlo, o una aserción que Steam no da por buena, lo borra, y un Cron Trigger cada 5 min borra los caducados: el SteamID64 está en D1 como mucho 15 min. Time Travel de D1 lo conserva 7 días más. En el dispositivo, lo traído (con el pase, 15 min como mucho) se queda en memoria hasta que el usuario lo aplica o cancela; lo aplicado es parte de la agenda (actividad 1) |
 | Medidas de seguridad | Las cinco comprobaciones de OpenID 2.0 (§10.2) y canje tipo PKCE: el ticket solo lo canjea quien tiene el verificador. La clave de la Steam Web API, solo en un secreto del Worker y en `x-webapi-key`, nunca en la URL, los registros ni el cliente (el CI lo comprueba en los dos *bundles*). `Origin` propio y JSON en los POST, límite por IP (`RL_STEAM`, y `RL_STEAM_ACH` en los lotes de logros), tope diario de llamadas e interruptor `STEAM_ENABLED`. ADR-012 |
+
+## Actividad 7 · Llaves de acceso (ADR-013)
+
+| Campo | Contenido |
+|---|---|
+| Finalidad | Que el usuario entre en su agenda sincronizada desde otro dispositivo, o tras perderlos todos, con una llave de acceso de su llavero (iCloud, Google, Windows u otro), sin escribir el código de recuperación |
+| Base jurídica | Art. 6.1.b RGPD: lo pide el usuario al crear la llave, con un gesto explícito |
+| Interesados | Usuarios de la sincronización que crean una llave (actividad 1) |
+| Datos | De cada llave: la clave pública (SPKI), su identificador, el algoritmo, el contador de firmas y los transportes que dice el navegador, el nombre del dispositivo donde se creó y las fechas de alta y de último uso. Por agenda, un `user.id` aleatorio de 32 bytes, que no es el id de la agenda. Los SHA-256 de los retos. La biometría o el PIN nunca salen del dispositivo: los usa el autenticador para dejar firmar. Sin atestación: no se sabe el modelo del dispositivo |
+| Destinatarios | Cloudflare, Inc., como encargado (ver la actividad 1). El llavero del usuario (Apple, Google, Microsoft u otro) guarda la llave como responsable de su propio servicio; GameAgenda no recibe nada de él aparte de lo dicho |
+| Transferencias | Como en la actividad 1 |
+| Plazos | La llave, hasta que el usuario la quita o borra la agenda (en cascada, y a los 13 meses sin sincronizar). Los retos son de un solo uso y valen 5 min; un Cron Trigger cada 5 min borra los caducados, así que duran 10 min como mucho. Time Travel de D1 conserva lo borrado 7 días |
+| Medidas de seguridad | Verificación de cada firma con la clave guardada (Ed25519, ES256 o RS256), del origen, del `rp.id`, del reto y de la verificación del usuario (UV). Retos de 256 bits, de un solo uso, con solo su SHA-256 en D1. Al entrar, cualquier fallo responde lo mismo. Límite por IP (`RL_REDEEM`), como mucho 10 llaves por agenda e interruptor `PASSKEYS_ENABLED`. ADR-013 |
 
 ## Lo que no se trata
 

@@ -2,11 +2,14 @@
 // `apps/web/wrangler.jsonc` pone `SYNC_ENABLED` a "1", el responsable (`legal/controller.ts`) tiene
 // que tener nombre y correo: si no, la política diría «pendiente» justo cuando empieza a valer.
 // Y la importación de Steam (Fase 2; ADR-012) tampoco: con `STEAM_ENABLED` a "1", la política
-// tiene que contar qué se trae de Steam, el SteamID64 y cuánto dura en D1.
+// tiene que contar qué se trae de Steam, el SteamID64 y cuánto dura en D1. Y las llaves de acceso
+// (ADR-013): con `PASSKEYS_ENABLED` a "1", qué se guarda de cada llave y cuánto duran sus retos.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { CONTROLLER, controllerReady } from '../apps/web/src/legal/controller.ts';
 import {
+  PASSKEY_CHALLENGE_RETENTION_MINUTES,
+  PASSKEYS_SECTION,
   privacyPolicy,
   STEAM_ID_RETENTION_MINUTES,
   STEAM_IMPORT_SECTION,
@@ -60,6 +63,18 @@ function policyCoversSteamImport(): boolean {
   return text.includes('SteamID64') && text.includes(`${STEAM_ID_RETENTION_MINUTES} minutos`);
 }
 
+/** La política cuenta las llaves de acceso: su sección, la parte pública y cuánto duran los retos. */
+function policyCoversPasskeys(): boolean {
+  const policy = privacyPolicy(CONTROLLER);
+  const section = policy.sections.find((s) => s.id === PASSKEYS_SECTION);
+  if (section === undefined) return false;
+  const text = JSON.stringify(section);
+  return (
+    text.includes('parte pública') &&
+    text.includes(`${PASSKEY_CHALLENGE_RETENTION_MINUTES} minutos`)
+  );
+}
+
 describe('textos legales antes de encender la micro-API (CA4.7)', () => {
   it('con SYNC_ENABLED a "1", el responsable tiene nombre y correo', () => {
     const config = { vars: wranglerVars() };
@@ -78,7 +93,14 @@ describe('textos legales antes de encender la micro-API (CA4.7)', () => {
     }
   });
 
-  it('la política de hoy ya la cuenta', () => {
+  it('con PASSKEYS_ENABLED a "1", la política cuenta las llaves de acceso (ADR-013)', () => {
+    const passkeys = wranglerVars().PASSKEYS_ENABLED;
+    if (passkeys === '1') expect(policyCoversPasskeys(), 'apps/web/src/legal/texts.ts').toBe(true);
+    else expect(passkeys).toBe('0');
+  });
+
+  it('la política de hoy ya cuenta la importación de Steam y las llaves', () => {
     expect(policyCoversSteamImport()).toBe(true);
+    expect(policyCoversPasskeys()).toBe(true);
   });
 });

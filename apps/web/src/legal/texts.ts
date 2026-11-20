@@ -8,6 +8,7 @@
 // y la fecha, y cuéntalo en el CHANGELOG.
 import {
   DEFAULT_MIN_AGE,
+  PASSKEY_CHALLENGE_TTL_MS,
   STEAM_IMPORT_TOKEN_TTL_MS,
   STEAM_TICKET_TTL_MS,
 } from '@gameagenda/core/api';
@@ -24,10 +25,10 @@ import {
 
 export type { Inline } from './controller.ts';
 
-export const LEGAL_VERSION = '3';
+export const LEGAL_VERSION = '4';
 /**
  * Día de esta versión de los textos (dd-mm-aaaa). La 2 añade «Importar desde Steam» (ADR-012); la
- * 3, los logros y el pase de la importación (parte 3).
+ * 3, los logros y el pase de la importación (parte 3); la 4, las llaves de acceso (ADR-013).
  */
 export const LEGAL_UPDATED = '20-11-2026';
 
@@ -39,6 +40,15 @@ export const STEAM_ID_RETENTION_MINUTES = STEAM_TICKET_TTL_MS / 60_000 + 5;
 
 /** Id de la sección de la política sobre «Importar desde Steam» (la exige `legal-guard`). */
 export const STEAM_IMPORT_SECTION = 'importar-steam';
+
+/** Id de la sección de la política sobre las llaves de acceso (la exige `legal-guard`; ADR-013). */
+export const PASSKEYS_SECTION = 'llaves-de-acceso';
+
+/**
+ * Lo más que guarda D1 un reto de una llave de acceso: los 5 min que vale y los 5 del Cron Trigger
+ * que borra los caducados (ADR-013).
+ */
+export const PASSKEY_CHALLENGE_RETENTION_MINUTES = PASSKEY_CHALLENGE_TTL_MS / 60_000 + 5;
 
 export type Block =
   | { readonly kind: 'p'; readonly parts: readonly Inline[] }
@@ -93,6 +103,7 @@ export function privacyPolicy(c: Controller = CONTROLLER): LegalDocument {
             'Las portadas de los juegos se piden a los servidores de Valve (Steam), que reciben tu dirección IP. Puedes desactivarlas.',
             'Si activas la sincronización, guardamos tu agenda en servidores de Cloudflare en la Unión Europea, para que la tengas en tus dispositivos. No sabemos quién eres: no hay nombre, email ni IP guardados.',
             `Si importas tu biblioteca de Steam, inicias sesión en Steam, no aquí. Tus juegos, tu lista de deseados y si tienes todos los logros de cada juego pasan por nuestro servidor hasta tu dispositivo sin quedarse en él, y en el servidor solo queda el número de tu cuenta de Steam, ${STEAM_ID_RETENTION_MINUTES} minutos como mucho.`,
+            'Si creas una llave de acceso para entrar en tu agenda desde otro dispositivo, solo guardamos su parte pública: tu cara, tu huella o tu PIN nunca salen de tu dispositivo.',
             'Puedes exportar tus datos, corregirlos y borrarlos desde la app, también los del servidor.',
           ),
         ],
@@ -127,7 +138,7 @@ export function privacyPolicy(c: Controller = CONTROLLER): LegalDocument {
             '4. Nombres de juegos que aún no están en el catálogo, solo con la sincronización activada. Si apuntas un juego con un enlace de Steam y el catálogo de tu dispositivo no lo tiene, la app pregunta su nombre a nuestro servidor, que se lo pregunta a Steam. Sin sincronizar, no se pregunta: el juego espera a que llegue al catálogo. Solo viaja el número del juego, sin cookies ni nada que te identifique, y Steam no recibe tu IP. Guardamos el nombre en una caché de nombres públicos, sin saber quién lo pidió. Base: darte el servicio que pides al apuntar el juego (art. 6.1.b del RGPD).',
           ),
           p(
-            '5. Sincronización, si la activas. Guardamos tu agenda (juegos, estados, marcas, fechas, notas y orden, también lo que borras durante un tiempo, para que se borre en todos tus dispositivos), el nombre que le das a cada dispositivo y cuándo sincronizó por última vez, además de un resumen (hash) de cada credencial. Para qué: tener la misma agenda en tus dispositivos y una copia fuera de ellos. Base: el servicio que pides al activarla (art. 6.1.b del RGPD). No guardamos email, nombre, contraseña ni dirección IP.',
+            '5. Sincronización, si la activas. Guardamos tu agenda (juegos, estados, marcas, fechas, notas y orden, también lo que borras durante un tiempo, para que se borre en todos tus dispositivos), el nombre que le das a cada dispositivo y cuándo sincronizó por última vez, además de un resumen (hash) de cada credencial. Para qué: tener la misma agenda en tus dispositivos y una copia fuera de ellos. Base: el servicio que pides al activarla (art. 6.1.b del RGPD). No guardamos email, nombre, contraseña ni dirección IP. Si creas una llave de acceso, guardamos también su parte pública, su identificador, el nombre del dispositivo donde la creaste y sus fechas: lo explicamos más abajo, en «Llaves de acceso».',
           ),
           p(
             '6. Atajo de iOS, si lo creas. Guardamos los enlaces de Steam que mandas con el atajo hasta que una app tuya los apunta, y entonces los borramos. Base: el servicio que pides (art. 6.1.b del RGPD).',
@@ -173,6 +184,23 @@ export function privacyPolicy(c: Controller = CONTROLLER): LegalDocument {
           p(
             'Las dos cookies solo se crean cuando tú activas la sincronización, emparejas este dispositivo o usas tu código de recuperación, y en ese momento se avisa.',
           ),
+        ],
+      },
+      {
+        id: PASSKEYS_SECTION,
+        title: 'Llaves de acceso',
+        blocks: [
+          p(
+            'Con la sincronización activada, puedes crear una llave de acceso para entrar en tu agenda desde otro dispositivo sin escribir ningún código. La crea y la guarda tu dispositivo o tu llavero (por ejemplo, el de iCloud, Google o Windows), protegida con tu cara, tu huella o tu PIN. Solo pasa si tú lo pides.',
+          ),
+          list(
+            'Tu cara, tu huella y tu PIN nunca salen de tu dispositivo: solo los usa él para dejarte usar la llave. No los vemos ni los guardamos.',
+            'Guardamos la parte pública de la llave, que sirve para comprobar que una firma es suya pero no para firmar; su identificador; el nombre del dispositivo donde la creaste, y cuándo se creó y cuándo se usó por última vez.',
+            `Cada vez que creas una llave o entras con ella, guardamos un reto de un solo uso (solo su resumen, hash), ${PASSKEY_CHALLENGE_RETENTION_MINUTES} minutos como mucho.`,
+            'Tu llavero guarda la llave según las condiciones de quien lo ofrece (Apple, Google, Microsoft u otro). Nosotros no recibimos nada de él aparte de lo dicho aquí.',
+            'Puedes quitar una llave en Ajustes › Sincronización, y se borran todas al borrar la agenda sincronizada. La app pide también a tu llavero que la olvide, si sabe hacerlo; si no, bórrala tú allí.',
+          ),
+          p('Base: el servicio que pides al crear la llave (art. 6.1.b del RGPD).'),
         ],
       },
       {
@@ -277,6 +305,16 @@ export function privacyPolicy(c: Controller = CONTROLLER): LegalDocument {
                 'Códigos de emparejamiento',
                 'Cloudflare D1, en la UE',
                 '10 minutos, o hasta usarlos',
+              ],
+              [
+                'Llaves de acceso: su parte pública, su identificador, el nombre del dispositivo donde se creó y sus fechas',
+                'Cloudflare D1, en la UE',
+                'Hasta que la quites o borres la agenda',
+              ],
+              [
+                'Retos de las llaves de acceso (solo su resumen, hash)',
+                'Cloudflare D1, en la UE',
+                `${PASSKEY_CHALLENGE_RETENTION_MINUTES} minutos como mucho, o hasta usarlos`,
               ],
               [
                 'Enlaces del Atajo de iOS',
