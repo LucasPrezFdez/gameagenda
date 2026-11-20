@@ -43,12 +43,15 @@ interface Setup {
   /** Lo que la app ha pedido a `/api`, con sus opciones. */
   requests: { path: string; init: RequestInit }[];
   net: { offline: boolean };
+  /** Las peticiones en vuelo (ver `settle`). */
+  inflight: Set<Promise<unknown>>;
 }
 
 function setup(h = createHarness(), extra: Partial<SteamFlowDeps> = {}): Setup {
   const page = new FakePage();
   const requests: Setup['requests'] = [];
   const net = { offline: false };
+  const inflight = new Set<Promise<unknown>>();
   const flow = new SteamImportFlow({
     ...extra,
     win: page.win as unknown as Window,
@@ -61,10 +64,26 @@ function setup(h = createHarness(), extra: Partial<SteamFlowDeps> = {}): Setup {
       headers.set('Origin', ORIGIN);
       headers.set('CF-Connecting-IP', '192.0.2.50');
       const { method, body, signal } = init;
-      return h.app.request(`${ORIGIN}${path}`, { method, body, signal, headers }, h.env);
+      const response = Promise.resolve(
+        h.app.request(`${ORIGIN}${path}`, { method, body, signal, headers }, h.env),
+      );
+      inflight.add(response);
+      void response.finally(() => inflight.delete(response)).catch(() => {});
+      return response;
     },
   });
-  return { h, flow, page, requests, net };
+  return { h, flow, page, requests, net, inflight };
+}
+
+/**
+ * Espera a que acaben las peticiones en vuelo y a que el flujo las procese. Un tiempo fijo no vale:
+ * en el *runner* del CI, el canje automático de la vuelta a la app seguía en vuelo a los 5 ms.
+ */
+async function settle(s: Setup): Promise<void> {
+  for (let i = 0; i < 3; i++) {
+    await Promise.allSettled([...s.inflight]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
 }
 
 /** Lo que haría Steam al iniciar sesión en la otra ventana: la vuelta a `callback`. */
@@ -140,7 +159,7 @@ describe('de punta a punta', () => {
     }
     // Ya no escucha la vuelta a la app.
     s.page.comeBack();
-    await new Promise((resolve) => setTimeout(resolve, 5));
+    await settle(s);
     expect(s.requests).toHaveLength(2);
   });
 
@@ -164,7 +183,7 @@ describe('volver antes de terminar en Steam', () => {
     await s.flow.start();
     s.flow.opened();
     s.page.comeBack();
-    await new Promise((resolve) => setTimeout(resolve, 5));
+    await settle(s);
     expect(s.flow.getSnapshot()).toMatchObject({ kind: 'waiting', stillPending: false });
     await s.flow.redeem(true);
     expect(s.flow.getSnapshot()).toMatchObject({ kind: 'waiting', stillPending: true });
@@ -177,7 +196,7 @@ describe('volver antes de terminar en Steam', () => {
     const s = setup();
     await s.flow.start();
     s.page.comeBack();
-    await new Promise((resolve) => setTimeout(resolve, 5));
+    await settle(s);
     expect(paths(s)).toEqual(['/api/v1/steam/start']);
   });
 });
