@@ -43,6 +43,43 @@ export const DEFAULT_LIST_PARAMS: ListParams = {
 };
 
 export const LIST_VIEWS: readonly ListView[] = ['pending', 'upcoming', ...STATUSES, 'all'];
+
+/**
+ * Las vistas por etapas, en la barra lateral y en las pestañas (21-11-2026, DECISIONES §10.56):
+ * primero las de conjunto; después lo que se juega ahora, lo que queda por jugar y lo terminado.
+ * El orden es fijo, para que cada vista esté siempre en su sitio.
+ */
+export type ViewGroupId = 'overview' | 'now' | 'to_play' | 'done';
+export interface ViewGroup {
+  readonly id: ViewGroupId;
+  readonly views: readonly ListView[];
+}
+export const VIEW_GROUPS: readonly ViewGroup[] = [
+  { id: 'overview', views: ['pending', 'upcoming', 'all'] },
+  { id: 'now', views: ['playing', 'multiplayer'] },
+  { id: 'to_play', views: ['want_to_play', 'on_hold', 'not_started'] },
+  { id: 'done', views: ['completed', 'dropped'] },
+];
+
+/**
+ * Las vistas que se enseñan, por etapas. Una de estado sin ningún juego se esconde, salvo la
+ * abierta, y un grupo sin vistas, también. Pendientes, Próximos y Todos salen siempre. `totals` es el
+ * recuento sin el filtro de compra: filtrar no debe cambiar qué vistas hay.
+ */
+export function shownViewGroups(
+  totals: Readonly<Record<ListView, number>>,
+  active: ListView | null,
+): ViewGroup[] {
+  return VIEW_GROUPS.map((group) => ({
+    id: group.id,
+    views: group.views.filter((view) => !isStatusView(view) || view === active || totals[view] > 0),
+  })).filter((group) => group.views.length > 0);
+}
+
+function isStatusView(view: ListView): view is Status {
+  return (STATUSES as readonly string[]).includes(view);
+}
+
 export const PURCHASE_FILTERS: readonly PurchaseFilter[] = ['any', 'owned', 'not_owned'];
 export const LIST_ORDERS: readonly ListOrder[] = ['priority', 'added', 'name', 'release'];
 

@@ -9,6 +9,7 @@ import type {
   ListView,
   PurchaseFilter,
   SectionId,
+  ViewGroupId,
 } from '../screens/my-list/list-model.ts';
 import type { ShortcutText } from '../shortcuts/keymap.ts';
 
@@ -52,6 +53,12 @@ export const es = {
   /** Lo que llena la barra lateral del PC (DECISIONES §10.33). */
   sidebar: {
     views: 'Vistas',
+    /** Las etapas de las vistas (§10.56); las de conjunto no llevan título. */
+    viewGroup: {
+      now: 'Ahora',
+      to_play: 'Por jugar',
+      done: 'Terminados',
+    } satisfies Record<Exclude<ViewGroupId, 'overview'>, string>,
     catalog: (count: string) => `Catálogo: ${count} juegos`,
     catalogLoading: 'Cargando el catálogo…',
     catalogError: 'Catálogo sin cargar',

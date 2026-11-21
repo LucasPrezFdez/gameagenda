@@ -53,12 +53,12 @@ import {
   countUpcoming,
   countViews,
   LIST_ORDERS,
-  LIST_VIEWS,
   type ListParams,
   type ListSection,
   listSearchParams,
   PURCHASE_FILTERS,
   parseListParams,
+  shownViewGroups,
 } from './list-model.ts';
 import { useListMotion } from './list-motion.ts';
 import { emptyTextOf, SYNCED_EMPTY_TEXTS, syncedEmptyState } from './restore-notice.ts';
@@ -196,6 +196,11 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
     [entries, params, releases.lookup],
   );
   const counts = useMemo(() => countViews(entries, params.purchase), [entries, params.purchase]);
+  // Las pestañas, en el orden y con las vistas de la barra lateral (§10.56).
+  const tabViews = useMemo(() => {
+    const totals = params.purchase === 'any' ? counts : countViews(entries, 'any');
+    return shownViewGroups(totals, params.view).flatMap((group) => group.views);
+  }, [entries, params.purchase, params.view, counts]);
   const upcomingCount = useMemo(
     () => countUpcoming(entries, params.purchase, releases.upcoming),
     [entries, params.purchase, releases.upcoming],
@@ -564,7 +569,7 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
         <div className="list-filters">
           {/* biome-ignore lint/a11y/useSemanticElements: grupo de botones de alternar. */}
           <div className="chips" role="group" aria-label={es.list.views}>
-            {LIST_VIEWS.map((view) => {
+            {tabViews.map((view) => {
               // El de Próximos sale cuando se saben las fechas; su hueco ya está reservado.
               const count = view === 'upcoming' ? upcomingCount : counts[view];
               return (

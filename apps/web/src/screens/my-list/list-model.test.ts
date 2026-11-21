@@ -7,11 +7,15 @@ import {
   countUpcoming,
   countViews,
   DEFAULT_LIST_PARAMS,
+  LIST_VIEWS,
+  type ListView,
   listSearchParams,
   parseListParams,
   priorityOf,
   type ReleaseLookup,
   rowDate,
+  shownViewGroups,
+  VIEW_GROUPS,
 } from './list-model.ts';
 
 function entry(id: string, status: Status, rank: number, flags: Flags = {}): AgendaEntry {
@@ -113,6 +117,23 @@ describe('Mi lista', () => {
     const view = { ...DEFAULT_LIST_PARAMS, view: 'multiplayer' } as const;
     expect(listSearchParams(view).toString()).toBe('vista=multijugador');
     expect(parseListParams('?vista=multijugador')).toEqual(view);
+  });
+
+  it('las vistas por etapas: orden fijo, y las de estado sin juegos se esconden salvo la abierta', () => {
+    const shown = (list: readonly AgendaEntry[], active: ListView | null) =>
+      shownViewGroups(countViews(list, 'any'), active).map((g) => [g.id, g.views]);
+    expect(shown(entries, 'pending')).toEqual([
+      ['overview', ['pending', 'upcoming', 'all']],
+      ['now', ['playing']],
+      ['to_play', ['want_to_play', 'on_hold']],
+      ['done', ['completed']],
+    ]);
+    // La abierta sale aunque esté vacía (si no, desaparecería con el último juego que se va).
+    expect(shown(entries, 'dropped').at(-1)).toEqual(['done', ['completed', 'dropped']]);
+    // Sin juegos, solo las de conjunto; un grupo sin vistas no sale.
+    expect(shown([], null)).toEqual([['overview', ['pending', 'upcoming', 'all']]]);
+    // Todas las vistas están en algún grupo, una sola vez.
+    expect(VIEW_GROUPS.flatMap((g) => g.views).sort()).toEqual([...LIST_VIEWS].sort());
   });
 
   it('calcula la prioridad dentro de la vista', () => {

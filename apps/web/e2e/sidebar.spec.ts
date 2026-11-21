@@ -91,10 +91,19 @@ test('en el PC, la barra lateral lleva las vistas con su contador y lo que se es
   );
   await expect(page.getByRole('group', { name: 'Vistas' })).toBeHidden();
 
-  // A Jugando: entra en «Jugando ahora», que abre la ficha.
+  // Por etapas (§10.56): las de conjunto siempre; las de estado, solo con juegos.
+  const labels = () =>
+    views.locator('.sidebar-views__label').evaluateAll((els) => els.map((e) => e.textContent));
+  await expect.poll(labels).toEqual(['Pendientes', 'Próximos', 'Todos', 'Quiero jugar']);
+  await expect(views.getByRole('heading', { name: 'Por jugar' })).toBeVisible();
+  await expect(views.getByRole('heading', { name: 'Ahora' })).toHaveCount(0);
+
+  // A Jugando: entra en «Jugando ahora», que abre la ficha; en la barra sale la etapa «Ahora».
   await page.getByRole('button', { name: 'Quiero jugar: cambiar estado de Hades II' }).click();
   await page.getByRole('menuitemradio', { name: 'Jugando' }).click();
   await expect(views.getByRole('link', { name: 'Jugando 1' })).toBeVisible();
+  await expect(views.getByRole('heading', { name: 'Ahora' })).toBeVisible();
+  await expect.poll(labels).toEqual(['Pendientes', 'Próximos', 'Todos', 'Jugando', 'Quiero jugar']);
   // Exacta: la sección de Mi lista se llama «Jugando ahora (1)».
   const playing = page.getByRole('region', { name: 'Jugando ahora', exact: true });
   await playing.getByRole('link', { name: 'Hades II' }).click();

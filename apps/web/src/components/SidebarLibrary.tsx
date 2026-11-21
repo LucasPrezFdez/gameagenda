@@ -17,25 +17,13 @@ import {
   type ListParams,
   type ListView,
   listSearchParams,
+  shownViewGroups,
 } from '../screens/my-list/list-model.ts';
 import { useReleases } from '../screens/my-list/use-releases.ts';
 import { useOpenShortcutHelp } from '../shortcuts/ShortcutHelp.tsx';
 import { Cover } from './bits.tsx';
 import { Icon } from './icons.tsx';
 
-/** Las vistas, en el orden de la §9.1. El contador de Próximos sale cuando se saben las fechas. */
-const VIEWS: readonly ListView[] = [
-  'pending',
-  'playing',
-  'want_to_play',
-  'on_hold',
-  'multiplayer',
-  'completed',
-  'dropped',
-  'not_started',
-  'upcoming',
-  'all',
-];
 const SHELF_SIZE = 4;
 
 const PENDING: ListParams = { ...DEFAULT_LIST_PARAMS, view: 'pending' };
@@ -56,6 +44,12 @@ export function SidebarLibrary({
   const openHelp = useOpenShortcutHelp();
   const { purchase } = listParams;
   const counts = useMemo(() => countViews(entries, purchase), [entries, purchase]);
+  // Qué vistas salen no depende del filtro de compra (ver `shownViewGroups`).
+  const totals = useMemo(
+    () => (purchase === 'any' ? counts : countViews(entries, 'any')),
+    [entries, purchase, counts],
+  );
+  const groups = shownViewGroups(totals, onList ? listParams.view : null);
   const releases = useReleases(entries, PENDING);
   const upcoming = useMemo(
     () => countUpcoming(entries, purchase, releases.upcoming),
@@ -78,27 +72,32 @@ export function SidebarLibrary({
     <div className="sidebar-library">
       <nav className="sidebar-views" aria-labelledby="sidebar-views">
         <h2 id="sidebar-views">{es.sidebar.views}</h2>
-        <ul>
-          {VIEWS.map((view) => (
-            <li key={view}>
-              <Link
-                to={withSearch('/', listSearchParams({ ...listParams, view }))}
-                className="sidebar-views__link"
-                aria-current={onList && listParams.view === view ? 'page' : undefined}
-              >
-                <span
-                  className={`sidebar-views__dot sidebar-views__dot--${view}`}
-                  aria-hidden="true"
-                />
-                <span className="sidebar-views__label">{es.list.view[view]}</span>
-                {/* El hueco del contador de Próximos ya está, aunque aún no se sepa (§9.5). */}
-                <span className="sidebar-views__count">
-                  {view === 'upcoming' ? upcoming : counts[view]}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
+        {/* Por etapas (§10.56): las de conjunto, sin título; las demás, con el de su etapa. */}
+        {groups.map((group) => {
+          const headingId = `sidebar-views-${group.id}`;
+          const titled = group.id !== 'overview';
+          return (
+            <div key={group.id} className="sidebar-views__group">
+              {titled && (
+                <h3 id={headingId} className="sidebar-views__group-title">
+                  {es.sidebar.viewGroup[group.id]}
+                </h3>
+              )}
+              <ul aria-labelledby={titled ? headingId : undefined}>
+                {group.views.map((view) => (
+                  <li key={view}>
+                    <ViewLink
+                      view={view}
+                      listParams={listParams}
+                      current={onList && listParams.view === view}
+                      count={view === 'upcoming' ? upcoming : counts[view]}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        })}
       </nav>
 
       {shelves.map((shelf) => (
@@ -135,5 +134,30 @@ export function SidebarLibrary({
         </p>
       </footer>
     </div>
+  );
+}
+
+function ViewLink({
+  view,
+  listParams,
+  current,
+  count,
+}: {
+  view: ListView;
+  listParams: ListParams;
+  current: boolean;
+  /** `null` mientras no se sepa (Próximos): el hueco del contador ya está (§9.5). */
+  count: number | null;
+}) {
+  return (
+    <Link
+      to={withSearch('/', listSearchParams({ ...listParams, view }))}
+      className="sidebar-views__link"
+      aria-current={current ? 'page' : undefined}
+    >
+      <span className={`sidebar-views__dot sidebar-views__dot--${view}`} aria-hidden="true" />
+      <span className="sidebar-views__label">{es.list.view[view]}</span>
+      <span className="sidebar-views__count">{count}</span>
+    </Link>
   );
 }
