@@ -93,6 +93,34 @@ test('Platinado pasa a Completado y lo dice el aviso; En pausa va plegada', asyn
   await checks.expectClean();
 });
 
+test('Multijugador (menú o `7`) sale de Pendientes y tiene su vista y su sección en Todos', async ({
+  page,
+}) => {
+  const checks = await setup(page);
+  await page.goto('/');
+  await threeGames(page);
+
+  await page.getByRole('button', { name: 'Quiero jugar: cambiar estado de Hades II' }).click();
+  await page.getByRole('menuitemradio', { name: 'Multijugador' }).click();
+  await expect(toast(page)).toContainText('Hades II pasa a Multijugador');
+  await expect(row(page, 'Hades II')).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Prioridad 1: Celeste' })).toBeFocused();
+  await page.keyboard.press('7');
+  await expect(toast(page)).toContainText('Celeste pasa a Multijugador');
+  await expect(page.getByRole('heading', { name: 'Quiero jugar (1)' })).toBeVisible();
+
+  await viewControl(page, /^Multijugador 2/).click();
+  await expect(page).toHaveURL('/?vista=multijugador');
+  await expect(
+    page.getByRole('button', { name: 'Multijugador: cambiar estado de Celeste' }),
+  ).toBeVisible();
+  await expect(row(page, 'Hades II')).toHaveCount(1);
+
+  await viewControl(page, /^Todos 3/).click();
+  await expect(page.getByRole('heading', { name: 'Multijugador (2)' })).toBeVisible();
+  await checks.expectClean();
+});
+
 test('↑ y ↓ recorren las filas e Intro abre la ficha', async ({ page }) => {
   const checks = await setup(page);
   await page.goto('/');

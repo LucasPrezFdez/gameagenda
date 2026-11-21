@@ -110,7 +110,8 @@ test('Mayús+Intro abre la ficha y Alt+Intro apunta con otro estado', async ({ p
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');
-  // Seis estados (con Sin empezar) y Comprado antes de Platinado.
+  // Siete estados (con Sin empezar y Multijugador) y Comprado antes de Platinado.
+  await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');
   await expect(page.getByRole('menuitemcheckbox', { name: 'Platinado' })).toBeFocused();
   await page.keyboard.press('Space');
