@@ -175,6 +175,9 @@ function fakeWebApi(url: string): Response {
     : new Response(library.wishlist, { headers: STEAM_JSON });
 }
 
+/** Lo que la tienda falsa da como software (`type` 6): Wallpaper Engine. */
+const E2E_SOFTWARE: ReadonlySet<number> = new Set([431960]);
+
 /** `GetItems` falso: lo que haya en `steam.names`; si no, «no lo conoce» (`success` 15). */
 const fakeSteam: SteamFetch = async (url, init) => {
   if (url === STEAM_OPENID && init.method === 'POST') {
@@ -189,7 +192,18 @@ const fakeSteam: SteamFetch = async (url, init) => {
   }
   const input = JSON.parse(new URL(url).searchParams.get('input_json') ?? '{}') as {
     ids?: Array<{ appid?: number }>;
+    data_request?: unknown;
   };
+  // `types` (con `data_request`; Software, DECISIONES §10.57): todas las pedidas. Wallpaper Engine
+  // es software; lo demás, «no lo conoce» (cuenta como juego), para no cambiar las otras pruebas.
+  if (input.data_request !== undefined) {
+    const items = (input.ids ?? []).map(({ appid: id = 0 }) =>
+      E2E_SOFTWARE.has(id)
+        ? { id, success: 1, visible: true, appid: id, type: 6 }
+        : { id, success: 15, visible: false, appid: 0 },
+    );
+    return Response.json({ response: { store_items: items } });
+  }
   const appid = input.ids?.[0]?.appid ?? 0;
   steam.calls.set(appid, (steam.calls.get(appid) ?? 0) + 1);
   const name = steam.names.get(appid);

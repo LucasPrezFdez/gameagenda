@@ -280,6 +280,70 @@ test('lo que ya tenías: gana Comprado sin cambiar de estado', async ({ page, co
   await checks.expectClean();
 });
 
+test('Software (§10.57): Wallpaper Engine, que estaba en Jugando, pasa a Software', async ({
+  page,
+  context,
+}) => {
+  const steamId = newSteamId();
+  const yesterday = Math.floor(Date.now() / 1000) - 24 * 60 * 60;
+  await page.request.post('/__e2e/steam/library', {
+    data: {
+      steamId,
+      owned: {
+        response: {
+          game_count: 2,
+          games: [
+            {
+              appid: 431960,
+              name: 'Wallpaper Engine',
+              playtime_forever: 6000,
+              rtime_last_played: yesterday,
+            },
+            { appid: 1145360, name: 'Hades', playtime_forever: 0 },
+          ],
+        },
+      },
+      wishlist: { response: {} },
+    },
+  });
+  await actAsSteam(context, page, steamId);
+  const checks = await setup(page);
+  await page.goto('/');
+  await waitForSearch(page, 'full');
+  await expect.poll(() => storedMeta(page, 'searchIndexKey'), { timeout: 15_000 }).not.toBeNull();
+  const result = addEntry(
+    undefined,
+    { id: 'steam:431960', title: 'Wallpaper Engine', status: 'playing' },
+    {
+      hlc: formatHlc({ ms: Date.now() - 60_000, counter: 0, node: 'e2e00003' }),
+      today: new Date().toISOString().slice(0, 10),
+      newOpId: uuidv7,
+      lastRank: null,
+    },
+  );
+  if (!result) throw new Error('No se pudo apuntar Wallpaper Engine');
+  await putEntries(page, [result.entry]);
+  await page.reload();
+  await openData(page);
+  await button(page, 'Importar desde Steam').click();
+  await signInInPopup(page);
+  await comeBack(page);
+  await expect(steamStatus(page)).toContainText(
+    'Uno que ya tenías es un programa, no un juego: pasará a Software.',
+  );
+  await expect(steamStatus(page).getByRole('listitem')).toHaveText([
+    '1 a Sin empezar (no los has jugado)',
+  ]);
+  await expectAccessible(page, 'Importar desde Steam, resumen con Software');
+  await button(page, 'Aplicar').click();
+  await expect(steamStatus(page)).toContainText('Hecho:');
+  expect(await storedEntry(page, 'steam:431960')).toMatchObject({
+    status: 'software',
+    flags: { owned: true },
+  });
+  await checks.expectClean();
+});
+
 test('PWA de iOS: el login acaba en otro contexto y la app canjea el ticket al volver', async ({
   page,
   browser,
