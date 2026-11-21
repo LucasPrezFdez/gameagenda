@@ -6,7 +6,7 @@ import { formatHlc } from '@gameagenda/core/sync';
 import { expect, type Page, test } from '@playwright/test';
 import { v7 as uuidv7 } from 'uuid';
 import { setup, waitForSearch } from './helpers.ts';
-import { putEntries, storedMeta } from './storage.ts';
+import { putEntries, storedEntry, storedMeta } from './storage.ts';
 
 const idOf = (index: number) => `steam:${4_200_000 + index}`;
 const titleOf = (index: number) => `Juego ancho ${index}`;
@@ -37,12 +37,18 @@ function seedEntries(): Entry[] {
 const row = (page: Page, index: number) =>
   page.locator(`.screen-slot--list .entry-row[data-entry-id="${idOf(index)}"]`);
 
-/** Escribe la nota desde la ficha y vuelve a Mi lista. */
+/**
+ * Escribe la nota desde la ficha y vuelve a Mi lista. Antes de navegar espera a que esté guardada:
+ * `goto` recarga la página, y una escritura aún en vuelo se perdía (falló así en el CI 44909780335).
+ */
 async function writeNote(page: Page, index: number, text: string) {
   await page.goto(`/juego/${idOf(index)}`);
   const field = page.getByRole('textbox', { name: 'Nota' });
   await field.fill(text);
   await field.blur();
+  await expect
+    .poll(async () => ((await storedEntry(page, idOf(index))) as { note?: string } | null)?.note)
+    .toBe(text);
   await page.goto('/');
 }
 
