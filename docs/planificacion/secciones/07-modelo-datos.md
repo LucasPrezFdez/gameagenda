@@ -52,7 +52,8 @@ type Day = string | null;       // fecha local AAAA, AAAA-MM o AAAA-MM-DD
 interface Entry {
   id: string;                   // §7.3
   status: string;               // want_to_play (defecto), playing, on_hold,
-                                // completed, dropped, not_started, multiplayer
+                                // completed, dropped, not_started, multiplayer,
+                                // software
   flags: Record<string, boolean>; // platinum, owned, next (propias: Fase 2)
   rank: string;                 // orden manual en Quiero jugar
   note: string;                 // ≤2000 caracteres

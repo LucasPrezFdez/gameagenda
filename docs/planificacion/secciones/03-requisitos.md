@@ -80,6 +80,7 @@ Cada entrada tiene siempre **un estado** exclusivo y cualquier combinación de *
 | `dropped` | Abandonado | Dejado sin intención de terminarlo; la entrada se conserva |
 | `not_started` | Sin empezar | Lo tienes, pero no has decidido jugarlo (desde el 20-11-2026; DECISIONES §10.50). Es donde entran los juegos de Steam sin jugar: la importación no sabe cuáles quieres jugar. No sale en «Pendientes» |
 | `multiplayer` | Multijugador | Un juego sin final (multijugador o como servicio: Counter-Strike 2, Overwatch, PEAK) que se juega a ratos (desde el 21-11-2026; DECISIONES §10.55). Un multijugador con historia que se acaba (It Takes Two) va en los demás. No sale en «Pendientes», porque no se termina, y no avanza con el gesto. Cuando lo dejas, Abandonado |
+| `software` | Software | No es un juego: un programa de Steam como Wallpaper Engine, Blender o Aseprite (desde el 21-11-2026; DECISIONES §10.57). La importación de Steam lleva aquí lo que la tienda da como software, también lo que ya estaba en otro estado. No sale en «Pendientes» ni avanza con el gesto |
 
 Se permiten todas las transiciones, porque manda el usuario (por ejemplo, puede pasar a Completado un juego terminado hace años). Las flechas con nombre son acciones de un toque; las demás se hacen con el selector de estado.
 
@@ -93,6 +94,7 @@ stateDiagram-v2
   state "Abandonado" as dropped
   state "Sin empezar" as not_started
   state "Multijugador" as multiplayer
+  state "Software" as software
   [*] --> want_to_play: Apuntar
   want_to_play --> playing: Empezar
   playing --> on_hold: Pausar
@@ -105,6 +107,7 @@ stateDiagram-v2
   not_started --> playing: Empezar
   playing --> multiplayer
   multiplayer --> dropped: Abandonar
+  want_to_play --> software
   want_to_play --> completed
   want_to_play --> dropped
   playing --> want_to_play

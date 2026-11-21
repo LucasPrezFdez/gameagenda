@@ -201,6 +201,7 @@ Cada entrada tiene siempre **un estado** exclusivo y cualquier combinación de *
 | `dropped` | Abandonado | Dejado sin intención de terminarlo; la entrada se conserva |
 | `not_started` | Sin empezar | Lo tienes, pero no has decidido jugarlo (desde el 20-11-2026; DECISIONES §10.50). Es donde entran los juegos de Steam sin jugar: la importación no sabe cuáles quieres jugar. No sale en «Pendientes» |
 | `multiplayer` | Multijugador | Un juego sin final (multijugador o como servicio: Counter-Strike 2, Overwatch, PEAK) que se juega a ratos (desde el 21-11-2026; DECISIONES §10.55). Un multijugador con historia que se acaba (It Takes Two) va en los demás. No sale en «Pendientes», porque no se termina, y no avanza con el gesto. Cuando lo dejas, Abandonado |
+| `software` | Software | No es un juego: un programa de Steam como Wallpaper Engine, Blender o Aseprite (desde el 21-11-2026; DECISIONES §10.57). La importación de Steam lleva aquí lo que la tienda da como software, también lo que ya estaba en otro estado. No sale en «Pendientes» ni avanza con el gesto |
 
 Se permiten todas las transiciones, porque manda el usuario (por ejemplo, puede pasar a Completado un juego terminado hace años). Las flechas con nombre son acciones de un toque; las demás se hacen con el selector de estado.
 
@@ -214,6 +215,7 @@ stateDiagram-v2
   state "Abandonado" as dropped
   state "Sin empezar" as not_started
   state "Multijugador" as multiplayer
+  state "Software" as software
   [*] --> want_to_play: Apuntar
   want_to_play --> playing: Empezar
   playing --> on_hold: Pausar
@@ -226,6 +228,7 @@ stateDiagram-v2
   not_started --> playing: Empezar
   playing --> multiplayer
   multiplayer --> dropped: Abandonar
+  want_to_play --> software
   want_to_play --> completed
   want_to_play --> dropped
   playing --> want_to_play
@@ -889,7 +892,8 @@ type Day = string | null;       // fecha local AAAA, AAAA-MM o AAAA-MM-DD
 interface Entry {
   id: string;                   // §7.3
   status: string;               // want_to_play (defecto), playing, on_hold,
-                                // completed, dropped, not_started, multiplayer
+                                // completed, dropped, not_started, multiplayer,
+                                // software
   flags: Record<string, boolean>; // platinum, owned, next (propias: Fase 2)
   rank: string;                 // orden manual en Quiero jugar
   note: string;                 // ≤2000 caracteres
@@ -1362,7 +1366,7 @@ Todo gira alrededor de **apuntar un juego en segundos**, en el móvil o en el PC
 | Política de privacidad · aviso legal y condiciones de uso | `/privacidad` · `/aviso-legal` | M4 |
 
 - **Navegación** (desde el 06-11-2026; DECISIONES §10.33):
-  - **PC:** una barra lateral de altura completa, como Linear o Notion. Arriba lleva la marca, el botón de encoger y «Más opciones», con «Apunta un juego… Ctrl+K» debajo; luego, las secciones. Debajo de las secciones van las vistas de Mi lista con su contador, que en el PC sustituyen a las pestañas de vista mientras la barra está desplegada. Desde el 21-11-2026 van por etapas, en un orden fijo (DECISIONES §10.56): Pendientes, Próximos y Todos; «Ahora» (Jugando y Multijugador); «Por jugar» (Quiero jugar, En pausa y Sin empezar), y «Terminados» (Completado y Abandonado). Una vista de estado sin ningún juego no sale, salvo la abierta; las pestañas del móvil siguen el mismo orden, sin títulos. Luego, «Jugando ahora» y «A continuación» con portadas, y un pie con los atajos y el catálogo. Se encoge a un riel de iconos de 64 px, con los nombres al pasar el puntero, y lo recuerda (`sidebarCollapsed`). En la tablet (768–1 023 px) empieza encogida, y lo que se elija allí se recuerda aparte (`sidebarCollapsedNarrow`; DECISIONES §10.51).
+  - **PC:** una barra lateral de altura completa, como Linear o Notion. Arriba lleva la marca, el botón de encoger y «Más opciones», con «Apunta un juego… Ctrl+K» debajo; luego, las secciones. Debajo de las secciones van las vistas de Mi lista con su contador, que en el PC sustituyen a las pestañas de vista mientras la barra está desplegada. Desde el 21-11-2026 van por etapas, en un orden fijo (DECISIONES §10.56): Pendientes, Próximos y Todos; «Ahora» (Jugando y Multijugador); «Por jugar» (Quiero jugar, En pausa y Sin empezar), y «Terminados» (Completado y Abandonado), y «Otros» (Software, DECISIONES §10.57). Una vista de estado sin ningún juego no sale, salvo la abierta. Las pestañas del móvil (y de la barra encogida) tienen las mismas vistas, sin títulos, pero con Pendientes y los estados primero, y Próximos y Todos al final. Luego, «Jugando ahora» y «A continuación» con portadas, y un pie con los atajos y el catálogo. Se encoge a un riel de iconos de 64 px, con los nombres al pasar el puntero, y lo recuerda (`sidebarCollapsed`). En la tablet (768–1 023 px) empieza encogida, y lo que se elija allí se recuerda aparte (`sidebarCollapsedNarrow`; DECISIONES §10.51).
   - **Móvil:** cabecera arriba y, abajo, una cápsula flotante con las tres secciones y el buscador como botón redondo aparte, como las apps de iOS 26. En Catálogo, el filtro va arriba; en la ficha y en Ajustes, botón `(+)`. También el móvil en horizontal (táctil y ≤500 px de alto) lleva esta maqueta.
   - **Puntos de corte** (DECISIONES §10.51; la tabla, al principio de `tokens.css`): móvil por debajo de 768 px; tablet de 768 a 1 023; la ficha al lado desde 1 280; la fila con el estado debajo a ≤479. Sin desplazamiento horizontal a 320 px.
   - **Pantallas anchas** (desde el 21-11-2026; DECISIONES §10.53): Mi lista, el Catálogo y la ficha al lado llenan lo que deja la barra lateral, con el margen de la página, hasta 2 560 px (`--content-max`). Ajustes se queda en 960 px y los textos legales, en una columna de lectura de 44rem. Con la lista de 880 px o más, las filas de Mi lista enseñan «Juego en» y una fecha según el estado; desde 1 280 px, las tres fechas (Apuntado, Empezado y Completado) en columnas, y desde 1 600, también la nota (DECISIONES §10.54). Vista, filtros y orden van en la URL y en `settings` (enrutador propio, ver §6).
@@ -1598,7 +1602,7 @@ Leyenda: `[img]` portada, `[HK ]` generada, `(+)` apuntar, `(i)` ficha, `::` asa
   - **«Atajos de una tecla»** (Ajustes › Teclado y gestos, activado por defecto) apaga todas las teclas sueltas, también el `+` del Catálogo. `Ctrl+K`, `Ctrl+Z`, `Esc` y `Alt+↑/↓` siguen funcionando.
 - **Gestos (M3)**, con alternativa en el icono de estado, `[...]` o la ficha: deslizar → avanza el estado; ← muestra las marcas; pulsación larga, selector; arrastrar `::`, reordenar; ↓ cierra la hoja. Se activan al 40 % del ancho, se cancelan volviendo atrás, vibran 10 ms en Android y respetan zonas muertas de ≥24 px en ambos bordes; ninguno borra.
 - **Gestos de M3 tal como se han construido (02-11-2026; `DECISIONES.md` §10.24):**
-  - **→ avanza el estado:** Quiero jugar y Sin empezar → Jugando («Empezar»), En pausa → Jugando («Retomar») y Jugando → Completado («Completar»). Detrás de la fila se lee lo que va a pasar, que toma el color del estado nuevo al llegar al 40 %. Completado, Abandonado y Multijugador (que no tiene final) no avanzan.
+  - **→ avanza el estado:** Quiero jugar y Sin empezar → Jugando («Empezar»), En pausa → Jugando («Retomar») y Jugando → Completado («Completar»). Detrás de la fila se lee lo que va a pasar, que toma el color del estado nuevo al llegar al 40 %. Completado, Abandonado, Multijugador (que no tiene final) y Software (que no es un juego) no avanzan.
   - **← abre la bandeja de marcas** (Comprado, Platinado y Próximo) detrás de la fila. Un toque cambia la marca y la cierra; tocar fuera, desplazar la página o `Esc` la cierran sin cambiar nada.
   - **Pulsación larga** (500 ms): en Mi lista, el menú de estado de la fila; en la paleta, «Apuntar como…», como `Alt+Intro` (RF-06).
   - **Deslizar y mantener pulsado son solo del dedo y del lápiz**; con el ratón están los botones de la fila.
@@ -1677,6 +1681,7 @@ Escalas: letra de 12, 13, 15, 17, 20 y 28 px (el campo de la paleta, en 16 px po
 | Abandonado | Círculo tachado | `#9AA5B4` · `#2B3139` (5,26:1) | `#5E6977` · `#ECEDEF` (4,76:1) |
 | Sin empezar | Caja («package») | `#D4B483` · `#352E24` (6,80:1) | `#7A5C2E` · `#F2ECE2` (5,26:1) |
 | Multijugador | Tres personas («users-three») | `#F285C9` · `#3D2536` (5,92:1) | `#A3307D` · `#F6E6F0` (5,34:1) |
+| Software | Ventana de programa («app-window») | `#9FD356` · `#273021` (7,79:1) | `#4A7212` · `#EBF1E0` (4,91:1) |
 | Platinado | Trofeo de platino | `#C9D4E2` · `#2A2F37` (8,97:1) | `#56657A` · `#ECEFF4` (5,15:1) |
 | Comprado | Bolsa | `#A3ADBA` · `#2D323A` (5,67:1) | `#556170` · `#EBECEE` (5,33:1) |
 | Próximo | Chincheta roja | `#FF6B6B` · `#3A2224` (5,28:1) | `#C4272F` · `#FBE9EA` (4,88:1) |
@@ -1719,7 +1724,7 @@ Tuteo, frases cortas, pretérito perfecto, sin exclamaciones y teclas con su nom
 
 | Dato | Endpoint | ¿Clave? | Qué propone |
 |---|---|---|---|
-| Biblioteca y horas | `IPlayerService/GetOwnedGames/v1` (`include_appinfo`, `include_played_free_games`, `skip_unvetted_apps=false`) | Sí | **Comprado** en todos (decisión del usuario, 20-11-2026). Los que no estaban entran según lo jugado: sin jugar, **Sin empezar** (no Quiero jugar: la importación no sabe cuáles quieres jugar; ver §3.3); jugados en los últimos 14 días, Jugando; los demás, En pausa. Los que estaban no cambian de estado: solo ganan la marca. Nunca los `family_shared` (`GetOwnedGames` no los da); `ownedAt` queda vacío |
+| Biblioteca y horas | `IPlayerService/GetOwnedGames/v1` (`include_appinfo`, `include_played_free_games`, `skip_unvetted_apps=false`) | Sí | **Comprado** en todos (decisión del usuario, 20-11-2026). Los que no estaban entran según lo jugado: sin jugar, **Sin empezar** (no Quiero jugar: la importación no sabe cuáles quieres jugar; ver §3.3); jugados en los últimos 14 días, Jugando; los demás, En pausa. Los que estaban no cambian de estado: solo ganan la marca. Lo que la tienda de Steam da como software (`IStoreBrowseService/GetItems`, `type` 6, preguntado solo por lo que no está en el catálogo) entra en **Software**, y lo que ya estaba también pasa ahí (DECISIONES §10.57). Nunca los `family_shared` (`GetOwnedGames` no los da); `ownedAt` queda vacío |
 | Lista de deseados | `IWishlistService/GetWishlist/v1` (`steamid`) | No (no documentado) | **Quiero jugar**, al final de la lista, si se marca la casilla del resumen (sale desmarcada) |
 | Logros | `ISteamUserStats/GetPlayerAchievements/v1`, un juego por llamada. `IPlayerService/GetAchievementsProgress` (varios por llamada) pide la sesión del usuario: con clave, 401 (20-11-2026) | Sí | **Platinado** (y Completado) si tiene todos los logros, con el día del último (decisión del usuario, 20-11-2026) |
 

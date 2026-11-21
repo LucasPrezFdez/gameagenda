@@ -194,6 +194,15 @@ En producción y encendida desde el 20-11-2026 (`deploy-web` 44783715656); el de
 - **E2E** (`steam-import.spec.ts`, 9 en Chromium y en WebKit, con axe): el resumen sin tocar la agenda, «Aplicar», Mi lista, «Deshacer» y lo que ya se tenía.
 - **A mano:** la prueba a mano con la cuenta del usuario (20-11-2026, en `wrangler dev` en `127.0.0.1:8787` con el catálogo publicado), con «Sin empezar»: «vale todo ok». La vuelta de Steam, 0,40 s; `redeem`, 0,53 s; y los logros de sus 73 juegos jugados con estadísticas, en dos lotes de 2,2 y 1,5 s.
 
+## Software (21-11-2026)
+
+El detalle, en DECISIONES §10.57. El usuario pidió un estado para lo que no es un juego (Wallpaper Engine) y que la importación lo llevara ahí.
+
+- **`POST /api/v1/steam/types`** `{ token, appids }`: hasta 200 apps por petición, una llamada a `IStoreBrowseService/GetItems/v1` de la tienda, sin clave y sin el SteamID64 (el pase solo prueba que viene de una importación). Devuelve las que la tienda da como software (`type` 6). Usa `RL_STEAM_ACH` y suma 1 al tope diario.
+- **La app solo pregunta por lo que no está en el catálogo**, que solo tiene juegos: una biblioteca normal, una petición. Lo que la tienda no enseña, o si la petición falla, cuenta como juego: un juego nunca acaba en Software por error.
+- **El plan:** lo nuevo que es software entra en Software, sin Platinado y sin preguntarle los logros; lo que ya estaba en otro estado pasa a Software (`markImported`), con su línea en el resumen y el mismo «Deshacer».
+- **Legal:** los textos pasan a la versión 5, que lo cuenta (Valve recibe los números de las apps, no el de la cuenta).
+
 ## Pros y contras de las opciones
 
 ### 1. Verificar el login
