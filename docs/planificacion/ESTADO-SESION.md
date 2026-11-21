@@ -15,7 +15,7 @@
 - **Comprobado:** `lint`, `typecheck`, 1 567 pruebas y JS inicial de 145,9 KB. E2E: la importación (10, con una nueva de Software) en Chromium y WebKit, y la interfaz (51 en Chromium y 28 en WebKit). Capturas en el *scratchpad* (`capturas/software.mjs`, que corta `/api/`).
 - **Queda:**
   1. ~~el visto bueno para desplegar~~: desplegado el 21-11-2026. Para que el Wallpaper Engine del usuario pase a Software: volver a importar desde Steam, o el 8 en su fila. La app de escritorio se pone al día sola tras un minuto en la bandeja;
-  2. en el móvil, a 390 px, Quiero jugar asoma cortada (va detrás de Jugando y Multijugador), y la tira no se desplaza hasta la vista abierta.
+  2. ~~la pestaña abierta fuera de la tira en el móvil~~: arreglado el 21-11-2026 en la rama `multijugador` (§10.56, `lib/reveal.ts`; el usuario: «haz lo que tú veas»). El orden se queda; a 390 px, Quiero jugar asoma cortada. Falta el visto bueno para desplegarlo.
 
 **Un estado nuevo, «Multijugador», y las vistas de la barra lateral por etapas (21-11-2026), EN PRODUCCIÓN desde el 21-11-2026** (el usuario: «si despliega»). `main` avanzó hasta la rama `multijugador` (`7cba297`), que se conserva; el árbol principal sigue en ella. `ci` 44904585259 y `deploy-web` 44904931653, en verde; `smoke:web`, «Todo en orden». La app de escritorio se pone al día sola tras un minuto en la bandeja.
 - **Lo que pidió el usuario:** algo para los juegos que no se acaban (PEAK, CS2, Overwatch, Golf It, Wallpaper Engine), que no encajaban en ningún estado. Eligió un estado y el nombre «Multijugador» (entre «Sin final», «En rotación» y «A ratos»).
