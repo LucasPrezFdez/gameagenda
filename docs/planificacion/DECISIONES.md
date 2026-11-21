@@ -725,3 +725,41 @@ Resueltos a partir de las mediciones y de los conflictos detectados entre seccio
       - `deploy-web` 44839354214 aplicó la migración `0004` y desplegó la versión `031d300f`, con la prueba de humo en verde;
       - comprobado a mano en producción: la `Permissions-Policy` lleva `publickey-credentials-create=(self)` y `publickey-credentials-get=(self)`; `POST /api/v1/passkeys/challenge` da 201 con el `rpId` `ga-web.gameagenda.workers.dev` (la tabla nueva existe), y `GET /api/v1/passkeys` sin dispositivo, 401.
     - **Queda:** la prueba del usuario en sus dispositivos: Face ID con iCloud en el iPhone, también en la app de la pantalla de inicio; Windows Hello en Edge y en la app de escritorio; y del móvil al PC con el QR. Después, el ADR-013 pasa a «aceptada».
+53. **Mi lista en cuadrícula y la columna a todo el ancho (21-11-2026, en la rama `cuadricula-mi-lista`; pedido por el usuario; cambia §9.1, las «Pantallas anchas» de §10.51 y el tope de la cuadrícula del Catálogo de §10.45 y §10.51).** El usuario abrió la app de escritorio, maximizada en su monitor de 2 560 × 1 440, y vio «los huecos que había comentado». Pidió: «me gustaría que fuera más responsiva de modo que no quedaran esos márgenes gigantes. También añade un modo grid en el apartado de Mi lista».
+    - **Por qué la app de escritorio aún no lo enseñaba:** la revisión responsive estaba en producción desde el 20-11, pero una versión nueva no entra con la ventana a la vista (§10.29). La app la bajó a los 4 s de abrirse y la puso al minuto de estar en la bandeja. Aun con ella, la columna de 1 440 px dejaba 436 px vacíos a cada lado con la ventana maximizada.
+    - **La columna, a todo el ancho:** `--content-max` pasa a `160rem` (2 560 px). Mi lista, el Catálogo y la ficha al lado llenan lo que deja la barra lateral, con el margen de la página (`--page-gutter`, que ahora llega a 40 px).
+      - Con 2 560 px de ventana, la lista mide 2 240 px y quedan 36 px a la derecha (antes, 1 440 y 436); con 1 920, mide 1 616 (antes, 1 200).
+      - El tope solo se nota en un ultrapanorámico sin escalado (3 440 px o más), donde una fila más ancha ya no se lee de un vistazo.
+      - Ajustes (960 px) y los textos legales (44rem) no cambian, a propósito: son formularios y texto de lectura, y estirados se leen peor.
+      - En la lista, las filas se estiran: el título queda a la izquierda, y «Juego en», la fecha y el estado, a la derecha. Si al usuario le parece demasiado, las filas anchas pueden enseñar más columnas (las otras fechas, la nota). Está por decidir.
+    - **La cuadrícula del Catálogo, sin el tope de 1 440 px ni el de 8 columnas:** las columnas salen de `lib/card-grid.ts`, que comparten las dos cuadrículas (`gridColumns`): tarjetas de 160 px como mínimo, 12 px entre ellas y hasta 16 columnas.
+      - Hasta 1 440 px de ancho, salen las mismas columnas que antes; con 2 240 px, 13, de unos 160 px.
+      - El porqué del tope en §10.51 (que el conmutador se moviera al cambiar de vista) ya no vale: las dos vistas miden lo mismo.
+    - **Mi lista en cuadrícula:** el conmutador Lista / Cuadrícula del Catálogo, ahora `components/ViewToggle.tsx`, va en la cabecera de Mi lista, junto al orden. Se recuerda aparte del Catálogo (`listLayout`, por defecto `list`).
+      - Tiene las mismas secciones, vistas, filtros y orden. Cada sección es una cuadrícula de portadas sin caja, como la del Catálogo, con 2 columnas como mínimo (a 320 px, tarjetas de 138 px).
+      - **La tarjeta** (`EntryCard.tsx`):
+        - sobre la portada, la prioridad arriba y las marcas abajo (con sus iconos a la vista y su nombre para el lector de pantalla);
+        - el nombre, en dos líneas como mucho: es el enlace a la ficha y cubre la tarjeta;
+        - justo debajo, el estado (el mismo botón y menú de la fila) y «…». Los menús son los de la fila (`row-menus.ts`);
+        - en Próximos y por lanzamiento, también la fecha.
+      - **La lista virtual (§10.48) sigue funcionando:** todas las tarjetas miden lo mismo, porque el texto va en un bloque de alto fijo. Virtualiza por filas de tarjetas, que se pintan enteras (`SectionRows.tsx`, con `columns`). Mide el alto sin redondear, porque una tarjeta mide fracciones de píxel.
+      - **Teclado** (`grid-nav.ts`, `gridStep`), como en un explorador de ficheros:
+        - ← y → (y `J` y `K`) van a la tarjeta de al lado;
+        - ↑ y ↓ van a la misma columna de la fila de arriba o de abajo, y pasan de una sección a la siguiente;
+        - Inicio, Fin y los demás atajos funcionan igual.
+      - **No lleva, a propósito:**
+        - ni el asa `::` ni deslizar con el dedo, porque arrastrar en dos dimensiones es otro trabajo;
+        - ni las acciones rápidas que salen sobre la fila.
+        La prioridad se cambia con `Alt+↑/↓` o con el menú «…», y la pista de la sección lo dice; las marcas están en «…»; y «Empezar», en el menú de estado o con `2`.
+      - El deslizado de §10.44 va en dos ejes (FLIP con `left` y `top`), y la tarjeta recién apuntada destella entera.
+    - **Pruebas:**
+      - `card-grid.test.ts` y `grid-nav.test.ts`, con propiedades de fast-check;
+      - `e2e/list-grid.spec.ts`, en Chromium y en WebKit móvil:
+        - el conmutador, y que se recuerda;
+        - las tarjetas del mismo alto, la prioridad, las marcas y axe;
+        - los menús de estado y de «…», las flechas en dos ejes y `2`;
+        - con 600 juegos: solo las filas cercanas, el alto total, las columnas en su sitio lejos del principio, y Fin e Inicio.
+    - **Comprobado:**
+      - `check`: 1 525 pruebas, y el JS inicial pasa de 144,0 a 145,1 KB;
+      - las E2E de Mi lista, la lista grande, el Catálogo, los gestos, los atajos, la accesibilidad, WCAG, la barra lateral y las capas, en Chromium: 39 pruebas. Una de la paleta falló con la batería y pasó sola 6 de 6. Las de Mi lista, los gestos y el Catálogo, también en WebKit móvil;
+      - capturas a 2 560, 1 920, 1 100 (la ventana de la app de escritorio), 390 y 320 px, en claro y en oscuro y también con la ficha al lado, sin desplazamiento horizontal. En el móvil, el conmutador y el orden bajan a una segunda línea bajo el título.
