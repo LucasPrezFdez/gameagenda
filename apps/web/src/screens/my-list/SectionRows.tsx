@@ -9,7 +9,11 @@
 // miden lo mismo (`--row-h`: la portada manda y el título va en una línea), así que qué filas tocan
 // es una división, sin medirlas una a una y sin librería: TanStack Virtual, la del Catálogo, sumaba
 // 9 KB brotli al JS inicial, donde va Mi lista.
+//
+// En la cuadrícula (DECISIONES §10.53), lo mismo con filas de tarjetas: se pinta o se salta una
+// fila entera, así que cada tarjeta sigue en su columna, y los huecos ocupan todo el ancho.
 import {
+  type CSSProperties,
   type ReactNode,
   type RefObject,
   useCallback,
@@ -44,6 +48,14 @@ interface SectionRowsProps {
   /** Mientras se arrastra con el asa, las filas pintadas no cambian. */
   readonly frozen: RefObject<boolean>;
   readonly renderRow: (entry: AgendaEntry, index: number, virtual?: VirtualRowProps) => ReactNode;
+  /** Tarjetas por fila en la cuadrícula; sin ella, la lista de siempre. */
+  readonly columns?: number | null;
+}
+
+/** El `<ol>` de la lista o el de la cuadrícula, con sus columnas en `--grid-columns`. */
+function listProps(columns: number | null): { className: string; style?: CSSProperties } {
+  if (columns === null) return { className: 'entry-list' };
+  return { className: 'entry-grid', style: { '--grid-columns': columns } as CSSProperties };
 }
 
 export function SectionRows({
@@ -54,14 +66,22 @@ export function SectionRows({
   keepId,
   frozen,
   renderRow,
+  columns = null,
 }: SectionRowsProps) {
   if (virtual && !hidden) {
     return (
-      <WindowRows id={id} entries={entries} keepId={keepId} frozen={frozen} renderRow={renderRow} />
+      <WindowRows
+        id={id}
+        entries={entries}
+        keepId={keepId}
+        frozen={frozen}
+        renderRow={renderRow}
+        columns={columns}
+      />
     );
   }
   return (
-    <ol id={id} className="entry-list" hidden={hidden}>
+    <ol id={id} hidden={hidden} {...listProps(columns)}>
       {hidden ? null : entries.map((entry, index) => renderRow(entry, index))}
     </ol>
   );
@@ -73,7 +93,10 @@ interface Range {
   readonly end: number;
 }
 
-/** Las filas que tocan la ventana, con `OVERSCAN` de más (`listTop`, relativo a la ventana). */
+/**
+ * Las filas que tocan la ventana, con `OVERSCAN` de más (`listTop`, relativo a la ventana). En la
+ * cuadrícula, `count` son las filas de tarjetas.
+ */
 export function visibleRange(
   listTop: number,
   viewport: number,
@@ -94,22 +117,26 @@ interface WindowRowsProps {
   readonly keepId: string | null;
   readonly frozen: RefObject<boolean>;
   readonly renderRow: SectionRowsProps['renderRow'];
+  readonly columns: number | null;
 }
 
-function WindowRows({ id, entries, keepId, frozen, renderRow }: WindowRowsProps) {
+function WindowRows({ id, entries, keepId, frozen, renderRow, columns }: WindowRowsProps) {
   // El `<ol>` va aquí y no en `SectionRows`: React pone la *ref* de un padre después de los
   // efectos de sus hijos, y entonces el efecto que escucha el desplazamiento la veía vacía.
   const listRef = useRef<HTMLOListElement>(null);
   const count = entries.length;
+  const perRow = columns ?? 1;
+  /** Filas de la lista, o filas de tarjetas de la cuadrícula. */
+  const rows = Math.ceil(count / perRow);
   const [rowSize, setRowSize] = useState(ROW_ESTIMATE);
   // Antes de medir: lo que cabe en la ventana desde arriba, que es donde se abre la lista.
   const [range, setRange] = useState<Range>(() =>
-    visibleRange(0, window.innerHeight, ROW_ESTIMATE, count),
+    visibleRange(0, window.innerHeight, ROW_ESTIMATE, rows),
   );
   const sizeRef = useRef(rowSize);
   sizeRef.current = rowSize;
-  const countRef = useRef(count);
-  countRef.current = count;
+  const countRef = useRef(rows);
+  countRef.current = rows;
 
   /** Recalcula qué filas tocan; con el asa en marcha, nada cambia. */
   const update = useCallback(() => {
@@ -149,58 +176,67 @@ function WindowRows({ id, entries, keepId, frozen, renderRow }: WindowRowsProps)
     };
   }, [update]);
 
-  // Tras cada pintado: el alto de una fila de verdad (en el móvil, otra maquetación) y las filas
-  // que tocan con el número de entradas de ahora. Antes de pintar, así nunca se ve un hueco.
+  // Tras cada pintado: el alto de una fila de verdad (en el móvil, otra maquetación; en la
+  // cuadrícula, el de una tarjeta, que cambia con el ancho) y las filas que tocan con el número de
+  // entradas de ahora. Antes de pintar, así nunca se ve un hueco. Sin redondear: la tarjeta mide
+  // fracciones de píxel (la portada es 2:3 de su ancho), y redondeada, los huecos de cientos de
+  // filas se descuadraban.
   useLayoutEffect(() => {
-    const row = listRef.current?.querySelector<HTMLElement>(':scope > .entry-row');
-    const height = row ? Math.round(row.getBoundingClientRect().height) : 0;
-    if (height > 0 && height !== sizeRef.current) {
+    const row = listRef.current?.querySelector<HTMLElement>(':scope > [data-entry-id]');
+    const height = row ? row.getBoundingClientRect().height : 0;
+    if (height > 0 && Math.abs(height - sizeRef.current) > 0.01) {
       sizeRef.current = height;
       setRowSize(height);
     }
     update();
   });
 
-  const indexes: number[] = [];
-  for (let index = range.start; index <= Math.min(range.end, count - 1); index += 1) {
-    indexes.push(index);
+  // Las filas que se pintan; la del foco, aunque esté lejos (en la cuadrícula, entera).
+  const rowIndexes: number[] = [];
+  for (let row = range.start; row <= Math.min(range.end, rows - 1); row += 1) {
+    rowIndexes.push(row);
   }
   const keep = keepId === null ? -1 : entries.findIndex((entry) => entry.id === keepId);
-  if (keep >= 0 && !indexes.includes(keep)) {
-    indexes.push(keep);
-    indexes.sort((a, b) => a - b);
+  const keepRow = keep < 0 ? -1 : Math.floor(keep / perRow);
+  if (keepRow >= 0 && !rowIndexes.includes(keepRow)) {
+    rowIndexes.push(keepRow);
+    rowIndexes.sort((a, b) => a - b);
   }
 
   const nodes: ReactNode[] = [];
   let cursor = 0;
-  for (const [position, index] of indexes.entries()) {
-    const entry = entries[index];
-    if (!entry) continue;
-    if (index > cursor) {
+  for (const [position, row] of rowIndexes.entries()) {
+    const first = entries[row * perRow];
+    if (!first) continue;
+    if (row > cursor) {
       nodes.push(
         <li
-          key={position === 0 ? 'hueco-inicio' : `hueco-${entry.id}`}
+          key={position === 0 ? 'hueco-inicio' : `hueco-${first.id}`}
           className="entry-list__gap"
           aria-hidden="true"
-          style={{ height: (index - cursor) * rowSize }}
+          style={{ height: (row - cursor) * rowSize }}
         />,
       );
     }
-    nodes.push(renderRow(entry, index, { index, setSize: count }));
-    cursor = index + 1;
+    const end = Math.min(count, (row + 1) * perRow);
+    for (let index = row * perRow; index < end; index += 1) {
+      const entry = entries[index];
+      if (entry) nodes.push(renderRow(entry, index, { index, setSize: count }));
+    }
+    cursor = row + 1;
   }
-  if (count > cursor) {
+  if (rows > cursor) {
     nodes.push(
       <li
         key="hueco-final"
         className="entry-list__gap"
         aria-hidden="true"
-        style={{ height: (count - cursor) * rowSize }}
+        style={{ height: (rows - cursor) * rowSize }}
       />,
     );
   }
   return (
-    <ol ref={listRef} id={id} className="entry-list">
+    <ol ref={listRef} id={id} {...listProps(columns)}>
       {nodes}
     </ol>
   );

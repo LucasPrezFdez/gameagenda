@@ -3,34 +3,20 @@
 // asoma el fondo de la fila con lo que va a pasar y, al deslizarla a la izquierda, la bandeja de
 // marcas. Los gestos y el asa `::` los atiende la pantalla, con un solo juego de escuchas.
 import { memo } from 'react';
-import {
-  type AgendaEntry,
-  appidOf,
-  FLAGS,
-  type Flag,
-  type MoveTarget,
-  STATUSES,
-  type Status,
-} from '../../agenda/types.ts';
+import { type AgendaEntry, appidOf, FLAGS } from '../../agenda/types.ts';
 import { Cover, FlagBadges } from '../../components/bits.tsx';
 import { Icon } from '../../components/icons.tsx';
-import { MenuButton, type MenuItem } from '../../components/MenuButton.tsx';
+import { MenuButton } from '../../components/MenuButton.tsx';
 import { formatAgendaDay } from '../../details/release-text.ts';
 import { es } from '../../i18n/es.ts';
 import { popIcon } from '../../lib/motion.ts';
-import type { FeedbackTiming } from '../../perf/measures.ts';
 import { Link } from '../../router/router.tsx';
 import { gamePath } from '../../router/routes.ts';
 import { rowDate } from './list-model.ts';
+import { entryMenuItems, type RowActions, statusMenuItems, timingOf } from './row-menus.ts';
 import type { VirtualRowProps } from './SectionRows.tsx';
 
-/** Lo que una fila pide a la agenda; la pantalla lo conecta con `useCommands()`. */
-export interface RowActions {
-  setStatus(id: string, status: Status, timing: FeedbackTiming): void;
-  setFlag(id: string, flag: Flag, value: boolean, timing: FeedbackTiming): void;
-  move(id: string, to: MoveTarget, timing: FeedbackTiming): void;
-  remove(id: string, timing: FeedbackTiming): void;
-}
+export type { RowActions } from './row-menus.ts';
 
 export interface EntryRowProps {
   readonly entry: AgendaEntry;
@@ -70,48 +56,9 @@ function EntryRowView({
   virtual,
 }: EntryRowProps) {
   const tab = active ? 0 : -1;
-  const timing = (event: { timeStamp: number }): FeedbackTiming => ({
-    feedbackStart: event.timeStamp,
-  });
-
-  const statusItems: MenuItem[] = STATUSES.map((status) => ({
-    key: status,
-    label: es.status[status],
-    icon: status,
-    kind: 'radio',
-    checked: entry.status === status,
-    tone: `status-text--${status}`,
-    onSelect: (event) => actions.setStatus(entry.id, status, timing(event)),
-  }));
-
-  const moveItems: MenuItem[] = movable
-    ? [
-        { key: 'up', label: es.list.moveUp, disabled: isFirst },
-        { key: 'down', label: es.list.moveDown, disabled: isLast },
-        { key: 'top', label: es.list.moveTop, disabled: isFirst },
-        { key: 'bottom', label: es.list.moveBottom, disabled: isLast },
-      ].map((item) => ({
-        ...item,
-        onSelect: (event) => actions.move(entry.id, item.key as MoveTarget, timing(event)),
-      }))
-    : [];
-  const flagItems: MenuItem[] = FLAGS.map((flag) => ({
-    key: `flag-${flag}`,
-    label: es.flag[flag],
-    icon: flag,
-    kind: 'checkbox',
-    checked: entry.flags[flag] === true,
-    onSelect: (event) => actions.setFlag(entry.id, flag, entry.flags[flag] !== true, timing(event)),
-  }));
-  const rowMenu: MenuItem[] = [
-    ...moveItems,
-    ...flagItems,
-    {
-      key: 'remove',
-      label: es.list.remove,
-      onSelect: (event) => actions.remove(entry.id, timing(event)),
-    },
-  ];
+  const timing = timingOf;
+  const statusItems = statusMenuItems(entry, actions);
+  const rowMenu = entryMenuItems(entry, { movable, isFirst, isLast }, actions);
 
   return (
     <li

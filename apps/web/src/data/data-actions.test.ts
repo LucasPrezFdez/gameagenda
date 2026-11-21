@@ -259,6 +259,7 @@ describe('ajustes y registro de errores en Dexie', () => {
       sidebarCollapsed: false,
       sidebarCollapsedNarrow: true,
       catalogView: 'list',
+      listLayout: 'list',
     });
   });
 

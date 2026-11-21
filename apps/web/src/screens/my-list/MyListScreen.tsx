@@ -1,7 +1,9 @@
 // Mi lista (RF-09–RF-14; ver §9.1 y §9.3): vista «Pendientes» con secciones, filtros y orden en
 // la URL, filas con estado y marcas a un toque y orden manual desde el menú de la fila. Desde M3,
 // gestos (RF-15 y RF-16; §9.4): deslizar una fila, mantenerla pulsada y arrastrar su asa `::`.
+// Desde el 21-11-2026, también en cuadrícula de portadas (DECISIONES §10.53), como el Catálogo.
 import {
+  type CSSProperties,
   type KeyboardEvent,
   useCallback,
   useEffect,
@@ -23,12 +25,14 @@ import {
 import { ChoiceMenu } from '../../components/ChoiceMenu.tsx';
 import { Icon } from '../../components/icons.tsx';
 import { ScreenHeading } from '../../components/ScreenHeading.tsx';
+import { ViewToggle } from '../../components/ViewToggle.tsx';
 import { copyReminderDue } from '../../data/copy-reminder.ts';
 import { groupLabel, releaseText } from '../../details/release-text.ts';
 import { logError } from '../../errors/error-log.ts';
 import { attachDragReorder } from '../../gestures/drag-reorder.ts';
 import { attachRowGestures } from '../../gestures/row-gestures.ts';
 import { es } from '../../i18n/es.ts';
+import { gridColumns } from '../../lib/card-grid.ts';
 import { isIosBrowserTab } from '../../lib/hooks.ts';
 import { usePalette } from '../../palette/palette-context.tsx';
 import { measureListVisible } from '../../perf/measures.ts';
@@ -41,7 +45,9 @@ import {
   requestNoteFocus,
 } from '../../shortcuts/dom.ts';
 import { shortcutFor } from '../../shortcuts/keymap.ts';
+import { EntryCard } from './EntryCard.tsx';
 import { EntryRow, type RowActions, rowTitleId } from './EntryRow.tsx';
+import { gridStep } from './grid-nav.ts';
 import {
   buildSections,
   countUpcoming,
@@ -84,24 +90,39 @@ function EmptyText() {
   );
 }
 
+/** En la cuadrícula, nunca menos de 2 columnas: a 320 px, tarjetas de unos 138 px. */
+const GRID_MIN_COLUMNS = 2;
+
 /** Huecos de la lista mientras llegan las fechas (§9.5, regla 4: nunca una pantalla de carga). */
-function ListSkeleton({ label }: { label: string }) {
+function ListSkeleton({ label, columns }: { label: string; columns: number | null }) {
   return (
     <div className="list-sections" aria-busy="true">
       <p className="visually-hidden" role="status">
         {label}
       </p>
       <span className="skeleton skeleton--line" />
-      <ol className="entry-list">
-        {[0, 1, 2].map((index) => (
-          <li key={index} className="entry-row entry-row--skeleton">
-            <div className="entry-row__body">
-              <span className="cover cover--row skeleton" />
+      {columns === null ? (
+        <ol className="entry-list">
+          {[0, 1, 2].map((index) => (
+            <li key={index} className="entry-row entry-row--skeleton">
+              <div className="entry-row__body">
+                <span className="cover cover--row skeleton" />
+                <span className="skeleton skeleton--line" />
+              </div>
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <ol className="entry-grid" style={{ '--grid-columns': columns } as CSSProperties}>
+          {Array.from({ length: columns }, (_, index) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: tarjetas de relleno sin identidad.
+            <li key={index} className="entry-card entry-card--skeleton">
+              <span className="cover cover--card skeleton" />
               <span className="skeleton skeleton--line" />
-            </div>
-          </li>
-        ))}
-      </ol>
+            </li>
+          ))}
+        </ol>
+      )}
     </div>
   );
 }
@@ -120,7 +141,7 @@ function isMovable(section: ListSection, params: ListParams): boolean {
  * el foco estaba en la fila: con un gesto, suele estar en la página, y moverlo la desplazaría.
  */
 function keepFocusNear(container: HTMLElement | null, id: string): () => void {
-  const row = document.getElementById(rowTitleId(id))?.closest('.entry-row');
+  const row = document.getElementById(rowTitleId(id))?.closest('[data-entry-id]');
   if (!container || !row?.contains(document.activeElement)) return () => {};
   const titles = [...container.querySelectorAll<HTMLElement>('[data-row-title]')].map(
     (el) => el.id,
@@ -148,7 +169,10 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
   const commands = useCommands();
   const palette = usePalette();
   const { agenda, settings, notices, copyReminder } = useServices();
-  const { singleKeyShortcuts, touchGestures } = useSettings();
+  const { singleKeyShortcuts, touchGestures, listLayout } = useSettings();
+  const grid = listLayout === 'grid';
+  /** Ancho de la lista: de él salen las columnas de la cuadrícula. */
+  const [listWidth, setListWidth] = useState(0);
   const copyState = useCopyReminder();
   // La hora de cuando se abre Mi lista: el aviso no cambia mientras se mira.
   const [openedAt] = useState(Date.now);
@@ -188,6 +212,14 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
     [sections, showOnHold],
   );
   const rovingId = activeId !== null && visibleIds.includes(activeId) ? activeId : visibleIds[0];
+  /** Las tarjetas a la vista de cada sección, para ↑ y ↓ en la cuadrícula. */
+  const visibleLengths = useMemo(
+    () =>
+      sections.map((section) => (section.collapsible && !showOnHold ? 0 : section.entries.length)),
+    [sections, showOnHold],
+  );
+  // Antes de medir, el mínimo; la medida llega antes del primer pintado (más abajo).
+  const columns = grid ? gridColumns(listWidth, GRID_MIN_COLUMNS) : null;
   // Con muchas filas, cada sección pinta solo las cercanas a la pantalla (SectionRows.tsx).
   const virtual = visibleIds.length >= VIRTUAL_FROM;
   /** Mientras se arrastra con el asa: las filas pintadas no cambian. */
@@ -255,12 +287,22 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
   );
 
   const hasRows = entries.length > 0 && !releasesPending && sections.length > 0;
+
+  // El ancho de la lista, con la cuadrícula a la vista: antes de pintar, así no salta de columnas.
+  useLayoutEffect(() => {
+    const element = listRef.current;
+    if (!grid || !hasRows || !element) return;
+    const observer = new ResizeObserver(() => setListWidth(element.clientWidth));
+    observer.observe(element);
+    setListWidth(element.clientWidth);
+    return () => observer.disconnect();
+  }, [grid, hasRows]);
   // Las filas se deslizan a su sitio nuevo y la recién apuntada destella (DECISIONES §10.44).
   const motion = useListMotion(
     listRef,
     agenda,
     entries,
-    `${params.view}|${params.order}|${params.purchase}|${params.q}|${showOnHold}`,
+    `${params.view}|${params.order}|${params.purchase}|${params.q}|${showOnHold}|${listLayout}`,
   );
   const gesturesOn = useRef(touchGestures);
   gesturesOn.current = touchGestures;
@@ -335,11 +377,12 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
    * ↑ y ↓ entre filas; Inicio y Fin; Intro abre la ficha (es un enlace). Desde M3, los atajos de
    * la §9.4 sobre la fila con el foco (en su título o en uno de sus botones): `J` y `K`, `1`–`5`,
    * `C`/`P`/`A`, `N`, `Supr`, `Alt+↑/↓` y `V`. Si la fila sale de la vista, el foco pasa a la
-   * siguiente, como con los botones.
+   * siguiente, como con los botones. En la cuadrícula, ← y → van a la de al lado, y ↑ y ↓, a la
+   * fila de arriba o de abajo (grid-nav.ts).
    */
   function onListKeyDown(event: KeyboardEvent<HTMLDivElement>): void {
     const target = event.target as HTMLElement;
-    const row = target.closest<HTMLElement>('.entry-row');
+    const row = target.closest<HTMLElement>('[data-entry-id]');
     const title = row?.querySelector<HTMLElement>('[data-row-title]');
     const id = row?.dataset.entryId;
     if (!row || !title || id === undefined) return;
@@ -353,11 +396,15 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
     // Con Alt, las flechas son la prioridad (más abajo).
     if (target === title && !event.altKey) {
       if (event.key === 'ArrowDown') {
-        go(index + 1);
+        go(columns === null ? index + 1 : gridStep(visibleLengths, columns, index, 1));
         return;
       }
       if (event.key === 'ArrowUp') {
-        go(index - 1);
+        go(columns === null ? index - 1 : gridStep(visibleLengths, columns, index, -1));
+        return;
+      }
+      if (columns !== null && (event.key === 'ArrowRight' || event.key === 'ArrowLeft')) {
+        go(index + (event.key === 'ArrowRight' ? 1 : -1));
         return;
       }
       if (event.key === 'Home') {
@@ -443,19 +490,27 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
     <div className="screen my-list">
       <header className="screen__header">
         <ScreenHeading primary={primary}>{es.list.title}</ScreenHeading>
-        {/* Próximos siempre va por lanzamiento. */}
-        {total > 0 && params.view !== 'upcoming' && (
-          <ChoiceMenu
-            className="list-order"
-            align="end"
-            label={es.list.order}
-            value={params.order}
-            options={LIST_ORDERS.map((order) => ({
-              value: order,
-              label: es.list.orderOption[order],
-            }))}
-            onChange={(order) => update({ order })}
-          />
+        {total > 0 && (
+          <div className="my-list__tools">
+            <ViewToggle
+              value={listLayout}
+              onChange={(mode) => settings.update({ listLayout: mode })}
+            />
+            {/* Próximos siempre va por lanzamiento. */}
+            {params.view !== 'upcoming' && (
+              <ChoiceMenu
+                className="list-order"
+                align="end"
+                label={es.list.order}
+                value={params.order}
+                options={LIST_ORDERS.map((order) => ({
+                  value: order,
+                  label: es.list.orderOption[order],
+                }))}
+                onChange={(order) => update({ order })}
+              />
+            )}
+          </div>
         )}
       </header>
 
@@ -582,6 +637,7 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
       ) : releasesPending ? (
         <ListSkeleton
           label={params.view === 'upcoming' ? es.list.upcoming.loading : es.list.releaseLoading}
+          columns={columns}
         />
       ) : sections.length === 0 ? (
         <div className="empty-state">
@@ -610,6 +666,7 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
         <div
           ref={listRef}
           className="list-sections"
+          data-layout={listLayout}
           data-gestures={touchGestures ? 'on' : 'off'}
           onKeyDown={onListKeyDown}
         >
@@ -629,8 +686,12 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
                   <h2 id={headingId}>{es.list.sectionCount(label, section.entries.length)}</h2>
                   {movable && section.entries.length > 1 && (
                     <span className="list-section__hint" aria-hidden="true">
-                      <span className="list-section__hint-fine">{es.list.reorderHint}</span>
-                      <span className="list-section__hint-touch">{es.list.reorderHintTouch}</span>
+                      <span className="list-section__hint-fine">
+                        {grid ? es.list.reorderHintGrid : es.list.reorderHint}
+                      </span>
+                      <span className="list-section__hint-touch">
+                        {grid ? es.list.reorderHintGridTouch : es.list.reorderHintTouch}
+                      </span>
                     </span>
                   )}
                   {section.collapsible && (
@@ -653,8 +714,27 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
                   virtual={virtual}
                   keepId={rovingId ?? null}
                   frozen={frozen}
+                  columns={columns}
                   renderRow={(entry, index, virtualRow) => {
                     const info = byRelease ? releases.lookup?.get(entry) : null;
+                    if (grid) {
+                      return (
+                        <EntryCard
+                          key={entry.id}
+                          entry={entry}
+                          showRelease={byRelease}
+                          release={info ? releaseText(info, today) : null}
+                          position={section.ranked ? index + 1 : null}
+                          movable={movable}
+                          isFirst={index === 0}
+                          isLast={index === section.entries.length - 1}
+                          active={entry.id === rovingId}
+                          actions={actions}
+                          onActivate={onActivate}
+                          virtual={virtualRow}
+                        />
+                      );
+                    }
                     return (
                       <EntryRow
                         key={entry.id}

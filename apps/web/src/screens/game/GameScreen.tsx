@@ -435,7 +435,8 @@ export function GameScreen({ id }: { id: string }) {
         return;
       }
       if (!isShortcutTarget(event.target)) return;
-      if (event.target instanceof Element && event.target.closest('.entry-row')) return;
+      if (event.target instanceof Element && event.target.closest('.entry-row, .entry-card'))
+        return;
       const { entry, game, appid, singleKeyShortcuts, commands } = latest.current;
       const action = shortcutFor(event, singleKeyShortcuts);
       if (!action) return;

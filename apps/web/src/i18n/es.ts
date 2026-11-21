@@ -208,6 +208,9 @@ export const es = {
     tray: (title: string) => `Marcas: ${title}`,
   },
 
+  // Lista o cuadrícula de portadas: el Catálogo (DECISIONES §10.45) y Mi lista (§10.53).
+  viewMode: { label: 'Ver como', list: 'Lista', grid: 'Cuadrícula' },
+
   list: {
     title: 'Mi lista',
     views: 'Vistas',
@@ -274,6 +277,9 @@ export const es = {
     dragHandle: 'Arrastra para cambiar la prioridad',
     reorderHint: 'Arrastra :: o usa Alt+↑/↓',
     reorderHintTouch: 'Arrastra :: para ordenar',
+    // En la cuadrícula no hay asa: la prioridad, con el teclado o el menú de la tarjeta (§10.53).
+    reorderHintGrid: 'Usa Alt+↑/↓ o el menú … para ordenar',
+    reorderHintGridTouch: 'Ordena desde el menú …',
     openSheet: 'Ver ficha',
     remove: 'Quitar de mi lista',
     loading: 'Cargando tu lista…',
@@ -323,8 +329,6 @@ export const es = {
     },
     noFilterMatches: 'No hay juegos con este filtro.',
     loadingRow: 'Cargando…',
-    // Lista o cuadrícula de portadas (DECISIONES §10.45).
-    viewMode: { label: 'Ver como', list: 'Lista', grid: 'Cuadrícula' },
   },
 
   game: {

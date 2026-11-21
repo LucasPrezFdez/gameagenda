@@ -127,7 +127,8 @@
   }
 }
 
-/* Los filtros y, a su derecha, el conmutador de lista o cuadrícula (DECISIONES §10.45). */
+/* Los filtros y, a su derecha, el conmutador de lista o cuadrícula (DECISIONES §10.45; sus estilos,
+   en list.css, porque Mi lista también lo tiene). */
 .catalog__bar {
   display: flex;
   align-items: center;
@@ -137,26 +138,6 @@
 
 .catalog__bar > .chips {
   min-width: 0;
-}
-
-.view-toggle {
-  display: inline-flex;
-  flex: none;
-  gap: 2px;
-  padding: 2px;
-  border-radius: var(--radius);
-  background: var(--surface-2);
-}
-
-.view-toggle__button {
-  width: 32px;
-  height: 32px;
-}
-
-.view-toggle__button[aria-pressed="true"] {
-  background: var(--surface);
-  color: var(--text);
-  box-shadow: var(--shadow-sm);
 }
 
 /* Cuadrícula de portadas, como la búsqueda instantánea de SteamDB: cada tarjeta es la portada de
@@ -175,13 +156,6 @@
   flex-direction: column;
   gap: 8px;
   border-radius: var(--radius);
-}
-
-.cover--card {
-  width: 100%;
-  border-radius: 8px;
-  box-shadow: var(--shadow-cover);
-  font-size: var(--text-2xl);
 }
 
 .catalog-card .cover--card {
@@ -283,13 +257,6 @@
 }
 
 @media (pointer: coarse) {
-  .view-toggle__button {
-    width: 40px;
-    min-width: 40px;
-    height: 40px;
-    min-height: 40px;
-  }
-
   .catalog-card__add {
     width: 36px;
     min-width: 36px;

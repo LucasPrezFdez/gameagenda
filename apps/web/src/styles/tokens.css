@@ -14,8 +14,8 @@
        Tablet    768–1 023 px: la barra lateral, encogida por defecto (`sidebarCollapsedNarrow`).
        Ficha     768–1 279 px, superpuesta; desde 1 280 px, al lado de la lista.
      Fila        ≤479 px: el estado baja a la segunda línea («Estado debajo», list.css).
-     Contenido   `--content-max`: 960 px hasta unos 1 600 px de ventana; luego crece con ella hasta
-                 1 440 px (unos 2 240 px de ventana).
+     Contenido   `--content-max`: todo el ancho que deja la barra lateral, con su margen, hasta
+                 2 560 px (DECISIONES §10.53). Ajustes y los textos legales, más estrechos.
 
    Además, *container queries* donde la pieza depende de su hueco y no de la ventana: las acciones
    rápidas de la fila (`entry-list`, 640 px) y el índice de Ajustes. Con el dedo (`pointer:
@@ -105,11 +105,13 @@
   --gutter: 16px;
   /* Margen de la página alrededor del contenido: 16 px en el móvil, hasta 32 px en una pantalla
      ancha. */
-  --page-gutter: clamp(16px, 1.25vw + 4px, 32px);
-  /* Ancho máximo del contenido (opción A de la revisión responsive, 20-11-2026; sustituye al
-     «Centrado» de 960 px fijos de DECISIONES §10.44): 960 px hasta unos 1 600 px de ventana y
-     luego crece con ella, sin saltos, hasta 1 440 px. Así a 1 920 px usa unos 1 200. */
-  --content-max: clamp(60rem, 75vw - 15rem, 90rem);
+  --page-gutter: clamp(16px, 1.25vw + 4px, 40px);
+  /* Ancho máximo del contenido. Desde el 21-11-2026 (DECISIONES §10.53, a petición del usuario:
+     «que no quedaran esos márgenes gigantes»), las pantallas de listas llenan el hueco que deja la
+     barra lateral: con 1 440 px de tope, a 2 560 px quedaban 436 px vacíos a cada lado. El tope
+     de 2 560 px solo se nota en un ultrapanorámico sin escalado, donde una fila más ancha ya no se
+     lee de un vistazo. Sustituye a la opción A de la revisión responsive del 20-11-2026 (§10.51). */
+  --content-max: 160rem;
   /* Texto de lectura (textos legales y explicaciones): unas 75 letras por línea. */
   --reading-max: 44rem;
   /* Alto de la cabecera del móvil; en el PC no hay cabecera encima del contenido (abajo). */

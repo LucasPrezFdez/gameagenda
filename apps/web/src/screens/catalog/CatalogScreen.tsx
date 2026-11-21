@@ -23,7 +23,9 @@ import { Cover, StatusText } from '../../components/bits.tsx';
 import { CatalogNotice } from '../../components/CatalogNotice.tsx';
 import { Icon } from '../../components/icons.tsx';
 import { ScreenHeading } from '../../components/ScreenHeading.tsx';
+import { ViewToggle } from '../../components/ViewToggle.tsx';
 import { es } from '../../i18n/es.ts';
+import { CARD_GAP, cardWidth as cardWidthFor, gridColumns } from '../../lib/card-grid.ts';
 import { displayName } from '../../palette/palette-model.ts';
 import { Link, navigate, useLocation } from '../../router/router.tsx';
 import { gamePath, withSearch } from '../../router/routes.ts';
@@ -33,6 +35,7 @@ import {
   canBrowseCatalog,
   GAME_FLAGS,
 } from '../../search-client/index.ts';
+import type { LayoutMode } from '../../settings/settings-store.ts';
 import { isShortcutTarget, openSteam, requestNoteFocus } from '../../shortcuts/dom.ts';
 import { shortcutFor } from '../../shortcuts/keymap.ts';
 import './catalog.css';
@@ -49,14 +52,11 @@ const ROW_GAP = 4;
 const PAGE_KEYS_STEP = 10;
 /** Filas que se pintan fuera de la vista, por arriba y por abajo. */
 const OVERSCAN = 8;
-/** Cuadrícula: ancho mínimo de la tarjeta, hueco entre tarjetas y alto del texto bajo la portada. */
-const CARD_MIN = 148;
-const CARD_GAP = 12;
+/** Cuadrícula: alto del texto bajo la portada. Las columnas y su hueco, en `lib/card-grid.ts`. */
 const CARD_TEXT = 48;
 /** Nunca menos de 3 columnas: con 2, en un móvil estrecho el alto total pasaría el límite de
  *  Firefox (§9.1). Con 3 a 320 px son ≈65 600 filas de ≈205 px, unos 13,5 Mpx. */
 const MIN_COLUMNS = 3;
-const MAX_COLUMNS = 8;
 /** Filas de tarjetas fuera de la vista, y las que avanzan RePág y AvPág. */
 const GRID_OVERSCAN = 3;
 const GRID_PAGE_ROWS = 3;
@@ -167,14 +167,9 @@ export default function CatalogScreen() {
 
   // Lista: una columna. Cuadrícula: las tarjetas que quepan, todas del mismo ancho, con portada
   // de 2:3 y dos líneas de texto debajo; cada fila virtual es una fila de tarjetas.
-  const columns =
-    grid && width > 0
-      ? Math.max(
-          MIN_COLUMNS,
-          Math.min(MAX_COLUMNS, Math.floor((width + CARD_GAP) / (CARD_MIN + CARD_GAP))),
-        )
-      : 1;
-  const cardWidth = grid ? Math.floor((width - CARD_GAP * (columns - 1)) / columns) : 0;
+  // Con la columna llena (DECISIONES §10.53), más columnas en pantallas anchas, no tarjetas enormes.
+  const columns = grid && width > 0 ? gridColumns(width, MIN_COLUMNS) : 1;
+  const cardWidth = grid ? cardWidthFor(width, columns) : 0;
   const rowHeight = grid ? Math.round(cardWidth * 1.5) + CARD_TEXT + CARD_GAP : ROW_HEIGHT;
   const rowCount = Math.ceil(count / columns);
   const overscan = grid ? GRID_OVERSCAN : OVERSCAN;
@@ -324,8 +319,7 @@ export default function CatalogScreen() {
     updateUrl(text, next);
   }
 
-  function onViewMode(next: 'list' | 'grid'): void {
-    if (next === catalogView) return;
+  function onViewMode(next: LayoutMode): void {
     settingsStore.update({ catalogView: next });
   }
 
@@ -554,22 +548,7 @@ export default function CatalogScreen() {
             </button>
           ))}
         </div>
-        {/* biome-ignore lint/a11y/useSemanticElements: grupo de botones conmutables, no un formulario. */}
-        <div className="view-toggle" role="group" aria-label={es.catalog.viewMode.label}>
-          {(['list', 'grid'] as const).map((mode) => (
-            <button
-              key={mode}
-              type="button"
-              className="icon-btn view-toggle__button"
-              aria-pressed={catalogView === mode}
-              aria-label={es.catalog.viewMode[mode]}
-              title={es.catalog.viewMode[mode]}
-              onClick={() => onViewMode(mode)}
-            >
-              <Icon name={mode === 'list' ? 'list' : 'catalog'} />
-            </button>
-          ))}
-        </div>
+        <ViewToggle value={catalogView} onChange={onViewMode} />
       </div>
 
       <CatalogNotice />

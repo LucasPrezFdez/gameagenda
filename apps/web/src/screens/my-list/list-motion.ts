@@ -38,7 +38,10 @@ function keyOf(element: HTMLElement): string | null {
 function measure(
   container: HTMLElement,
 ): Map<string, { el: HTMLElement; left: number; top: number }> {
-  const all = container.querySelectorAll<HTMLElement>('.entry-row, .list-section__header');
+  // Filas de la lista o tarjetas de la cuadrícula (DECISIONES §10.53): el deslizado va en dos ejes.
+  const all = container.querySelectorAll<HTMLElement>(
+    '.entry-row, .entry-card, .list-section__header',
+  );
   const found = new Map<string, { el: HTMLElement; left: number; top: number }>();
   // Búsqueda binaria de la primera que asoma: con cientos de filas se leen unas pocas cajas.
   let low = 0;
@@ -146,7 +149,8 @@ export function useListMotion(
     if (added.length > 0 && added.length <= MAX_NEW) {
       for (const id of added) {
         const row = element.querySelector<HTMLElement>(`[data-entry-id="${CSS.escape(id)}"]`);
-        const body = row?.querySelector<HTMLElement>('.entry-row__body');
+        // En la cuadrícula destella la tarjeta entera.
+        const body = row?.querySelector<HTMLElement>('.entry-row__body') ?? row;
         const status = row?.dataset.status;
         if (!body || !status) continue;
         body.animate(

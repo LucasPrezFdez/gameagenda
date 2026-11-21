@@ -37,10 +37,14 @@ export interface UiSettings {
    */
   readonly sidebarCollapsedNarrow: boolean;
   /** El Catálogo, en lista o en cuadrícula de portadas (DECISIONES §10.45). */
-  readonly catalogView: CatalogView;
+  readonly catalogView: LayoutMode;
+  /** Mi lista, en filas o en cuadrícula de portadas (DECISIONES §10.53); aparte del Catálogo. */
+  readonly listLayout: LayoutMode;
 }
 
-export type CatalogView = 'list' | 'grid';
+/** Lista o cuadrícula de portadas. */
+export type LayoutMode = 'list' | 'grid';
+export type CatalogView = LayoutMode;
 
 /**
  * `unseen`: aún no ha salido y ninguna portada se carga; `shown`: ha salido y las portadas ya se
@@ -60,13 +64,14 @@ export const DEFAULT_SETTINGS: UiSettings = {
   sidebarCollapsed: false,
   sidebarCollapsedNarrow: true,
   catalogView: 'list',
+  listLayout: 'list',
 };
 
 export type SettingKey = keyof UiSettings;
 const SETTING_KEYS = Object.keys(DEFAULT_SETTINGS) as SettingKey[];
 const THEMES: readonly ThemePreference[] = ['system', 'light', 'dark'];
 const COVER_NOTICE: readonly CoverNoticeState[] = ['unseen', 'shown', 'done'];
-const CATALOG_VIEWS: readonly CatalogView[] = ['list', 'grid'];
+const LAYOUT_MODES: readonly LayoutMode[] = ['list', 'grid'];
 const MAX_LIST_SEARCH = 2000;
 
 /** Valor válido de un ajuste, o `undefined` si no lo es (se queda el de por defecto). */
@@ -87,7 +92,8 @@ function validValue(key: SettingKey, value: unknown): UiSettings[SettingKey] | u
     case 'coverNotice':
       return COVER_NOTICE.find((state) => state === value);
     case 'catalogView':
-      return CATALOG_VIEWS.find((view) => view === value);
+    case 'listLayout':
+      return LAYOUT_MODES.find((mode) => mode === value);
   }
 }
 
