@@ -762,4 +762,6 @@ Resueltos a partir de las mediciones y de los conflictos detectados entre seccio
     - **Comprobado:**
       - `check`: 1 525 pruebas, y el JS inicial pasa de 144,0 a 145,1 KB;
       - las E2E de Mi lista, la lista grande, el Catálogo, los gestos, los atajos, la accesibilidad, WCAG, la barra lateral y las capas, en Chromium: 39 pruebas. Una de la paleta falló con la batería y pasó sola 6 de 6. Las de Mi lista, los gestos y el Catálogo, también en WebKit móvil;
-      - capturas a 2 560, 1 920, 1 100 (la ventana de la app de escritorio), 390 y 320 px, en claro y en oscuro y también con la ficha al lado, sin desplazamiento horizontal. En el móvil, el conmutador y el orden bajan a una segunda línea bajo el título.
+      - capturas a 2 560, 1 920, 1 100 (la ventana de la app de escritorio), 390 y 320 px, en claro y en oscuro y también con la ficha al lado, sin desplazamiento horizontal. En el móvil, el conmutador y el orden bajan a una segunda línea bajo el título;
+      - la lista grande, la barra lateral y las capas, en WebKit móvil;
+      - **el CI de la rama (44901055905), en verde:** las comprobaciones, las E2E de Chromium y el rendimiento.
