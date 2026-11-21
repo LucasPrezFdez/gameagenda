@@ -8,6 +8,7 @@ Cambios de GameAgenda por versión. Cada hito cierra una versión SemVer 0.x (§
 
 #### Para el usuario
 
+- **Un estado nuevo, Multijugador** (21-11-2026, en la rama `multijugador`; DECISIONES §10.55): para los juegos sin final que se juegan a ratos, como Counter-Strike 2, Overwatch, PEAK o Golf It. No sale en Pendientes, porque no se acaba. En Todos va detrás de En pausa, y tiene su vista, su atajo (7) y su icono (tres personas, en magenta).
 - **Mi lista, en cuadrícula, y la app a todo el ancho** (21-11-2026; en producción desde el 21-11-2026; DECISIONES §10.53):
   - un conmutador Lista / Cuadrícula en la cabecera de Mi lista enseña los juegos como portadas grandes, por secciones, con la prioridad, las marcas, el estado y «…» en cada una. Se recuerda aparte del Catálogo, y las flechas van en las cuatro direcciones;
   - en pantallas anchas, Mi lista y el Catálogo llenan la pantalla, en vez de quedarse en 1 440 px con márgenes enormes a los lados, y la cuadrícula del Catálogo pone más columnas.

@@ -200,6 +200,7 @@ Cada entrada tiene siempre **un estado** exclusivo y cualquier combinación de *
 | `completed` | Completado | Terminada la historia principal o el objetivo que el usuario considere |
 | `dropped` | Abandonado | Dejado sin intención de terminarlo; la entrada se conserva |
 | `not_started` | Sin empezar | Lo tienes, pero no has decidido jugarlo (desde el 20-11-2026; DECISIONES §10.50). Es donde entran los juegos de Steam sin jugar: la importación no sabe cuáles quieres jugar. No sale en «Pendientes» |
+| `multiplayer` | Multijugador | Un juego sin final (multijugador o como servicio: Counter-Strike 2, Overwatch, PEAK) que se juega a ratos (desde el 21-11-2026; DECISIONES §10.55). Un multijugador con historia que se acaba (It Takes Two) va en los demás. No sale en «Pendientes», porque no se termina, y no avanza con el gesto. Cuando lo dejas, Abandonado |
 
 Se permiten todas las transiciones, porque manda el usuario (por ejemplo, puede pasar a Completado un juego terminado hace años). Las flechas con nombre son acciones de un toque; las demás se hacen con el selector de estado.
 
@@ -212,6 +213,7 @@ stateDiagram-v2
   state "Completado" as completed
   state "Abandonado" as dropped
   state "Sin empezar" as not_started
+  state "Multijugador" as multiplayer
   [*] --> want_to_play: Apuntar
   want_to_play --> playing: Empezar
   playing --> on_hold: Pausar
@@ -222,6 +224,8 @@ stateDiagram-v2
   completed --> playing: Rejugar
   want_to_play --> on_hold
   not_started --> playing: Empezar
+  playing --> multiplayer
+  multiplayer --> dropped: Abandonar
   want_to_play --> completed
   want_to_play --> dropped
   playing --> want_to_play
@@ -885,7 +889,7 @@ type Day = string | null;       // fecha local AAAA, AAAA-MM o AAAA-MM-DD
 interface Entry {
   id: string;                   // §7.3
   status: string;               // want_to_play (defecto), playing, on_hold,
-                                // completed, dropped
+                                // completed, dropped, not_started, multiplayer
   flags: Record<string, boolean>; // platinum, owned, next (propias: Fase 2)
   rank: string;                 // orden manual en Quiero jugar
   note: string;                 // ≤2000 caracteres
@@ -1594,7 +1598,7 @@ Leyenda: `[img]` portada, `[HK ]` generada, `(+)` apuntar, `(i)` ficha, `::` asa
   - **«Atajos de una tecla»** (Ajustes › Teclado y gestos, activado por defecto) apaga todas las teclas sueltas, también el `+` del Catálogo. `Ctrl+K`, `Ctrl+Z`, `Esc` y `Alt+↑/↓` siguen funcionando.
 - **Gestos (M3)**, con alternativa en el icono de estado, `[...]` o la ficha: deslizar → avanza el estado; ← muestra las marcas; pulsación larga, selector; arrastrar `::`, reordenar; ↓ cierra la hoja. Se activan al 40 % del ancho, se cancelan volviendo atrás, vibran 10 ms en Android y respetan zonas muertas de ≥24 px en ambos bordes; ninguno borra.
 - **Gestos de M3 tal como se han construido (02-11-2026; `DECISIONES.md` §10.24):**
-  - **→ avanza el estado:** Quiero jugar y Sin empezar → Jugando («Empezar»), En pausa → Jugando («Retomar») y Jugando → Completado («Completar»). Detrás de la fila se lee lo que va a pasar, que toma el color del estado nuevo al llegar al 40 %. Completado y Abandonado no avanzan.
+  - **→ avanza el estado:** Quiero jugar y Sin empezar → Jugando («Empezar»), En pausa → Jugando («Retomar») y Jugando → Completado («Completar»). Detrás de la fila se lee lo que va a pasar, que toma el color del estado nuevo al llegar al 40 %. Completado, Abandonado y Multijugador (que no tiene final) no avanzan.
   - **← abre la bandeja de marcas** (Comprado, Platinado y Próximo) detrás de la fila. Un toque cambia la marca y la cierra; tocar fuera, desplazar la página o `Esc` la cierran sin cambiar nada.
   - **Pulsación larga** (500 ms): en Mi lista, el menú de estado de la fila; en la paleta, «Apuntar como…», como `Alt+Intro` (RF-06).
   - **Deslizar y mantener pulsado son solo del dedo y del lápiz**; con el ratón están los botones de la fila.
@@ -1672,6 +1676,7 @@ Escalas: letra de 12, 13, 15, 17, 20 y 28 px (el campo de la paleta, en 16 px po
 | Completado | Círculo con *check* | `#B395FF` · `#2F2F45` (5,37:1) | `#6A3FC8` · `#EDE8F8` (5,54:1) |
 | Abandonado | Círculo tachado | `#9AA5B4` · `#2B3139` (5,26:1) | `#5E6977` · `#ECEDEF` (4,76:1) |
 | Sin empezar | Caja («package») | `#D4B483` · `#352E24` (6,80:1) | `#7A5C2E` · `#F2ECE2` (5,26:1) |
+| Multijugador | Tres personas («users-three») | `#F285C9` · `#3D2536` (5,92:1) | `#A3307D` · `#F6E6F0` (5,34:1) |
 | Platinado | Trofeo de platino | `#C9D4E2` · `#2A2F37` (8,97:1) | `#56657A` · `#ECEFF4` (5,15:1) |
 | Comprado | Bolsa | `#A3ADBA` · `#2D323A` (5,67:1) | `#556170` · `#EBECEE` (5,33:1) |
 | Próximo | Chincheta roja | `#FF6B6B` · `#3A2224` (5,28:1) | `#C4272F` · `#FBE9EA` (4,88:1) |
