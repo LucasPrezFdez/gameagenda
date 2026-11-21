@@ -10,6 +10,7 @@ export const STATUSES = [
   'completed',
   'dropped',
   'not_started',
+  'multiplayer',
 ] as const;
 export type Status = (typeof STATUSES)[number];
 

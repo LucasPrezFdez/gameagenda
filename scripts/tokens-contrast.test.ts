@@ -53,6 +53,7 @@ const STATES = [
   'completed',
   'dropped',
   'not_started',
+  'multiplayer',
 ] as const;
 const FLAGS = ['owned', 'platinum', 'next'] as const;
 const SURFACES = ['bg', 'surface', 'surface-2'] as const;

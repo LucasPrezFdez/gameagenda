@@ -356,7 +356,15 @@ describe('parte 3: logros, resumen, aplicar y deshacer', () => {
     s.flow.subscribe(() => seen.push(s.flow.getSnapshot().kind));
     const review = await toReview(s);
     expect(review.plan.counts).toEqual({
-      added: { playing: 1, on_hold: 1, want_to_play: 0, completed: 1, dropped: 0, not_started: 1 },
+      added: {
+        playing: 1,
+        on_hold: 1,
+        want_to_play: 0,
+        completed: 1,
+        dropped: 0,
+        not_started: 1,
+        multiplayer: 0,
+      },
       wishes: 0,
       markedOwned: 0,
       platinum: 1,

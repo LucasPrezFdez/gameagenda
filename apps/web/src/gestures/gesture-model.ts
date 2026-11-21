@@ -19,7 +19,7 @@ const RUBBER_BAND_PX = 24;
 /**
  * El estado al que avanza una fila al deslizarla a la derecha, o `null` si ya no avanza:
  * Quiero jugar y Sin empezar → Jugando («Empezar»), En pausa → Jugando («Retomar») y Jugando →
- * Completado.
+ * Completado. Multijugador no avanza: no tiene final.
  */
 export function advanceStatus(status: Status): Status | null {
   switch (status) {
@@ -31,6 +31,7 @@ export function advanceStatus(status: Status): Status | null {
       return 'completed';
     case 'completed':
     case 'dropped':
+    case 'multiplayer':
       return null;
   }
 }

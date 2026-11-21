@@ -3,7 +3,9 @@
 /**
  * Estados, en el orden de la §3.3. `want_to_play` es el de por defecto. `not_started` («Sin
  * empezar», 20-11-2026): lo tienes, pero no has decidido jugarlo (los juegos de Steam sin jugar);
- * va el último para no mover los atajos 1–5.
+ * va detrás de los cinco primeros para no mover los atajos 1–5. `multiplayer` («Multijugador»,
+ * 21-11-2026): juegos sin final (multijugador, como servicio) que se juegan a ratos; el séptimo,
+ * por lo mismo.
  */
 export const STATUSES = [
   'want_to_play',
@@ -12,6 +14,7 @@ export const STATUSES = [
   'completed',
   'dropped',
   'not_started',
+  'multiplayer',
 ] as const;
 export type Status = (typeof STATUSES)[number];
 export const DEFAULT_STATUS: Status = 'want_to_play';

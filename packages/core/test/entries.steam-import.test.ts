@@ -80,6 +80,7 @@ describe('planSteamImport: lo que decidió el usuario', () => {
       completed: 0,
       dropped: 0,
       not_started: 1,
+      multiplayer: 0,
     });
     for (const item of plan.items) expect(item.kind === 'add' && item.owned).toBe(true);
   });

@@ -286,6 +286,10 @@
   border-color: var(--not_started);
   background: var(--not_started);
 }
+.sidebar-views__dot--multiplayer {
+  border-color: var(--multiplayer);
+  background: var(--multiplayer);
+}
 
 .sidebar-views__count {
   min-width: 1ch;

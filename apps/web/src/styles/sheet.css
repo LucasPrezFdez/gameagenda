@@ -237,6 +237,11 @@
   background: var(--not_started-chip);
   color: var(--not_started);
 }
+.chip-button.status-text--multiplayer[aria-pressed="true"] {
+  border-color: var(--multiplayer);
+  background: var(--multiplayer-chip);
+  color: var(--multiplayer);
+}
 .chip-button.status-text--owned[aria-pressed="true"] {
   border-color: var(--owned);
   background: var(--owned-chip);

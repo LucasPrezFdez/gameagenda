@@ -55,6 +55,7 @@ const VIEW_SLUGS: Readonly<Record<ListView, string>> = {
   completed: 'completado',
   dropped: 'abandonado',
   not_started: 'sin-empezar',
+  multiplayer: 'multijugador',
   all: 'todos',
 };
 const PURCHASE_SLUGS: Readonly<Record<PurchaseFilter, string>> = {
@@ -99,9 +100,13 @@ export function listSearchParams(list: ListParams): URLSearchParams {
 /** Secciones de «Pendientes» y de «Todos», en este orden (ver §9.1). */
 export type SectionId = EntryView;
 const PENDING_SECTIONS: readonly SectionId[] = ['playing', 'next', 'want_to_play', 'on_hold'];
-/** «Sin empezar» va la última de Todos, plegada: puede ser una biblioteca entera de Steam. */
+/**
+ * Multijugador no sale en Pendientes (no se acaba) y en Todos va justo detrás, porque son juegos que
+ * se juegan. «Sin empezar» va la última, plegada: puede ser una biblioteca entera de Steam.
+ */
 const ALL_SECTIONS: readonly SectionId[] = [
   ...PENDING_SECTIONS,
+  'multiplayer',
   'completed',
   'dropped',
   'not_started',
@@ -281,10 +286,18 @@ export function priorityOf(
   return { position: siblings.findIndex((e) => e.id === entry.id) + 1, total: siblings.length };
 }
 
+/** Los estados en los que la fila enseña la fecha de empezar (ver `rowDate`). */
+const STARTED_DATE_STATUSES: ReadonlySet<Status> = new Set<Status>([
+  'playing',
+  'on_hold',
+  'dropped',
+  'multiplayer',
+]);
+
 /**
  * La fecha que enseña una fila de Mi lista con la lista ancha (revisión responsive del 20-11-2026):
- * la que más dice de su estado. Completado, la de terminarlo; Jugando, En pausa y Abandonado, la de
- * empezarlo; los demás, la de apuntarlo. Si falta, la anterior que haya.
+ * la que más dice de su estado. Completado, la de terminarlo; Jugando, En pausa, Abandonado y
+ * Multijugador, la de empezarlo; los demás, la de apuntarlo. Si falta, la anterior que haya.
  */
 export function rowDate(
   entry: AgendaEntry,
@@ -292,7 +305,7 @@ export function rowDate(
   const order: readonly DateField[] =
     entry.status === 'completed'
       ? ['completedAt', 'startedAt', 'addedAt']
-      : entry.status === 'playing' || entry.status === 'on_hold' || entry.status === 'dropped'
+      : STARTED_DATE_STATUSES.has(entry.status)
         ? ['startedAt', 'addedAt']
         : ['addedAt'];
   for (const field of order) {

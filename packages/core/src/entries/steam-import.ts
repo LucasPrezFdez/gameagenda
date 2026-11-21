@@ -120,6 +120,7 @@ export function planSteamImport(input: SteamImportInput): SteamImportPlan {
     completed: 0,
     dropped: 0,
     not_started: 0,
+    multiplayer: 0,
   };
   let markedOwned = 0;
   let platinum = 0;
@@ -182,6 +183,7 @@ export function planSteamImport(input: SteamImportInput): SteamImportPlan {
       want_to_play: 3,
       dropped: 4,
       not_started: 5,
+      multiplayer: 6,
     }[status];
     const key =
       status === 'not_started' ? [group, title] : [group, lastPlayed(game), title, game.appid];
@@ -211,7 +213,7 @@ export function planSteamImport(input: SteamImportInput): SteamImportPlan {
         wish: true,
       },
       // El orden de Steam (0, sin orden, al final) y, a igual, el más antiguo primero.
-      key: [6, wish.priority > 0 ? wish.priority : Number.MAX_SAFE_INTEGER, wish.addedAt ?? 0],
+      key: [7, wish.priority > 0 ? wish.priority : Number.MAX_SAFE_INTEGER, wish.addedAt ?? 0],
     });
   }
 

@@ -21,6 +21,7 @@ const statusLabels: Readonly<Record<Status, string>> = {
   completed: 'Completado',
   dropped: 'Abandonado',
   not_started: 'Sin empezar',
+  multiplayer: 'Multijugador',
 };
 
 const flagLabels: Readonly<Record<Flag, string>> = {
@@ -223,6 +224,7 @@ export const es = {
       completed: 'Completado',
       dropped: 'Abandonado',
       not_started: 'Sin empezar',
+      multiplayer: 'Multijugador',
       all: 'Todos',
     } satisfies Record<ListView, string>,
     purchase: 'Compra',
@@ -248,6 +250,7 @@ export const es = {
       completed: 'Completado',
       dropped: 'Abandonado',
       not_started: 'Sin empezar',
+      multiplayer: 'Multijugador',
     } satisfies Record<SectionId, string>,
     sectionCount: (label: string, count: number) => `${label} (${count})`,
     show: 'Mostrar',
@@ -416,7 +419,7 @@ export const es = {
     slashHint: 'Ctrl+K funciona siempre. Desactívalo si / te molesta al escribir.',
     singleKeys: 'Atajos de una tecla',
     singleKeysHint:
-      '?, G luego L, C o A, J, K, 1–6, C, P, A, N, Supr, V, F y +. Desactívalos si los pulsas sin querer o usas el dictado o un programa de voz. Ctrl+K, Ctrl+Z, Esc y Alt+↑/↓ siguen funcionando.',
+      '?, G luego L, C o A, J, K, 1–7, C, P, A, N, Supr, V, F y +. Desactívalos si los pulsas sin querer o usas el dictado o un programa de voz. Ctrl+K, Ctrl+Z, Esc y Alt+↑/↓ siguen funcionando.',
     showShortcuts: 'Ver los atajos de teclado',
     touchGestures: 'Gestos táctiles',
     touchGesturesHint:

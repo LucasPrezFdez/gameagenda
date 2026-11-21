@@ -85,6 +85,36 @@ describe('Mi lista', () => {
     expect(parseListParams('?vista=rara')).toEqual(DEFAULT_LIST_PARAMS);
   });
 
+  it('Multijugador no sale en Pendientes; en Todos, detrás de En pausa, y tiene su vista', () => {
+    const withMultiplayer = [
+      ...entries,
+      entry('Golf It', 'multiplayer', 7),
+      entry('PEAK', 'multiplayer', 8, { owned: true }),
+      entry('Hollow Knight', 'not_started', 9),
+    ];
+    const pending = buildSections(withMultiplayer, DEFAULT_LIST_PARAMS);
+    expect(pending.some((s) => s.id === 'multiplayer')).toBe(false);
+    const all = buildSections(withMultiplayer, { ...DEFAULT_LIST_PARAMS, view: 'all' });
+    expect(all.map((s) => s.id)).toEqual([
+      'playing',
+      'next',
+      'want_to_play',
+      'on_hold',
+      'multiplayer',
+      'completed',
+      'not_started',
+    ]);
+    const section = all.find((s) => s.id === 'multiplayer');
+    expect(section?.entries.map((e) => e.id)).toEqual(['Golf It', 'PEAK']);
+    expect(section?.collapsible).toBe(false);
+    const counts = countViews(withMultiplayer, 'any');
+    expect(counts.multiplayer).toBe(2);
+    expect(counts.pending).toBe(5);
+    const view = { ...DEFAULT_LIST_PARAMS, view: 'multiplayer' } as const;
+    expect(listSearchParams(view).toString()).toBe('vista=multijugador');
+    expect(parseListParams('?vista=multijugador')).toEqual(view);
+  });
+
   it('calcula la prioridad dentro de la vista', () => {
     const hades = entries[0];
     if (!hades) throw new Error('falta Hades II');
@@ -171,6 +201,10 @@ describe('la fecha de la fila ancha (revisión responsive)', () => {
     expect(rowDate({ ...base, status: 'not_started', startedAt: '2026-11-01' })).toEqual({
       field: 'addedAt',
       day: '2026-10-05',
+    });
+    expect(rowDate({ ...base, status: 'multiplayer', startedAt: '2026-11-02' })).toEqual({
+      field: 'startedAt',
+      day: '2026-11-02',
     });
     expect(rowDate({ ...base, addedAt: null })).toBeNull();
   });

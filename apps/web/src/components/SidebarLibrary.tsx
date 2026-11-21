@@ -29,6 +29,7 @@ const VIEWS: readonly ListView[] = [
   'playing',
   'want_to_play',
   'on_hold',
+  'multiplayer',
   'completed',
   'dropped',
   'not_started',
