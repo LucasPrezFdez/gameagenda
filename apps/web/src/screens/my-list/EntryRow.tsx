@@ -3,7 +3,7 @@
 // asoma el fondo de la fila con lo que va a pasar y, al deslizarla a la izquierda, la bandeja de
 // marcas. Los gestos y el asa `::` los atiende la pantalla, con un solo juego de escuchas.
 import { memo } from 'react';
-import { type AgendaEntry, appidOf, FLAGS } from '../../agenda/types.ts';
+import { type AgendaEntry, appidOf, type DateField, FLAGS } from '../../agenda/types.ts';
 import { Cover, FlagBadges } from '../../components/bits.tsx';
 import { Icon } from '../../components/icons.tsx';
 import { MenuButton } from '../../components/MenuButton.tsx';
@@ -134,6 +134,7 @@ function EntryRowView({
             ))}
           </div>
         </div>
+        <RowNote note={entry.note} />
         <RowFacts entry={entry} />
         <MenuButton
           label={es.changeStatus(entry.status, entry.title)}
@@ -189,32 +190,69 @@ export const EntryRow = memo(
     a.virtual?.setSize === b.virtual?.setSize,
 );
 
+/** Las fechas que tienen columna propia con la lista muy ancha (DECISIONES §10.54). */
+const COLUMN_DATES: readonly DateField[] = ['addedAt', 'startedAt', 'completedAt'];
+
+/** Una celda: su nombre encima, en pequeño, y el valor; vacía, conserva el ancho. */
+function Fact({ label, value, kind }: { label: string; value: string | null; kind: string }) {
+  return (
+    <span className={`entry-row__fact entry-row__fact--${kind}`}>
+      {value !== null && (
+        <>
+          <span className="entry-row__fact-label">{label}</span> {value}
+        </>
+      )}
+    </span>
+  );
+}
+
 /**
- * «Juego en» y la fecha que toca, en dos columnas alineadas entre el título y el estado (revisión
- * responsive del 20-11-2026, opción A). Solo se ven con la lista ancha (*container query* de
- * list.css); por debajo, están en la ficha. Las celdas vacías conservan su ancho, para que las
- * columnas no se tuerzan.
+ * Las columnas entre el título y el estado, que crecen con el ancho de la lista (*container
+ * queries* de list.css); por debajo de 880 px no se ven y están en la ficha.
+ *   - desde 880 px (revisión responsive del 20-11-2026): «Juego en» y la fecha que toca según el
+ *     estado (`rowDate`);
+ *   - desde 1 280 px (DECISIONES §10.54, pedido por el usuario): «Juego en» y las tres fechas,
+ *     Apuntado, Empezado y Completado, cada una en su columna.
+ * Las celdas vacías conservan su ancho, para que las columnas no se tuerzan.
  */
 function RowFacts({ entry }: { entry: AgendaEntry }) {
   const date = rowDate(entry);
   return (
     <span className="entry-row__facts">
-      <span className="entry-row__fact">
-        {entry.platform !== null && (
-          <>
-            <span className="entry-row__fact-label">{es.game.platform}</span>{' '}
-            {es.platform[entry.platform]}
-          </>
-        )}
-      </span>
-      <span className="entry-row__fact">
-        {date !== null && (
-          <>
-            <span className="entry-row__fact-label">{es.game.date[date.field]}</span>{' '}
-            {formatAgendaDay(date.day)}
-          </>
-        )}
-      </span>
+      <Fact
+        kind="platform"
+        label={es.game.platform}
+        value={entry.platform === null ? null : es.platform[entry.platform]}
+      />
+      <Fact
+        kind="date"
+        label={date === null ? '' : es.game.date[date.field]}
+        value={date === null ? null : formatAgendaDay(date.day)}
+      />
+      {COLUMN_DATES.map((field) => {
+        const day = entry[field];
+        return (
+          <Fact
+            key={field}
+            kind="column"
+            label={es.game.date[field]}
+            value={day === null || day === '' ? null : formatAgendaDay(day)}
+          />
+        );
+      })}
+    </span>
+  );
+}
+
+/**
+ * La nota, desde 1 600 px y en una línea: ocupa el hueco entre el título y las columnas (DECISIONES
+ * §10.54). Entera, en la ficha.
+ */
+function RowNote({ note }: { note: string }) {
+  if (note.trim() === '') return <span className="entry-row__note" />;
+  return (
+    <span className="entry-row__note">
+      <span className="entry-row__fact-label">{es.game.note}</span> {note}
     </span>
   );
 }

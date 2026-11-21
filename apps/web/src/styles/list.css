@@ -699,8 +699,11 @@
 /* La fila ancha (revisión responsive del 20-11-2026, opción A): con la lista de 880 px o más, entre
    el título y el estado salen dos columnas, «Juego en» y la fecha que toca según el estado
    (EntryRow.tsx). El estado tiene ancho fijo para que las columnas queden alineadas de una fila a
-   otra, también entre secciones. Por debajo no hay sitio: están en la ficha. */
-.entry-row__facts {
+   otra, también entre secciones. Por debajo no hay sitio: están en la ficha. Desde 1 280 px, más
+   columnas y la nota (DECISIONES §10.54, más abajo). */
+.entry-row__facts,
+.entry-row__note,
+.entry-row__fact--column {
   display: none;
 }
 
@@ -735,6 +738,53 @@
   .entry-row__body > .menu:nth-last-child(2) {
     flex: none;
     width: 9rem;
+  }
+}
+
+/* Con la lista muy ancha (21-11-2026, DECISIONES §10.54, pedido por el usuario: a 2 560 px, la fila
+   era el título a la izquierda y la fecha y el estado a 1 600 px de él). Desde 1 280 px, las tres
+   fechas en vez de la que toca: Apuntado, Empezado y Completado, cada una en su columna, como en
+   una tabla. Desde 1 600 px, también la nota, en una línea, en el hueco entre el título y las
+   columnas: el título y la nota se lo reparten; sin nota, queda vacío y las columnas siguen
+   alineadas. Con 1 280 px, al título y a la nota les tocarían unos 240 px a cada uno. */
+@container entry-list (min-width: 1280px) {
+  .entry-row__fact--date {
+    display: none;
+  }
+
+  .entry-row__fact--column {
+    display: block;
+  }
+
+  .entry-row__facts {
+    gap: 12px;
+  }
+
+  .entry-row__fact,
+  .entry-row__fact + .entry-row__fact {
+    width: 7.5rem;
+  }
+}
+
+/* La nota mide una cuarta parte de la lista (`cqi`, el ancho del contenedor `entry-list`), igual en
+   todas las filas: así empieza en la misma columna aunque la fila lleve asa y número de prioridad,
+   que le quitan sitio al título y no a ella. */
+@container entry-list (min-width: 1600px) {
+  .entry-row__note {
+    display: block;
+    flex: none;
+    width: 25cqi;
+    min-width: 0;
+    overflow: hidden;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+    line-height: 1.35;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .entry-row__note .entry-row__fact-label {
+    display: block;
   }
 }
 
