@@ -8,7 +8,7 @@ Cambios de GameAgenda por versión. Cada hito cierra una versión SemVer 0.x (§
 
 #### Para el usuario
 
-- **Mi lista, en cuadrícula, y la app a todo el ancho** (21-11-2026, en la rama `cuadricula-mi-lista`; DECISIONES §10.53):
+- **Mi lista, en cuadrícula, y la app a todo el ancho** (21-11-2026; en producción desde el 21-11-2026; DECISIONES §10.53):
   - un conmutador Lista / Cuadrícula en la cabecera de Mi lista enseña los juegos como portadas grandes, por secciones, con la prioridad, las marcas, el estado y «…» en cada una. Se recuerda aparte del Catálogo, y las flechas van en las cuatro direcciones;
   - en pantallas anchas, Mi lista y el Catálogo llenan la pantalla, en vez de quedarse en 1 440 px con márgenes enormes a los lados, y la cuadrícula del Catálogo pone más columnas.
 - **Más columnas en las filas de Mi lista** (21-11-2026, en la rama `filas-columnas`; DECISIONES §10.54): con la lista muy ancha, cada fila enseña las tres fechas (Apuntado, Empezado y Completado) en columnas alineadas y, desde 1 600 px, la nota, en el hueco que antes quedaba entre el título y el estado.
