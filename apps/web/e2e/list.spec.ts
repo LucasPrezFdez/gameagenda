@@ -121,6 +121,40 @@ test('Multijugador (menú o `7`) sale de Pendientes y tiene su vista y su secci�
   await checks.expectClean();
 });
 
+test('a 390 px, las pestañas: Pendientes y los estados primero, y la abierta siempre a la vista', async ({
+  page,
+}) => {
+  const checks = await setup(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  await threeGames(page);
+  await page.getByRole('button', { name: 'Quiero jugar: cambiar estado de Hades II' }).click();
+  await page.getByRole('menuitemradio', { name: 'Multijugador' }).click();
+  await expect(toast(page)).toContainText('Hades II pasa a Multijugador');
+  await page.getByRole('button', { name: 'Quiero jugar: cambiar estado de Celeste' }).click();
+  await page.getByRole('menuitemradio', { name: 'Completado' }).click();
+  await expect(toast(page)).toContainText('Celeste pasa a Completado');
+
+  const tabs = page.getByRole('group', { name: 'Vistas' }).getByRole('button');
+  await expect(tabs).toHaveText([
+    /^Pendientes/,
+    /^Multijugador/,
+    /^Quiero jugar/,
+    /^Completado/,
+    /^Próximos/,
+    /^Todos/,
+  ]);
+  // Abierta por la URL, la última pestaña se ve entera, y la página no se ha movido.
+  await page.goto('/?vista=todos');
+  const all = page.getByRole('group', { name: 'Vistas' }).getByRole('button', { name: /^Todos/ });
+  await expect(all).toHaveAttribute('aria-pressed', 'true');
+  // Casi 1: `scrollLeft` es entero y la pestaña no, así que puede quedar medio píxel recortado.
+  // Sin el arreglo se quedaba fuera entera (0).
+  await expect(all).toBeInViewport({ ratio: 0.95 });
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
+  await checks.expectClean();
+});
+
 test('↑ y ↓ recorren las filas e Intro abre la ficha', async ({ page }) => {
   const checks = await setup(page);
   await page.goto('/');

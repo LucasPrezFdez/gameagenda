@@ -34,6 +34,7 @@ import { attachRowGestures } from '../../gestures/row-gestures.ts';
 import { es } from '../../i18n/es.ts';
 import { gridColumns } from '../../lib/card-grid.ts';
 import { isIosBrowserTab } from '../../lib/hooks.ts';
+import { revealInStrip } from '../../lib/reveal.ts';
 import { usePalette } from '../../palette/palette-context.tsx';
 import { measureListVisible } from '../../perf/measures.ts';
 import { Link, navigate, useLocation } from '../../router/router.tsx';
@@ -202,6 +203,17 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
     const totals = params.purchase === 'any' ? counts : countViews(entries, 'any');
     return tabViewsOf(shownViewGroups(totals, params.view));
   }, [entries, params.purchase, params.view, counts]);
+  // La pestaña abierta, siempre a la vista: en el móvil, las del final (Software, Todos) quedaban
+  // fuera de la tira al abrirlas por la URL o desde la barra encogida (§10.56).
+  const viewTabsRef = useRef<HTMLDivElement>(null);
+  // Las pestañas solo salen con algún juego (`total > 0`, más abajo).
+  const hasTabs = entries.length > 0;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: lee el DOM; cada vista abierta, otra pestaña.
+  useLayoutEffect(() => {
+    const strip = viewTabsRef.current;
+    const active = strip?.querySelector<HTMLElement>('[aria-pressed="true"]');
+    if (strip && active && hasTabs) revealInStrip(strip, active);
+  }, [params.view, hasTabs]);
   const upcomingCount = useMemo(
     () => countUpcoming(entries, params.purchase, releases.upcoming),
     [entries, params.purchase, releases.upcoming],
@@ -569,7 +581,7 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
       {total > 0 && (
         <div className="list-filters">
           {/* biome-ignore lint/a11y/useSemanticElements: grupo de botones de alternar. */}
-          <div className="chips" role="group" aria-label={es.list.views}>
+          <div className="chips" role="group" aria-label={es.list.views} ref={viewTabsRef}>
             {tabViews.map((view) => {
               // El de Próximos sale cuando se saben las fechas; su hueco ya está reservado.
               const count = view === 'upcoming' ? upcomingCount : counts[view];
