@@ -59,6 +59,7 @@ import {
   PURCHASE_FILTERS,
   parseListParams,
   shownViewGroups,
+  tabViewsOf,
 } from './list-model.ts';
 import { useListMotion } from './list-motion.ts';
 import { emptyTextOf, SYNCED_EMPTY_TEXTS, syncedEmptyState } from './restore-notice.ts';
@@ -196,10 +197,10 @@ export function MyListScreen({ primary = true }: { primary?: boolean }) {
     [entries, params, releases.lookup],
   );
   const counts = useMemo(() => countViews(entries, params.purchase), [entries, params.purchase]);
-  // Las pestañas, en el orden y con las vistas de la barra lateral (§10.56).
+  // Las pestañas: las vistas de la barra lateral, con los estados detrás de Pendientes (§10.56).
   const tabViews = useMemo(() => {
     const totals = params.purchase === 'any' ? counts : countViews(entries, 'any');
-    return shownViewGroups(totals, params.view).flatMap((group) => group.views);
+    return tabViewsOf(shownViewGroups(totals, params.view));
   }, [entries, params.purchase, params.view, counts]);
   const upcomingCount = useMemo(
     () => countUpcoming(entries, params.purchase, releases.upcoming),

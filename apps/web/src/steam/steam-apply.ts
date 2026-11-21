@@ -4,6 +4,9 @@
 //
 // - Los logros solo se preguntan por los juegos jugados con estadísticas en Steam, y no por los que
 //   ya son Platinado en la agenda.
+// - Software (DECISIONES §10.57): se pregunta a la micro-API por lo de la biblioteca que no está
+//   en el catálogo (que solo tiene juegos); lo que la tienda da como software va a Software y no se
+//   le preguntan los logros.
 // - El plan lo hace `planSteamImport` de core con lo que decidió el usuario; aquí se le dan la
 //   agenda, los títulos del catálogo y el día local.
 // - Aplicar va por lotes de `APPLY_BATCH`, cediendo el turno entre uno y otro, cada uno con su HLC y
@@ -13,6 +16,7 @@
 import {
   type SteamAchievementsResult,
   steamAchievementsResponseSchema,
+  steamTypesResponseSchema,
 } from '@gameagenda/core/api';
 import {
   type ActionContext,
@@ -63,14 +67,43 @@ export function readSteamAchievements(text: string): SteamAchievementsResult[] |
   return parsed.success ? parsed.data.games : null;
 }
 
-/** Por qué juegos preguntar los logros: jugados, con estadísticas y no Platinado ya en la agenda. */
+/** La respuesta de `POST /steam/types`, validada: las apps que son software; `null` si no lo es. */
+export function readSteamTypes(text: string): number[] | null {
+  let json: unknown;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  const parsed = steamTypesResponseSchema.safeParse(json);
+  return parsed.success ? parsed.data.software : null;
+}
+
+/**
+ * Por qué apps preguntar si son software: las de la biblioteca que no están en el catálogo, que
+ * solo tiene juegos. Sin catálogo (`titles` vacío), todas.
+ */
+export function typeCandidates(
+  library: SteamLibrary,
+  titles: ReadonlyMap<number, string>,
+): number[] {
+  return [...new Set(library.owned.map((game) => game.appid))].filter(
+    (appid) => !titles.has(appid),
+  );
+}
+
+/**
+ * Por qué juegos preguntar los logros: jugados, con estadísticas, no Platinado ya en la agenda y
+ * que no sean software.
+ */
 export function achievementCandidates(
   library: SteamLibrary,
   get: (id: string) => Entry | undefined,
+  software: ReadonlySet<number> = new Set(),
 ): number[] {
   return library.owned
     .filter((game) => {
-      if (game.minutes <= 0 || !game.stats) return false;
+      if (game.minutes <= 0 || !game.stats || software.has(game.appid)) return false;
       const entry = get(`steam:${game.appid}`);
       return !(isLive(entry) && entry.flags.platinum === true);
     })
@@ -87,6 +120,8 @@ export interface PlanOptions {
   readonly get: (id: string) => Entry | undefined;
   readonly titles: ReadonlyMap<number, string>;
   readonly fallbackTitle: (appid: number) => string;
+  /** Lo que la tienda de Steam da como software (DECISIONES §10.57). */
+  readonly software?: ReadonlySet<number>;
 }
 
 export function buildSteamPlan(options: PlanOptions): SteamImportPlan {
@@ -100,6 +135,7 @@ export function buildSteamPlan(options: PlanOptions): SteamImportPlan {
     get: options.get,
     catalogTitle: (appid) => titles.get(appid) ?? null,
     fallbackTitle: options.fallbackTitle,
+    software: options.software,
   });
 }
 

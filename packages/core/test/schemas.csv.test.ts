@@ -29,6 +29,7 @@ const LABELS: StatusLabels = {
   dropped: 'Abandonado',
   not_started: 'Sin empezar',
   multiplayer: 'Multijugador',
+  software: 'Software',
 };
 const HEADER = CSV_COLUMNS.join(';');
 

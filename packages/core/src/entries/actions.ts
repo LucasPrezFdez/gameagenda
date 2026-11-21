@@ -422,12 +422,13 @@ export function addImported(
 
 /**
  * Lo que la importación de Steam marca en un juego que ya estaba apuntado: Comprado y, si tiene
- * todos los logros, Platinado (con Completado y las fechas del último logro, no las de hoy). No
- * toca nada más ni quita nada. `null` si no hay nada que cambiar.
+ * todos los logros, Platinado (con Completado y las fechas del último logro, no las de hoy). Si es
+ * software, lo pasa a Software (DECISIONES §10.57). No toca nada más ni quita nada. `null` si no
+ * hay nada que cambiar.
  */
 export function markImported(
   prev: Entry | undefined,
-  marks: { owned: boolean; platinumAt: Day },
+  marks: { owned: boolean; platinumAt: Day; software?: boolean },
   ctx: ActionContext,
 ): ActionResult | null {
   checkContext(ctx, prev);
@@ -435,6 +436,8 @@ export function markImported(
   if (!isLive(prev)) return null;
   const values: Values = [];
   if (marks.owned && prev.flags.owned !== true) values.push([flagField('owned'), true]);
+  // Software (DECISIONES §10.57): sin fechas que poner; el plan nunca lo junta con Platinado.
+  if (marks.software === true && prev.status !== 'software') values.push(['status', 'software']);
   if (marks.platinumAt !== null && prev.flags.platinum !== true) {
     values.push([flagField('platinum'), true], ['status', 'completed']);
     if (prev.completedAt === null) values.push(['completedAt', marks.platinumAt]);

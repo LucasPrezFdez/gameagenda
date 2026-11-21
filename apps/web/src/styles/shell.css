@@ -303,6 +303,10 @@
   border-color: var(--multiplayer);
   background: var(--multiplayer);
 }
+.sidebar-views__dot--software {
+  border-color: var(--software);
+  background: var(--software);
+}
 
 .sidebar-views__count {
   min-width: 1ch;

@@ -20,9 +20,10 @@ const SIGN_IN_IMAGE = '/steam/sign-in-through-steam.png';
 
 /**
  * El orden de las líneas del resumen: el de las secciones de Mi lista. Los juegos de la biblioteca
- * nunca van a Quiero jugar (eso lo decide el usuario); los sin jugar, a Sin empezar.
+ * nunca van a Quiero jugar (eso lo decide el usuario); los sin jugar, a Sin empezar, y los
+ * programas, a Software (§10.57).
  */
-const REVIEW_ORDER = ['playing', 'on_hold', 'completed', 'not_started'] as const;
+const REVIEW_ORDER = ['playing', 'on_hold', 'completed', 'not_started', 'software'] as const;
 
 function statusText(state: SteamImportState): string {
   switch (state.kind) {
@@ -82,6 +83,7 @@ function Review({ state }: { state: Extract<SteamImportState, { kind: 'review' }
             </>
           )}
           {counts.markedOwned > 0 && <p>{t.reviewMarked(counts.markedOwned)}</p>}
+          {counts.toSoftware > 0 && <p>{t.reviewToSoftware(counts.toSoftware)}</p>}
           {platinumMarked > 0 && <p>{t.reviewPlatinum(platinumMarked)}</p>}
           {counts.wishes > 0 && <p>{t.reviewWishes(counts.wishes)}</p>}
         </>

@@ -65,7 +65,7 @@ const LETTERS: Readonly<Record<string, ShortcutAction>> = {
   ),
 };
 
-const RE_DIGIT = /^(?:Digit|Numpad)([1-7])$/;
+const RE_DIGIT = /^(?:Digit|Numpad)([1-8])$/;
 
 /**
  * La acción de una pulsación, o `null`. `singleKeys` es el ajuste «Atajos de una tecla» (WCAG

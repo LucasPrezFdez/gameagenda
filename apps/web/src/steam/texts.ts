@@ -47,11 +47,16 @@ export const steamTexts = {
     not_started: (count: number) => `${formatCount(count)} a Sin empezar (no los has jugado)`,
     completed: (count: number) =>
       `${formatCount(count)} a Completado, con Platinado (tienen todos los logros)`,
+    software: (count: number) => `${formatCount(count)} a Software (son programas, no juegos)`,
   },
   reviewMarked: (count: number) =>
     count === 1
       ? 'Uno que ya tenías se marcará como Comprado.'
       : `${formatCount(count)} que ya tenías se marcarán como Comprados.`,
+  reviewToSoftware: (count: number) =>
+    count === 1
+      ? 'Uno que ya tenías es un programa, no un juego: pasará a Software.'
+      : `${formatCount(count)} que ya tenías son programas, no juegos: pasarán a Software.`,
   reviewPlatinum: (count: number) =>
     count === 1
       ? 'Uno que ya tenías tiene todos los logros: se marcará como Platinado (y Completado).'

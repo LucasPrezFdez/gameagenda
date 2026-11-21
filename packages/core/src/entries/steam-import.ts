@@ -10,6 +10,10 @@
 //   jugados antes, En pausa.
 // - Lo que ya estaba apuntado no cambia de estado: solo gana Comprado y, si toca, Platinado.
 // - La lista de deseados, si se pide, a Quiero jugar (sin Comprado), detrás de lo demás.
+//
+// Y el 21-11-2026 (DECISIONES §10.57): lo que la tienda de Steam da como software (Wallpaper
+// Engine) va a Software, sin Platinado, y lo que ya estaba en otro estado también pasa a Software:
+// «mete ahí lo que sea software y no juegos».
 
 import type { Op } from '../sync/op.ts';
 import {
@@ -57,6 +61,8 @@ export interface SteamImportInput {
   /** El día local (`AAAA-MM-DD`) de un instante: lo pone la app, que sabe la zona horaria. */
   readonly dayOf: (ms: number) => string;
   readonly get: (id: string) => Entry | undefined;
+  /** Lo que la tienda de Steam da como software, no como juego (DECISIONES §10.57). */
+  readonly software?: ReadonlySet<number>;
   /** El título del catálogo, si lo está; si no, `null`. */
   readonly catalogTitle: (appid: number) => string | null;
   /** El título de lo que no está en el catálogo ni trae nombre de Steam. */
@@ -82,6 +88,8 @@ export type SteamImportItem =
       readonly title: string;
       readonly owned: boolean;
       readonly platinumAt: Day;
+      /** Es software y estaba en otro estado: pasa a Software. */
+      readonly software: boolean;
     };
 
 export interface SteamImportCounts {
@@ -93,6 +101,8 @@ export interface SteamImportCounts {
   readonly markedOwned: number;
   /** Platinados: nuevos y ya apuntados que ganan la marca. */
   readonly platinum: number;
+  /** Ya apuntados que son software y pasan a Software (los nuevos, en `added.software`). */
+  readonly toSoftware: number;
   /** De la biblioteca o de los deseados, ya apuntados y sin nada que cambiar. */
   readonly unchanged: number;
 }
@@ -121,9 +131,11 @@ export function planSteamImport(input: SteamImportInput): SteamImportPlan {
     dropped: 0,
     not_started: 0,
     multiplayer: 0,
+    software: 0,
   };
   let markedOwned = 0;
   let platinum = 0;
+  let toSoftware = 0;
   let unchanged = 0;
   const marks: SteamImportItem[] = [];
   const fresh: Array<{ item: SteamImportItem; key: readonly (number | string)[] }> = [];
@@ -141,17 +153,21 @@ export function planSteamImport(input: SteamImportInput): SteamImportPlan {
     seen.add(game.appid);
     const id = steamEntryId(game.appid);
     const prev = input.get(id);
-    const platinumAt = platinumDay(game.appid);
+    const software = input.software?.has(game.appid) === true;
+    // Un programa no se platina: sus logros, si los tiene, no cuentan.
+    const platinumAt = software ? null : platinumDay(game.appid);
     const title = input.catalogTitle(game.appid) ?? game.name ?? input.fallbackTitle(game.appid);
     if (isLive(prev)) {
       const owned = prev.flags.owned !== true;
       const plat = platinumAt !== null && prev.flags.platinum !== true;
-      if (!owned && !plat) {
+      const moved = software && prev.status !== 'software';
+      if (!owned && !plat && !moved) {
         unchanged++;
         continue;
       }
       if (owned) markedOwned++;
       if (plat) platinum++;
+      if (moved) toSoftware++;
       marks.push({
         kind: 'mark',
         id,
@@ -159,10 +175,15 @@ export function planSteamImport(input: SteamImportInput): SteamImportPlan {
         title: prev.title,
         owned,
         platinumAt: plat ? platinumAt : null,
+        software: moved,
       });
       continue;
     }
-    const status: Status = platinumAt !== null ? 'completed' : statusOfPlayed(game, input.nowMs);
+    const status: Status = software
+      ? 'software'
+      : platinumAt !== null
+        ? 'completed'
+        : statusOfPlayed(game, input.nowMs);
     added[status]++;
     if (platinumAt !== null) platinum++;
     const item: SteamImportItem = {
@@ -175,7 +196,7 @@ export function planSteamImport(input: SteamImportInput): SteamImportPlan {
       platinumAt,
       wish: false,
     };
-    // Jugando, En pausa y Completado: lo último jugado primero. Sin empezar: por nombre.
+    // Jugando, En pausa y Completado: lo último jugado primero. Sin empezar y Software: por nombre.
     const group = {
       playing: 0,
       on_hold: 1,
@@ -184,9 +205,12 @@ export function planSteamImport(input: SteamImportInput): SteamImportPlan {
       dropped: 4,
       not_started: 5,
       multiplayer: 6,
+      software: 7,
     }[status];
     const key =
-      status === 'not_started' ? [group, title] : [group, lastPlayed(game), title, game.appid];
+      status === 'not_started' || status === 'software'
+        ? [group, title]
+        : [group, lastPlayed(game), title, game.appid];
     fresh.push({ item, key });
   }
 
@@ -213,14 +237,14 @@ export function planSteamImport(input: SteamImportInput): SteamImportPlan {
         wish: true,
       },
       // El orden de Steam (0, sin orden, al final) y, a igual, el más antiguo primero.
-      key: [7, wish.priority > 0 ? wish.priority : Number.MAX_SAFE_INTEGER, wish.addedAt ?? 0],
+      key: [8, wish.priority > 0 ? wish.priority : Number.MAX_SAFE_INTEGER, wish.addedAt ?? 0],
     });
   }
 
   fresh.sort((a, b) => compareKeys(a.key, b.key));
   return {
     items: [...fresh.map((f) => f.item), ...marks],
-    counts: { added, wishes, markedOwned, platinum, unchanged },
+    counts: { added, wishes, markedOwned, platinum, toSoftware, unchanged },
   };
 }
 
@@ -288,7 +312,11 @@ export function applySteamImport(
       );
       if (result) rank = next;
     } else {
-      result = markImported(prev, { owned: item.owned, platinumAt: item.platinumAt }, ctx);
+      result = markImported(
+        prev,
+        { owned: item.owned, platinumAt: item.platinumAt, software: item.software },
+        ctx,
+      );
     }
     if (result === null) {
       skipped++;

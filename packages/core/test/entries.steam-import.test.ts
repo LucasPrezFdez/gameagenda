@@ -81,6 +81,7 @@ describe('planSteamImport: lo que decidió el usuario', () => {
       dropped: 0,
       not_started: 1,
       multiplayer: 0,
+      software: 0,
     });
     for (const item of plan.items) expect(item.kind === 'add' && item.owned).toBe(true);
   });
@@ -122,7 +123,15 @@ describe('planSteamImport: lo que decidió el usuario', () => {
       }),
     );
     expect(plan.items).toEqual([
-      { kind: 'mark', id: 'steam:10', appid: 10, title: 'A', owned: true, platinumAt: null },
+      {
+        kind: 'mark',
+        id: 'steam:10',
+        appid: 10,
+        title: 'A',
+        owned: true,
+        platinumAt: null,
+        software: false,
+      },
       {
         kind: 'mark',
         id: 'steam:20',
@@ -130,9 +139,68 @@ describe('planSteamImport: lo que decidió el usuario', () => {
         title: 'B',
         owned: false,
         platinumAt: '2024-01-02',
+        software: false,
       },
     ]);
     expect(plan.counts).toMatchObject({ markedOwned: 1, platinum: 1, unchanged: 0 });
+  });
+
+  it('Software (§10.57): lo nuevo entra ahí, sin Platinado y por nombre; lo que ya estaba pasa ahí', () => {
+    const h = harness();
+    const playing = must(
+      addEntry(
+        undefined,
+        { id: 'steam:431960', title: 'Wallpaper Engine', status: 'playing' },
+        h.addCtx(),
+      ),
+    ).entry;
+    const already = must(
+      addEntry(
+        undefined,
+        { id: 'steam:365670', title: 'Blender', status: 'software', flags: { owned: true } },
+        h.addCtx(),
+      ),
+    ).entry;
+    const a = agenda(playing, already);
+    const plan = planSteamImport(
+      input({
+        owned: [
+          game(431960, 600, NOW),
+          game(365670, 60, NOW),
+          { ...game(993090, 30, NOW), name: 'Lossless Scaling' },
+          { ...game(388080), name: 'Borderless Gaming' },
+          game(730, 60, NOW),
+        ],
+        // Aseprite tiene todos sus logros: un programa no se platina.
+        platinum: new Map([[993090, NOW]]),
+        software: new Set([431960, 365670, 993090, 388080]),
+        get: a.get,
+      }),
+    );
+    const adds = plan.items.filter((i) => i.kind === 'add');
+    expect(adds.map((i) => [i.appid, i.status, i.platinumAt])).toEqual([
+      [730, 'playing', null],
+      [388080, 'software', null],
+      [993090, 'software', null],
+    ]);
+    expect(plan.items.filter((i) => i.kind === 'mark')).toEqual([
+      {
+        kind: 'mark',
+        id: 'steam:431960',
+        appid: 431960,
+        title: 'Wallpaper Engine',
+        owned: true,
+        platinumAt: null,
+        software: true,
+      },
+    ]);
+    expect(plan.counts).toMatchObject({
+      added: { software: 2, playing: 1, completed: 0 },
+      toSoftware: 1,
+      platinum: 0,
+      markedOwned: 1,
+      unchanged: 1,
+    });
   });
 
   it('lo ya apuntado con Comprado (y Platinado) se queda como está', () => {
@@ -393,6 +461,26 @@ describe('markImported', () => {
     const plat = must(markImported(e, { owned: false, platinumAt: '2022-05-04' }, h.ctx()));
     expect(plat.entry.completedAt).toBe(TODAY);
     expect(plat.entry.platinumAt).toBe('2022-05-04');
+  });
+
+  it('Software (§10.57): pasa a Software sin fechas nuevas, y con Deshacer vuelve', () => {
+    const h = harness();
+    const e = must(
+      addEntry(undefined, { id: 'steam:431960', title: 'W', status: 'on_hold' }, h.addCtx()),
+    ).entry;
+    const moved = must(markImported(e, { owned: true, platinumAt: null, software: true }, h.ctx()));
+    expect(moved.ops.map((o) => o.field).sort()).toEqual(['flags.owned', 'status']);
+    expect(values(moved.entry)).toMatchObject({
+      status: 'software',
+      startedAt: e.startedAt,
+      completedAt: null,
+    });
+    expect(moved.undo.changes[0]?.before?.status).toBe('on_hold');
+    expect(moved.undo.changes[0]?.fields).toContain('status');
+    // Ya en Software y con Comprado: nada que cambiar.
+    expect(
+      markImported(moved.entry, { owned: true, platinumAt: null, software: true }, h.ctx()),
+    ).toBeNull();
   });
 
   it('nada que cambiar, o no está apuntado: null', () => {

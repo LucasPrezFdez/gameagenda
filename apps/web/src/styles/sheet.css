@@ -242,6 +242,11 @@
   background: var(--multiplayer-chip);
   color: var(--multiplayer);
 }
+.chip-button.status-text--software[aria-pressed="true"] {
+  border-color: var(--software);
+  background: var(--software-chip);
+  color: var(--software);
+}
 .chip-button.status-text--owned[aria-pressed="true"] {
   border-color: var(--owned);
   background: var(--owned-chip);

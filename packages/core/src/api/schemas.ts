@@ -186,7 +186,8 @@ export type ResolveResponse = z.output<typeof resolveResponseSchema>;
  * Lo que `resolve` lee de `IStoreBrowseService/GetItems/v1` de Steam, sin clave (§11.3: Zod valida
  * cada respuesta de Steam). Con `success` 15 (sin acceso), `name` llega vacío y `appid`, a 0; con
  * `unvailable_for_country_restriction` (así, con la errata de Steam), el juego está bloqueado en
- * ese país y hay que pedirlo en otro.
+ * ese país y hay que pedirlo en otro. `types` lee `appid` y `type` (`EStoreAppType`: 0 juego,
+ * 6 software; DECISIONES §10.57).
  */
 export const steamItemsResponseSchema = z.object({
   response: z.object({
@@ -194,6 +195,8 @@ export const steamItemsResponseSchema = z.object({
       .array(
         z.object({
           success: z.int(),
+          appid: z.int().optional(),
+          type: z.int().optional(),
           name: z.string().optional(),
           unvailable_for_country_restriction: z.boolean().optional(),
         }),

@@ -66,6 +66,10 @@
      Próximo. */
   --multiplayer: #a3307d;
   --multiplayer-chip: #f6e6f0;
+  /* Software (21-11-2026): un verde lima, en el hueco entre el naranja de En pausa y el verde de
+     Jugando. */
+  --software: #4a7212;
+  --software-chip: #ebf1e0;
   /* Platinado en platino (trofeo a tres tintas, ver base.css) y Próximo en rojo (05-11-2026). */
   --platinum: #56657a;
   --platinum-chip: #eceff4;
@@ -171,6 +175,8 @@
     --not_started-chip: #352e24;
     --multiplayer: #f285c9;
     --multiplayer-chip: #3d2536;
+    --software: #9fd356;
+    --software-chip: #273021;
     --platinum: #c9d4e2;
     --platinum-chip: #2a2f37;
     --platinum-metal: #b4c1d2;
@@ -215,6 +221,8 @@
   --not_started-chip: #352e24;
   --multiplayer: #f285c9;
   --multiplayer-chip: #3d2536;
+  --software: #9fd356;
+  --software-chip: #273021;
   --platinum: #c9d4e2;
   --platinum-chip: #2a2f37;
   --platinum-metal: #b4c1d2;

@@ -31,6 +31,7 @@ import {
   steamAchievementsRequestSchema,
   steamRedeemRequestSchema,
   steamStartRequestSchema,
+  steamTypesRequestSchema,
 } from '@gameagenda/core/api';
 import type { Context, Hono } from 'hono';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
@@ -50,10 +51,13 @@ import {
 import { type SteamPageKind, steamPage } from '../steam-page.ts';
 import { STEAM_DAILY_CALLS, spendSteamCalls } from '../steam-quota.ts';
 import { openImportToken, sealImportToken } from '../steam-token.ts';
+import { fetchSoftware } from '../steam-types.ts';
 
 const MAX_BODY = 1024;
 /** `achievements`: el pase y 40 `appid` de 10 cifras caben de sobra. */
 const MAX_ACHIEVEMENTS_BODY = 2048;
+/** `types`: el pase y 200 `appid` de 10 cifras (≈2,3 KB). */
+const MAX_TYPES_BODY = 4096;
 /** Una vuelta de Steam lleva ≈1 KB de consulta; lo que pase de esto no es suyo. */
 const MAX_CALLBACK_QUERY = 8 * 1024;
 
@@ -224,5 +228,25 @@ export function steamRoutes(api: Hono<AppEnv>, deps: Deps): void {
     }
     const games = await fetchAchievements(steamId, appids, key, steamFetch);
     return c.json({ games });
+  });
+
+  // Software (DECISIONES §10.57): qué apps son programas y no juegos. Una llamada a la tienda de
+  // Steam por petición, sin clave y sin el SteamID64: el pase solo dice que viene de una importación.
+  api.post('/steam/types', async (c) => {
+    const limited = await rateLimited(c, c.env.RL_STEAM_ACH);
+    if (limited) return limited;
+    const body = await parseBody(c, steamTypesRequestSchema, MAX_TYPES_BODY);
+    if (!body.ok) return body.response;
+    // El interruptor ya ha comprobado que está.
+    const key = c.env.STEAM_WEB_API_KEY ?? '';
+    if ((await openImportToken(key, body.data.token, deps.now())) === null) {
+      return apiError(c, 'steam_token_invalid');
+    }
+    if (!(await spendSteamCalls(c.env.DB, deps.now(), 1, dailyCalls))) {
+      return apiError(c, 'steam_busy');
+    }
+    const software = await fetchSoftware(body.data.appids, steamFetch);
+    if (software === null) return apiError(c, 'steam_unavailable');
+    return c.json({ software });
   });
 }

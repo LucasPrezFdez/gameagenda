@@ -11,6 +11,7 @@ import {
   STEAM_IMPORT_TOKEN_PATTERN,
   STEAM_LIST_MAX,
   STEAM_SECRET_PATTERN,
+  STEAM_TYPES_BATCH,
 } from './constants.ts';
 
 const secretSchema = z.string().regex(STEAM_SECRET_PATTERN);
@@ -128,3 +129,28 @@ export const steamAchievementsResponseSchema = z.object({
   games: z.array(steamAchievementsResultSchema).max(STEAM_ACHIEVEMENTS_BATCH),
 });
 export type SteamAchievementsResponse = z.output<typeof steamAchievementsResponseSchema>;
+
+/**
+ * `POST /api/v1/steam/types` (Software, DECISIONES §10.57): el pase de `redeem` (solo para que no
+ * lo use cualquiera; el SteamID64 no sale del servidor) y hasta `STEAM_TYPES_BATCH` apps, sin
+ * repetir. La app pregunta por las de la biblioteca que no están en el catálogo, que solo tiene
+ * juegos.
+ */
+export const steamTypesRequestSchema = z.strictObject({
+  token: z.string().regex(STEAM_IMPORT_TOKEN_PATTERN),
+  appids: z
+    .array(appidSchema)
+    .min(1)
+    .max(STEAM_TYPES_BATCH)
+    .refine((list) => new Set(list).size === list.length, 'appids repetidos'),
+});
+export type SteamTypesRequest = z.input<typeof steamTypesRequestSchema>;
+
+/**
+ * `types` con 200: las apps pedidas que la tienda de Steam da como software (`type` 6). Las demás
+ * son juegos, o Steam no dice qué son: entonces cuentan como juegos.
+ */
+export const steamTypesResponseSchema = z.object({
+  software: z.array(appidSchema).max(STEAM_TYPES_BATCH),
+});
+export type SteamTypesResponse = z.output<typeof steamTypesResponseSchema>;

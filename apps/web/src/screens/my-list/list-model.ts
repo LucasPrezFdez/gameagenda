@@ -49,7 +49,7 @@ export const LIST_VIEWS: readonly ListView[] = ['pending', 'upcoming', ...STATUS
  * primero las de conjunto; después lo que se juega ahora, lo que queda por jugar y lo terminado.
  * El orden es fijo, para que cada vista esté siempre en su sitio.
  */
-export type ViewGroupId = 'overview' | 'now' | 'to_play' | 'done';
+export type ViewGroupId = 'overview' | 'now' | 'to_play' | 'done' | 'other';
 export interface ViewGroup {
   readonly id: ViewGroupId;
   readonly views: readonly ListView[];
@@ -59,7 +59,24 @@ export const VIEW_GROUPS: readonly ViewGroup[] = [
   { id: 'now', views: ['playing', 'multiplayer'] },
   { id: 'to_play', views: ['want_to_play', 'on_hold', 'not_started'] },
   { id: 'done', views: ['completed', 'dropped'] },
+  // Lo que no es un juego (Software, §10.57).
+  { id: 'other', views: ['software'] },
 ];
+
+/**
+ * Las pestañas de vista (el móvil y la barra encogida; §10.56): las mismas vistas que la barra,
+ * pero con Pendientes y después los estados, para que los de cada día quepan sin desplazar la tira;
+ * Próximos y Todos van al final.
+ */
+export function tabViewsOf(groups: readonly ViewGroup[]): ListView[] {
+  const overview = groups.find((group) => group.id === 'overview')?.views ?? [];
+  const statuses = groups.filter((group) => group.id !== 'overview').flatMap((g) => g.views);
+  return [
+    ...overview.filter((view) => view === 'pending'),
+    ...statuses,
+    ...overview.filter((view) => view !== 'pending'),
+  ];
+}
 
 /**
  * Las vistas que se enseñan, por etapas. Una de estado sin ningún juego se esconde, salvo la
@@ -93,6 +110,7 @@ const VIEW_SLUGS: Readonly<Record<ListView, string>> = {
   dropped: 'abandonado',
   not_started: 'sin-empezar',
   multiplayer: 'multijugador',
+  software: 'software',
   all: 'todos',
 };
 const PURCHASE_SLUGS: Readonly<Record<PurchaseFilter, string>> = {
@@ -139,7 +157,8 @@ export type SectionId = EntryView;
 const PENDING_SECTIONS: readonly SectionId[] = ['playing', 'next', 'want_to_play', 'on_hold'];
 /**
  * Multijugador no sale en Pendientes (no se acaba) y en Todos va justo detrás, porque son juegos que
- * se juegan. «Sin empezar» va la última, plegada: puede ser una biblioteca entera de Steam.
+ * se juegan. «Sin empezar» y Software van al final, plegadas: la primera puede ser una biblioteca
+ * entera de Steam, y la segunda no son juegos.
  */
 const ALL_SECTIONS: readonly SectionId[] = [
   ...PENDING_SECTIONS,
@@ -147,6 +166,7 @@ const ALL_SECTIONS: readonly SectionId[] = [
   'completed',
   'dropped',
   'not_started',
+  'software',
 ];
 
 export interface ListSection {
@@ -269,7 +289,7 @@ export function buildSections(
       entries: visible.filter((entry) => viewOf(entry) === id),
       collapsible:
         (params.view === 'pending' && id === 'on_hold') ||
-        (params.view === 'all' && id === 'not_started'),
+        (params.view === 'all' && (id === 'not_started' || id === 'software')),
       ranked: id === 'want_to_play',
     }))
     .filter((section) => section.entries.length > 0);

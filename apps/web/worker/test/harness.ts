@@ -123,12 +123,15 @@ export class Client {
  * Steam falso. Para `resolve`, `GetItems` de un juego, con los nombres de `names` (en España) y
  * `blockedInEs` (bloqueados en España, con su nombre en EE. UU.). `fail` hace que la llamada
  * falle (`'network'`, `'status'` o `'garbage'`). Para el login de la importación de Steam,
- * `check_authentication` (`openid`), y `GetOwnedGames` y `GetWishlist` (`webapi`). Guarda las URL
- * que le piden, todas.
+ * `check_authentication` (`openid`), y `GetOwnedGames` y `GetWishlist` (`webapi`). Para `types`
+ * (con `data_request`), `GetItems` de varias apps: `type` 6 las de `software`, 0 las de `names` y,
+ * las demás, «no lo conoce». Guarda las URL que le piden, todas.
  */
 export class FakeSteam {
   readonly names = new Map<number, string>();
   readonly blockedInEs = new Map<number, string>();
+  /** Lo que la tienda da como software (`type` 6), para `types`. */
+  readonly software = new Set<number>();
   readonly calls: string[] = [];
   fail: 'network' | 'status' | 'garbage' | 'huge' | null = null;
   readonly openid = new FakeSteamOpenId();
@@ -162,7 +165,18 @@ export class FakeSteam {
     const input = JSON.parse(new URL(url).searchParams.get('input_json') ?? '{}') as {
       ids: Array<{ appid: number }>;
       context: { country_code: string };
+      data_request?: unknown;
     };
+    if (input.data_request !== undefined) {
+      const items = input.ids.map(({ appid: id }) =>
+        this.software.has(id)
+          ? { item_type: 0, id, success: 1, visible: true, appid: id, type: 6 }
+          : this.names.has(id)
+            ? { item_type: 0, id, success: 1, visible: true, appid: id, type: 0 }
+            : { item_type: 0, id, success: 15, visible: false, appid: 0 },
+      );
+      return Response.json({ response: { store_items: items } });
+    }
     const appid = input.ids[0]?.appid ?? 0;
     const country = input.context.country_code;
     const blocked = this.blockedInEs.get(appid);

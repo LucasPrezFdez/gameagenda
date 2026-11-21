@@ -11,6 +11,7 @@ export const STATUSES = [
   'dropped',
   'not_started',
   'multiplayer',
+  'software',
 ] as const;
 export type Status = (typeof STATUSES)[number];
 

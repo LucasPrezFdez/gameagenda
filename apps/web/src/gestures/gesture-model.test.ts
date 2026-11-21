@@ -20,10 +20,11 @@ describe('advanceStatus', () => {
     expect(advanceStatus('playing')).toBe('completed');
   });
 
-  it('Completado, Abandonado y Multijugador (sin final) ya no avanzan', () => {
+  it('Completado, Abandonado, Multijugador (sin final) y Software (no es un juego) ya no avanzan', () => {
     expect(advanceStatus('completed')).toBeNull();
     expect(advanceStatus('dropped')).toBeNull();
     expect(advanceStatus('multiplayer')).toBeNull();
+    expect(advanceStatus('software')).toBeNull();
   });
 
   it('ningún gesto lleva a Abandonado ni borra', () => {

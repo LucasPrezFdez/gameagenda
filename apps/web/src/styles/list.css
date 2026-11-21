@@ -21,6 +21,9 @@
 .status-text--multiplayer {
   color: var(--multiplayer);
 }
+.status-text--software {
+  color: var(--software);
+}
 .status-text--platinum {
   color: var(--platinum);
 }
@@ -217,7 +220,8 @@
     [data-section="completed"],
     [data-section="dropped"],
     [data-section="not_started"],
-    [data-section="multiplayer"]
+    [data-section="multiplayer"],
+    [data-section="software"]
   )
   h2::before {
   content: "";
@@ -248,6 +252,9 @@
 }
 .list-section[data-section="multiplayer"] h2::before {
   background: var(--multiplayer);
+}
+.list-section[data-section="software"] h2::before {
+  background: var(--software);
 }
 
 /* «Arrastra :: o usa Alt+↑/↓» (§9.3); con el dedo, sin las teclas. Con puntero fino solo sale al
@@ -870,6 +877,9 @@
 }
 .status-button.status-text--multiplayer::before {
   background: var(--multiplayer);
+}
+.status-button.status-text--software::before {
+  background: var(--software);
 }
 
 .status-button__chevron {

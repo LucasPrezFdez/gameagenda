@@ -25,12 +25,13 @@ import {
 
 export type { Inline } from './controller.ts';
 
-export const LEGAL_VERSION = '4';
+export const LEGAL_VERSION = '5';
 /**
  * Día de esta versión de los textos (dd-mm-aaaa). La 2 añade «Importar desde Steam» (ADR-012); la
- * 3, los logros y el pase de la importación (parte 3); la 4, las llaves de acceso (ADR-013).
+ * 3, los logros y el pase de la importación (parte 3); la 4, las llaves de acceso (ADR-013); la 5,
+ * la pregunta a la tienda de Steam de qué es software al importar (DECISIONES §10.57).
  */
-export const LEGAL_UPDATED = '20-11-2026';
+export const LEGAL_UPDATED = '21-11-2026';
 
 /**
  * Lo más que guarda D1 el SteamID64 de un login con Steam: los 10 min del ticket
@@ -213,7 +214,7 @@ export function privacyPolicy(c: Controller = CONTROLLER): LegalDocument {
           list(
             'Inicias sesión en la web de Steam, con su botón oficial. Nunca vemos tu contraseña ni nada de tu cuenta, salvo lo que se dice aquí.',
             'Steam le dice a nuestro servidor el número de tu cuenta (SteamID64), y con él le pedimos tu biblioteca (qué juegos tienes, las horas jugadas y cuándo jugaste por última vez) y tu lista de deseados. No pedimos tu nombre, tu avatar ni tu ubicación.',
-            `Para saber cuáles tienes platinados, le preguntamos a Steam, juego a juego, por los logros de los que has jugado. A tu dispositivo solo le decimos si los tienes todos y el día del último, no cuáles son. Para esas preguntas, al traer tu biblioteca el servidor le da a tu dispositivo un pase cifrado con el número de tu cuenta, que caduca a los ${STEAM_IMPORT_TOKEN_TTL_MS / 60_000} minutos y solo se guarda en la memoria de la app: el servidor no lo guarda.`,
+            `Para saber cuáles tienes platinados, le preguntamos a Steam, juego a juego, por los logros de los que has jugado. A tu dispositivo solo le decimos si los tienes todos y el día del último, no cuáles son. Para esas preguntas, al traer tu biblioteca el servidor le da a tu dispositivo un pase cifrado con el número de tu cuenta, que caduca a los ${STEAM_IMPORT_TOKEN_TTL_MS / 60_000} minutos y solo se guarda en la memoria de la app: el servidor no lo guarda. Y para saber cuáles son programas y no juegos (como Wallpaper Engine), le preguntamos a la tienda de Steam qué es cada uno de los que no están en nuestro catálogo, solo con su número, sin el de tu cuenta.`,
             'Tu biblioteca, tu lista de deseados y lo de los logros pasan por nuestro servidor hasta tu dispositivo, sin que el servidor los guarde ni los anote en ningún registro. En tu dispositivo, lo que decidas aplicar pasa a ser parte de tu lista, como cualquier juego que apuntes, y se puede deshacer.',
             `Mientras inicias sesión, el servidor guarda el número de tu cuenta junto a un código de un solo uso que solo tu dispositivo puede canjear. El código caduca a los ${STEAM_TICKET_TTL_MS / 60_000} minutos, y en ${STEAM_ID_RETENTION_MINUTES} minutos como mucho ya no queda nada.`,
             'Si tu perfil de Steam no deja ver los detalles de juegos, Steam no nos da la biblioteca, y la app te dice cómo cambiarlo. Los juegos que hayas marcado como privados en Steam no aparecen.',
@@ -247,7 +248,7 @@ export function privacyPolicy(c: Controller = CONTROLLER): LegalDocument {
               '.',
             ],
             [
-              'Valve Corporation (EE. UU.) recibe tu IP cuando tu navegador pide las portadas, el número de un juego cuando nuestro servidor le pregunta su nombre y, si importas desde Steam, el número de tu cuenta cuando nuestro servidor le pide tu biblioteca y tus logros. Valve decide por su cuenta qué hace con ello: su ',
+              'Valve Corporation (EE. UU.) recibe tu IP cuando tu navegador pide las portadas, el número de un juego cuando nuestro servidor le pregunta su nombre o si es un programa y, si importas desde Steam, el número de tu cuenta cuando nuestro servidor le pide tu biblioteca y tus logros. Valve decide por su cuenta qué hace con ello: su ',
               link('política de privacidad', VALVE_PRIVACY),
               '.',
             ],

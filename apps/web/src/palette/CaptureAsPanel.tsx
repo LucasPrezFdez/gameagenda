@@ -1,4 +1,4 @@
-// `Alt+Intro`: apuntar con otro estado o con marcas (RF-06). Un número del 1 al 7 apunta con
+// `Alt+Intro`: apuntar con otro estado o con marcas (RF-06). Un número del 1 al 8 apunta con
 // ese estado; Espacio marca; Intro apunta (ver §9.2: «Alt+Intro + opción»).
 import { type KeyboardEvent, useEffect, useId, useRef, useState } from 'react';
 import { type CaptureOptions, FLAGS, type Flag, STATUSES, type Status } from '../agenda/types.ts';
@@ -28,6 +28,7 @@ const DIGITS: Readonly<Record<string, Status>> = {
   Digit5: 'dropped',
   Digit6: 'not_started',
   Digit7: 'multiplayer',
+  Digit8: 'software',
   Numpad1: 'want_to_play',
   Numpad2: 'playing',
   Numpad3: 'on_hold',
@@ -35,6 +36,7 @@ const DIGITS: Readonly<Record<string, Status>> = {
   Numpad5: 'dropped',
   Numpad6: 'not_started',
   Numpad7: 'multiplayer',
+  Numpad8: 'software',
 };
 
 export function CaptureAsPanel({ title, onCapture, onBack }: CaptureAsPanelProps) {

@@ -364,10 +364,12 @@ describe('parte 3: logros, resumen, aplicar y deshacer', () => {
         dropped: 0,
         not_started: 1,
         multiplayer: 0,
+        software: 0,
       },
       wishes: 0,
       markedOwned: 0,
       platinum: 1,
+      toSoftware: 0,
       unchanged: 0,
     });
     expect(review).toMatchObject({ wishes: 3, withWishlist: false, unknown: 0 });
@@ -444,6 +446,51 @@ describe('parte 3: logros, resumen, aplicar y deshacer', () => {
     expect(s.tab.agenda.get('steam:753640')).toMatchObject({
       status: 'completed',
       flags: { owned: true, platinum: true },
+    });
+    await s.tab.close();
+  });
+
+  it('Software (§10.57): lo que la tienda da como programa va a Software, sin logros; lo que ya estaba, también', async () => {
+    const h = createHarness();
+    // Stardew Valley y Hades hacen aquí de programas: la tienda los da como software.
+    h.steam.software.add(413150);
+    h.steam.software.add(1145360);
+    const s = await setup3(h);
+    s.tab.agenda.capture({ id: 'steam:1145360', title: 'Hades' }, { status: 'on_hold' });
+    const review = await toReview(s);
+    // Solo se pregunta por lo que no está en el catálogo (Half-Life 2 sí), en una petición.
+    const typeRequests = s.requests.filter((r) => r.path === '/api/v1/steam/types');
+    expect(typeRequests).toHaveLength(1);
+    const asked = JSON.parse(String(typeRequests[0]?.init.body)).appids as number[];
+    expect([...asked].sort((a, b) => a - b)).toEqual([413150, 753640, 1145360]);
+    // Y a un programa no se le preguntan los logros.
+    expect(JSON.parse(String(achievementRequests(s)[0]?.init.body)).appids).toEqual([220, 753640]);
+    expect(review.plan.counts).toMatchObject({
+      added: { software: 1, playing: 0, completed: 1, on_hold: 1 },
+      toSoftware: 1,
+      markedOwned: 1,
+    });
+    await s.flow.apply();
+    expect(s.tab.agenda.get('steam:413150')).toMatchObject({
+      status: 'software',
+      flags: { owned: true },
+    });
+    expect(s.tab.agenda.get('steam:1145360')).toMatchObject({
+      status: 'software',
+      flags: { owned: true },
+    });
+    await s.tab.close();
+  });
+
+  it('si la tienda no dice qué es cada cosa, todo cuenta como juego, como antes', async () => {
+    const h = createHarness();
+    h.steam.software.add(413150);
+    h.steam.fail = 'status';
+    const s = await setup3(h);
+    const review = await toReview(s);
+    expect(review.plan.counts).toMatchObject({
+      added: { software: 0, playing: 1 },
+      toSoftware: 0,
     });
     await s.tab.close();
   });

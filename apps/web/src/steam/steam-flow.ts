@@ -15,7 +15,9 @@
 //    empezar.
 // 4. `loading`: la biblioteca y los deseados, leídos y validados aquí (`steam-library.ts`, en un
 //    *chunk* aparte). Con el perfil privado, o sin nada que importar, `done`: solo se explica.
-// 5. `checking` (parte 3): los logros de los juegos jugados con estadísticas, por lotes de
+// 5. `checking` (parte 3): antes, los títulos del catálogo y, de lo que no está en él, qué es
+//    software (`POST /steam/types`, DECISIONES §10.57; si falla, cuenta como juego). Después,
+//    los logros de los juegos jugados con estadísticas, por lotes de
 //    `STEAM_ACHIEVEMENTS_BATCH`, con el pase de `redeem` (`POST /steam/achievements`). Si un
 //    lote falla, se sigue sin los logros que falten (se dice en el resumen).
 // 6. `review`: el plan (`steam-apply.ts`), sin tocar la agenda: cuántos entran y dónde, y la
@@ -25,7 +27,7 @@
 // Las peticiones van sin *cookies* (`credentials: 'omit'`: el login no depende de la
 // sincronización), sin `Referer` y sin caché.
 
-import { API_BASE, STEAM_ACHIEVEMENTS_BATCH } from '@gameagenda/core/api';
+import { API_BASE, STEAM_ACHIEVEMENTS_BATCH, STEAM_TYPES_BATCH } from '@gameagenda/core/api';
 import { isLive, type SteamImportCounts, type SteamImportPlan } from '@gameagenda/core/entries';
 import type { ApplyOptions, SteamAgenda } from './steam-apply.ts';
 import type { SteamLibrary } from './steam-library.ts';
@@ -90,6 +92,8 @@ interface Fetched {
   readonly platinum: ReadonlyMap<number, number | null>;
   readonly titles: ReadonlyMap<number, string>;
   readonly unknown: number;
+  /** Lo que la tienda de Steam da como software (DECISIONES §10.57). */
+  readonly software: ReadonlySet<number>;
 }
 
 /** Una petición que no contesta en este tiempo cuenta como sin red (`redeem` espera a Steam). */
@@ -308,7 +312,7 @@ export class SteamImportFlow {
       : Promise.reject(new Error('steam_import_off'));
   }
 
-  /** Los logros, por lotes, y después el resumen. */
+  /** Los títulos, qué es software, los logros por lotes y, después, el resumen. */
   private async check(library: SteamLibrary, agenda: SteamAgenda, generation: number) {
     let mod: typeof import('./steam-apply.ts');
     try {
@@ -320,7 +324,20 @@ export class SteamImportFlow {
       return;
     }
     if (generation !== this.generation) return;
-    const candidates = mod.achievementCandidates(library, (id) => agenda.get(id));
+    const appids = [
+      ...library.owned.map((game) => game.appid),
+      ...(library.wishlist ?? []).map((wish) => wish.appid),
+    ];
+    let titles: ReadonlyMap<number, string> = new Map();
+    try {
+      titles = (await this.deps.catalogTitles?.(appids)) ?? titles;
+    } catch {
+      // Sin catálogo: el nombre de Steam (el catálogo lo pondrá después; §7.3).
+    }
+    if (generation !== this.generation) return;
+    const software = await this.softwareOf(mod, library, titles, generation);
+    if (software === null) return;
+    const candidates = mod.achievementCandidates(library, (id) => agenda.get(id), software);
     const platinum = new Map<number, number | null>();
     let unknown = 0;
     this.set({ kind: 'checking', done: 0, total: candidates.length });
@@ -354,19 +371,40 @@ export class SteamImportFlow {
       this.set({ kind: 'checking', done, total: candidates.length });
     }
 
-    const appids = [
-      ...library.owned.map((game) => game.appid),
-      ...(library.wishlist ?? []).map((wish) => wish.appid),
-    ];
-    let titles: ReadonlyMap<number, string> = new Map();
-    try {
-      titles = (await this.deps.catalogTitles?.(appids)) ?? titles;
-    } catch {
-      // Sin catálogo: el nombre de Steam (el catálogo lo pondrá después; §7.3).
-    }
-    if (generation !== this.generation) return;
-    this.fetched = { mod, library, platinum, titles, unknown };
+    this.fetched = { mod, library, platinum, titles, unknown, software };
     this.showReview(false);
+  }
+
+  /**
+   * Qué apps son software (DECISIONES §10.57), por lotes de `STEAM_TYPES_BATCH`: solo las que no
+   * están en el catálogo. Si un lote falla, las que falten cuentan como juegos (como antes de
+   * Software). `null` si la importación ha cambiado entretanto.
+   */
+  private async softwareOf(
+    mod: typeof import('./steam-apply.ts'),
+    library: SteamLibrary,
+    titles: ReadonlyMap<number, string>,
+    generation: number,
+  ): Promise<ReadonlySet<number> | null> {
+    const software = new Set<number>();
+    const candidates = mod.typeCandidates(library, titles);
+    for (let start = 0; start < candidates.length; start += STEAM_TYPES_BATCH) {
+      let found: number[] | null = null;
+      try {
+        const response = await this.request('/steam/types', {
+          token: library.token,
+          appids: candidates.slice(start, start + STEAM_TYPES_BATCH),
+        });
+        if (response.status === 200) found = mod.readSteamTypes(await response.text());
+        else await response.body?.cancel();
+      } catch {
+        found = null;
+      }
+      if (generation !== this.generation) return null;
+      if (found === null) break;
+      for (const appid of found) software.add(appid);
+    }
+    return software;
   }
 
   private plan(fetched: Fetched, withWishlist: boolean): SteamImportPlan {
@@ -380,6 +418,7 @@ export class SteamImportFlow {
       get: (id) => agenda.get(id),
       titles: fetched.titles,
       fallbackTitle: this.deps.fallbackTitle ?? ((appid) => `Steam ${appid}`),
+      software: fetched.software,
     });
   }
 

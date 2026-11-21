@@ -15,6 +15,7 @@ import {
   type ReleaseLookup,
   rowDate,
   shownViewGroups,
+  tabViewsOf,
   VIEW_GROUPS,
 } from './list-model.ts';
 
@@ -134,6 +135,21 @@ describe('Mi lista', () => {
     expect(shown([], null)).toEqual([['overview', ['pending', 'upcoming', 'all']]]);
     // Todas las vistas están en algún grupo, una sola vez.
     expect(VIEW_GROUPS.flatMap((g) => g.views).sort()).toEqual([...LIST_VIEWS].sort());
+  });
+
+  it('las pestañas: Pendientes, los estados por etapas y, al final, Próximos y Todos', () => {
+    const withSoftware = [...entries, entry('Wallpaper Engine', 'software', 9)];
+    const groups = shownViewGroups(countViews(withSoftware, 'any'), 'pending');
+    expect(tabViewsOf(groups)).toEqual([
+      'pending',
+      'playing',
+      'want_to_play',
+      'on_hold',
+      'completed',
+      'software',
+      'upcoming',
+      'all',
+    ]);
   });
 
   it('calcula la prioridad dentro de la vista', () => {

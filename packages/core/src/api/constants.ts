@@ -80,6 +80,11 @@ export const STEAM_IMPORT_TOKEN_PATTERN = /^[A-Za-z0-9_-]{60,120}$/;
  * admite 50 subpeticiones por invocación.
  */
 export const STEAM_ACHIEVEMENTS_BATCH = 40;
+/**
+ * Apps por petición de `types` (Software, DECISIONES §10.57): una sola llamada a `GetItems` de la
+ * tienda de Steam, que admite 200 por llamada.
+ */
+export const STEAM_TYPES_BATCH = 200;
 
 /**
  * Llaves de acceso (ADR-013): el reto para crear una o para entrar con ella vale un solo uso y
