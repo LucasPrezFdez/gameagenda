@@ -42,7 +42,7 @@ Cambios de GameAgenda por versión. Cada hito cierra una versión SemVer 0.x (§
 
 #### Ingeniería
 
-- **Cuentas y Steam vinculado** (26-11-2026, en la rama `cuentas`; ADR-014, DECISIONES §10.58):
+- **Cuentas y Steam vinculado** (26-11-2026, en producción desde el 26-11-2026; ADR-014, DECISIONES §10.58):
   - micro-API: `/api/v1/account` (crear, entrar, ver, poner y quitar el email y la contraseña), con HMAC-SHA256 y el secreto `ACCOUNT_PEPPER`, `RL_LOGIN`, el freno por email (`login_throttle`), y `steam/link`, `refresh` (202 `unlinked` o `too_soon`) y `unlink`, con `steam_link`; migración `0005_cuentas.sql` e interruptor `ACCOUNTS_ENABLED`;
   - app: PBKDF2 en el dispositivo (`sync/account-key.ts`), `meta.account`, `AccountPanel.tsx` y `SteamLinkSection.tsx`, la actualización diaria (`steam/auto-refresh.ts` y su disparador) y `gatherSteamData`, compartida con la importación;
   - D1 deja las lápidas de `steam:` solo con `deletedAt`, en vez de purgarlas, y `planSteamImport` se las salta;

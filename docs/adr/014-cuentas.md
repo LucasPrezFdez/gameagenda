@@ -1,6 +1,6 @@
 # ADR-014 · Cuentas: email y contraseña sobre la agenda sincronizada, y Steam vinculado que se actualiza solo
 
-- **Estado:** propuesta. Construida el 26-11-2026 (abajo, «Construida»).
+- **Estado:** propuesta. Construida el 26-11-2026 (abajo, «Construida») y en producción desde el 26-11-2026 (DECISIONES §10.58). Pendiente de la prueba del usuario en sus dispositivos.
 - **Fecha:** 26-11-2026 (Fase 2, a petición del usuario)
 - **Deciden:** el usuario y el asistente
 
