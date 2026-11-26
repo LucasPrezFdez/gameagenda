@@ -30,6 +30,7 @@ Este registro recoge las decisiones de arquitectura de GameAgenda, en español y
 | 011 | Sincronización: micro-API, D1 en la UE y emparejamiento | M4 | propuesta | [011-sincronizacion.md](011-sincronizacion.md) |
 | 012 | Cuenta de Steam: OpenID 2.0 con canje tipo PKCE y la biblioteca en *streaming* | Fase 2 | aceptada | [012-cuenta-de-steam.md](012-cuenta-de-steam.md) |
 | 013 | Llaves de acceso: otra forma de abrir la agenda sincronizada, sin email ni contraseña | Fase 2 | propuesta (en producción desde el 21-11-2026) | [013-llaves-de-acceso.md](013-llaves-de-acceso.md) |
+| 014 | Cuentas: email y contraseña sobre la agenda sincronizada, y Steam vinculado que se actualiza solo | Fase 2 | propuesta | [014-cuentas.md](014-cuentas.md) |
 
 Si M4 se adelanta a M3 (PA-01), la sincronización pasa a ser el ADR-009, y M3 se queda con los ADR-010 y 011 (§15.1).
 
