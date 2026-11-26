@@ -16,6 +16,8 @@ export const accountTexts = {
   passwordHint: (min: number) =>
     `Al menos ${min} caracteres, sin más reglas. Una frase de varias palabras se recuerda bien y es difícil de adivinar.`,
   showPassword: 'Mostrar la contraseña',
+  /** Lo que se ve en el botón; el nombre accesible es `showPassword`. */
+  show: 'Mostrar',
   logIn: 'Iniciar sesión',
   /** Mientras el dispositivo calcula la clave (PBKDF2, ≈1 s) y espera al servidor. */
   loggingIn: 'Comprobando…',

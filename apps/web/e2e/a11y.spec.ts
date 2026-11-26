@@ -53,8 +53,8 @@ for (const colorScheme of ['light', 'dark'] as const) {
       'Teclado y gestos',
       'Datos',
       'Privacidad',
-      // M4: sin sincronizar (sus otros estados, en `sync-settings.spec.ts`).
-      'Sincronización',
+      // M4 y ADR-014: sin sesión (sus otros estados, en `sync-settings.spec.ts` y `account.spec.ts`).
+      'Cuenta y sincronización',
       'Rendimiento',
       'Acerca de',
     ]) {

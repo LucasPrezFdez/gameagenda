@@ -108,9 +108,11 @@ function PasswordField({
           className="btn sync__password-toggle"
           aria-pressed={shown}
           aria-controls={id}
+          // Lo que se ve, «Mostrar», está dentro del nombre accesible (WCAG 2.5.3).
+          aria-label={a.showPassword}
           onClick={() => setShown((s) => !s)}
         >
-          {a.showPassword}
+          {a.show}
         </button>
       </div>
       {fresh && (

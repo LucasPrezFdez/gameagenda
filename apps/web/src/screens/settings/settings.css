@@ -414,14 +414,6 @@
   min-width: 0;
 }
 
-/* A 320 px, «Mostrar la contraseña» no cabe al lado del campo: va debajo. */
-@media (max-width: 400px) {
-  .sync__password {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-}
-
 .sync__note {
   padding: 10px 14px;
   border-radius: var(--radius);
