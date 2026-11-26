@@ -356,7 +356,7 @@ El usuario dio el visto bueno a la propuesta y pidió hacerlo todo de una vez (�
   - fuerza el `reset` de siempre, y una lápida ya reducida no se vuelve a tocar;
   - la política lo cuenta (versión 6).
 - **El resumen de la importación** dice cuántos juegos quitados no se vuelven a añadir (`counts.removed`). La lista de deseados tampoco cuenta los quitados.
-- **Visibilidad** (26-11-2026, después del despliegue; el usuario: «sí, añade «Cuenta» a la barra lateral»):
+- **Visibilidad** (26-11-2026, después del despliegue, y en producción desde el mismo día; el usuario: «sí, añade «Cuenta» a la barra lateral»):
   - «Cuenta», con el icono «circle-user-round» de Lucide, va en la barra lateral del PC, entre Catálogo y Ajustes;
   - lleva a Ajustes › Cuenta y sincronización, y allí se marca ella, no Ajustes;
   - no va al pie, como decía la propuesta: arriba, con las secciones, se ve sin desplazar y se encoge con ellas;
