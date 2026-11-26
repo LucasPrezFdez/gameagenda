@@ -287,19 +287,22 @@ describe('cambios que se cruzan con la agenda', () => {
 describe('§7.7: cursor, purga y D1 vuelto atrás', () => {
   /** Lunes 09-11-2026 a las 03:17 UTC, cuando corre el Cron Trigger. */
   const MONDAY = Date.UTC(2026, 10, 9, 3, 17);
+  /** Juegos apuntados a mano: sus lápidas se purgan (las de Steam, no; ADR-014). */
+  const M2 = 'manual:0190b6e2-7f3a-7c4e-9d2a-1b2c3d4e5f62';
+  const M3 = 'manual:0190b6e2-7f3a-7c4e-9d2a-1b2c3d4e5f63';
 
   it('tras la purga de un lunes, la réplica atrasada recibe reset y no resucita lo purgado', async () => {
     const h = createHarness();
     h.clock.ms = MONDAY - 100 * DAY;
     const { a, b } = await pairOf(h);
     a.agenda.capture({ id: 'steam:1', title: 'Se queda' });
-    a.agenda.capture({ id: 'steam:2', title: 'Borrado hace 100 días' });
+    a.agenda.capture({ id: M2, title: 'Borrado hace 100 días' });
     await a.syncNow();
     await b.syncNow();
-    expect(isLive(b.get('steam:2'))).toBe(true);
+    expect(isLive(b.get(M2))).toBe(true);
     b.setOffline(true);
     h.clock.ms += MINUTE;
-    a.agenda.remove('steam:2');
+    a.agenda.remove(M2);
     await a.syncNow();
     // B, sin red, cambia otra entrada: lo pendiente se sube y se conserva.
     b.agenda.update('steam:1', { note: 'Sin red' });
@@ -309,17 +312,17 @@ describe('§7.7: cursor, purga y D1 vuelto atrás', () => {
     expect(serverEntries(h.db, agendaIdOf(h, a)).map((e) => e.id)).toEqual(['steam:1']);
     b.setOffline(false);
     await b.settle();
-    expect(b.get('steam:2')).toBeUndefined();
+    expect(b.get(M2)).toBeUndefined();
     expect(b.get('steam:1')?.note).toBe('Sin red');
     // A no purga por su cuenta: también sincronizó antes de la purga, así que recibe reset y quita
     // su lápida.
-    expect(a.get('steam:2')?.deletedAt).not.toBeNull();
+    expect(a.get(M2)?.deletedAt).not.toBeNull();
     await a.syncNow();
     expect((await a.db.meta.get('syncCursor'))?.value).toMatchObject({
       cursor: serverSeqOf(h),
       reset: false,
     });
-    expect(a.get('steam:2')).toBeUndefined();
+    expect(a.get(M2)).toBeUndefined();
     await expectConverged(h, a, b);
   });
 
@@ -328,24 +331,24 @@ describe('§7.7: cursor, purga y D1 vuelto atrás', () => {
     h.clock.ms = MONDAY - 100 * DAY;
     const { a, b } = await pairOf(h);
     a.agenda.capture({ id: 'steam:1', title: 'Uno' });
-    a.agenda.capture({ id: 'steam:2', title: 'Dos' });
+    a.agenda.capture({ id: M2, title: 'Dos' });
     await a.syncNow();
     await b.syncNow();
     b.setOffline(true);
     h.clock.ms += MINUTE;
-    a.agenda.remove('steam:2');
+    a.agenda.remove(M2);
     await a.syncNow();
     // B, sin red casi 100 días, edita la que A ha borrado.
     h.clock.ms = MONDAY - DAY;
-    b.agenda.update('steam:2', { note: 'Editada sin red' });
+    b.agenda.update(M2, { note: 'Editada sin red' });
     h.clock.ms = MONDAY;
     await runMaintenance(h.db, MONDAY);
     b.setOffline(false);
     await b.settle();
     // En el servidor solo queda la nota: un esqueleto, invisible. En B, igual: no resucita.
-    const server = serverEntries(h.db, agendaIdOf(h, a)).find((e) => e.id === 'steam:2');
+    const server = serverEntries(h.db, agendaIdOf(h, a)).find((e) => e.id === M2);
     expect(server?.hlc).toEqual({ note: expect.any(String) });
-    expect(await b.db.entries.get('steam:2')).toEqual(server);
+    expect(await b.db.entries.get(M2)).toEqual(server);
     expect(b.agenda.getSnapshot().map((e) => e.id)).toEqual(['steam:1']);
     await a.syncNow();
     expect(a.agenda.getSnapshot().map((e) => e.id)).toEqual(['steam:1']);
@@ -356,11 +359,12 @@ describe('§7.7: cursor, purga y D1 vuelto atrás', () => {
     const h = createHarness({}, { pageSize: 2 });
     h.clock.ms = MONDAY - 100 * DAY;
     const { a, b } = await pairOf(h);
-    for (let i = 1; i <= 3; i++) a.agenda.capture({ id: `steam:${i}`, title: `Juego ${i}` });
+    for (let i = 1; i <= 2; i++) a.agenda.capture({ id: `steam:${i}`, title: `Juego ${i}` });
+    a.agenda.capture({ id: M3, title: 'Juego 3' });
     await a.syncNow();
     await b.syncNow();
     h.clock.ms += MINUTE;
-    a.agenda.remove('steam:3');
+    a.agenda.remove(M3);
     await a.syncNow();
     h.clock.ms = MONDAY;
     await runMaintenance(h.db, MONDAY);
@@ -369,15 +373,39 @@ describe('§7.7: cursor, purga y D1 vuelto atrás', () => {
     await b.syncNow();
     expect(b.sync.getSnapshot()).toMatchObject({ activity: 'error', error: 'network' });
     expect((await b.db.meta.get('syncCursor'))?.value).toMatchObject({ reset: true, cursor: 0 });
-    expect(b.get('steam:3')?.title).toBe('Juego 3');
+    expect(b.get(M3)?.title).toBe('Juego 3');
     // La ronda siguiente vuelve a bajar desde 0 y, al acabar, borra lo purgado.
     b.requests.length = 0;
     await b.syncNow();
     expect(b.requests[0]).toMatchObject({ cursor: 0 });
     expect(b.requests.length).toBeGreaterThan(2);
-    expect(b.get('steam:3')).toBeUndefined();
+    expect(b.get(M3)).toBeUndefined();
     expect((await b.db.meta.get('syncCursor'))?.value).toMatchObject({ reset: false });
     await a.syncNow();
+    await expectConverged(h, a, b);
+  });
+
+  it('las lápidas de Steam no se purgan: tras el reset, las réplicas se quedan solo con deletedAt (ADR-014)', async () => {
+    const h = createHarness();
+    h.clock.ms = MONDAY - 100 * DAY;
+    const { a, b } = await pairOf(h);
+    a.agenda.capture({ id: 'steam:2', title: 'Quitado' });
+    a.agenda.update('steam:2', { note: 'Una nota' });
+    await a.syncNow();
+    await b.syncNow();
+    h.clock.ms += MINUTE;
+    a.agenda.remove('steam:2');
+    await a.syncNow();
+    h.clock.ms = MONDAY;
+    await runMaintenance(h.db, MONDAY);
+    await a.syncNow();
+    await b.syncNow();
+    for (const r of [a, b]) {
+      const tombstone = r.get('steam:2');
+      expect(tombstone?.deletedAt).not.toBeNull();
+      expect(Object.keys(tombstone?.hlc ?? {})).toEqual(['deletedAt']);
+      expect(isLive(tombstone)).toBe(false);
+    }
     await expectConverged(h, a, b);
   });
 

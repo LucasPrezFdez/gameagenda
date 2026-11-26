@@ -55,6 +55,8 @@ export interface Env {
   RL_STEAM: RateLimit;
   /** Los lotes de logros de la importación (`achievements`), por IP. */
   RL_STEAM_ACH: RateLimit;
+  /** Entrar con email y contraseña (`account/login`), por IP (ADR-014). */
+  RL_LOGIN: RateLimit;
   /** `'1'` activa la micro-API; con otro valor responde 503 (CA4.7: no antes de los textos legales). */
   SYNC_ENABLED: string;
   /** Edad mínima que se declara al activar la sincronización (14; R-10). */
@@ -75,6 +77,18 @@ export interface Env {
    * 503 `passkeys_disabled`. Va aparte de `SYNC_ENABLED`, que lo apaga todo.
    */
   PASSKEYS_ENABLED: string;
+  /**
+   * `'1'` activa las cuentas con email y contraseña (`/api/v1/account/*`) y el vínculo con Steam
+   * (`steam/link`, `refresh` y `unlink`; ADR-014). Con otro valor, o sin `ACCOUNT_PEPPER`,
+   * responden 503 `accounts_disabled`. Va aparte de `SYNC_ENABLED`, que lo apaga todo.
+   */
+  ACCOUNTS_ENABLED: string;
+  /**
+   * Secreto del Worker (`wrangler secret put`; en local, `.dev.vars`): la clave de los HMAC del
+   * email y de la contraseña (`account-crypto.ts`). Al menos 32 caracteres. Si se pierde o cambia,
+   * nadie puede entrar con email (las llaves y los códigos siguen valiendo). Nunca va en el cliente.
+   */
+  ACCOUNT_PEPPER?: string;
 }
 
 export interface DeviceAuth {

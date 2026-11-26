@@ -18,11 +18,50 @@ import {
   requireDevice,
   setDeviceCookies,
 } from '../device.ts';
-import type { AppEnv, Deps } from '../env.ts';
+import type { AppEnv, D1Database, D1PreparedStatement, Deps } from '../env.ts';
 import { apiError, iso, parseBody, rateLimited } from '../http.ts';
 
 /** Los cuerpos de estas rutas son pequeños: 1 KiB sobra. */
 const MAX_BODY = 1024;
+
+export interface NewAgenda {
+  agendaId: string;
+  deviceId: string;
+  /** La credencial del dispositivo, para la cookie. */
+  token: string;
+  /** El código de recuperación, canónico: solo se enseña esta vez. */
+  recovery: string;
+  /** Crean la agenda y su primer dispositivo; van en un `batch()`, con lo que se añada detrás. */
+  statements: D1PreparedStatement[];
+}
+
+/**
+ * Una agenda nueva con su primer dispositivo: para activar la sincronización (`POST /agenda`) y
+ * para crear una cuenta (`POST /account`, ADR-014).
+ */
+export async function newAgenda(db: D1Database, label: string, nowMs: number): Promise<NewAgenda> {
+  const at = iso(nowMs);
+  const agendaId = crypto.randomUUID();
+  const deviceId = crypto.randomUUID();
+  const token = newDeviceToken();
+  const recovery = newCode();
+  const statements = [
+    // La época, aleatoria (migración 0002): la cambia el *runbook* del restore.
+    db
+      .prepare(
+        `INSERT INTO agenda (id, recovery_hash, created_at, last_sync_at, epoch)
+         VALUES (?1, ?2, ?3, ?3, lower(hex(randomblob(8))))`,
+      )
+      .bind(agendaId, await sha256Hex(recovery), at),
+    db
+      .prepare(
+        `INSERT INTO device (id, agenda_id, kind, label, token_hash, created_at, last_seen_at)
+         VALUES (?1, ?2, 'app', ?3, ?4, ?5, ?5)`,
+      )
+      .bind(deviceId, agendaId, label, await sha256Hex(token), at),
+  ];
+  return { agendaId, deviceId, token, recovery, statements };
+}
 
 export function agendaRoutes(api: Hono<AppEnv>, deps: Deps): void {
   // Activar la sincronización: crea la agenda y su primer dispositivo, pone la cookie y devuelve el
@@ -35,24 +74,10 @@ export function agendaRoutes(api: Hono<AppEnv>, deps: Deps): void {
     if (body.data.minAge !== Number(c.env.MIN_AGE)) return apiError(c, 'age_policy_changed');
     if ((await readDevice(c)) !== null) return apiError(c, 'already_paired');
 
-    const at = iso(deps.now());
-    const agendaId = crypto.randomUUID();
-    const deviceId = crypto.randomUUID();
-    const token = newDeviceToken();
-    const recovery = newCode();
-    await c.env.DB.batch([
-      // La época, aleatoria (migración 0002): la cambia el *runbook* del restore.
-      c.env.DB.prepare(
-        `INSERT INTO agenda (id, recovery_hash, created_at, last_sync_at, epoch)
-         VALUES (?1, ?2, ?3, ?3, lower(hex(randomblob(8))))`,
-      ).bind(agendaId, await sha256Hex(recovery), at),
-      c.env.DB.prepare(
-        `INSERT INTO device (id, agenda_id, kind, label, token_hash, created_at, last_seen_at)
-         VALUES (?1, ?2, 'app', ?3, ?4, ?5, ?5)`,
-      ).bind(deviceId, agendaId, body.data.label, await sha256Hex(token), at),
-    ]);
-    setDeviceCookies(c, token);
-    return c.json({ deviceId, recoveryCode: formatCode(recovery) }, 201);
+    const agenda = await newAgenda(c.env.DB, body.data.label, deps.now());
+    await c.env.DB.batch(agenda.statements);
+    setDeviceCookies(c, agenda.token);
+    return c.json({ deviceId: agenda.deviceId, recoveryCode: formatCode(agenda.recovery) }, 201);
   });
 
   // «Borrar todos mis datos» (CA4.7): la agenda y, en cascada, sus dispositivos, *tokens*,

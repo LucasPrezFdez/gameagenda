@@ -12,10 +12,18 @@
 // réplicas distintas a la vista. Cuesta un `reset` por dispositivo las semanas en que su agenda
 // purga algo.
 //
+// Las lápidas de los juegos de Steam (`steam:<appid>`) no se purgan (ADR-014): recuerdan que el
+// juego se quitó, para que la importación y la actualización diaria de Steam no lo vuelvan a
+// añadir. A los 90 días se quedan sin contenido (solo `deletedAt` y, si lo hay, `mergedInto`,
+// lo mismo que sube de una lápida purgable `uploadOf()` de core), y una lápida ya reducida no se
+// vuelve a tocar: no fuerza un `reset` cada semana.
+//
 // Además, cada 5 min (`STEAM_PURGE_CRON`), fuera los tickets de Steam caducados: así un SteamID64
-// está en D1, como mucho, los 10 min del ticket y 5 más (§11.2). Y los retos de las llaves de
-// acceso caducados (ADR-013): los de entrar no son de ninguna agenda, y nada más los borraría.
+// del login está en D1, como mucho, los 10 min del ticket y 5 más (§11.2). Y los retos de las
+// llaves de acceso caducados (ADR-013): los de entrar no son de ninguna agenda, y nada más los
+// borraría. Y las ventanas acabadas del freno de las entradas con contraseña (ADR-014).
 
+import { LOGIN_WINDOW_MS } from '@gameagenda/core/api';
 import { purgeCutoff } from '@gameagenda/core/sync';
 import type { D1Database, D1PreparedStatement } from './env.ts';
 import { iso } from './http.ts';
@@ -26,18 +34,28 @@ export const STEAM_QUOTA_KEEP_DAYS = 7;
 /** El segundo Cron Trigger de `wrangler.jsonc`: solo borra los tickets de Steam caducados. */
 export const STEAM_PURGE_CRON = '*/5 * * * *';
 
+/** Lo que se queda de una lápida de Steam reducida: lo que sube de una lápida purgable. */
+const TOMBSTONE_FIELDS = "('deletedAt', 'mergedInto')";
+
 // ?1: instante ISO de corte de las lápidas; ?2: HLC de corte de los esqueletos (`purgeCutoff`).
-// El mismo criterio que `isPurgeable()` de core.
+// `p`, lo que se purga: el criterio de `isPurgeable()` de core, sin las lápidas de Steam. `r`, las
+// lápidas de Steam viejas que aún tienen contenido: se reducen (ADR-014).
 const PURGEABLE = `WITH e AS (
   SELECT agenda_id, entry_id,
     MAX(CASE WHEN field = 'deletedAt' THEN value END) AS del,
     SUM(field IN ('status', 'title')) AS base,
+    SUM(field NOT IN ${TOMBSTONE_FIELDS}) AS content,
     MAX(hlc) AS last
   FROM op GROUP BY agenda_id, entry_id
+), t AS (
+  SELECT *, (del IS NOT NULL AND del <> 'null') AS dead, entry_id LIKE 'steam:%' AS steam FROM e
 ), p AS (
-  SELECT agenda_id, entry_id FROM e
-  WHERE (del IS NOT NULL AND del <> 'null' AND (del ->> '$') < ?1)
-     OR (base < 2 AND last < ?2)
+  SELECT agenda_id, entry_id FROM t
+  WHERE NOT (steam AND dead)
+    AND ((dead AND (del ->> '$') < ?1) OR (base < 2 AND last < ?2))
+), r AS (
+  SELECT agenda_id, entry_id FROM t
+  WHERE steam AND dead AND (del ->> '$') < ?1 AND content > 0
 )`;
 
 // En el SET, `seq` es la de antes: `purged_seq` queda igual a la `seq` nueva.
@@ -45,10 +63,12 @@ const PURGE_AGENDAS = `${PURGEABLE}
 UPDATE agenda
 SET purged_seq = seq + 1,
   seq = seq + 1
-WHERE id IN (SELECT agenda_id FROM p)`;
+WHERE id IN (SELECT agenda_id FROM p UNION SELECT agenda_id FROM r)`;
 
 const PURGE_OPS = `${PURGEABLE}
-DELETE FROM op WHERE (agenda_id, entry_id) IN (SELECT agenda_id, entry_id FROM p)`;
+DELETE FROM op
+WHERE (agenda_id, entry_id) IN (SELECT agenda_id, entry_id FROM p)
+   OR (field NOT IN ${TOMBSTONE_FIELDS} AND (agenda_id, entry_id) IN (SELECT agenda_id, entry_id FROM r))`;
 
 export function maintenanceStatements(db: D1Database, nowMs: number): D1PreparedStatement[] {
   const cutoff = new Date(nowMs);
@@ -58,6 +78,7 @@ export function maintenanceStatements(db: D1Database, nowMs: number): D1Prepared
     db.prepare('DELETE FROM agenda WHERE last_sync_at < ?1').bind(cutoff.toISOString()),
     steamTicketPurge(db, nowMs),
     passkeyChallengePurge(db, nowMs),
+    loginThrottlePurge(db, nowMs),
     db
       .prepare('DELETE FROM steam_quota WHERE day < ?1')
       .bind(utcDay(nowMs - STEAM_QUOTA_KEEP_DAYS * 86_400_000)),
@@ -85,9 +106,22 @@ function passkeyChallengePurge(db: D1Database, nowMs: number): D1PreparedStateme
   return db.prepare('DELETE FROM webauthn_challenge WHERE expires_at <= ?1').bind(iso(nowMs));
 }
 
-/** Lo que hace el *cron* de cada 5 min: fuera los tickets de Steam y los retos caducados. */
+function loginThrottlePurge(db: D1Database, nowMs: number): D1PreparedStatement {
+  return db
+    .prepare('DELETE FROM login_throttle WHERE window_start <= ?1')
+    .bind(iso(nowMs - LOGIN_WINDOW_MS));
+}
+
+/**
+ * Lo que hace el *cron* de cada 5 min: fuera los tickets de Steam, los retos caducados y las
+ * ventanas acabadas del freno de las entradas con contraseña.
+ */
 export async function purgeSteamTickets(db: D1Database, nowMs: number): Promise<void> {
-  await db.batch([steamTicketPurge(db, nowMs), passkeyChallengePurge(db, nowMs)]);
+  await db.batch([
+    steamTicketPurge(db, nowMs),
+    passkeyChallengePurge(db, nowMs),
+    loginThrottlePurge(db, nowMs),
+  ]);
 }
 
 export async function runMaintenance(db: D1Database, nowMs: number): Promise<void> {

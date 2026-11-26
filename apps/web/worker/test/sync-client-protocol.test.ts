@@ -18,6 +18,10 @@ const DAY = 86_400_000;
 /** Lunes 09-11-2026 a las 03:17 UTC, cuando corre el Cron Trigger. */
 const MONDAY = Date.UTC(2026, 10, 9, 3, 17);
 const MANUAL = 'manual:0190b6e2-7f3a-7c4e-9d2a-1b2c3d4e5f60';
+/** Más juegos apuntados a mano: sus lápidas se purgan (las de Steam, no; ADR-014). */
+const M2 = 'manual:0190b6e2-7f3a-7c4e-9d2a-1b2c3d4e5f62';
+const M3 = 'manual:0190b6e2-7f3a-7c4e-9d2a-1b2c3d4e5f63';
+const M5 = 'manual:0190b6e2-7f3a-7c4e-9d2a-1b2c3d4e5f65';
 const open: Replica[] = [];
 
 async function replica(h: Harness, options: ReplicaOptions = {}): Promise<Replica> {
@@ -99,12 +103,12 @@ describe('reset sin estados a medias (protocolo#0 y rendimiento-pruebas#1)', () 
     const { a, b } = await pairOf(h);
     a.agenda.capture({ id: 'steam:1', title: 'Uno' });
     a.agenda.update('steam:1', { note: 'Nota importante' });
-    a.agenda.capture({ id: 'steam:2', title: 'Dos' });
+    a.agenda.capture({ id: M2, title: 'Dos' });
     await a.syncNow();
     await b.syncNow();
     const before = await b.stored();
     h.clock.ms += MINUTE;
-    a.agenda.remove('steam:2');
+    a.agenda.remove(M2);
     await a.syncNow();
     h.clock.ms = MONDAY;
     await runMaintenance(h.db, MONDAY);
@@ -117,14 +121,14 @@ describe('reset sin estados a medias (protocolo#0 y rendimiento-pruebas#1)', () 
     // Ni en Dexie ni en memoria cambia nada: steam:1 sigue entera y a la vista.
     expect(await b.stored()).toEqual(before);
     expect(b.memory()).toEqual(before);
-    expect(b.agenda.getSnapshot().map((e) => e.id)).toEqual(['steam:1', 'steam:2']);
+    expect(b.agenda.getSnapshot().map((e) => e.id)).toEqual(['steam:1', M2]);
     // Volver a apuntarla no es posible (ni pisaría la nota): ya está en la lista.
     expect(b.agenda.capture({ id: 'steam:1', title: 'Uno' }).effect.kind).toBe('alreadyInList');
 
     // La ronda siguiente hace el reset entero y, al acabar, quita lo purgado.
     await b.syncNow();
     expect(b.get('steam:1')).toMatchObject({ title: 'Uno', note: 'Nota importante' });
-    expect(b.get('steam:2')).toBeUndefined();
+    expect(b.get(M2)).toBeUndefined();
     await a.syncNow();
     await expectConverged(h, a, b);
   });
@@ -135,12 +139,13 @@ describe('reset sin estados a medias (protocolo#0 y rendimiento-pruebas#1)', () 
     const a = await replica(h);
     const b = await replica(h, { maxRequests: 3 });
     await a.activate();
-    for (let i = 1; i <= 3; i++) a.agenda.capture({ id: `steam:${i}`, title: `Juego ${i}` });
+    for (let i = 1; i <= 2; i++) a.agenda.capture({ id: `steam:${i}`, title: `Juego ${i}` });
+    a.agenda.capture({ id: M3, title: 'Juego 3' });
     await a.syncNow();
     await a.pair(b);
     await catchUp(h, b);
     h.clock.ms += MINUTE;
-    a.agenda.remove('steam:3');
+    a.agenda.remove(M3);
     await a.syncNow();
     h.clock.ms = MONDAY;
     await runMaintenance(h.db, MONDAY);
@@ -151,24 +156,24 @@ describe('reset sin estados a medias (protocolo#0 y rendimiento-pruebas#1)', () 
     expect(b.requests).toHaveLength(15);
     expect(b.requests.every((r) => r.ops === 0)).toBe(true);
     expect(await cursorOf(b)).toMatchObject({ reset: false, cursor: serverSeq(h) });
-    expect(b.get('steam:3')).toBeUndefined();
+    expect(b.get(M3)).toBeUndefined();
     await catchUp(h, a);
     await expectConverged(h, a, b);
   });
 });
 
 describe('solo purga D1 (protocolo#1)', () => {
-  /** A apunta steam:5; B, sin red, lo apunta después (antes que el borrado); A lo quita. */
+  /** A apunta M5; B, sin red, lo apunta después (antes que el borrado); A lo quita. */
   async function base(h: Harness) {
     h.clock.ms = MONDAY - 95 * DAY;
     const { a, b } = await pairOf(h);
     b.setOffline(true);
-    a.agenda.capture({ id: 'steam:5', title: 'Cinco' });
+    a.agenda.capture({ id: M5, title: 'Cinco' });
     await a.syncNow();
     h.clock.ms += MINUTE;
-    b.agenda.capture({ id: 'steam:5', title: 'Cinco' }, { status: 'playing' });
+    b.agenda.capture({ id: M5, title: 'Cinco' }, { status: 'playing' });
     h.clock.ms += MINUTE;
-    a.agenda.remove('steam:5');
+    a.agenda.remove(M5);
     await a.syncNow();
     return { a, b };
   }
@@ -179,13 +184,13 @@ describe('solo purga D1 (protocolo#1)', () => {
     // Antes, aquí A purgaba en local su lápida…
     h.clock.ms = MONDAY - 2 * DAY;
     await a.syncNow();
-    expect(isLive(a.get('steam:5'))).toBe(false);
+    expect(isLive(a.get(M5))).toBe(false);
     // …y el alta de B, anterior al borrado, la resucitaba solo en A.
     b.setOffline(false);
     await b.settle();
     await a.syncNow();
-    expect(isLive(onServer(h, a, 'steam:5'))).toBe(false);
-    for (const r of [a, b]) expect(isLive(r.get('steam:5'))).toBe(false);
+    expect(isLive(onServer(h, a, M5))).toBe(false);
+    for (const r of [a, b]) expect(isLive(r.get(M5))).toBe(false);
     await expectConverged(h, a, b);
 
     // El lunes D1 la purga, y las dos réplicas la quitan con el reset.
@@ -193,8 +198,8 @@ describe('solo purga D1 (protocolo#1)', () => {
     await runMaintenance(h.db, MONDAY);
     await a.syncNow();
     await b.syncNow();
-    for (const r of [a, b]) expect(r.get('steam:5')).toBeUndefined();
-    expect(onServer(h, a, 'steam:5')).toBeUndefined();
+    for (const r of [a, b]) expect(r.get(M5)).toBeUndefined();
+    expect(onServer(h, a, M5)).toBeUndefined();
     await expectConverged(h, a, b);
   });
 
@@ -206,11 +211,11 @@ describe('solo purga D1 (protocolo#1)', () => {
     // B vuelve: reset, y su alta (pendiente) sube: en el servidor queda a la vista.
     b.setOffline(false);
     await b.settle();
-    expect(isLive(onServer(h, a, 'steam:5'))).toBe(true);
+    expect(isLive(onServer(h, a, M5))).toBe(true);
     // Antes A no recibía reset (su cursor ya cubría la purga) y su lápida tapaba el alta de B.
     await a.syncNow();
     for (const r of [a, b]) {
-      expect(r.get('steam:5')).toMatchObject({ status: 'playing', deletedAt: null });
+      expect(r.get(M5)).toMatchObject({ status: 'playing', deletedAt: null });
     }
     await expectConverged(h, a, b);
   });

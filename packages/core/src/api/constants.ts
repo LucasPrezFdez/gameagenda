@@ -113,10 +113,45 @@ export const PASSKEY_TRANSPORTS = [
 export const PASSKEY_RP_NAME = 'GameAgenda';
 export const PASSKEY_USER_NAME = 'Mi agenda de GameAgenda';
 
+/**
+ * Cuentas (ADR-014): el email y la contraseña de la agenda. La contraseña nunca sale del
+ * dispositivo: viaja `authKey`, que sale de ella con PBKDF2 (`account-key.ts`), y el Worker solo
+ * calcula un HMAC. El email, como mucho 254 caracteres (RFC 5321) tras normalizarlo; lo que llega
+ * puede traer espacios de más.
+ */
+export const ACCOUNT_EMAIL_MAX = 254;
+export const ACCOUNT_EMAIL_INPUT_MAX = 320;
+/** La contraseña, en caracteres (puntos de código): sin reglas de composición (NIST SP 800-63B). */
+export const ACCOUNT_PASSWORD_MIN = 12;
+export const ACCOUNT_PASSWORD_MAX = 128;
+/** PBKDF2-HMAC-SHA256 con 600 000 vueltas (OWASP). La versión viaja para poder subirla. */
+export const ACCOUNT_KDF = 'pbkdf2-sha256-600000';
+export const ACCOUNT_KDF_ITERATIONS = 600_000;
+/** `authKey`: 256 bits en base64url sin relleno, 43 caracteres. */
+export const ACCOUNT_AUTH_KEY_PATTERN = /^[A-Za-z0-9_-]{43}$/;
+/**
+ * El freno por email: con `LOGIN_MAX_FAILURES` fallos en `LOGIN_WINDOW_MS` desde el primero, ese
+ * email no puede entrar con contraseña hasta que acabe la ventana. Cuenta también los emails que no
+ * existen, para que el bloqueo no diga cuáles sí.
+ */
+export const LOGIN_MAX_FAILURES = 10;
+export const LOGIN_WINDOW_MS = 60 * 60_000;
+/**
+ * Steam vinculado (ADR-014): la micro-API trae la biblioteca de una agenda como mucho una vez cada
+ * 20 h, y la app lo pide al abrirse si han pasado 24 h desde la última vez.
+ */
+export const STEAM_REFRESH_MIN_INTERVAL_MS = 20 * 3_600_000;
+export const STEAM_AUTO_REFRESH_MS = 24 * 3_600_000;
+
 /** Códigos de error de la micro-API: la app los traduce a sus textos. */
 export const API_ERRORS = {
   invalid_body: 400,
   invalid_code: 400,
+  /**
+   * Entrar con email y contraseña: el email no tiene cuenta o la contraseña no vale. Las dos dan
+   * la misma respuesta (ADR-014).
+   */
+  invalid_login: 400,
   /** El buzón solo admite enlaces de Steam (§11.4). */
   invalid_link: 400,
   /**
@@ -133,9 +168,17 @@ export const API_ERRORS = {
   inbox_full: 409,
   /** La agenda ya tiene `PASSKEYS_MAX` llaves: hay que quitar alguna. */
   passkeys_full: 409,
+  /** Crear una cuenta, o ponerle email: ese email ya es de otra cuenta (sin correos, no se evita). */
+  email_taken: 409,
+  /** `steam/refresh`: la agenda no tiene una cuenta de Steam vinculada. */
+  steam_not_linked: 409,
   payload_too_large: 413,
   unsupported_media_type: 415,
   rate_limited: 429,
+  /** Demasiados fallos con la contraseña de este email: hay que esperar (`LOGIN_WINDOW_MS`). */
+  too_many_attempts: 429,
+  /** `steam/refresh`: ya se trajo la biblioteca hace menos de `STEAM_REFRESH_MIN_INTERVAL_MS`. */
+  steam_refresh_too_soon: 429,
   internal: 500,
   /**
    * Importar desde Steam: el ticket no existe, ha caducado, ya se canjeó o el verificador no es el
@@ -154,6 +197,11 @@ export const API_ERRORS = {
   steam_disabled: 503,
   /** `PASSKEYS_ENABLED` no vale `'1'`: las llaves de acceso están apagadas (ADR-013). */
   passkeys_disabled: 503,
+  /**
+   * `ACCOUNTS_ENABLED` no vale `'1'`, o falta el secreto `ACCOUNT_PEPPER`: las cuentas con email y
+   * el vínculo con Steam están apagados (ADR-014).
+   */
+  accounts_disabled: 503,
   /** Se ha llegado al tope diario de llamadas a Steam (los ToU, §11.1): mañana. */
   steam_busy: 503,
   /** Otro dispositivo escribía a la vez y los reintentos no bastaron: probar más tarde. */

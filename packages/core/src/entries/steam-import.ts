@@ -14,6 +14,9 @@
 // Y el 21-11-2026 (DECISIONES §10.57): lo que la tienda de Steam da como software (Wallpaper
 // Engine) va a Software, sin Platinado, y lo que ya estaba en otro estado también pasa a Software:
 // «mete ahí lo que sea software y no juegos».
+//
+// Y el 26-11-2026 (ADR-014), con la actualización diaria de Steam: lo que el usuario quitó de la
+// lista no vuelve. Su lápida se queda (D1 no purga las de `steam:`), y el plan se la salta.
 
 import type { Op } from '../sync/op.ts';
 import {
@@ -105,6 +108,8 @@ export interface SteamImportCounts {
   readonly toSoftware: number;
   /** De la biblioteca o de los deseados, ya apuntados y sin nada que cambiar. */
   readonly unchanged: number;
+  /** De la biblioteca o de los deseados, que el usuario quitó de la lista: no vuelven. */
+  readonly removed: number;
 }
 
 export interface SteamImportPlan {
@@ -137,6 +142,7 @@ export function planSteamImport(input: SteamImportInput): SteamImportPlan {
   let platinum = 0;
   let toSoftware = 0;
   let unchanged = 0;
+  let removed = 0;
   const marks: SteamImportItem[] = [];
   const fresh: Array<{ item: SteamImportItem; key: readonly (number | string)[] }> = [];
   const seen = new Set<number>();
@@ -179,6 +185,10 @@ export function planSteamImport(input: SteamImportInput): SteamImportPlan {
       });
       continue;
     }
+    if (isRemoved(prev)) {
+      removed++;
+      continue;
+    }
     const status: Status = software
       ? 'software'
       : platinumAt !== null
@@ -219,8 +229,13 @@ export function planSteamImport(input: SteamImportInput): SteamImportPlan {
     if (seen.has(wish.appid)) continue;
     seen.add(wish.appid);
     const id = steamEntryId(wish.appid);
-    if (isLive(input.get(id))) {
+    const prev = input.get(id);
+    if (isLive(prev)) {
       unchanged++;
+      continue;
+    }
+    if (isRemoved(prev)) {
+      removed++;
       continue;
     }
     wishes++;
@@ -244,8 +259,13 @@ export function planSteamImport(input: SteamImportInput): SteamImportPlan {
   fresh.sort((a, b) => compareKeys(a.key, b.key));
   return {
     items: [...fresh.map((f) => f.item), ...marks],
-    counts: { added, wishes, markedOwned, platinum, toSoftware, unchanged },
+    counts: { added, wishes, markedOwned, platinum, toSoftware, unchanged, removed },
   };
+}
+
+/** ¿Una lápida? Lo que el usuario quitó de la lista, aunque ya no le quede contenido. */
+function isRemoved(e: Entry | undefined): boolean {
+  return e !== undefined && e.deletedAt !== null;
 }
 
 function compareKeys(a: readonly (number | string)[], b: readonly (number | string)[]): number {

@@ -18,6 +18,8 @@ const DAY = 86_400_000;
 /** Lunes 09-11-2026 a las 03:17 UTC, cuando corre el Cron Trigger. */
 const MONDAY = Date.UTC(2026, 10, 9, 3, 17);
 const TUESDAY = MONDAY + DAY;
+/** Un juego apuntado a mano: sus lápidas sí se purgan (las de Steam, no; ADR-014). */
+const MANUAL = 'manual:0190a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a51';
 
 function count(h: Harness, table: string): number {
   return (h.db.rows<{ n: number }>(`SELECT COUNT(*) AS n FROM ${table}`)[0] as { n: number }).n;
@@ -62,13 +64,13 @@ describe('purga semanal (los lunes)', () => {
     await createAgenda(pc);
     const a = new Replica(pc);
     const old = MONDAY - 100 * DAY;
-    a.local(addOps('steam:1', 'Borrado hace 100 días', hlc(old)));
+    a.local(addOps(MANUAL, 'Borrado hace 100 días', hlc(old)));
     a.local(addOps('steam:2', 'Borrado hace 10 días', hlc(old)));
     a.local(addOps('steam:3', 'Borrado y vuelto a apuntar', hlc(old)));
     a.local(addOps('steam:4', 'Vivo', hlc(old)));
     a.local([op('steam:5', 'note', 'esqueleto viejo', hlc(old))]);
     a.local([op('steam:6', 'note', 'esqueleto reciente', hlc(MONDAY - DAY))]);
-    a.local([op('steam:1', 'deletedAt', new Date(old + DAY).toISOString(), hlc(old + DAY))]);
+    a.local([op(MANUAL, 'deletedAt', new Date(old + DAY).toISOString(), hlc(old + DAY))]);
     a.local([
       op('steam:2', 'deletedAt', new Date(MONDAY - 10 * DAY).toISOString(), hlc(MONDAY - 10 * DAY)),
     ]);
@@ -124,7 +126,7 @@ describe('purga semanal (los lunes)', () => {
     // Al día: tiene las lápidas que D1 ya no tiene, y el reset hace que las quite.
     const upToDate = await sync(a.client, [], a.cursor, a.purgedSeq);
     expect(upToDate.json).toMatchObject({ reset: true, purgedSeq: synced + 1, cursor: synced + 1 });
-    expect(upToDate.json.changes.map((c) => c.entryId)).not.toContain('steam:1');
+    expect(upToDate.json.changes.map((c) => c.entryId)).not.toContain(MANUAL);
     // Una copia que se quedó en la primera página, igual.
     expect((await sync(a.client, [], 2, 0)).json.reset).toBe(true);
     // Tras el reset no se repite: el cursor llega a la seq nueva con el purgedSeq nuevo.
@@ -144,6 +146,68 @@ describe('purga semanal (los lunes)', () => {
     await runMaintenance(h.db, MONDAY);
     expect(h.db.rows('SELECT * FROM op ORDER BY entry_id, field')).toEqual(after);
     expect(h.db.rows('SELECT purged_seq FROM agenda')).toEqual(agenda);
+  });
+});
+
+describe('las lápidas de Steam (ADR-014)', () => {
+  /** Un juego de Steam apuntado y quitado hace `daysAgo` días, y uno de Steam que sigue. */
+  async function removed(daysAgo: number) {
+    const h = createHarness();
+    h.clock.ms = MONDAY;
+    const pc = h.client();
+    await createAgenda(pc);
+    const a = new Replica(pc);
+    const old = MONDAY - 200 * DAY;
+    const at = MONDAY - daysAgo * DAY;
+    a.local(addOps('steam:7', 'Quitado', hlc(old)));
+    a.local([op('steam:7', 'note', 'una nota', hlc(old))]);
+    a.local([op('steam:7', 'deletedAt', new Date(at).toISOString(), hlc(at))]);
+    a.local(addOps('steam:8', 'Vivo', hlc(old)));
+    await a.sync();
+    return { h, a };
+  }
+
+  function fieldsOf(h: Harness, entryId: string): string[] {
+    return h.db
+      .rows<{ field: string }>('SELECT field FROM op WHERE entry_id = ?1 ORDER BY field', entryId)
+      .map((r) => r.field);
+  }
+
+  it('a los 90 días no se purgan: se quedan sin contenido, solo con deletedAt', async () => {
+    const { h, a } = await removed(100);
+    const live = fieldsOf(h, 'steam:8');
+    const [{ seq: before } = { seq: 0 }] = h.db.rows<{ seq: number }>('SELECT seq FROM agenda');
+    await runMaintenance(h.db, MONDAY);
+    expect(fieldsOf(h, 'steam:7')).toEqual(['deletedAt']);
+    expect(fieldsOf(h, 'steam:8')).toEqual(live);
+    // Como una purga: las apps que sincronizaron antes reciben reset y se quedan igual que D1.
+    expect(h.db.rows('SELECT seq, purged_seq FROM agenda')).toEqual([
+      { seq: before + 1, purged_seq: before + 1 },
+    ]);
+    const reset = await sync(a.client, [], a.cursor, a.purgedSeq);
+    expect(reset.json.reset).toBe(true);
+    const tombstone = reset.json.changes.filter(
+      (c: { entryId: string }) => c.entryId === 'steam:7',
+    );
+    expect(tombstone.map((c: { field: string }) => c.field)).toEqual(['deletedAt']);
+  });
+
+  it('una lápida ya reducida no se vuelve a tocar: ni se purga ni fuerza otro reset', async () => {
+    const { h } = await removed(100);
+    await runMaintenance(h.db, MONDAY);
+    const agenda = h.db.rows('SELECT seq, purged_seq FROM agenda');
+    await runMaintenance(h.db, MONDAY + 7 * DAY);
+    await runMaintenance(h.db, MONDAY + 14 * DAY);
+    expect(fieldsOf(h, 'steam:7')).toEqual(['deletedAt']);
+    expect(h.db.rows('SELECT seq, purged_seq FROM agenda')).toEqual(agenda);
+  });
+
+  it('antes de los 90 días no cambia nada', async () => {
+    const { h } = await removed(10);
+    const before = h.db.rows('SELECT * FROM op ORDER BY entry_id, field');
+    await runMaintenance(h.db, MONDAY);
+    expect(h.db.rows('SELECT * FROM op ORDER BY entry_id, field')).toEqual(before);
+    expect(h.db.rows('SELECT purged_seq FROM agenda')).toEqual([{ purged_seq: 0 }]);
   });
 });
 

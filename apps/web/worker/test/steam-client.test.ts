@@ -371,6 +371,7 @@ describe('parte 3: logros, resumen, aplicar y deshacer', () => {
       platinum: 1,
       toSoftware: 0,
       unchanged: 0,
+      removed: 0,
     });
     expect(review).toMatchObject({ wishes: 3, withWishlist: false, unknown: 0 });
     // Los logros, solo de los jugados con estadísticas (Hades, sin jugar, no), en un lote.

@@ -96,6 +96,8 @@ const HOP_BY_HOP = new Set([
 ]);
 
 const unlimited: RateLimit = { limit: async () => ({ success: true }) };
+/** El secreto de las cuentas en los E2E (ADR-014): no es el de producción. */
+const E2E_ACCOUNT_PEPPER = 'e2e-pimienta-de-las-cuentas-0123456789ABCDEF';
 
 interface World {
   readonly id: string;
@@ -231,11 +233,14 @@ function world(id: string): World {
       RL_RESOLVE: unlimited,
       RL_STEAM: unlimited,
       RL_STEAM_ACH: unlimited,
+      RL_LOGIN: unlimited,
       SYNC_ENABLED: '1',
       MIN_AGE: String(DEFAULT_MIN_AGE),
       STEAM_ENABLED: '1',
       STEAM_WEB_API_KEY: TEST_STEAM_KEY,
       PASSKEYS_ENABLED: '1',
+      ACCOUNTS_ENABLED: '1',
+      ACCOUNT_PEPPER: E2E_ACCOUNT_PEPPER,
     },
     app: createApp({ now: () => Date.now() + created.offsetMs, steamFetch: fakeSteam }),
     offsetMs: 0,

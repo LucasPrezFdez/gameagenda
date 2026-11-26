@@ -1,4 +1,24 @@
-// Los códigos y las constantes no importan Zod: la app los usa en Ajustes sin cargar los esquemas.
+// Los códigos, las constantes y las reglas de las cuentas no importan Zod: la app los usa en
+// Ajustes sin cargar los esquemas.
+export {
+  type AccountCreateRequest,
+  type AccountLoginRequest,
+  type AccountResponse,
+  accountCreateRequestSchema,
+  accountLoginRequestSchema,
+  accountResponseSchema,
+  type LoginDetailsRequest,
+  loginDetailsRequestSchema,
+  type SteamLinkInfo,
+  steamLinkInfoSchema,
+} from './account.ts';
+export {
+  ACCOUNT_SALT_PREFIX,
+  normalizeEmail,
+  normalizePassword,
+  type PasswordProblem,
+  passwordProblem,
+} from './account-rules.ts';
 export {
   CODE_ALPHABET,
   CODE_GROUP,
@@ -10,6 +30,13 @@ export {
   parseCode,
 } from './codes.ts';
 export {
+  ACCOUNT_AUTH_KEY_PATTERN,
+  ACCOUNT_EMAIL_INPUT_MAX,
+  ACCOUNT_EMAIL_MAX,
+  ACCOUNT_KDF,
+  ACCOUNT_KDF_ITERATIONS,
+  ACCOUNT_PASSWORD_MAX,
+  ACCOUNT_PASSWORD_MIN,
   API_BASE,
   API_ERRORS,
   type ApiErrorCode,
@@ -27,6 +54,8 @@ export {
   INBOX_PAGE_SIZE,
   INBOX_TEXT_MAX,
   INBOX_URL_MAX,
+  LOGIN_MAX_FAILURES,
+  LOGIN_WINDOW_MS,
   MAX_SYNC_BODY,
   MAX_SYNC_OPS,
   PAIRING_TTL_MS,
@@ -41,10 +70,12 @@ export {
   RESOLVE_NAME_MAX,
   RESOLVE_TTL_MS,
   STEAM_ACHIEVEMENTS_BATCH,
+  STEAM_AUTO_REFRESH_MS,
   STEAM_IMPORT_MAX_BYTES,
   STEAM_IMPORT_TOKEN_PATTERN,
   STEAM_IMPORT_TOKEN_TTL_MS,
   STEAM_LIST_MAX,
+  STEAM_REFRESH_MIN_INTERVAL_MS,
   STEAM_SECRET_PATTERN,
   STEAM_TICKET_TTL_MS,
   STEAM_TYPES_BATCH,

@@ -7,6 +7,7 @@ import { API_BASE } from '@gameagenda/core/api';
 import { Hono } from 'hono';
 import type { AppEnv, Deps } from './env.ts';
 import { apiError, apiHeaders, killSwitch, requestRules } from './http.ts';
+import { accountRoutes } from './routes/account.ts';
 import { agendaRoutes } from './routes/agenda.ts';
 import { deviceRoutes } from './routes/devices.ts';
 import { inboxRoutes } from './routes/inbox.ts';
@@ -22,6 +23,7 @@ export function createApp(deps: Deps = { now: Date.now }): Hono<AppEnv> {
 
   const api = new Hono<AppEnv>();
   agendaRoutes(api, deps);
+  accountRoutes(api, deps);
   deviceRoutes(api);
   pairingRoutes(api, deps);
   passkeyRoutes(api, deps);

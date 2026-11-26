@@ -41,7 +41,9 @@
     { "name": "RL_STEAM", "namespace_id": "1105", "simple": { "limit": 10, "period": 60 } },
     // Los lotes de logros de la importación (40 juegos cada uno), por IP: con 60 por minuto, una
     // biblioteca de 2 400 juegos jugados se comprueba en un minuto.
-    { "name": "RL_STEAM_ACH", "namespace_id": "1106", "simple": { "limit": 60, "period": 60 } }
+    { "name": "RL_STEAM_ACH", "namespace_id": "1106", "simple": { "limit": 60, "period": 60 } },
+    // Entrar con email y contraseña (ADR-014), por IP; además, el freno por email en D1.
+    { "name": "RL_LOGIN", "namespace_id": "1107", "simple": { "limit": 10, "period": 60 } }
   ],
   // Mantenimiento de D1 (`worker/maintenance.ts`): a diario, y la purga de lápidas los lunes.
   // A las 03:17 UTC, lejos del catálogo (04:17). Y cada 5 min, solo los tickets de Steam caducados
@@ -61,6 +63,12 @@
     // Llaves de acceso (ADR-013): con "0", `/api/v1/passkeys/*` responde 503 `passkeys_disabled` y
     // la app esconde los botones, sin apagar la sincronización. Necesita la política de privacidad
     // al día (`scripts/legal-guard.test.ts`) y `publickey-credentials-*` en `public/_headers`.
-    "PASSKEYS_ENABLED": "1"
+    "PASSKEYS_ENABLED": "1",
+    // Cuentas con email y contraseña y Steam vinculado (ADR-014): con "0", `/api/v1/account/*` y
+    // `steam/link`, `refresh` y `unlink` responden 503 `accounts_disabled` y la app esconde los
+    // botones, sin apagar la sincronización. Necesita además el secreto `ACCOUNT_PEPPER`
+    // (`wrangler secret put`; sin él, responden lo mismo) y la política de privacidad al día
+    // (`scripts/legal-guard.test.ts`).
+    "ACCOUNTS_ENABLED": "0"
   }
 }

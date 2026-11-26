@@ -18,6 +18,8 @@ import {
 } from './steam-support.ts';
 
 export const ORIGIN = 'https://ga-web.test';
+/** El secreto de las cuentas en las pruebas (ADR-014): 43 caracteres, como uno de verdad. */
+export const TEST_ACCOUNT_PEPPER = 'pruebas-pimienta-de-las-cuentas-0123456789A';
 /** 06-11-2026 12:00 UTC. */
 export const T0 = Date.UTC(2026, 10, 6, 12);
 
@@ -211,6 +213,7 @@ export interface Harness {
     resolve: CountingLimit;
     steam: CountingLimit;
     steamAch: CountingLimit;
+    login: CountingLimit;
   };
   steam: FakeSteam;
   client(ip?: string): Client;
@@ -235,6 +238,7 @@ export function createHarness(overrides: Partial<Env> = {}, options: HarnessOpti
     resolve: new CountingLimit(),
     steam: new CountingLimit(),
     steamAch: new CountingLimit(),
+    login: new CountingLimit(),
   };
   const steam = new FakeSteam();
   const env: Env = {
@@ -246,11 +250,14 @@ export function createHarness(overrides: Partial<Env> = {}, options: HarnessOpti
     RL_RESOLVE: limits.resolve,
     RL_STEAM: limits.steam,
     RL_STEAM_ACH: limits.steamAch,
+    RL_LOGIN: limits.login,
     SYNC_ENABLED: '1',
     MIN_AGE: String(DEFAULT_MIN_AGE),
     STEAM_ENABLED: '1',
     STEAM_WEB_API_KEY: TEST_STEAM_KEY,
     PASSKEYS_ENABLED: '1',
+    ACCOUNTS_ENABLED: '1',
+    ACCOUNT_PEPPER: TEST_ACCOUNT_PEPPER,
     ...overrides,
   };
   const app = createApp({

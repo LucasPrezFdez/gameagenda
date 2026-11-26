@@ -16,6 +16,10 @@
 // - `POST /steam/achievements` `{ token, appids }` (parte 3): con el pase de `redeem`, si cada
 //   juego tiene todos sus logros (`steam-achievements.ts`), hasta `STEAM_ACHIEVEMENTS_BATCH` por
 //   petición. Sin el pase, o caducado, 410 `steam_token_invalid`, sin llamar a Steam.
+// - Steam vinculado (ADR-014), con la cookie y `ACCOUNTS_ENABLED`: `POST /steam/link`
+//   `{ ticket, verifier }` canjea como `redeem` y guarda el SteamID64 en `steam_link`;
+//   `POST /steam/refresh` trae la biblioteca de la cuenta vinculada sin login, como mucho una vez
+//   cada 20 h por agenda; `POST /steam/unlink` borra el vínculo.
 //
 // Con `STEAM_ENABLED` distinto de `'1'`, o sin `STEAM_WEB_API_KEY`, todas dan 503
 // `steam_disabled` sin tocar D1. `start` y `redeem` tienen límite por IP (`RL_STEAM`), los lotes
@@ -25,7 +29,9 @@
 // pase, los juegos), ni el SteamID64 (§10.4).
 
 import {
+  emptyRequestSchema,
   STEAM_IMPORT_TOKEN_TTL_MS,
+  STEAM_REFRESH_MIN_INTERVAL_MS,
   STEAM_SECRET_PATTERN,
   STEAM_TICKET_TTL_MS,
   steamAchievementsRequestSchema,
@@ -36,6 +42,7 @@ import {
 import type { Context, Hono } from 'hono';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import { newSteamTicket, sha256Base64url, sha256Hex } from '../crypto.ts';
+import { requireDevice } from '../device.ts';
 import type { AppEnv, Deps } from '../env.ts';
 import { apiError, iso, parseBody, rateLimited } from '../http.ts';
 import { fetchAchievements } from '../steam-achievements.ts';
@@ -52,6 +59,7 @@ import { type SteamPageKind, steamPage } from '../steam-page.ts';
 import { STEAM_DAILY_CALLS, spendSteamCalls } from '../steam-quota.ts';
 import { openImportToken, sealImportToken } from '../steam-token.ts';
 import { fetchSoftware } from '../steam-types.ts';
+import { accountInfo, accountsEnabled } from './account.ts';
 
 const MAX_BODY = 1024;
 /** `achievements`: el pase y 40 `appid` de 10 cifras caben de sobra. */
@@ -154,19 +162,21 @@ export function steamRoutes(api: Hono<AppEnv>, deps: Deps): void {
     return page(c, saved.meta.changes === 1 ? 'done' : 'expired');
   });
 
-  api.post('/steam/redeem', async (c) => {
-    const limited = await rateLimited(c, c.env.RL_STEAM);
-    if (limited) return limited;
-    const body = await parseBody(c, steamRedeemRequestSchema, MAX_BODY);
-    if (!body.ok) return body.response;
-    // El interruptor ya ha comprobado que está.
-    const key = c.env.STEAM_WEB_API_KEY ?? '';
+  /**
+   * Canjea el ticket de `redeem` o `link` (comprobación 5: un solo uso, y solo con el verificador;
+   * el DELETE que lo encuentra es el único que lo canjea). Devuelve el SteamID64, o la respuesta:
+   * 202 `pending` si aún no hay login (no lo gasta, y solo se lo dice a quien tiene el verificador)
+   * o 410 si no vale.
+   */
+  async function claimTicket(
+    c: Context<AppEnv>,
+    ticket: string,
+    verifier: string,
+  ): Promise<{ steamId: string } | { response: Response }> {
     const db = c.env.DB;
-    const hash = await sha256Hex(body.data.ticket);
-    const challenge = await sha256Base64url(body.data.verifier);
+    const hash = await sha256Hex(ticket);
+    const challenge = await sha256Base64url(verifier);
     const now = iso(deps.now());
-    // Comprobación 5: un solo uso, y solo con el verificador. El DELETE que lo encuentra es el único
-    // que lo canjea.
     const redeemed = await db
       .prepare(
         `DELETE FROM steam_ticket
@@ -175,32 +185,38 @@ export function steamRoutes(api: Hono<AppEnv>, deps: Deps): void {
       )
       .bind(hash, challenge, now)
       .first<{ steam_id: string }>();
-    if (redeemed === null) {
-      // Aún sin login: solo se lo dice a quien tiene el verificador, y no lo gasta.
-      const pending = await db
-        .prepare(
-          'SELECT 1 AS ok FROM steam_ticket WHERE ticket_hash = ?1 AND challenge = ?2 AND expires_at > ?3',
-        )
-        .bind(hash, challenge, now)
-        .first();
-      return pending === null
-        ? apiError(c, 'steam_ticket_invalid')
-        : c.json({ status: 'pending' }, 202);
+    if (redeemed !== null) return { steamId: redeemed.steam_id };
+    const pending = await db
+      .prepare(
+        'SELECT 1 AS ok FROM steam_ticket WHERE ticket_hash = ?1 AND challenge = ?2 AND expires_at > ?3',
+      )
+      .bind(hash, challenge, now)
+      .first();
+    return {
+      response:
+        pending === null ? apiError(c, 'steam_ticket_invalid') : c.json({ status: 'pending' }, 202),
+    };
+  }
+
+  /**
+   * La biblioteca y la lista de deseados de `steamId`, en *streaming*, con el pase de los logros
+   * delante (`redeem`, `link` y `refresh`). `onFailure` corre si Steam no la da.
+   */
+  async function libraryResponse(
+    c: Context<AppEnv>,
+    steamId: string,
+    onFailure?: () => Promise<unknown>,
+  ): Promise<Response> {
+    // El interruptor ya ha comprobado que está.
+    const key = c.env.STEAM_WEB_API_KEY ?? '';
+    if (!(await spendSteamCalls(c.env.DB, deps.now(), 2, dailyCalls))) {
+      await onFailure?.();
+      return apiError(c, 'steam_busy');
     }
-    if (!(await spendSteamCalls(db, deps.now(), 2, dailyCalls))) return apiError(c, 'steam_busy');
-    const token = await sealImportToken(
-      key,
-      redeemed.steam_id,
-      deps.now() + STEAM_IMPORT_TOKEN_TTL_MS,
-    );
-    const library = await fetchLibrary(
-      redeemed.steam_id,
-      key,
-      token,
-      steamFetch,
-      deps.steamImportMaxBytes,
-    );
+    const token = await sealImportToken(key, steamId, deps.now() + STEAM_IMPORT_TOKEN_TTL_MS);
+    const library = await fetchLibrary(steamId, key, token, steamFetch, deps.steamImportMaxBytes);
     if (!library.ok) {
+      await onFailure?.();
       // Sin nada de la cuenta: solo el código de Steam, para ver si la clave ya no vale (401 o 403).
       if (library.status === 401 || library.status === 403) {
         console.error(`micro-API: GetOwnedGames respondió ${library.status}`);
@@ -211,6 +227,90 @@ export function steamRoutes(api: Hono<AppEnv>, deps: Deps): void {
       status: 200,
       headers: { 'Content-Type': 'application/json; charset=utf-8' },
     });
+  }
+
+  api.post('/steam/redeem', async (c) => {
+    const limited = await rateLimited(c, c.env.RL_STEAM);
+    if (limited) return limited;
+    const body = await parseBody(c, steamRedeemRequestSchema, MAX_BODY);
+    if (!body.ok) return body.response;
+    const claimed = await claimTicket(c, body.data.ticket, body.data.verifier);
+    if ('response' in claimed) return claimed.response;
+    return libraryResponse(c, claimed.steamId);
+  });
+
+  // Steam vinculado (ADR-014): las tres, con la cookie y con `ACCOUNTS_ENABLED`. El SteamID64 se
+  // queda en `steam_link` hasta desvincularlo o borrar la agenda (cascada).
+  const linkEnabled = accountsEnabled(false);
+  api.use('/steam/link', linkEnabled);
+  api.use('/steam/refresh', linkEnabled);
+  api.use('/steam/unlink', linkEnabled);
+
+  // Como `redeem`, y además guarda el vínculo: la primera importación sale con su resumen.
+  api.post('/steam/link', requireDevice, async (c) => {
+    const limited = await rateLimited(c, c.env.RL_STEAM);
+    if (limited) return limited;
+    const body = await parseBody(c, steamRedeemRequestSchema, MAX_BODY);
+    if (!body.ok) return body.response;
+    const claimed = await claimTicket(c, body.data.ticket, body.data.verifier);
+    if ('response' in claimed) return claimed.response;
+    const at = iso(deps.now());
+    await c.env.DB.prepare(
+      `INSERT INTO steam_link (agenda_id, steam_id, linked_at, refreshed_at) VALUES (?1, ?2, ?3, ?3)
+       ON CONFLICT (agenda_id) DO UPDATE SET
+         steam_id = excluded.steam_id, linked_at = excluded.linked_at, refreshed_at = excluded.refreshed_at`,
+    )
+      .bind(c.var.device.agendaId, claimed.steamId, at)
+      .run();
+    return libraryResponse(c, claimed.steamId);
+  });
+
+  // La biblioteca de la cuenta vinculada, sin login: como mucho una vez cada 20 h por agenda, así
+  // que con varios dispositivos solo uno la trae cada día. Si Steam no la da, la vez no cuenta.
+  api.post('/steam/refresh', requireDevice, async (c) => {
+    const limited = await rateLimited(c, c.env.RL_STEAM);
+    if (limited) return limited;
+    const body = await parseBody(c, emptyRequestSchema, MAX_BODY);
+    if (!body.ok) return body.response;
+    const db = c.env.DB;
+    const { agendaId } = c.var.device;
+    const link = await db
+      .prepare('SELECT steam_id, refreshed_at FROM steam_link WHERE agenda_id = ?1')
+      .bind(agendaId)
+      .first<{ steam_id: string; refreshed_at: string | null }>();
+    if (link === null) return apiError(c, 'steam_not_linked');
+    const now = deps.now();
+    if (
+      link.refreshed_at !== null &&
+      link.refreshed_at > iso(now - STEAM_REFRESH_MIN_INTERVAL_MS)
+    ) {
+      return apiError(c, 'steam_refresh_too_soon');
+    }
+    // Solo gana una de dos a la vez: la que encuentra la fecha que leyó.
+    const at = iso(now);
+    const { meta } = await db
+      .prepare(
+        'UPDATE steam_link SET refreshed_at = ?2 WHERE agenda_id = ?1 AND refreshed_at IS ?3',
+      )
+      .bind(agendaId, at, link.refreshed_at)
+      .run();
+    if (meta.changes !== 1) return apiError(c, 'steam_refresh_too_soon');
+    return libraryResponse(c, link.steam_id, () =>
+      db
+        .prepare(
+          'UPDATE steam_link SET refreshed_at = ?2 WHERE agenda_id = ?1 AND refreshed_at = ?3',
+        )
+        .bind(agendaId, link.refreshed_at, at)
+        .run(),
+    );
+  });
+
+  api.post('/steam/unlink', requireDevice, async (c) => {
+    const body = await parseBody(c, emptyRequestSchema, MAX_BODY);
+    if (!body.ok) return body.response;
+    const { agendaId } = c.var.device;
+    await c.env.DB.prepare('DELETE FROM steam_link WHERE agenda_id = ?1').bind(agendaId).run();
+    return c.json(await accountInfo(c.env.DB, agendaId));
   });
 
   api.post('/steam/achievements', async (c) => {

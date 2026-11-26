@@ -123,6 +123,10 @@ function isOldTombstone(e: Pick<EntryFields, 'deletedAt'>, cutoff: PurgeCutoff):
  * ¿Se purga? El criterio de la purga semanal de D1 (`apps/web/worker/maintenance.ts`, que usa
  * `purgeCutoff`): una lápida con `deletedAt` anterior al corte, o un esqueleto (sin HLC de
  * `status` o de `title`) cuya mayor HLC es anterior al corte.
+ *
+ * Las lápidas de Steam (`steam:<appid>`) D1 no las purga: las deja en `deletedAt` y `mergedInto`
+ * (ADR-014), para que la importación de Steam no vuelva a añadir lo quitado. Es justo lo que sube
+ * `uploadOf` de una lápida purgable, así que aquí no hace falta distinguirlas.
  */
 export function isPurgeable(
   e: Pick<EntryFields, 'deletedAt' | 'hlc'>,

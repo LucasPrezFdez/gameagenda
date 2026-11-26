@@ -219,12 +219,37 @@ describe('planSteamImport: lo que decidió el usuario', () => {
     expect(plan.counts.unchanged).toBe(1);
   });
 
-  it('una lápida o un esqueleto cuentan como no apuntados', () => {
+  it('lo que el usuario quitó no vuelve, ni de la biblioteca ni de los deseados (ADR-014)', () => {
+    const h = harness();
+    const removedOf = (id: string) => {
+      const added = must(addEntry(undefined, { id, title: 'A' }, h.addCtx())).entry;
+      return must(removeEntry(added, h.ctx())).entry;
+    };
+    const owned = removedOf('steam:10');
+    const wish = removedOf('steam:20');
+    // Pasados 90 días, D1 la deja sin contenido: solo `deletedAt`, y sigue sin volver.
+    const bare: Entry = { ...owned, hlc: { deletedAt: owned.hlc.deletedAt ?? '' } };
+    for (const prev of [owned, bare]) {
+      const plan = planSteamImport(
+        input({
+          owned: [game(10)],
+          wishlist: [{ appid: 20, priority: 1, addedAt: null }],
+          get: agenda(prev, wish).get,
+        }),
+      );
+      expect(plan.items).toEqual([]);
+      expect(plan.counts).toMatchObject({ removed: 2, unchanged: 0, wishes: 0 });
+    }
+  });
+
+  it('un esqueleto (sin título ni estado, y sin borrar) cuenta como no apuntado', () => {
     const h = harness();
     const added = must(addEntry(undefined, { id: 'steam:10', title: 'A' }, h.addCtx())).entry;
-    const removed = must(removeEntry(added, h.ctx())).entry;
-    const plan = planSteamImport(input({ owned: [game(10)], get: agenda(removed).get }));
+    const skeleton: Entry = { ...added, hlc: { note: added.hlc.title ?? '' } };
+    expect(isLive(skeleton)).toBe(false);
+    const plan = planSteamImport(input({ owned: [game(10)], get: agenda(skeleton).get }));
     expect(plan.items[0]?.kind).toBe('add');
+    expect(plan.counts.removed).toBe(0);
   });
 
   it('el título: el del catálogo; si no, el de Steam; si no, el de reserva', () => {
