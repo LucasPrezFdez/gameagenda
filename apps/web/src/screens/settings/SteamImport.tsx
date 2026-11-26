@@ -4,8 +4,8 @@
 // `role="status"` (§9.7), y el botón oficial de Steam lleva su nombre accesible en español. Sus
 // textos van en `steam/texts.ts`, fuera del JS inicial.
 
-import { type JSX, useId, useSyncExternalStore } from 'react';
-import { useServices } from '../../app/services.tsx';
+import { type JSX, useId, useState, useSyncExternalStore } from 'react';
+import { useServices, useSyncState } from '../../app/services.tsx';
 import { type SteamImportState, steamImportFlow } from '../../steam/steam-flow.ts';
 import { steamTexts as t } from '../../steam/texts.ts';
 
@@ -89,6 +89,7 @@ function Review({ state }: { state: Extract<SteamImportState, { kind: 'review' }
         </>
       )}
       {counts.unchanged > 0 && <p className="muted">{t.reviewUnchanged(counts.unchanged)}</p>}
+      {counts.removed > 0 && <p className="muted">{t.reviewRemoved(counts.removed)}</p>}
       {(state.wishes > 0 || state.withWishlist) && (
         <label className="settings__choice">
           <input
@@ -106,9 +107,14 @@ function Review({ state }: { state: Extract<SteamImportState, { kind: 'review' }
 }
 
 export function SteamImport(): JSX.Element {
-  const { agenda, search } = useServices();
+  const { agenda, search, sync } = useServices();
+  const syncState = useSyncState();
+  // Steam vinculado (ADR-014): solo con la sincronización activa, y marcado por defecto.
+  const canLink = syncState.status === 'paired';
+  const [link, setLink] = useState(true);
   const flow = steamImportFlow({
     agenda,
+    onLinked: () => void sync.updateLocalAccount({ steamLinked: true, steamCheckedAt: Date.now() }),
     catalogTitles: async (appids) => {
       const { found } = await search.lookup(appids);
       // Como `displayName` de la paleta (no se importa: partiría el JS inicial en *chunks*).
@@ -128,7 +134,7 @@ export function SteamImport(): JSX.Element {
   switch (state.kind) {
     case 'idle':
       actions = (
-        <button type="button" className="btn" onClick={() => void flow.start()}>
+        <button type="button" className="btn" onClick={() => void flow.start(canLink && link)}>
           {t.start}
         </button>
       );
@@ -245,8 +251,25 @@ export function SteamImport(): JSX.Element {
         {t.title}
       </h3>
       <p className="muted">{t.intro}</p>
+      {state.kind === 'idle' && canLink && (
+        <div className="sync__field">
+          <label className="settings__choice">
+            <input
+              type="checkbox"
+              checked={link}
+              aria-describedby={`${id}-link-hint`}
+              onChange={(event) => setLink(event.target.checked)}
+            />
+            {t.linkLabel}
+          </label>
+          <p id={`${id}-link-hint`} className="muted">
+            {t.linkHint}
+          </p>
+        </div>
+      )}
       <div className="settings__steam-status" role="status">
         {text !== '' && <p>{text}</p>}
+        {state.kind === 'applied' && flow.isLinking() && <p>{t.linked}</p>}
         {state.kind === 'review' && <Review state={state} />}
         {done?.visibility === 'private' && <p>{t.privateGuide}</p>}
         {done !== null && done.visibility === 'public' && (

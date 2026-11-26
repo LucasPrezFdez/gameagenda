@@ -27,6 +27,7 @@ import { catalogIsLoading, hasWorkInProgress } from './pwa/work-in-progress.ts';
 import { startRouter } from './router/router.tsx';
 import { createAppSearchClient } from './search-client/index.ts';
 import { createSettingsStore, parseSettings } from './settings/settings-store.ts';
+import { startSteamAutoRefresh } from './steam/auto-refresh-trigger.ts';
 import { createSyncService, type SyncController, trackLocalWrites } from './sync/facade.ts';
 import './styles/tokens.css';
 import './styles/base.css';
@@ -198,6 +199,31 @@ async function start(): Promise<void> {
   );
   // Tras el primer pintado y en un rato ocioso: lee su estado y, si está emparejada, sincroniza.
   sync.start();
+  // Steam vinculado (ADR-014): una vez al día, tras una ronda buena de la sincronización, trae lo
+  // nuevo de la biblioteca. Lo de Steam solo se descarga cuando toca.
+  if (__STEAM_IMPORT__) {
+    startSteamAutoRefresh(
+      syncService,
+      () =>
+        import('./steam/auto-refresh.ts').then((steam) =>
+          steam.runSteamAutoRefresh({
+            sync: syncService,
+            agenda,
+            notices,
+            catalogTitles: async (appids) => {
+              const { found } = await search.lookup(appids);
+              return new Map(found.map((game) => [game.appid, game.nameEs ?? game.name]));
+            },
+          }),
+        ),
+      {
+        doc: document,
+        now: Date.now,
+        isOnline: () => navigator.onLine !== false,
+        onError: (error) => logError('storage', error),
+      },
+    );
+  }
   // Cuando ya se puede buscar (antes, la paleta no enseña nombres del catálogo) y en ratos
   // ociosos: así no retrasa el primer pintado de Mi lista.
   const stopWarmup = search.subscribeStatus(() => {

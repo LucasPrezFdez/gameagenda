@@ -628,8 +628,13 @@ export function e2eApiMiddleware(): (
     const isApi = path.startsWith(API_PREFIX);
     if (!isApi && !path.startsWith(E2E_ROUTES_PREFIX)) return next();
     const { world: id, cookie } = splitWorldCookie(req.headers.cookie);
-    // La importación de Steam, en el mundo de Steam de su conexión (ver arriba).
-    const steam = path.startsWith('/api/v1/steam/') || path.startsWith('/__e2e/steam/');
+    // La importación de Steam, en el mundo de Steam de su conexión (ver arriba). Salvo lo que lleva
+    // la cookie del dispositivo (Steam vinculado, ADR-014: `start` y `link` al vincular, `refresh`,
+    // `unlink` y la vuelta de Steam de esa importación), que necesita su agenda: el mundo de la
+    // prueba. En producción hay una sola D1.
+    const withDevice = /(?:^|;\s*)__Host-ga_device=/.test(cookie ?? '');
+    const steam =
+      (path.startsWith('/api/v1/steam/') && !withDevice) || path.startsWith('/__e2e/steam/');
     const secure = (req.socket as TLSSocket).encrypted === true;
     const w = world(steam ? `steam-${secure ? 'https' : 'http'}` : id);
     const hold = isApi && w.hold?.pattern.test(path) === true ? w.hold : null;

@@ -57,7 +57,7 @@ const sync: SyncService = {
   removeLoginDetails: never,
   unlinkSteam: never,
   localAccount: never,
-  setSteamAuto: never,
+  updateLocalAccount: never,
   deleteServerAgenda: never,
   syncNow: never,
   forget: never,

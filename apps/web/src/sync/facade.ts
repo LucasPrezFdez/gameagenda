@@ -455,12 +455,12 @@ export function createSyncService(options: SyncServiceOptions): SyncController {
       if (db === null) return EMPTY_ACCOUNT;
       return parseAccountRecord((await db.meta.get(META_KEYS.account))?.value);
     },
-    async setSteamAuto(on) {
+    async updateLocalAccount(patch) {
       if (db === null) return;
       const store = db;
       await store.transaction('rw', store.meta, async () => {
         const current = parseAccountRecord((await store.meta.get(META_KEYS.account))?.value);
-        await store.meta.put({ key: META_KEYS.account, value: { ...current, steamAuto: on } });
+        await store.meta.put({ key: META_KEYS.account, value: { ...current, ...patch } });
       });
     },
     async deleteServerAgenda() {

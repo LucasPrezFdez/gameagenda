@@ -131,7 +131,7 @@ describe('actualizar', () => {
     expect(ownedCalls(h)).toBe(2);
   });
 
-  it('antes de 20 h, steam_refresh_too_soon sin llamar a Steam, desde cualquier dispositivo', async () => {
+  it('antes de 20 h, 202 too_soon sin llamar a Steam, desde cualquier dispositivo', async () => {
     const h = createHarness();
     const pc = await linked(h);
     const { recoveryCode } = (await pc.post('/api/v1/recovery', {})).json as {
@@ -142,13 +142,13 @@ describe('actualizar', () => {
     h.clock.ms += STEAM_REFRESH_MIN_INTERVAL_MS - 1;
     for (const client of [pc, phone]) {
       const response = await refresh(client);
-      expect(response.status).toBe(429);
-      expect(response.json).toEqual({ error: 'steam_refresh_too_soon' });
+      expect(response.status).toBe(202);
+      expect(response.json).toEqual({ status: 'too_soon' });
     }
     expect(ownedCalls(h)).toBe(1);
     h.clock.ms += 1;
     expect((await refresh(phone)).status).toBe(200);
-    expect((await refresh(pc)).json).toEqual({ error: 'steam_refresh_too_soon' });
+    expect((await refresh(pc)).json).toEqual({ status: 'too_soon' });
   });
 
   it('si Steam no la da, la vez no cuenta', async () => {
@@ -176,11 +176,11 @@ describe('actualizar', () => {
     ]);
   });
 
-  it('sin vínculo, steam_not_linked; sin cookie, 401', async () => {
+  it('sin vínculo, 202 unlinked; sin cookie, 401', async () => {
     const h = createHarness();
     const pc = h.client();
     await createAgenda(pc);
-    expect((await refresh(pc)).json).toEqual({ error: 'steam_not_linked' });
+    expect((await refresh(pc)).json).toEqual({ status: 'unlinked' });
     expect((await refresh(h.client())).status).toBe(401);
   });
 
@@ -201,7 +201,7 @@ describe('desvincular', () => {
     expect(response.json).toEqual({ hasLogin: false, steam: null });
     expect(h.db.rows('SELECT * FROM steam_link')).toHaveLength(0);
     h.clock.ms += STEAM_REFRESH_MIN_INTERVAL_MS;
-    expect((await refresh(pc)).json).toEqual({ error: 'steam_not_linked' });
+    expect((await refresh(pc)).json).toEqual({ status: 'unlinked' });
   });
 
   it('«Borrar todos mis datos» se lleva el vínculo en cascada', async () => {

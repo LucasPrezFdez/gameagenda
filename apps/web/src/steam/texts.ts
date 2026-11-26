@@ -102,4 +102,50 @@ export const steamTexts = {
   retry: 'Reintentar',
   restart: 'Volver a empezar',
   cancel: 'Cancelar',
+  reviewRemoved: (count: number) =>
+    count === 1
+      ? 'Uno que quitaste de tu lista no se vuelve a añadir.'
+      : `${formatCount(count)} que quitaste de tu lista no se vuelven a añadir.`,
+
+  // Steam vinculado (ADR-014): la biblioteca se pone al día sola, sin volver a iniciar sesión.
+  linkLabel: 'Vincular a mi cuenta y actualizar sola cada día',
+  linkHint:
+    'Guardamos el identificador de tu cuenta de Steam con tu agenda sincronizada. Cada día, al abrir la app, traemos los juegos nuevos y los platinados. Puedes desvincularla cuando quieras.',
+  linked: 'Tu cuenta de Steam ha quedado vinculada: tu lista se pondrá al día sola cada día.',
+  /** El aviso de la actualización diaria, con «Deshacer». */
+  autoApplied: (counts: SteamImportCounts) => {
+    const added = Object.values(counts.added).reduce((a, b) => a + b, 0) + counts.wishes;
+    const platinum = counts.platinum - counts.added.completed;
+    const parts = [];
+    if (added > 0) parts.push(plural(added, 'juego nuevo', 'juegos nuevos'));
+    if (platinum > 0) parts.push(plural(platinum, 'platinado', 'platinados'));
+    if (counts.toSoftware > 0) parts.push(`${formatCount(counts.toSoftware)} a Software`);
+    if (counts.markedOwned > 0) {
+      parts.push(plural(counts.markedOwned, 'comprado', 'comprados'));
+    }
+    return `Actualizado desde Steam: ${parts.join(', ')}.`;
+  },
+
+  // Ajustes › Cuenta y sincronización › Tu cuenta: el vínculo con Steam.
+  linkTitle: 'Steam',
+  linkedSince: (date: string) => `Tu cuenta de Steam está vinculada desde el ${date}.`,
+  lastRefresh: (when: string) => `Última actualización: ${when}.`,
+  neverRefreshed: 'Aún no se ha actualizado.',
+  notLinked:
+    'Vincula tu cuenta de Steam para que tu lista se ponga al día sola: «Importar desde Steam», en Ajustes › Datos.',
+  goImport: 'Ir a Importar desde Steam',
+  autoLabel: 'Actualizar sola cada día, al abrir la app en este dispositivo',
+  refreshNow: 'Actualizar ahora',
+  refreshing: 'Trayendo tu biblioteca de Steam…',
+  refreshTooSoon: 'Ya se ha actualizado hace poco. Vuelve a intentarlo mañana.',
+  refreshNothing: 'Tu lista ya estaba al día con Steam.',
+  refreshPrivate: 'Tu biblioteca de Steam es privada, así que Steam no nos deja verla.',
+  refreshFailed: 'Steam no ha respondido. Vuelve a intentarlo dentro de un rato.',
+  unlinkTitle: 'Desvincular Steam',
+  unlinkIntro:
+    'Dejaremos de guardar tu cuenta de Steam y tu lista ya no se pondrá al día sola. Lo que ya está en tu lista se queda.',
+  unlinkConfirm: '¿Desvincular tu cuenta de Steam?',
+  unlinkDo: 'Desvincular',
+  unlinking: 'Desvinculando…',
+  unlinked: 'Hemos desvinculado tu cuenta de Steam.',
 } as const;

@@ -10,15 +10,17 @@
 // - En la PWA de iOS (simulada): el login acaba en otro contexto (Safari, con otras cookies), y la
 //   app canjea el ticket por su cuenta al volver a la vista.
 // - El perfil privado, el ticket caducado, sin red y con la importación apagada en el servidor.
+// - Steam vinculado (ADR-014): con la sincronización activa, la casilla marcada vincula la cuenta, y
+//   en Ajustes › Cuenta y sincronización se ve, se actualiza y se desvincula.
 // - axe en cada estado. Lo de Steam va a un mundo de Steam por proyecto en la vista previa
 //   (`e2e-api-server.ts`), compartido por las pruebas de este fichero, que por eso van en serie.
 import { addEntry, type Entry } from '@gameagenda/core/entries';
 import { formatHlc } from '@gameagenda/core/sync';
 import type { BrowserContext, Page } from '@playwright/test';
 import { v7 as uuidv7 } from 'uuid';
-import { expectAccessible, setup, waitForSearch } from './helpers.ts';
+import { expectAccessible, openNoEmail, setup, waitForSearch } from './helpers.ts';
 import { putEntries, storedEntry, storedMeta } from './storage.ts';
-import { expect, test } from './sync-server.ts';
+import { expect, moveServerClock, test } from './sync-server.ts';
 
 /** El resumen de las *fixtures* (Outer Wilds, con todos los logros). */
 const REVIEW = 'Se añadirán 4 juegos de tu biblioteca, como Comprados:';
@@ -472,4 +474,65 @@ test('con la importación apagada en el servidor, lo dice', async ({ page }) => 
   } finally {
     await page.request.post('/__e2e/steam/config', { data: { steamEnabled: true } });
   }
+});
+
+test('Steam vinculado (ADR-014): la casilla vincula la cuenta; en Ajustes se actualiza y se desvincula', async ({
+  page,
+  context,
+}) => {
+  test.setTimeout(120_000);
+  const steamId = newSteamId();
+  await actAsSteam(context, page, steamId);
+  const checks = await setup(page);
+  // Sincronizando (sin email): la casilla solo sale así.
+  await page.goto('/ajustes/sincronizacion');
+  const noEmail = await openNoEmail(page);
+  await noEmail.getByRole('checkbox', { name: /años o más/ }).check();
+  await page.getByRole('button', { name: 'Activar sincronización' }).click();
+  await page.getByRole('button', { name: 'Ya lo he guardado' }).click();
+  await expect(page.locator('[data-sync-status]')).toContainText('Sincronizado', {
+    timeout: 15_000,
+  });
+
+  await openData(page);
+  const link = steamSection(page).getByRole('checkbox', {
+    name: 'Vincular a mi cuenta y actualizar sola cada día',
+  });
+  await expect(link).toBeChecked();
+  await expectAccessible(page, 'Importar desde Steam, con la casilla de vincular');
+  await button(page, 'Importar desde Steam').click();
+  await signInInPopup(page);
+  await comeBack(page);
+  await expect(steamStatus(page)).toContainText(REVIEW);
+  await button(page, 'Aplicar').click();
+  await expect(steamStatus(page)).toContainText('Hecho: 4 juegos añadidos a tu lista.');
+  await expect(steamStatus(page)).toContainText('Tu cuenta de Steam ha quedado vinculada');
+  await expect.poll(() => storedMeta(page, 'account')).toMatchObject({ steamLinked: true });
+
+  // En Ajustes › Cuenta y sincronización: vinculada, y «Actualizar ahora» espera sus 20 h.
+  await page.goto('/ajustes/sincronizacion');
+  const steam = page.getByRole('region', { name: 'Steam', exact: true });
+  await expect(steam).toContainText('Tu cuenta de Steam está vinculada desde el');
+  await expect(steam.getByRole('checkbox', { name: /Actualizar sola cada día/ })).toBeChecked();
+  await expectAccessible(page, 'Steam vinculado');
+  await steam.getByRole('button', { name: 'Actualizar ahora' }).click();
+  await expect(steam.getByRole('status')).toContainText('Ya se ha actualizado hace poco.');
+  await moveServerClock(page, { advanceMs: 20 * 3_600_000 });
+  await steam.getByRole('button', { name: 'Actualizar ahora' }).click();
+  await expect(steam.getByRole('status')).toContainText('Tu lista ya estaba al día con Steam.');
+
+  // Desvincular: confirmación en el sitio, y vuelve a ofrecer la importación.
+  await page
+    .getByRole('region', { name: 'Desvincular Steam' })
+    .getByRole('button', { name: 'Desvincular Steam' })
+    .click();
+  await page
+    .getByRole('group', { name: '¿Desvincular tu cuenta de Steam?' })
+    .getByRole('button', { name: 'Desvincular' })
+    .click();
+  await expect(page.getByRole('region', { name: 'Steam', exact: true })).toContainText(
+    'Vincula tu cuenta de Steam',
+  );
+  await expect.poll(() => storedMeta(page, 'account')).toMatchObject({ steamLinked: false });
+  await checks.expectClean();
 });

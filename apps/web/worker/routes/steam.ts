@@ -19,7 +19,8 @@
 // - Steam vinculado (ADR-014), con la cookie y `ACCOUNTS_ENABLED`: `POST /steam/link`
 //   `{ ticket, verifier }` canjea como `redeem` y guarda el SteamID64 en `steam_link`;
 //   `POST /steam/refresh` trae la biblioteca de la cuenta vinculada sin login, como mucho una vez
-//   cada 20 h por agenda; `POST /steam/unlink` borra el vínculo.
+//   cada 20 h por agenda (si no, 202 `too_soon`; sin vínculo, 202 `unlinked`);
+//   `POST /steam/unlink` borra el vínculo.
 //
 // Con `STEAM_ENABLED` distinto de `'1'`, o sin `STEAM_WEB_API_KEY`, todas dan 503
 // `steam_disabled` sin tocar D1. `start` y `redeem` tienen límite por IP (`RL_STEAM`), los lotes
@@ -267,6 +268,9 @@ export function steamRoutes(api: Hono<AppEnv>, deps: Deps): void {
 
   // La biblioteca de la cuenta vinculada, sin login: como mucho una vez cada 20 h por agenda, así
   // que con varios dispositivos solo uno la trae cada día. Si Steam no la da, la vez no cuenta.
+  // «Sin vínculo» y «ya se trajo hace poco» no son errores: 202 con `status` (`unlinked` o
+  // `too_soon`), como el «aún no» de `redeem`, para que la comprobación diaria de cada dispositivo
+  // no deje errores en la consola.
   api.post('/steam/refresh', requireDevice, async (c) => {
     const limited = await rateLimited(c, c.env.RL_STEAM);
     if (limited) return limited;
@@ -278,13 +282,13 @@ export function steamRoutes(api: Hono<AppEnv>, deps: Deps): void {
       .prepare('SELECT steam_id, refreshed_at FROM steam_link WHERE agenda_id = ?1')
       .bind(agendaId)
       .first<{ steam_id: string; refreshed_at: string | null }>();
-    if (link === null) return apiError(c, 'steam_not_linked');
+    if (link === null) return c.json({ status: 'unlinked' }, 202);
     const now = deps.now();
     if (
       link.refreshed_at !== null &&
       link.refreshed_at > iso(now - STEAM_REFRESH_MIN_INTERVAL_MS)
     ) {
-      return apiError(c, 'steam_refresh_too_soon');
+      return c.json({ status: 'too_soon' }, 202);
     }
     // Solo gana una de dos a la vez: la que encuentra la fecha que leyó.
     const at = iso(now);
@@ -294,7 +298,7 @@ export function steamRoutes(api: Hono<AppEnv>, deps: Deps): void {
       )
       .bind(agendaId, at, link.refreshed_at)
       .run();
-    if (meta.changes !== 1) return apiError(c, 'steam_refresh_too_soon');
+    if (meta.changes !== 1) return c.json({ status: 'too_soon' }, 202);
     return libraryResponse(c, link.steam_id, () =>
       db
         .prepare(

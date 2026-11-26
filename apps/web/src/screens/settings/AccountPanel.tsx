@@ -13,6 +13,7 @@ import { type ReactNode, useCallback, useEffect, useId, useState } from 'react';
 import { es } from '../../i18n/es.ts';
 import type { AccountInfo, SyncService } from '../../sync/types.ts';
 import { accountTexts } from './account-texts.ts';
+import { SteamLinkSection } from './SteamLinkSection.tsx';
 import { type FieldProblem, loginProblems, syncErrorText } from './sync-model.ts';
 import { attempt, ConfirmAction, describedBy, focusWhenReady } from './sync-ui.tsx';
 
@@ -478,22 +479,15 @@ type AccountState =
 /** Qué formulario está abierto con sesión: añadir, cambiar la contraseña o cambiar el email. */
 type Editing = 'add' | 'password' | 'email' | null;
 
-/**
- * Con sesión: lo que tiene la cuenta. `children` va dentro de la sección (Steam vinculado, en la
- * parte 3), y `onInfo` recibe cada respuesta nueva del servidor.
- */
+/** Con sesión: lo que tiene la cuenta y, detrás, Steam vinculado (`SteamLinkSection`). */
 export function AccountSection({
   sync,
   headingId,
   notify,
-  children,
-  onInfo,
 }: {
   sync: SyncService;
   headingId: string;
   notify: (message: string) => void;
-  children?: (info: AccountInfo, update: (info: AccountInfo) => void) => ReactNode;
-  onInfo?: (info: AccountInfo) => void;
 }) {
   const id = useId();
   const [state, setState] = useState<AccountState>({ kind: 'loading' });
@@ -501,27 +495,21 @@ export function AccountSection({
 
   const load = useCallback(async () => {
     const [result, local] = await Promise.all([attempt(() => sync.account()), sync.localAccount()]);
-    if (result.ok) {
-      setState({ kind: 'ready', info: result.value, email: local.email });
-      onInfo?.(result.value);
-    } else setState({ kind: 'error', message: syncErrorText(result.code, 'account') });
-  }, [sync, onInfo]);
+    if (result.ok) setState({ kind: 'ready', info: result.value, email: local.email });
+    else setState({ kind: 'error', message: syncErrorText(result.code, 'account') });
+  }, [sync]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  const update = useCallback(
-    (info: AccountInfo, email?: string | null) => {
-      setState((current) => ({
-        kind: 'ready',
-        info,
-        email: email !== undefined ? email : current.kind === 'ready' ? current.email : null,
-      }));
-      onInfo?.(info);
-    },
-    [onInfo],
-  );
+  const update = useCallback((info: AccountInfo, email?: string | null) => {
+    setState((current) => ({
+      kind: 'ready',
+      info,
+      email: email !== undefined ? email : current.kind === 'ready' ? current.email : null,
+    }));
+  }, []);
 
   let body: ReactNode;
   if (state.kind === 'loading') {
@@ -609,7 +597,6 @@ export function AccountSection({
             }}
           />
         )}
-        {children?.(info, (next) => update(next))}
       </>
     );
   }
@@ -622,6 +609,15 @@ export function AccountSection({
         </h3>
         {body}
       </section>
+      {state.kind === 'ready' && (
+        <SteamLinkSection
+          sync={sync}
+          info={state.info}
+          onInfo={(info) => update(info)}
+          notify={notify}
+          headingId={headingId}
+        />
+      )}
       {state.kind === 'ready' && state.info.hasLogin && (
         <ConfirmAction
           headingId={`${id}-remove`}

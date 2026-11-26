@@ -346,6 +346,22 @@ export function dayAgo(then: number, now: number): string {
   return relative.format(-days, 'day');
 }
 
+/**
+ * Steam vinculado (ADR-014): el día en que se vinculó («20 nov 2026») y la última actualización
+ * («a las 18:42» o «el 3 nov a las 18:42»), o `null` si aún no hay ninguna.
+ */
+export function steamLinkDates(
+  link: { readonly linkedAt: string; readonly refreshedAt: string | null },
+  now: number,
+): { readonly since: string | null; readonly last: string | null } {
+  const linked = Date.parse(link.linkedAt);
+  const refreshed = link.refreshedAt === null ? Number.NaN : Date.parse(link.refreshedAt);
+  return {
+    since: Number.isFinite(linked) ? dayFormat.format(linked) : null,
+    last: Number.isFinite(refreshed) ? syncedWhen(refreshed, now) : null,
+  };
+}
+
 /** «Desde el 7 nov 2026 · Última vez: hoy» (fechas de la micro-API en ISO 8601 UTC). */
 export function deviceDetails(device: DeviceInfo, now: number): string {
   const created = Date.parse(device.createdAt);

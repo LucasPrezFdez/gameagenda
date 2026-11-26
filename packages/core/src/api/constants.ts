@@ -170,15 +170,11 @@ export const API_ERRORS = {
   passkeys_full: 409,
   /** Crear una cuenta, o ponerle email: ese email ya es de otra cuenta (sin correos, no se evita). */
   email_taken: 409,
-  /** `steam/refresh`: la agenda no tiene una cuenta de Steam vinculada. */
-  steam_not_linked: 409,
   payload_too_large: 413,
   unsupported_media_type: 415,
   rate_limited: 429,
   /** Demasiados fallos con la contraseña de este email: hay que esperar (`LOGIN_WINDOW_MS`). */
   too_many_attempts: 429,
-  /** `steam/refresh`: ya se trajo la biblioteca hace menos de `STEAM_REFRESH_MIN_INTERVAL_MS`. */
-  steam_refresh_too_soon: 429,
   internal: 500,
   /**
    * Importar desde Steam: el ticket no existe, ha caducado, ya se canjeó o el verificador no es el

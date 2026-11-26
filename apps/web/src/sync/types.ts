@@ -197,8 +197,11 @@ export interface SyncService {
   unlinkSteam(): Promise<AccountInfo>;
   /** Lo que este dispositivo sabe de la cuenta (`meta.account`), sin preguntar al servidor. */
   localAccount(): Promise<AccountRecord>;
-  /** Enciende o apaga «Actualizar sola» en este dispositivo. */
-  setSteamAuto(on: boolean): Promise<void>;
+  /**
+   * Cambia lo que este dispositivo sabe de la cuenta: «Actualizar sola» (`steamAuto`), si hay
+   * vínculo con Steam y cuándo se trajo la biblioteca por última vez. Sin IndexedDB, nada.
+   */
+  updateLocalAccount(patch: Partial<Omit<AccountRecord, 'email'>>): Promise<void>;
   /**
    * Revoca un dispositivo. Si es este (`self: true`), es «Desemparejar este dispositivo»: el
    * servidor quita las cookies, el estado pasa a `off` y la agenda local se queda como está. Una

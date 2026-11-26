@@ -25,7 +25,10 @@
 // 7. `applying` y `applied`: por lotes, con un solo «Deshacer» (`undone`).
 //
 // Las peticiones van sin *cookies* (`credentials: 'omit'`: el login no depende de la
-// sincronización), sin `Referer` y sin caché.
+// sincronización), sin `Referer` y sin caché. Salvo al vincular la cuenta de Steam a la agenda
+// (ADR-014, `start(true)`): el canje va a `POST /steam/link`, con la cookie del dispositivo, y
+// el vínculo queda en D1 para la actualización diaria (`auto-refresh.ts`). Lo que el usuario quitó
+// de la lista no vuelve (`planSteamImport` se salta las lápidas).
 
 import { API_BASE, STEAM_ACHIEVEMENTS_BATCH, STEAM_TYPES_BATCH } from '@gameagenda/core/api';
 import { isLive, type SteamImportCounts, type SteamImportPlan } from '@gameagenda/core/entries';
@@ -83,6 +86,8 @@ export interface SteamFlowDeps {
   readonly dayOf?: (ms: number) => string;
   readonly now?: () => number;
   readonly applyOptions?: ApplyOptions;
+  /** Tras vincular la cuenta de Steam a la agenda (ADR-014): para apuntarlo en `meta.account`. */
+  readonly onLinked?: () => void;
 }
 
 /** Lo traído, mientras dura el resumen (con el *chunk* de la parte 3, ya cargado). */
@@ -125,7 +130,9 @@ function failureOf(status: number, code: unknown): SteamImportFailure {
   if (status === 410) return 'expired';
   if (status === 429) return 'rateLimited';
   if (code === 'steam_busy') return 'busy';
-  if (code === 'steam_disabled' || code === 'sync_disabled') return 'disabled';
+  if (code === 'steam_disabled' || code === 'sync_disabled' || code === 'accounts_disabled') {
+    return 'disabled';
+  }
   return 'unavailable';
 }
 
@@ -150,6 +157,8 @@ export class SteamImportFlow {
   private undoImport: (() => void) | null = null;
   private redeeming = false;
   private listening = false;
+  /** Vincular la cuenta de Steam a la agenda al canjear (ADR-014). */
+  private linking = false;
   /** Cambia con cada «Volver a empezar» o «Cancelar»: lo que llegue de antes se descarta. */
   private generation = 0;
   private readonly listeners = new Set<() => void>();
@@ -166,6 +175,9 @@ export class SteamImportFlow {
 
   readonly getSnapshot = (): SteamImportState => this.state;
 
+  /** ¿Esta importación vincula la cuenta de Steam a la agenda (ADR-014)? */
+  readonly isLinking = (): boolean => this.linking;
+
   private set(state: SteamImportState): void {
     this.state = state;
     if (state.kind === 'waiting') this.listen();
@@ -173,10 +185,10 @@ export class SteamImportFlow {
     for (const listener of this.listeners) listener();
   }
 
-  private request(path: string, body: unknown): Promise<Response> {
+  private request(path: string, body: unknown, withCookie = false): Promise<Response> {
     return this.deps.fetch(`${API_BASE}${path}`, {
       method: 'POST',
-      credentials: 'omit',
+      credentials: withCookie ? 'same-origin' : 'omit',
       cache: 'no-store',
       referrerPolicy: 'no-referrer',
       headers: { 'Content-Type': 'application/json' },
@@ -185,9 +197,13 @@ export class SteamImportFlow {
     });
   }
 
-  /** «Importar desde Steam» (y «Volver a empezar»): un ticket nuevo. */
-  async start(): Promise<void> {
+  /**
+   * «Importar desde Steam» (y «Volver a empezar»): un ticket nuevo. `link`: vincular además la
+   * cuenta de Steam a la agenda sincronizada, para que se actualice sola (ADR-014).
+   */
+  async start(link = this.linking): Promise<void> {
     if (BUSY.has(this.state.kind)) return;
+    this.linking = link;
     const generation = ++this.generation;
     this.ticket = null;
     this.fetched = null;
@@ -198,7 +214,8 @@ export class SteamImportFlow {
     try {
       const pkce = await newPkce();
       verifier = pkce.verifier;
-      response = await this.request('/steam/start', { challenge: pkce.challenge });
+      // Al vincular, con la cookie: todo el canje es de esta agenda.
+      response = await this.request('/steam/start', { challenge: pkce.challenge }, link);
     } catch {
       if (generation === this.generation)
         this.set({ kind: 'failed', reason: 'offline', retry: false });
@@ -244,10 +261,11 @@ export class SteamImportFlow {
     try {
       let response: Response;
       try {
-        response = await this.request('/steam/redeem', {
-          ticket: ticket.ticket,
-          verifier: ticket.verifier,
-        });
+        response = await this.request(
+          this.linking ? '/steam/link' : '/steam/redeem',
+          { ticket: ticket.ticket, verifier: ticket.verifier },
+          this.linking,
+        );
       } catch {
         // No se sabe si llegó: el ticket puede seguir vivo, y reintentar lo dice.
         if (generation === this.generation) {
@@ -272,8 +290,9 @@ export class SteamImportFlow {
         this.set({ kind: 'failed', reason, retry: reason === 'rateLimited' });
         return;
       }
-      // Con el 200, el ticket ya está gastado.
+      // Con el 200, el ticket ya está gastado (y, al vincular, el vínculo ya está en D1).
       this.ticket = null;
+      if (this.linking) this.deps.onLinked?.();
       this.set({ kind: 'loading' });
       let library: SteamLibrary | null = null;
       try {
@@ -324,87 +343,18 @@ export class SteamImportFlow {
       return;
     }
     if (generation !== this.generation) return;
-    const appids = [
-      ...library.owned.map((game) => game.appid),
-      ...(library.wishlist ?? []).map((wish) => wish.appid),
-    ];
-    let titles: ReadonlyMap<number, string> = new Map();
-    try {
-      titles = (await this.deps.catalogTitles?.(appids)) ?? titles;
-    } catch {
-      // Sin catálogo: el nombre de Steam (el catálogo lo pondrá después; §7.3).
-    }
-    if (generation !== this.generation) return;
-    const software = await this.softwareOf(mod, library, titles, generation);
-    if (software === null) return;
-    const candidates = mod.achievementCandidates(library, (id) => agenda.get(id), software);
-    const platinum = new Map<number, number | null>();
-    let unknown = 0;
-    this.set({ kind: 'checking', done: 0, total: candidates.length });
-    for (let start = 0; start < candidates.length; start += STEAM_ACHIEVEMENTS_BATCH) {
-      const appids = candidates.slice(start, start + STEAM_ACHIEVEMENTS_BATCH);
-      let games: ReturnType<typeof mod.readSteamAchievements> = null;
-      try {
-        const response = await this.request('/steam/achievements', {
-          token: library.token,
-          appids,
-        });
-        if (response.status === 200) games = mod.readSteamAchievements(await response.text());
-        else await response.body?.cancel();
-      } catch {
-        games = null;
-      }
-      if (generation !== this.generation) return;
-      // Sin respuesta (sin red, el tope del día, el pase caducado…): se sigue sin los que faltan.
-      if (games === null) {
-        unknown += candidates.length - start;
-        break;
-      }
-      for (const game of games) {
-        if (game.result === 'complete') {
-          platinum.set(game.appid, game.at === null ? null : game.at * 1000);
-        } else if (game.result === 'hidden' || game.result === 'unavailable') {
-          unknown++;
-        }
-      }
-      const done = Math.min(start + STEAM_ACHIEVEMENTS_BATCH, candidates.length);
-      this.set({ kind: 'checking', done, total: candidates.length });
-    }
-
-    this.fetched = { mod, library, platinum, titles, unknown, software };
+    const gathered = await gatherSteamData({
+      request: (path, body) => this.request(path, body),
+      mod,
+      library,
+      agenda,
+      ...(this.deps.catalogTitles ? { catalogTitles: this.deps.catalogTitles } : {}),
+      current: () => generation === this.generation,
+      onProgress: (done, total) => this.set({ kind: 'checking', done, total }),
+    });
+    if (gathered === null) return;
+    this.fetched = { mod, library, ...gathered };
     this.showReview(false);
-  }
-
-  /**
-   * Qué apps son software (DECISIONES §10.57), por lotes de `STEAM_TYPES_BATCH`: solo las que no
-   * están en el catálogo. Si un lote falla, las que falten cuentan como juegos (como antes de
-   * Software). `null` si la importación ha cambiado entretanto.
-   */
-  private async softwareOf(
-    mod: typeof import('./steam-apply.ts'),
-    library: SteamLibrary,
-    titles: ReadonlyMap<number, string>,
-    generation: number,
-  ): Promise<ReadonlySet<number> | null> {
-    const software = new Set<number>();
-    const candidates = mod.typeCandidates(library, titles);
-    for (let start = 0; start < candidates.length; start += STEAM_TYPES_BATCH) {
-      let found: number[] | null = null;
-      try {
-        const response = await this.request('/steam/types', {
-          token: library.token,
-          appids: candidates.slice(start, start + STEAM_TYPES_BATCH),
-        });
-        if (response.status === 200) found = mod.readSteamTypes(await response.text());
-        else await response.body?.cancel();
-      } catch {
-        found = null;
-      }
-      if (generation !== this.generation) return null;
-      if (found === null) break;
-      for (const appid of found) software.add(appid);
-    }
-    return software;
   }
 
   private plan(fetched: Fetched, withWishlist: boolean): SteamImportPlan {
@@ -422,13 +372,15 @@ export class SteamImportFlow {
     });
   }
 
-  /** Los deseados que se añadirían: ni de la biblioteca ni ya apuntados. */
+  /** Los deseados que se añadirían: ni de la biblioteca, ni ya apuntados, ni quitados (ADR-014). */
   private wishesFor(fetched: Fetched): number {
     const agenda = this.deps.agenda as SteamAgenda;
     const owned = new Set(fetched.library.owned.map((game) => game.appid));
-    return (fetched.library.wishlist ?? []).filter(
-      (wish) => !owned.has(wish.appid) && !isLive(agenda.get(`steam:${wish.appid}`)),
-    ).length;
+    return (fetched.library.wishlist ?? []).filter((wish) => {
+      const entry = agenda.get(`steam:${wish.appid}`);
+      const removed = entry !== undefined && entry.deletedAt !== null;
+      return !owned.has(wish.appid) && !removed && !isLive(entry);
+    }).length;
   }
 
   private showReview(withWishlist: boolean): void {
@@ -522,10 +474,121 @@ export class SteamImportFlow {
   }
 }
 
+/** Lo que hace falta para preguntar a Steam por los títulos, el software y los logros. */
+export interface GatherOptions {
+  /** Una petición a `/api/v1` (sin cookies: van con el pase de la biblioteca). */
+  readonly request: (path: string, body: unknown) => Promise<Response>;
+  readonly mod: typeof import('./steam-apply.ts');
+  readonly library: SteamLibrary;
+  readonly agenda: SteamAgenda;
+  readonly catalogTitles?: (appids: readonly number[]) => Promise<ReadonlyMap<number, string>>;
+  /**
+   * Solo los logros de los juegos jugados desde este instante (ms): la actualización diaria
+   * (ADR-014) no vuelve a preguntar por toda la biblioteca.
+   */
+  readonly playedSince?: number;
+  /** ¿Sigue valiendo lo que se está haciendo? Si no, se para y devuelve `null`. */
+  readonly current?: () => boolean;
+  readonly onProgress?: (done: number, total: number) => void;
+}
+
+export interface Gathered {
+  readonly platinum: ReadonlyMap<number, number | null>;
+  readonly titles: ReadonlyMap<number, string>;
+  readonly unknown: number;
+  readonly software: ReadonlySet<number>;
+}
+
+/**
+ * Antes del plan: los títulos del catálogo; de lo que no está en él, qué es software
+ * (`POST /steam/types`, DECISIONES §10.57; si falla, cuenta como juego); y los logros de los
+ * jugados con estadísticas, por lotes de `STEAM_ACHIEVEMENTS_BATCH` (`POST /steam/achievements`).
+ * Si un lote de logros falla, se sigue sin los que falten (`unknown`). `null` si `current` deja
+ * de valer.
+ */
+export async function gatherSteamData(o: GatherOptions): Promise<Gathered | null> {
+  const current = o.current ?? (() => true);
+  const { mod, library, agenda } = o;
+  const appids = [
+    ...library.owned.map((game) => game.appid),
+    ...(library.wishlist ?? []).map((wish) => wish.appid),
+  ];
+  let titles: ReadonlyMap<number, string> = new Map();
+  try {
+    titles = (await o.catalogTitles?.(appids)) ?? titles;
+  } catch {
+    // Sin catálogo: el nombre de Steam (el catálogo lo pondrá después; §7.3).
+  }
+  if (!current()) return null;
+
+  const software = new Set<number>();
+  const typeCandidates = mod.typeCandidates(library, titles);
+  for (let start = 0; start < typeCandidates.length; start += STEAM_TYPES_BATCH) {
+    let found: number[] | null = null;
+    try {
+      const response = await o.request('/steam/types', {
+        token: library.token,
+        appids: typeCandidates.slice(start, start + STEAM_TYPES_BATCH),
+      });
+      if (response.status === 200) found = mod.readSteamTypes(await response.text());
+      else await response.body?.cancel();
+    } catch {
+      found = null;
+    }
+    if (!current()) return null;
+    if (found === null) break;
+    for (const appid of found) software.add(appid);
+  }
+
+  const since = o.playedSince;
+  const played = new Map(library.owned.map((game) => [game.appid, game.lastPlayedAt]));
+  const candidates = mod
+    .achievementCandidates(library, (id) => agenda.get(id), software)
+    .filter((appid) => since === undefined || (played.get(appid) ?? 0) >= since);
+  const platinum = new Map<number, number | null>();
+  let unknown = 0;
+  o.onProgress?.(0, candidates.length);
+  for (let start = 0; start < candidates.length; start += STEAM_ACHIEVEMENTS_BATCH) {
+    const batch = candidates.slice(start, start + STEAM_ACHIEVEMENTS_BATCH);
+    let games: ReturnType<typeof mod.readSteamAchievements> = null;
+    try {
+      const response = await o.request('/steam/achievements', {
+        token: library.token,
+        appids: batch,
+      });
+      if (response.status === 200) games = mod.readSteamAchievements(await response.text());
+      else await response.body?.cancel();
+    } catch {
+      games = null;
+    }
+    if (!current()) return null;
+    // Sin respuesta (sin red, el tope del día, el pase caducado…): se sigue sin los que faltan.
+    if (games === null) {
+      unknown += candidates.length - start;
+      break;
+    }
+    for (const game of games) {
+      if (game.result === 'complete') {
+        platinum.set(game.appid, game.at === null ? null : game.at * 1000);
+      } else if (game.result === 'hidden' || game.result === 'unavailable') {
+        unknown++;
+      }
+    }
+    o.onProgress?.(
+      Math.min(start + STEAM_ACHIEVEMENTS_BATCH, candidates.length),
+      candidates.length,
+    );
+  }
+  return { platinum, titles, unknown, software };
+}
+
 let shared: SteamImportFlow | null = null;
 
 /** Lo que pone la app al crearlo (parte 3): la agenda y los títulos del catálogo. */
-export type SteamFlowServices = Pick<SteamFlowDeps, 'agenda' | 'catalogTitles' | 'fallbackTitle'>;
+export type SteamFlowServices = Pick<
+  SteamFlowDeps,
+  'agenda' | 'catalogTitles' | 'fallbackTitle' | 'onLinked'
+>;
 
 /**
  * El de la app: uno, con `fetch`, `window` y `document` de verdad. `services` solo cuenta la
