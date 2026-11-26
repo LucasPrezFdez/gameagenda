@@ -3,6 +3,7 @@
 import {
   DEFAULT_MIN_AGE,
   DEVICE_COOKIE,
+  LOGIN_WINDOW_MS,
   PAIRING_TTL_MS,
   RESOLVE_TTL_MS,
   STEAM_TICKET_TTL_MS,
@@ -14,12 +15,15 @@ import { LEGAL_PATHS, parseRoute } from '../router/routes.ts';
 import { type Controller, controllerReady, NOTICE_PATH, PRIVACY_PATH } from './controller.ts';
 import { syncFirstLayer } from './first-layer.ts';
 import {
+  ACCOUNT_SECTION,
   type Inline,
   type LegalDocument,
+  LOGIN_THROTTLE_RETENTION_MINUTES,
   legalNotice,
   privacyPolicy,
   STEAM_ID_RETENTION_MINUTES,
   STEAM_IMPORT_SECTION,
+  STEAM_LINK_SECTION,
 } from './texts.ts';
 
 const READY: Controller = { name: 'Responsable de prueba', email: 'privacidad@example.org' };
@@ -121,6 +125,32 @@ describe('textos legales', () => {
     expect(STEAM_ID_RETENTION_MINUTES).toBe(STEAM_TICKET_TTL_MS / 60_000 + 5);
     expect(text).toContain(`caduca a los ${STEAM_TICKET_TTL_MS / 60_000} minutos`);
     expect(text).toContain(`${STEAM_ID_RETENTION_MINUTES} minutos como mucho`);
+  });
+
+  it('la política cuenta la cuenta con email y Steam vinculado (ADR-014)', () => {
+    const policy = privacyPolicy(READY);
+    expect(policy.sections.find((s) => s.id === ACCOUNT_SECTION)?.title).toBe(
+      'Cuenta con email y contraseña',
+    );
+    expect(policy.sections.find((s) => s.id === STEAM_LINK_SECTION)?.title).toBe('Steam vinculado');
+    const text = textOf(policy);
+    // La ventana del freno y los 5 min del Cron Trigger que borra las acabadas.
+    expect(LOGIN_THROTTLE_RETENTION_MINUTES).toBe(LOGIN_WINDOW_MS / 60_000 + 5);
+    for (const needed of [
+      'la cuenta es opcional',
+      'Tu contraseña nunca sale de tu dispositivo',
+      'Del email solo guardamos una huella',
+      'No te enviamos correos',
+      `${LOGIN_THROTTLE_RETENTION_MINUTES} minutos como mucho`,
+      'Huellas del email y de la contraseña de la cuenta',
+      'Número de tu cuenta de Steam vinculada',
+      'Hasta que la desvincules o borres la agenda',
+      'Una vez al día como mucho',
+    ]) {
+      expect(text, needed).toContain(needed);
+    }
+    expect(text).not.toContain('no tiene cuentas');
+    expect(text).not.toContain('No guardamos email');
   });
 
   it('la política cuenta «Importar desde Steam», con los logros y el pase (Fase 2; ADR-012)', () => {

@@ -813,3 +813,48 @@ Resueltos a partir de las mediciones y de los conflictos detectados entre seccio
     - **Legal:** los textos, en su versión 5 (21-11-2026): Valve recibe los números de las apps que no están en el catálogo cuando se le pregunta si son programas, sin el de la cuenta. El registro de actividades, también en la 5 (actividad 6).
     - **Comprobado:** `lint`, `typecheck` y 1 567 pruebas: 15 de la ruta (`steam-types.test.ts`: lo que es software, una llamada sin clave ni SteamID64, el pase, el cuerpo, el interruptor, los límites, el tope y los fallos de la tienda), las de core (el plan y `markImported`) y 2 del flujo contra la micro-API (`steam-client.test.ts`: solo se pregunta por lo que no está en el catálogo, sin logros para un programa, y con la tienda caída todo cuenta como juego). JS inicial de 145,9 KB. E2E: la importación (10 en Chromium y en WebKit, con una nueva: Wallpaper Engine, que estaba en Jugando, pasa a Software, con axe en el resumen), y Mi lista, la barra, la paleta, los atajos, los gestos y WCAG (51 en Chromium; 28 en WebKit). Capturas en claro y oscuro: la vista, la etapa «Otros», la ficha y las pestañas del móvil.
     - **En producción (con el cambio de las pestañas de §10.56):** desde el 21-11-2026, con el visto bueno del usuario («si»). `main` avanzó hasta la rama `multijugador` (`07259a2`). El `ci` de la rama (44906998671) y el de `main` (44907204030) fallaron solo en `boot.spec.ts:273`, la intermitente conocida (el Worker se saltó `scan`), que en local pasó 4 de 4; el de `main` pasó al repetir los trabajos fallidos, y `deploy-web` (44908027737) terminó en verde. `smoke:web` dio «Todo en orden», el JS servido lleva «Software» y «Otros», y `POST /api/v1/steam/types` con un pase inventado da 410 `steam_token_invalid`. Queda por decidir con el usuario si Quiero jugar debe verse entera en el móvil a 390 px.
+
+58. **Cuentas con email y contraseña, y Steam vinculado que se actualiza solo (26-11-2026; pedido por el usuario; ADR-014; cambia §2, RNF-10, §9.1, §10.1 y §11.2; deja sin efecto, para las cuentas, el «sin cuentas» de §3).** El usuario: «me gustaría implementar las cuentas personales, sistema de registro, logueo y que cada usuario pueda tener su cuenta vinculada a su steam para guardar ahí sus juegos».
+    - **Lo que eligió**, entre las opciones que le dio el asistente:
+      - para entrar, «Email y contraseña»;
+      - Steam vinculado, «Actualizar sola»;
+      - la cuenta, opcional;
+      - los correos, «0 €, sin correos de momento». Cloudflare Email Sending solo envía a cualquier dirección con Workers Paid y un dominio propio, y Resend también pide dominio.
+
+      Después: «dale hazlo todo tú».
+    - **Corrección a §10.52 (ADR-013).** Allí se desaconsejó la contraseña porque el *hash* lento no cabe en 10 ms de CPU. Pero cabe si se hace en el dispositivo: PBKDF2-HMAC-SHA256 con 600 000 vueltas, y en el Worker solo un HMAC con el secreto `ACCOUNT_PEPPER`.
+    - **La cuenta es la agenda sincronizada con un email y una contraseña.** D1 guarda:
+      - el HMAC del email, para buscar la cuenta, y nunca el email;
+      - un HMAC de `authKey` con su sal. La contraseña no viaja.
+
+      Rutas: `POST /api/v1/account`, `account/login`, `GET /api/v1/account` y `account/login-details` (y `…/remove`). Migración `0005_cuentas.sql`, solo aditiva, e interruptor `ACCOUNTS_ENABLED`.
+    - **Seguridad:**
+      - un email desconocido y una contraseña mala dan el mismo `invalid_login`, con el mismo cálculo;
+      - `RL_LOGIN`, por IP;
+      - el freno por email: 10 fallos en una hora bloquean una hora, también para emails que no existen;
+      - riesgos aceptados: sin correos, el email no se verifica, y al crear una cuenta se sabe si un email ya tiene una;
+      - «He olvidado mi contraseña»: entrar con una llave o con el código y cambiarla, porque con la cookie basta.
+    - **Steam vinculado:**
+      - con la sincronización activa, la casilla «Vincular a mi cuenta y actualizar sola cada día» va marcada en «Importar desde Steam»;
+      - el canje va a `steam/link`, con la cookie, y el SteamID64 queda en `steam_link`;
+      - cada día, tras una ronda buena de la sincronización, `steam/refresh` trae la biblioteca sin login (como mucho una vez cada 20 h por agenda; si no, 202 `too_soon`);
+      - la app aplica el mismo plan sin resumen, con «Deshacer» en el aviso, y pide los logros solo de lo jugado en 14 días;
+      - en Ajustes › Cuenta y sincronización › Steam: «Actualizar sola», «Actualizar ahora» y «Desvincular Steam».
+    - **Lo que el usuario quitó ya no vuelve con la importación** (lo dejado para más adelante en §10.55):
+      - `planSteamImport` se salta las lápidas (`counts.removed`);
+      - D1 ya no purga las lápidas de `steam:`: a los 90 días les quita el contenido y deja solo `deletedAt`.
+    - **Legal, versión 6:**
+      - dos secciones nuevas, «Cuenta con email y contraseña» y «Steam vinculado»;
+      - la entrada ya no dice «no tiene cuentas»;
+      - los plazos de las huellas, de los fallos y del SteamID64 vinculado, y lo que queda de los juegos de Steam quitados;
+      - el registro de actividades, en la versión 6, con las actividades 8 y 9;
+      - `legal-guard` no deja `ACCOUNTS_ENABLED` a "1" sin ellas.
+    - **Lo demás que se decidió al construirlo** está en el ADR-014, en «Construida»:
+      - la sección se llama «Cuenta y sincronización»;
+      - «Sincronizar sin email» va cerrado;
+      - «Cerrar sesión» no lleva la casilla de borrar los juegos;
+      - los textos van en el *chunk* de Ajustes.
+    - **Comprobado:**
+      - `lint`, `typecheck` y 1 643 pruebas;
+      - JS inicial de 146,8 KB (antes, 145,9);
+      - los E2E de la cuenta, de vincular Steam, de la sincronización, de la importación, de los datos, de las llaves y del buzón, en Chromium y WebKit.

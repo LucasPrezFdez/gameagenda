@@ -8,6 +8,10 @@ Cambios de GameAgenda por versión. Cada hito cierra una versión SemVer 0.x (§
 
 #### Para el usuario
 
+- **Cuentas con email y contraseña** (26-11-2026; ADR-014, DECISIONES §10.58): en Ajustes › Cuenta y sincronización, «Crear cuenta» e «Iniciar sesión», como en cualquier web, para tener tus juegos en el móvil y en el PC. Es opcional: la app funciona igual sin cuenta, y siguen valiendo los códigos y las llaves de acceso. Tu contraseña nunca sale de tu dispositivo, y del email solo guardamos una huella. No enviamos correos: si olvidas la contraseña, entras con una llave o con tu código de recuperación y la cambias. Con sesión, cambias la contraseña o el email, o los quitas; «Desemparejar este dispositivo» pasa a ser «Cerrar sesión».
+- **Steam vinculado, que se pone al día solo** (26-11-2026; ADR-014): al importar desde Steam con la sincronización activa, «Vincular a mi cuenta y actualizar sola cada día». Una vez al día, al abrir la app, entran solos los juegos nuevos y los platinados de tu biblioteca, con «Deshacer» en el aviso. En Ajustes › Cuenta y sincronización › Steam: «Actualizar sola» (en cada dispositivo), «Actualizar ahora» y «Desvincular Steam».
+- **Lo que quitas de tu lista ya no vuelve al importar desde Steam** (26-11-2026; ADR-014): el resumen dice cuántos se han quedado fuera. Para volver a tenerlo, apúntalo a mano.
+- **Política de privacidad, versión 6** (26-11-2026): cuenta la cuenta con email y contraseña (qué huellas se guardan y cuánto, y el freno de los intentos) y Steam vinculado (el número de tu cuenta de Steam, hasta desvincularla). El registro de actividades, también en la 6, con las actividades 8 y 9.
 - **Un estado nuevo, Software, y la importación de Steam lo rellena** (21-11-2026; en producción desde el 21-11-2026; DECISIONES §10.57): para lo que no es un juego, como Wallpaper Engine. Al importar desde Steam, lo que la tienda da como programa entra ahí, y lo que ya tenías en otro estado también pasa ahí (se ve en el resumen y se deshace con «Deshacer»). Tiene su vista, en la etapa «Otros» de la barra, su atajo (8) y su icono (una ventana de programa, en verde lima).
 - **Las pestañas de vista del móvil, con los estados primero** (21-11-2026; en producción desde el 21-11-2026; DECISIONES §10.56): Pendientes, después los estados y, al final, Próximos y Todos. Y la tira se desplaza sola hasta la vista que tengas abierta, aunque sea de las del final (en producción desde el 21-11-2026).
 - **Política de privacidad, versión 5** (21-11-2026; en producción desde el 21-11-2026): cuenta que, al importar desde Steam, preguntamos a la tienda de Steam qué apps son programas, solo con sus números. El registro de actividades, también en la 5.
@@ -38,6 +42,11 @@ Cambios de GameAgenda por versión. Cada hito cierra una versión SemVer 0.x (§
 
 #### Ingeniería
 
+- **Cuentas y Steam vinculado** (26-11-2026, en la rama `cuentas`; ADR-014, DECISIONES §10.58):
+  - micro-API: `/api/v1/account` (crear, entrar, ver, poner y quitar el email y la contraseña), con HMAC-SHA256 y el secreto `ACCOUNT_PEPPER`, `RL_LOGIN`, el freno por email (`login_throttle`), y `steam/link`, `refresh` (202 `unlinked` o `too_soon`) y `unlink`, con `steam_link`; migración `0005_cuentas.sql` e interruptor `ACCOUNTS_ENABLED`;
+  - app: PBKDF2 en el dispositivo (`sync/account-key.ts`), `meta.account`, `AccountPanel.tsx` y `SteamLinkSection.tsx`, la actualización diaria (`steam/auto-refresh.ts` y su disparador) y `gatherSteamData`, compartida con la importación;
+  - D1 deja las lápidas de `steam:` solo con `deletedAt`, en vez de purgarlas, y `planSteamImport` se las salta;
+  - `legal-guard` exige la política de la versión 6 para encender las cuentas, y el servidor de los E2E manda al mundo de la prueba lo de Steam que lleva la cookie del dispositivo.
 - **Importar desde Steam, parte 3: los logros, el resumen y aplicar** (20-11-2026, en producción y encendida; Fase 2; ADR-012, «Parte 3», y DECISIONES §10.50): ya se puede usar, en Ajustes › Datos.
   - en la micro-API, el pase de la importación (el SteamID64 cifrado, 15 min) en `redeem` y `POST /api/v1/steam/achievements` (`GetPlayerAchievements`, 40 juegos por petición y 8 a la vez, `RL_STEAM_ACH` y el tope diario);
   - en core, `planSteamImport` y `applySteamImport` (todos como Comprado; Platinado con el día del último logro; los nuevos según lo jugado, y los sin jugar en Sin empezar, nunca en Quiero jugar) y un alta compacta de 5 a 9 operaciones en vez de 15;

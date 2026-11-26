@@ -2,7 +2,7 @@
 
 Registro del art. 30 RGPD. Es obligatorio aunque el proyecto sea pequeño, porque la exención del art. 30.5 no cubre los tratamientos habituales (§11.2 de `prototipe.md`). Es un documento interno y no se publica. Lo que ven los usuarios está en la política de privacidad (`apps/web/src/legal/texts.ts`, en `/privacidad`).
 
-- **Versión:** 5, del 21-11-2026, con la versión 5 de los textos legales: la actividad 6 cuenta la pregunta a la tienda de Steam de qué apps son software (DECISIONES §10.57). La 4, del 20-11-2026, con la versión 4: añade la actividad 7, las llaves de acceso (ADR-013). La 3, del mismo día, con la versión 3: la actividad 6 cuenta los logros y el pase de la importación (Fase 2, parte 3). La 2, del 19-11-2026, añadió la actividad 6, «Importar desde Steam» (ADR-012). La 1, del 08-11-2026, iba con la versión 1 (M4, CA4.7).
+- **Versión:** 6, del 26-11-2026, con la versión 6 de los textos legales: añade la actividad 8, la cuenta con email y contraseña, y la 9, Steam vinculado (ADR-014); la actividad 1 ya no dice «no hay email ni contraseña», y la 5 cuenta el freno de las entradas con contraseña. La 5, del 21-11-2026, con la versión 5: la actividad 6 cuenta la pregunta a la tienda de Steam de qué apps son software (DECISIONES §10.57). La 4, del 20-11-2026, con la versión 4: añade la actividad 7, las llaves de acceso (ADR-013). La 3, del mismo día, con la versión 3: la actividad 6 cuenta los logros y el pase de la importación (Fase 2, parte 3). La 2, del 19-11-2026, añadió la actividad 6, «Importar desde Steam» (ADR-012). La 1, del 08-11-2026, iba con la versión 1 (M4, CA4.7).
 - **Cómo se hizo:** a partir de la estructura de Facilita RGPD de la AEPD, para tratamientos de bajo riesgo.
 - **Revisión:** cada vez que cambie qué datos se tratan, para qué, con quién o durante cuánto tiempo. Hay que cambiar a la vez este registro, la política y su `LEGAL_VERSION`.
 
@@ -21,10 +21,10 @@ Registro del art. 30 RGPD. Es obligatorio aunque el proyecto sea pequeño, porqu
 | Finalidad | Tener la misma agenda de videojuegos en los dispositivos del usuario y una copia fuera de ellos |
 | Base jurídica | Art. 6.1.b RGPD: es el servicio que pide el usuario al activarla, con un gesto explícito |
 | Interesados | Usuarios que activan la sincronización y declaran tener 14 años o más (art. 7 LOPDGDD) |
-| Datos | La agenda: juegos, estados, marcas, fechas, notas, orden y lápidas. El nombre que el usuario da a cada dispositivo y cuándo sincronizó por última vez. Los SHA-256 de las credenciales, del código de recuperación y de los códigos de emparejamiento. No hay email, nombre, contraseña ni IP. Las notas son texto libre, y el usuario podría escribir en ellas datos de terceros: es su responsabilidad |
+| Datos | La agenda: juegos, estados, marcas, fechas, notas, orden y lápidas. El nombre que el usuario da a cada dispositivo y cuándo sincronizó por última vez. Los SHA-256 de las credenciales, del código de recuperación y de los códigos de emparejamiento. No hay nombre ni IP; el email y la contraseña, si los hay, solo como huellas (actividad 8). Las notas son texto libre, y el usuario podría escribir en ellas datos de terceros: es su responsabilidad |
 | Destinatarios | Cloudflare, Inc., encargado del tratamiento: Workers y D1, con su DPA (<https://www.cloudflare.com/cloudflare-customer-dpa/>). No hay cesiones |
 | Transferencias internacionales | D1 está en la jurisdicción UE. La micro-API se ejecuta en el centro de datos de Cloudflare más cercano al usuario, que puede estar fuera de la UE. Garantías: Cloudflare está adherido al Marco de Privacidad de Datos UE-EE. UU., y su DPA incluye las cláusulas contractuales tipo (Decisión 2021/914) para cuando el marco deje de valer |
-| Plazos | Mientras el usuario mantenga la agenda. Con «Borrar todos mis datos», se borra en cascada. A los 13 meses sin sincronizar, se borra sola. Las lápidas y los esqueletos duran 90 días tras borrarlos. Los códigos de emparejamiento, 10 minutos o hasta usarlos. Time Travel de D1 conserva lo borrado 7 días |
+| Plazos | Mientras el usuario mantenga la agenda. Con «Borrar todos mis datos», se borra en cascada. A los 13 meses sin sincronizar, se borra sola. Las lápidas y los esqueletos duran 90 días tras borrarlos; de las lápidas de los juegos de Steam, después solo queda el id y la fecha del borrado (ADR-014), hasta borrar la agenda. Los códigos de emparejamiento, 10 minutos o hasta usarlos. Time Travel de D1 conserva lo borrado 7 días |
 | Medidas de seguridad | HTTPS y HSTS. Cookie `__Host-` `HttpOnly` `Secure` `SameSite=Lax`, y en D1 solo SHA-256 de secretos de ≥128 bits. Zod estricto, tope de tamaño en cada ruta y `Origin` propio en todo lo que no es GET. Límites por IP (con el SHA-256 de la IP) y por *token*. Sin registros de cuerpos ni de *tokens*. Interruptor `SYNC_ENABLED`. ADR-011 y §11.4 |
 
 ## Actividad 2 · Buzón del Atajo de iOS (M4)
@@ -68,8 +68,8 @@ Registro del art. 30 RGPD. Es obligatorio aunque el proyecto sea pequeño, porqu
 |---|---|
 | Finalidad | Evitar abusos y agotar la cuota gratuita (100 000 peticiones al día), y no pasar del límite de la Steam Web API (100 000 llamadas al día) |
 | Base jurídica | Art. 6.1.f RGPD, interés legítimo en la seguridad del servicio (considerando 49) |
-| Datos | El SHA-256 de la IP, o del *token* en el buzón, en los contadores aproximados de Cloudflare (`ratelimits`). Las llamadas a Steam de cada día (`steam_quota` en D1): el día y un número, sin datos de nadie |
-| Plazos | Lo que dure la ventana del contador: 60 s. El contador de llamadas a Steam, 7 días |
+| Datos | El SHA-256 de la IP, o del *token* en el buzón, en los contadores aproximados de Cloudflare (`ratelimits`). Las llamadas a Steam de cada día (`steam_quota` en D1): el día y un número, sin datos de nadie. Los fallos al entrar con contraseña de cada email (`login_throttle`, ADR-014): la huella del email (el mismo HMAC de la actividad 8, también si no tiene cuenta), cuántos y desde cuándo |
+| Plazos | Lo que dure la ventana del contador: 60 s. El contador de llamadas a Steam, 7 días. Los fallos al entrar con contraseña, la hora de su ventana y, como mucho, 5 min más (el Cron Trigger que la borra) |
 
 ## Actividad 6 · Importar desde Steam (Fase 2)
 
@@ -97,6 +97,32 @@ Registro del art. 30 RGPD. Es obligatorio aunque el proyecto sea pequeño, porqu
 | Plazos | La llave, hasta que el usuario la quita o borra la agenda (en cascada, y a los 13 meses sin sincronizar). Los retos son de un solo uso y valen 5 min; un Cron Trigger cada 5 min borra los caducados, así que duran 10 min como mucho. Time Travel de D1 conserva lo borrado 7 días |
 | Medidas de seguridad | Verificación de cada firma con la clave guardada (Ed25519, ES256 o RS256), del origen, del `rp.id`, del reto y de la verificación del usuario (UV). Retos de 256 bits, de un solo uso, con solo su SHA-256 en D1. Al entrar, cualquier fallo responde lo mismo. Límite por IP (`RL_REDEEM`), como mucho 10 llaves por agenda e interruptor `PASSKEYS_ENABLED`. ADR-013 |
 
+## Actividad 8 · Cuenta con email y contraseña (ADR-014)
+
+| Campo | Contenido |
+|---|---|
+| Finalidad | Que el usuario entre en su agenda sincronizada desde otro dispositivo con un email y una contraseña, como en cualquier web |
+| Base jurídica | Art. 6.1.b RGPD: lo pide el usuario al crear la cuenta o al añadir el email y la contraseña, con un gesto explícito |
+| Interesados | Usuarios de la sincronización (actividad 1) que crean una cuenta con email, con la misma declaración de edad |
+| Datos | El HMAC-SHA256 del email normalizado, con el secreto `ACCOUNT_PEPPER` del Worker: sirve para buscar la cuenta y para que un email no tenga dos, no para leerlo. Una sal aleatoria de 16 bytes y el HMAC de `authKey`, la clave que sale de la contraseña con PBKDF2-HMAC-SHA256 (600 000 vueltas) en el dispositivo: la contraseña nunca sale de él. El nombre del algoritmo y las fechas. El dispositivo guarda en local el email con el que se entró, para enseñarlo |
+| Destinatarios | Cloudflare, Inc., como encargado (ver la actividad 1). No se envían correos: no hay más destinatarios |
+| Transferencias | Como en la actividad 1 |
+| Plazos | Hasta que el usuario los cambia o los quita, o borra la agenda (en cascada, y a los 13 meses sin sincronizar). Time Travel de D1 conserva lo borrado 7 días |
+| Medidas de seguridad | La contraseña no viaja. Quien tenga D1 sin el secreto no puede probar contraseñas ni leer emails; con el secreto, cada contraseña que pruebe le cuesta 600 000 vueltas de PBKDF2. Comparación en tiempo constante, y la misma respuesta para un email desconocido y una contraseña mala (también el mismo cálculo). Límite por IP (`RL_LOGIN`) y freno por email (actividad 5). Interruptor `ACCOUNTS_ENABLED`. Riesgo aceptado: sin correos, el email no se verifica, y al crear una cuenta se sabe si un email ya tiene una. ADR-014 |
+
+## Actividad 9 · Steam vinculado (ADR-014)
+
+| Campo | Contenido |
+|---|---|
+| Finalidad | Que la lista del usuario se ponga al día sola con su biblioteca de Steam, sin volver a iniciar sesión en Steam |
+| Base jurídica | Art. 6.1.b RGPD: lo pide el usuario al marcar «Vincular a mi cuenta y actualizar sola cada día» al importar |
+| Interesados | Usuarios de la sincronización (actividad 1) que vinculan su cuenta de Steam |
+| Datos | El SteamID64 de la cuenta vinculada, cuándo se vinculó y cuándo se trajo la biblioteca por última vez. La biblioteca y los logros pasan por el servidor como en la actividad 6, sin guardarse. En el dispositivo, si «Actualizar sola» está encendido y cuándo se miró por última vez |
+| Destinatarios | Cloudflare, Inc., como encargado. Valve Corporation recibe el SteamID64 cuando el servidor le pide la biblioteca y los logros, como en la actividad 6 |
+| Transferencias | Como en la actividad 6 |
+| Plazos | Hasta que el usuario la desvincula o borra la agenda (en cascada, y a los 13 meses sin sincronizar). Time Travel de D1 conserva lo borrado 7 días |
+| Medidas de seguridad | Solo con la cookie de un dispositivo de la agenda. Como mucho una actualización cada 20 h por agenda, y los logros solo de lo jugado en los últimos 14 días; cuentan en el tope diario de llamadas a Steam. Interruptores `ACCOUNTS_ENABLED` y `STEAM_ENABLED`. ADR-014 |
+
 ## Lo que no se trata
 
 - No hay analítica, publicidad ni cookies de terceros, así que no hace falta un banner (art. 22.2 LSSI).
@@ -109,6 +135,7 @@ Registro del art. 30 RGPD. Es obligatorio aunque el proyecto sea pequeño, porqu
 - Rectificación: editar en la app.
 - Supresión: «Borrar todos mis datos», que también borra la agenda del servidor si está emparejado.
 - Oposición a las portadas: «Cargar portadas».
-- Importar desde Steam: no deja nada en el servidor pasados 15 min, y en el dispositivo se borra con lo demás.
+- Importar desde Steam: no deja nada en el servidor pasados 15 min, y en el dispositivo se borra con lo demás. Con Steam vinculado, el SteamID64 se queda hasta desvincularlo.
+- Cuenta con email: el email y la contraseña se cambian o se quitan en Ajustes › Cuenta y sincronización.
 - Por correo: plazo de un mes (art. 12.3).
-- Sin identificadores, el responsable no puede encontrar una agenda a partir de un correo (art. 11 RGPD). Por eso se ayuda al usuario a hacerlo desde un dispositivo emparejado, y nunca se pide el código de recuperación.
+- Sin identificadores, el responsable no puede encontrar una agenda a partir de un correo (art. 11 RGPD): del email solo hay una huella, y comprobarla exigiría la contraseña. Por eso se ayuda al usuario a hacerlo desde un dispositivo con la sesión iniciada, y nunca se piden la contraseña ni el código de recuperación.

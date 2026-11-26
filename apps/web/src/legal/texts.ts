@@ -8,6 +8,7 @@
 // y la fecha, y cuéntalo en el CHANGELOG.
 import {
   DEFAULT_MIN_AGE,
+  LOGIN_WINDOW_MS,
   PASSKEY_CHALLENGE_TTL_MS,
   STEAM_IMPORT_TOKEN_TTL_MS,
   STEAM_TICKET_TTL_MS,
@@ -25,13 +26,14 @@ import {
 
 export type { Inline } from './controller.ts';
 
-export const LEGAL_VERSION = '5';
+export const LEGAL_VERSION = '6';
 /**
  * Día de esta versión de los textos (dd-mm-aaaa). La 2 añade «Importar desde Steam» (ADR-012); la
  * 3, los logros y el pase de la importación (parte 3); la 4, las llaves de acceso (ADR-013); la 5,
- * la pregunta a la tienda de Steam de qué es software al importar (DECISIONES §10.57).
+ * la pregunta a la tienda de Steam de qué es software al importar (DECISIONES §10.57); la 6, la
+ * cuenta con email y contraseña y Steam vinculado (ADR-014).
  */
-export const LEGAL_UPDATED = '21-11-2026';
+export const LEGAL_UPDATED = '26-11-2026';
 
 /**
  * Lo más que guarda D1 el SteamID64 de un login con Steam: los 10 min del ticket
@@ -50,6 +52,18 @@ export const PASSKEYS_SECTION = 'llaves-de-acceso';
  * que borra los caducados (ADR-013).
  */
 export const PASSKEY_CHALLENGE_RETENTION_MINUTES = PASSKEY_CHALLENGE_TTL_MS / 60_000 + 5;
+
+/** Id de la sección de la política sobre la cuenta con email y contraseña (ADR-014; `legal-guard`). */
+export const ACCOUNT_SECTION = 'cuenta';
+
+/** Id de la sección de la política sobre Steam vinculado (ADR-014; la exige `legal-guard`). */
+export const STEAM_LINK_SECTION = 'steam-vinculado';
+
+/**
+ * Lo más que guarda D1 los fallos al entrar con contraseña de un email (su HMAC): la ventana del
+ * freno (`LOGIN_WINDOW_MS`) y los 5 min del Cron Trigger que borra las acabadas (ADR-014).
+ */
+export const LOGIN_THROTTLE_RETENTION_MINUTES = LOGIN_WINDOW_MS / 60_000 + 5;
 
 export type Block =
   | { readonly kind: 'p'; readonly parts: readonly Inline[] }
@@ -92,7 +106,7 @@ export function privacyPolicy(c: Controller = CONTROLLER): LegalDocument {
   return {
     title: 'Política de privacidad',
     intro: [
-      `Versión ${LEGAL_VERSION}, del ${LEGAL_UPDATED}. GameAgenda es una agenda de videojuegos que funciona en tu dispositivo: no tiene cuentas, no pide email ni contraseña, no lleva publicidad ni analítica y no vende ni cede datos. Aquí explicamos qué datos salen de tu dispositivo, cuándo, para qué y qué puedes hacer con ellos.`,
+      `Versión ${LEGAL_VERSION}, del ${LEGAL_UPDATED}. GameAgenda es una agenda de videojuegos que funciona en tu dispositivo: la cuenta es opcional, no lleva publicidad ni analítica y no vende ni cede datos. Si creas una cuenta con email y contraseña, no guardamos ni el email ni la contraseña, solo una huella de cada uno. Aquí explicamos qué datos salen de tu dispositivo, cuándo, para qué y qué puedes hacer con ellos.`,
     ],
     sections: [
       {
@@ -105,6 +119,8 @@ export function privacyPolicy(c: Controller = CONTROLLER): LegalDocument {
             'Si activas la sincronización, guardamos tu agenda en servidores de Cloudflare en la Unión Europea, para que la tengas en tus dispositivos. No sabemos quién eres: no hay nombre, email ni IP guardados.',
             `Si importas tu biblioteca de Steam, inicias sesión en Steam, no aquí. Tus juegos, tu lista de deseados y si tienes todos los logros de cada juego pasan por nuestro servidor hasta tu dispositivo sin quedarse en él, y en el servidor solo queda el número de tu cuenta de Steam, ${STEAM_ID_RETENTION_MINUTES} minutos como mucho.`,
             'Si creas una llave de acceso para entrar en tu agenda desde otro dispositivo, solo guardamos su parte pública: tu cara, tu huella o tu PIN nunca salen de tu dispositivo.',
+            'Si creas una cuenta con email y contraseña, tu contraseña nunca sale de tu dispositivo, y del email solo guardamos una huella que sirve para encontrar tu cuenta pero no para leerlo. No te enviamos correos.',
+            'Si vinculas tu cuenta de Steam, guardamos su número con tu agenda sincronizada para traer cada día lo nuevo de tu biblioteca, hasta que la desvincules.',
             'Puedes exportar tus datos, corregirlos y borrarlos desde la app, también los del servidor.',
           ),
         ],
@@ -139,7 +155,7 @@ export function privacyPolicy(c: Controller = CONTROLLER): LegalDocument {
             '4. Nombres de juegos que aún no están en el catálogo, solo con la sincronización activada. Si apuntas un juego con un enlace de Steam y el catálogo de tu dispositivo no lo tiene, la app pregunta su nombre a nuestro servidor, que se lo pregunta a Steam. Sin sincronizar, no se pregunta: el juego espera a que llegue al catálogo. Solo viaja el número del juego, sin cookies ni nada que te identifique, y Steam no recibe tu IP. Guardamos el nombre en una caché de nombres públicos, sin saber quién lo pidió. Base: darte el servicio que pides al apuntar el juego (art. 6.1.b del RGPD).',
           ),
           p(
-            '5. Sincronización, si la activas. Guardamos tu agenda (juegos, estados, marcas, fechas, notas y orden, también lo que borras durante un tiempo, para que se borre en todos tus dispositivos), el nombre que le das a cada dispositivo y cuándo sincronizó por última vez, además de un resumen (hash) de cada credencial. Para qué: tener la misma agenda en tus dispositivos y una copia fuera de ellos. Base: el servicio que pides al activarla (art. 6.1.b del RGPD). No guardamos email, nombre, contraseña ni dirección IP. Si creas una llave de acceso, guardamos también su parte pública, su identificador, el nombre del dispositivo donde la creaste y sus fechas: lo explicamos más abajo, en «Llaves de acceso».',
+            '5. Sincronización, si la activas. Guardamos tu agenda (juegos, estados, marcas, fechas, notas y orden, también lo que borras durante un tiempo, para que se borre en todos tus dispositivos, y de los juegos de Steam que quitas, cuál y cuándo, para que la importación no los vuelva a añadir), el nombre que le das a cada dispositivo y cuándo sincronizó por última vez, además de un resumen (hash) de cada credencial. Para qué: tener la misma agenda en tus dispositivos y una copia fuera de ellos. Base: el servicio que pides al activarla (art. 6.1.b del RGPD). No guardamos tu nombre ni tu dirección IP. Si creas una cuenta con email y contraseña, guardamos una huella de cada uno (lo explicamos más abajo, en «Cuenta con email y contraseña»). Si creas una llave de acceso, guardamos también su parte pública, su identificador, el nombre del dispositivo donde la creaste y sus fechas: lo explicamos más abajo, en «Llaves de acceso».',
           ),
           p(
             '6. Atajo de iOS, si lo creas. Guardamos los enlaces de Steam que mandas con el atajo hasta que una app tuya los apunta, y entonces los borramos. Base: el servicio que pides (art. 6.1.b del RGPD).',
@@ -148,7 +164,13 @@ export function privacyPolicy(c: Controller = CONTROLLER): LegalDocument {
             '7. Importar desde Steam, si lo usas: tu biblioteca y tu lista de deseados de Steam, si tienes todos los logros de los juegos que has jugado, y el número de tu cuenta de Steam mientras importas. Lo explicamos más abajo, en «Importar desde Steam». Base: el servicio que pides al importar (art. 6.1.b del RGPD).',
           ),
           p(
-            '8. Seguridad. Para que nadie abuse del servicio, contamos las peticiones de cada dirección IP durante unos segundos o minutos. Al contador le llega un resumen (hash) de la IP, nunca la IP, y no se guarda. También contamos cuántas consultas hacemos a Steam cada día, sin saber de quién son, para no pasar del límite que pone Valve. Base: nuestro interés legítimo en proteger el servicio (art. 6.1.f del RGPD).',
+            '8. Cuenta con email y contraseña, si la creas: una huella del email y otra de lo que sale de tu contraseña, para que puedas entrar en tu agenda desde otro dispositivo. Lo explicamos más abajo, en «Cuenta con email y contraseña». Base: el servicio que pides al crear la cuenta (art. 6.1.b del RGPD).',
+          ),
+          p(
+            '9. Steam vinculado, si lo eliges al importar: el número de tu cuenta de Steam, con tu agenda sincronizada, para traer cada día lo nuevo de tu biblioteca sin volver a iniciar sesión. Lo explicamos más abajo, en «Steam vinculado». Base: el servicio que pides al vincularla (art. 6.1.b del RGPD).',
+          ),
+          p(
+            '10. Seguridad. Para que nadie abuse del servicio, contamos las peticiones de cada dirección IP durante unos segundos o minutos. Al contador le llega un resumen (hash) de la IP, nunca la IP, y no se guarda. También contamos cuántas consultas hacemos a Steam cada día, sin saber de quién son, para no pasar del límite que pone Valve. Y, si alguien prueba contraseñas, contamos los fallos de cada email durante una hora (con la misma huella del email, también si no tiene cuenta) para frenarlo. Base: nuestro interés legítimo en proteger el servicio (art. 6.1.f del RGPD).',
           ),
           p('No tomamos decisiones automatizadas sobre ti ni hacemos perfiles.'),
         ],
@@ -173,7 +195,7 @@ export function privacyPolicy(c: Controller = CONTROLLER): LegalDocument {
               [
                 'Cookie __Host-ga_device (solo con la sincronización)',
                 'Identifica este dispositivo ante el servidor. No la puede leer ningún script',
-                '400 días desde la última sincronización, o hasta desemparejar o borrar la agenda',
+                '400 días desde la última sincronización, o hasta cerrar la sesión o borrar la agenda',
               ],
               [
                 'Cookie __Host-ga_sync (solo con la sincronización)',
@@ -183,7 +205,7 @@ export function privacyPolicy(c: Controller = CONTROLLER): LegalDocument {
             ],
           },
           p(
-            'Las dos cookies solo se crean cuando tú activas la sincronización, emparejas este dispositivo o usas tu código de recuperación, y en ese momento se avisa.',
+            'Las dos cookies solo se crean cuando tú creas la cuenta, inicias sesión, activas la sincronización, emparejas este dispositivo o usas tu código de recuperación o una llave de acceso, y en ese momento se avisa.',
           ),
         ],
       },
@@ -199,9 +221,41 @@ export function privacyPolicy(c: Controller = CONTROLLER): LegalDocument {
             'Guardamos la parte pública de la llave, que sirve para comprobar que una firma es suya pero no para firmar; su identificador; el nombre del dispositivo donde la creaste, y cuándo se creó y cuándo se usó por última vez.',
             `Cada vez que creas una llave o entras con ella, guardamos un reto de un solo uso (solo su resumen, hash), ${PASSKEY_CHALLENGE_RETENTION_MINUTES} minutos como mucho.`,
             'Tu llavero guarda la llave según las condiciones de quien lo ofrece (Apple, Google, Microsoft u otro). Nosotros no recibimos nada de él aparte de lo dicho aquí.',
-            'Puedes quitar una llave en Ajustes › Sincronización, y se borran todas al borrar la agenda sincronizada. La app pide también a tu llavero que la olvide, si sabe hacerlo; si no, bórrala tú allí.',
+            'Puedes quitar una llave en Ajustes › Cuenta y sincronización, y se borran todas al borrar la agenda sincronizada. La app pide también a tu llavero que la olvide, si sabe hacerlo; si no, bórrala tú allí.',
           ),
           p('Base: el servicio que pides al crear la llave (art. 6.1.b del RGPD).'),
+        ],
+      },
+      {
+        id: ACCOUNT_SECTION,
+        title: 'Cuenta con email y contraseña',
+        blocks: [
+          p(
+            'Con la sincronización, puedes ponerle a tu agenda un email y una contraseña, para entrar en ella desde otro dispositivo como en cualquier web. Es opcional: también puedes entrar con un código o una llave de acceso.',
+          ),
+          list(
+            'Tu contraseña nunca sale de tu dispositivo. Con ella, tu dispositivo calcula una clave (con PBKDF2, 600 000 vueltas) y solo esa clave viaja. El servidor guarda una huella de esa clave, hecha con una clave secreta suya: sirve para comprobar que la contraseña es la buena, pero no para saber cuál es.',
+            'Del email solo guardamos una huella, hecha con esa misma clave secreta: sirve para encontrar tu cuenta y para que un email no tenga dos, pero no para leerlo. Tu dispositivo recuerda el email con el que entraste, para enseñártelo.',
+            'No te enviamos correos, así que no comprobamos que el email sea tuyo, y si olvidas la contraseña se recupera entrando con una llave de acceso o con tu código de recuperación.',
+            `Si alguien prueba contraseñas con un email, contamos los fallos (con la huella del email) para frenarlo, ${LOGIN_THROTTLE_RETENTION_MINUTES} minutos como mucho.`,
+            'Puedes cambiar el email y la contraseña, o quitarlos, en Ajustes › Cuenta y sincronización, y se borran con la agenda sincronizada.',
+          ),
+          p('Base: el servicio que pides al crear la cuenta (art. 6.1.b del RGPD).'),
+        ],
+      },
+      {
+        id: STEAM_LINK_SECTION,
+        title: 'Steam vinculado',
+        blocks: [
+          p(
+            'Al importar desde Steam con la sincronización activada, puedes vincular tu cuenta de Steam a tu agenda para que tu lista se ponga al día sola. Solo pasa si marcas esa casilla.',
+          ),
+          list(
+            'Guardamos el número de tu cuenta de Steam (SteamID64) con tu agenda sincronizada, cuándo la vinculaste y cuándo se trajo tu biblioteca por última vez. No guardamos tu nombre, tu avatar ni tu biblioteca.',
+            'Una vez al día como mucho, al abrir la app en un dispositivo sincronizado con «Actualizar sola» encendido, nuestro servidor le pide a Steam tu biblioteca y los logros de lo que has jugado hace poco, y se los pasa a tu dispositivo sin guardarlos, como al importar. Tu dispositivo añade lo nuevo y te avisa, con «Deshacer».',
+            'Puedes apagar «Actualizar sola» en cada dispositivo, o desvincular tu cuenta de Steam en Ajustes › Cuenta y sincronización. Al desvincularla, o al borrar la agenda sincronizada, el número de tu cuenta se borra.',
+          ),
+          p('Base: el servicio que pides al vincularla (art. 6.1.b del RGPD).'),
         ],
       },
       {
@@ -216,7 +270,7 @@ export function privacyPolicy(c: Controller = CONTROLLER): LegalDocument {
             'Steam le dice a nuestro servidor el número de tu cuenta (SteamID64), y con él le pedimos tu biblioteca (qué juegos tienes, las horas jugadas y cuándo jugaste por última vez) y tu lista de deseados. No pedimos tu nombre, tu avatar ni tu ubicación.',
             `Para saber cuáles tienes platinados, le preguntamos a Steam, juego a juego, por los logros de los que has jugado. A tu dispositivo solo le decimos si los tienes todos y el día del último, no cuáles son. Para esas preguntas, al traer tu biblioteca el servidor le da a tu dispositivo un pase cifrado con el número de tu cuenta, que caduca a los ${STEAM_IMPORT_TOKEN_TTL_MS / 60_000} minutos y solo se guarda en la memoria de la app: el servidor no lo guarda. Y para saber cuáles son programas y no juegos (como Wallpaper Engine), le preguntamos a la tienda de Steam qué es cada uno de los que no están en nuestro catálogo, solo con su número, sin el de tu cuenta.`,
             'Tu biblioteca, tu lista de deseados y lo de los logros pasan por nuestro servidor hasta tu dispositivo, sin que el servidor los guarde ni los anote en ningún registro. En tu dispositivo, lo que decidas aplicar pasa a ser parte de tu lista, como cualquier juego que apuntes, y se puede deshacer.',
-            `Mientras inicias sesión, el servidor guarda el número de tu cuenta junto a un código de un solo uso que solo tu dispositivo puede canjear. El código caduca a los ${STEAM_TICKET_TTL_MS / 60_000} minutos, y en ${STEAM_ID_RETENTION_MINUTES} minutos como mucho ya no queda nada.`,
+            `Mientras inicias sesión, el servidor guarda el número de tu cuenta junto a un código de un solo uso que solo tu dispositivo puede canjear. El código caduca a los ${STEAM_TICKET_TTL_MS / 60_000} minutos, y en ${STEAM_ID_RETENTION_MINUTES} minutos como mucho ya no queda nada, salvo que vincules tu cuenta de Steam (ver «Steam vinculado»).`,
             'Si tu perfil de Steam no deja ver los detalles de juegos, Steam no nos da la biblioteca, y la app te dice cómo cambiarlo. Los juegos que hayas marcado como privados en Steam no aparecen.',
           ),
           p(
@@ -231,7 +285,7 @@ export function privacyPolicy(c: Controller = CONTROLLER): LegalDocument {
         title: 'Edad',
         blocks: [
           p(
-            `Para activar la sincronización tienes que declarar que tienes ${DEFAULT_MIN_AGE} años o más (art. 7 de la LOPDGDD). Si tienes menos, no la actives: la app funciona igual sin ella. Si la ley cambia la edad, te pediremos la declaración nueva.`,
+            `Para crear una cuenta o activar la sincronización tienes que declarar que tienes ${DEFAULT_MIN_AGE} años o más (art. 7 de la LOPDGDD). Si tienes menos, no la actives: la app funciona igual sin ella. Si la ley cambia la edad, te pediremos la declaración nueva.`,
           ),
         ],
       },
@@ -248,7 +302,7 @@ export function privacyPolicy(c: Controller = CONTROLLER): LegalDocument {
               '.',
             ],
             [
-              'Valve Corporation (EE. UU.) recibe tu IP cuando tu navegador pide las portadas, el número de un juego cuando nuestro servidor le pregunta su nombre o si es un programa y, si importas desde Steam, el número de tu cuenta cuando nuestro servidor le pide tu biblioteca y tus logros. Valve decide por su cuenta qué hace con ello: su ',
+              'Valve Corporation (EE. UU.) recibe tu IP cuando tu navegador pide las portadas, el número de un juego cuando nuestro servidor le pregunta su nombre o si es un programa y, si importas desde Steam o la vinculas, el número de tu cuenta cuando nuestro servidor le pide tu biblioteca y tus logros. Valve decide por su cuenta qué hace con ello: su ',
               link('política de privacidad', VALVE_PRIVACY),
               '.',
             ],
@@ -290,7 +344,7 @@ export function privacyPolicy(c: Controller = CONTROLLER): LegalDocument {
               [
                 'Lo que borras de la agenda sincronizada',
                 'Cloudflare D1, en la UE',
-                'Unos 90 días, para que se borre también en tus otros dispositivos',
+                'Unos 90 días, para que se borre también en tus otros dispositivos. De los juegos de Steam, después solo queda cuál quitaste y cuándo, para que la importación no lo vuelva a añadir, hasta que borres la agenda',
               ],
               [
                 'Copias de seguridad de la base de datos',
@@ -311,6 +365,21 @@ export function privacyPolicy(c: Controller = CONTROLLER): LegalDocument {
                 'Llaves de acceso: su parte pública, su identificador, el nombre del dispositivo donde se creó y sus fechas',
                 'Cloudflare D1, en la UE',
                 'Hasta que la quites o borres la agenda',
+              ],
+              [
+                'Huellas del email y de la contraseña de la cuenta',
+                'Cloudflare D1, en la UE',
+                'Hasta que las cambies o las quites, o borres la agenda',
+              ],
+              [
+                'Fallos al entrar con contraseña (con la huella del email)',
+                'Cloudflare D1, en la UE',
+                `${LOGIN_THROTTLE_RETENTION_MINUTES} minutos como mucho`,
+              ],
+              [
+                'Número de tu cuenta de Steam vinculada, y cuándo se vinculó y se actualizó',
+                'Cloudflare D1, en la UE',
+                'Hasta que la desvincules o borres la agenda',
               ],
               [
                 'Retos de las llaves de acceso (solo su resumen, hash)',
@@ -372,15 +441,15 @@ export function privacyPolicy(c: Controller = CONTROLLER): LegalDocument {
               '.',
             ],
             [
-              'Dejar de sincronizar un dispositivo o el Atajo de iOS: desemparéjalos en ',
-              link('Ajustes › Sincronización', '/ajustes/sincronizacion'),
+              'Dejar de sincronizar un dispositivo o el Atajo de iOS, quitar el email y la contraseña de tu cuenta o desvincular tu cuenta de Steam: en ',
+              link('Ajustes › Cuenta y sincronización', '/ajustes/sincronizacion'),
               '.',
             ],
           ),
           p(
-            'Como no sabemos quién eres, la forma de ejercerlos sobre la agenda sincronizada es desde un dispositivo emparejado. Si nos escribes a ',
+            'Como no sabemos quién eres (ni siquiera tu email: solo su huella), la forma de ejercerlos sobre la agenda sincronizada es desde un dispositivo con la sesión iniciada. Si nos escribes a ',
             email,
-            ', te ayudaremos y contestaremos en un mes como mucho (art. 12.3 del RGPD). Nunca te pediremos tu código de recuperación: no se lo des a nadie.',
+            ', te ayudaremos y contestaremos en un mes como mucho (art. 12.3 del RGPD). Nunca te pediremos tu contraseña ni tu código de recuperación: no se los des a nadie.',
           ),
           p(
             'Si crees que no tratamos bien tus datos, puedes reclamar ante la Agencia Española de Protección de Datos (',
@@ -394,7 +463,7 @@ export function privacyPolicy(c: Controller = CONTROLLER): LegalDocument {
         title: 'Seguridad',
         blocks: [
           p(
-            'Todo viaja cifrado (HTTPS). El servidor solo guarda resúmenes (hash) de las credenciales y de los códigos, nunca los originales. La credencial de cada dispositivo va en una cookie que ningún script puede leer. Los códigos de emparejamiento sirven una sola vez y caducan a los 10 minutos. El inicio de sesión con Steam lo comprueba Steam, y solo lo puede canjear el dispositivo que lo empezó. La clave con la que pedimos datos a Steam nunca sale del servidor.',
+            'Todo viaja cifrado (HTTPS). El servidor solo guarda resúmenes (hash) de las credenciales y de los códigos, nunca los originales. La credencial de cada dispositivo va en una cookie que ningún script puede leer. Los códigos de emparejamiento sirven una sola vez y caducan a los 10 minutos. El inicio de sesión con Steam lo comprueba Steam, y solo lo puede canjear el dispositivo que lo empezó. La clave con la que pedimos datos a Steam nunca sale del servidor. Tu contraseña no sale de tu dispositivo, y lo que guardamos de ella y de tu email son huellas hechas con una clave secreta del servidor; contamos los fallos al entrar para frenar a quien pruebe contraseñas.',
           ),
         ],
       },

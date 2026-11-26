@@ -1,6 +1,6 @@
 # ADR-014 · Cuentas: email y contraseña sobre la agenda sincronizada, y Steam vinculado que se actualiza solo
 
-- **Estado:** propuesta.
+- **Estado:** propuesta. Construida el 26-11-2026 (abajo, «Construida»).
 - **Fecha:** 26-11-2026 (Fase 2, a petición del usuario)
 - **Deciden:** el usuario y el asistente
 
@@ -328,6 +328,44 @@ Al acabar cada parte, el usuario la ve y decide si se sigue:
   - iniciar sesión en el iPhone;
   - que el gestor de contraseñas la guarde;
   - vincular su Steam.
+
+## Construida (26-11-2026)
+
+El usuario dio el visto bueno a la propuesta y pidió hacerlo todo de una vez («dale hazlo todo tú»). Se hizo en la rama `cuentas`, en tres partes y una de cierre: `611f873` (la micro-API), `f407dbc` (la pantalla de la cuenta) y `8b836f0` (Steam vinculado), y después los textos legales y la documentación. El detalle está en DECISIONES §10.58. Lo que cambió respecto a la propuesta:
+
+- **La sección se llama «Cuenta y sincronización»,** no «Cuenta». Dice qué hay dentro, y los nombres de siempre («Sincronización») siguen encontrándose.
+- **La pantalla sin sesión:**
+  - arriba, «Tu cuenta», con el conmutador «Iniciar sesión / Crear cuenta». Sale «Crear cuenta» si el dispositivo no conoce ningún email, e «Iniciar sesión» si lo conoce;
+  - el nombre del dispositivo;
+  - «Otras formas de entrar»: un código, una llave y «Sincronizar sin email». Esta última va en un desplegable cerrado, cuyo contenido solo existe abierto; así la casilla de la edad y el aviso no salen dos veces.
+- **Desemparejado,** solo «Volver a iniciar sesión»: no se crea otra cuenta desde ahí.
+- **El aviso de las cookies y la primera capa de los textos legales** salen junto a «Iniciar sesión» y junto a «Crear cuenta», porque los dos gestos crean las cookies (§11.2).
+- **«Cerrar sesión» no lleva la casilla «Quitar también los juegos de este dispositivo».** Su texto remite a «Borrar todo», en Ajustes › Datos: una casilla así, en una confirmación, haría fácil perder la agenda por error, y el usuario tiene miedo a perder los datos (ADR-013).
+- **Los textos de la cuenta** van en `screens/settings/account-texts.ts`, en el *chunk* de Ajustes: en `i18n/es.ts` subían el JS inicial 1,4 KB. Las ayudas que comparten con la sincronización (`attempt`, `focusWhenReady` y `ConfirmAction`) pasan a `sync-ui.tsx`.
+- **`steam/refresh`:**
+  - «sin vínculo» y «ya se trajo hace menos de 20 h» responden **202** con `status` (`unlinked` o `too_soon`), no 409 y 429. Así la comprobación de cada dispositivo no deja errores en la consola, como el «aún no» de `redeem`;
+  - `steam_not_linked` y `steam_refresh_too_soon` ya no son códigos de error.
+- **Al vincular, `start` también va con la cookie:** todo el canje es de esa agenda. Lo demás de Steam (logros y software) sigue sin cookies, con el pase. El servidor de los E2E manda al mundo de la prueba lo de Steam que lleva la cookie del dispositivo.
+- **Cuándo se actualiza** (`steam/auto-refresh-trigger.ts`, en el JS inicial y sin nada de Steam):
+  - tras una **ronda buena de la sincronización en esta sesión**. Así lo quitado en otro dispositivo ya ha llegado: si no, la importación lo volvería a añadir con una HLC más nueva, y ganaría;
+  - cada 24 h si el dispositivo sabe que hay vínculo, y cada 7 días si no lo sabe (por si se vinculó desde otro dispositivo);
+  - la hora se apunta antes de pedir nada.
+- **Los logros, al actualizar sola,** son de lo jugado en los últimos 14 días (`RECENT_PLAY_MS`) y no «desde la última actualización». Si un día se pierde (la app se cierra a medias), no se queda ningún juego sin mirar.
+- **Lo quitado no vuelve,** pero las lápidas de `steam:` no se quedan enteras para siempre:
+  - a los 90 días, D1 les quita el contenido y deja `deletedAt` y `mergedInto`, que es lo mismo que sube `uploadOf` de una lápida purgable. Solo queda el id (el `appid`) y la fecha;
+  - fuerza el `reset` de siempre, y una lápida ya reducida no se vuelve a tocar;
+  - la política lo cuenta (versión 6).
+- **El resumen de la importación** dice cuántos juegos quitados no se vuelven a añadir (`counts.removed`). La lista de deseados tampoco cuenta los quitados.
+- **Visibilidad:** no hay entrada nueva en la barra lateral. Queda por decidir con el usuario, con capturas.
+- **Comprobado:** `lint`, `typecheck` y 1 643 pruebas. Entre ellas:
+  - 24 de las rutas de la cuenta, con dos mutaciones cazadas;
+  - 15 de las de Steam vinculado;
+  - 3 de las lápidas de Steam en la purga;
+  - el vector de PBKDF2, comparado con el `pbkdf2Sync` de Node;
+  - el cliente de punta a punta;
+  - el disparador.
+
+  JS inicial de 146,8 KB (antes, 145,9). E2E en Chromium y WebKit: `account.spec.ts` (crear, entrar desde otro dispositivo, contraseña mala, «He olvidado mi contraseña», cambiar la contraseña, cerrar sesión y el email ya usado), el de vincular Steam en `steam-import.spec.ts` y los de la sincronización, la importación, los datos, las llaves y el buzón, puestos al día.
 
 ## Pros y contras de las opciones
 

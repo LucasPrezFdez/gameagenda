@@ -64,11 +64,11 @@
     // la app esconde los botones, sin apagar la sincronización. Necesita la política de privacidad
     // al día (`scripts/legal-guard.test.ts`) y `publickey-credentials-*` en `public/_headers`.
     "PASSKEYS_ENABLED": "1",
-    // Cuentas con email y contraseña y Steam vinculado (ADR-014): con "0", `/api/v1/account/*` y
-    // `steam/link`, `refresh` y `unlink` responden 503 `accounts_disabled` y la app esconde los
-    // botones, sin apagar la sincronización. Necesita además el secreto `ACCOUNT_PEPPER`
-    // (`wrangler secret put`; sin él, responden lo mismo) y la política de privacidad al día
-    // (`scripts/legal-guard.test.ts`).
-    "ACCOUNTS_ENABLED": "0"
+    // Cuentas con email y contraseña y Steam vinculado (ADR-014), encendidas el 26-11-2026. Con
+    // "0", `/api/v1/account/*` y `steam/link`, `refresh` y `unlink` responden 503
+    // `accounts_disabled` (la app lo dice al pulsar), sin apagar la sincronización. Necesita además
+    // el secreto `ACCOUNT_PEPPER` (`wrangler secret put`; sin él, responden lo mismo) y la política
+    // de privacidad al día (`scripts/legal-guard.test.ts`).
+    "ACCOUNTS_ENABLED": "1"
   }
 }

@@ -27,7 +27,7 @@ En el prototipo, el usuario es el propio desarrollador (sobre probadores externo
 | **3. Todo se puede deshacer** | En lugar de pedir confirmación, el cambio se aplica y se ofrece «Deshacer». Solo se confirma «Borrar todos mis datos». |
 | **4. Un toque** | Cada cambio frecuente es una sola acción. Lo exclusivo (el estado) va separado de lo que se suma (las marcas), así que no hay combinaciones absurdas. |
 | **5. No inventar datos** | Las fechas automáticas son las del cambio en la app (editables); la de compra solo la escribe el usuario. No se adivinan portadas, no se vincula por parecido y lo que se importe de Steam solo se propone. Lo desconocido se muestra como tal («Por confirmar», portada generada). |
-| **6. Privacidad por defecto** | Sin cuentas, analítica ni *cookies* no necesarias. Los datos se quedan en el dispositivo hasta que el usuario activa la sincronización, y se avisa de lo único que sale: las peticiones de portadas a Valve. |
+| **6. Privacidad por defecto** | La cuenta es opcional (Fase 2, ADR-014): sin ella, la app funciona igual. Sin analítica ni *cookies* no necesarias. Los datos se quedan en el dispositivo hasta que el usuario activa la sincronización o crea la cuenta, y se avisa de lo único que sale sin ellas: las peticiones de portadas a Valve. Del email y de la contraseña de una cuenta solo se guardan huellas. |
 | **7. Prototipo pequeño** | Cinco pantallas, un solo cliente web para móvil y escritorio y 0 €/mes. Lo que no ayude a apuntar rápido espera a Fase 2. |
 
 ### 2.4 Objetivos medibles
