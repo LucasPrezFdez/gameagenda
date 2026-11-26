@@ -858,4 +858,5 @@ Resueltos a partir de las mediciones y de los conflictos detectados entre seccio
       - `lint`, `typecheck` y 1 643 pruebas;
       - JS inicial de 146,8 KB (antes, 145,9);
       - los E2E de la cuenta, de vincular Steam, de la sincronización, de la importación, de los datos, de las llaves y del buzón, en Chromium y WebKit.
+    - **«Cuenta» en la barra lateral (26-11-2026; el usuario: «sí, añade «Cuenta» a la barra lateral»; cambia §9.1):** en el PC, entre Catálogo y Ajustes; abre Ajustes › Cuenta y sincronización y se marca ella. En el móvil, en «Más opciones», y la cápsula sigue con tres secciones. El detalle, en el ADR-014, «Construida».
     - **Despliegue (26-11-2026; el usuario: «despliega»):** el secreto `ACCOUNT_PEPPER`, puesto en `ga-web`; `main` avanzó hasta la rama `cuentas` (`46fb599`). `ci` 45867976141 y `deploy-web` 45868645767, en verde, con la migración `0005`; `smoke:web`, «Todo en orden» (la primera vez, recién desplegado, no llegó a bajar el catálogo; la segunda, entera), y `POST /api/v1/account/login` con datos inventados responde 400 `invalid_login`. Queda la prueba del usuario en sus dispositivos.

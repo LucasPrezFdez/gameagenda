@@ -368,6 +368,11 @@ function AppShell() {
     route.name === 'game';
   // Los textos legales se abren desde Ajustes: la navegación marca Ajustes.
   const inSettings = route.name === 'settings' || route.name === 'pair' || route.name === 'legal';
+  // «Cuenta» (ADR-014) es Ajustes › Cuenta y sincronización. En el PC tiene su entrada en la barra
+  // lateral, y la marca ella en vez de Ajustes. En el móvil va en «Más opciones»: la cápsula sigue
+  // con tres secciones, y en esa sección marca Ajustes.
+  const inAccount =
+    (route.name === 'settings' && route.section === 'sync') || route.name === 'pair';
   const group = onList ? 'agenda' : inSettings ? 'settings' : route.name;
   // De qué pantalla se viene: en el móvil, al volver de la ficha la lista entra desde la izquierda
   // (sheet.css). Se anota al pintar, sin estado: no hace falta otro repintado.
@@ -432,6 +437,12 @@ function AppShell() {
                     onSelect: openHelp,
                   },
                   {
+                    key: 'account',
+                    label: es.nav.account,
+                    icon: 'account',
+                    onSelect: () => navigate(settingsPath('sync')),
+                  },
+                  {
                     key: 'settings',
                     label: es.nav.settings,
                     icon: 'settings',
@@ -474,11 +485,21 @@ function AppShell() {
                   collapsed={collapsed}
                   onIntent={() => void loadCatalog()}
                 />
+                {desktop && (
+                  <NavItem
+                    to={settingsPath('sync')}
+                    icon="account"
+                    label={es.nav.account}
+                    current={inAccount}
+                    collapsed={collapsed}
+                    onIntent={() => void loadSettings()}
+                  />
+                )}
                 <NavItem
                   to={settingsPath(null)}
                   icon="settings"
                   label={es.nav.settings}
-                  current={inSettings}
+                  current={inSettings && !(desktop && inAccount)}
                   collapsed={collapsed}
                   onIntent={() => void loadSettings()}
                 />

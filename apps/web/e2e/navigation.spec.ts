@@ -31,6 +31,48 @@ test('navega por las rutas con la barra lateral o las pestañas y vuelve atrás'
   await checks.expectClean();
 });
 
+test('«Cuenta» abre Ajustes › Cuenta y sincronización: en la barra lateral del PC y en «Más opciones»', async ({
+  page,
+  isMobile,
+}) => {
+  const checks = await setup(page);
+  await page.goto('/');
+  const nav = page.getByRole('navigation', { name: 'Principal' });
+  const account = nav.getByRole('link', { name: 'Cuenta', exact: true });
+  const settings = nav.getByRole('link', { name: 'Ajustes', exact: true });
+  const section = page.getByRole('region', { name: 'Cuenta y sincronización' });
+
+  // Desde «Más opciones», en el PC y en el móvil.
+  await page.getByRole('button', { name: 'Más opciones', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Cuenta' }).click();
+  await expect(page).toHaveURL('/ajustes/sincronizacion');
+  await expect(
+    section.getByRole('button', { name: 'Crear cuenta', exact: true }).first(),
+  ).toBeVisible();
+
+  if (isMobile) {
+    // La cápsula sigue con sus tres secciones, y en la cuenta marca Ajustes.
+    await expect(nav.getByRole('link')).toHaveCount(3);
+    await expect(settings).toHaveAttribute('aria-current', 'page');
+  } else {
+    // En la barra lateral, entre Catálogo y Ajustes; marca la cuenta, no Ajustes.
+    await expect(nav.getByRole('link')).toHaveText(['Mi lista', 'Catálogo', 'Cuenta', 'Ajustes']);
+    await expect(account).toHaveAttribute('aria-current', 'page');
+    await expect(settings).not.toHaveAttribute('aria-current');
+    await nav.getByRole('link', { name: 'Mi lista' }).click();
+    await expect(account).not.toHaveAttribute('aria-current');
+    await account.click();
+    await expect(page).toHaveURL('/ajustes/sincronizacion');
+    await expect(section).toBeVisible();
+    // Las demás secciones de Ajustes marcan Ajustes.
+    await page.getByRole('link', { name: 'Datos', exact: true }).click();
+    await expect(page).toHaveURL('/ajustes/datos');
+    await expect(settings).toHaveAttribute('aria-current', 'page');
+    await expect(account).not.toHaveAttribute('aria-current');
+  }
+  await checks.expectClean();
+});
+
 test('la ficha se abre desde Mi lista y Esc devuelve el foco a la fila', async ({ page }) => {
   const checks = await setup(page);
   await page.goto('/');

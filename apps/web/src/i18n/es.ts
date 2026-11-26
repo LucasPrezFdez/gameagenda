@@ -49,7 +49,8 @@ export const es = {
     expandSidebar: 'Desplegar la barra lateral',
   },
 
-  nav: { list: 'Mi lista', catalog: 'Catálogo', settings: 'Ajustes' },
+  /** `account`: Ajustes › Cuenta y sincronización, con su entrada en la barra lateral (ADR-014). */
+  nav: { list: 'Mi lista', catalog: 'Catálogo', account: 'Cuenta', settings: 'Ajustes' },
 
   /** Lo que llena la barra lateral del PC (DECISIONES §10.33). */
   sidebar: {

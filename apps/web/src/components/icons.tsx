@@ -29,6 +29,7 @@ export type IconName =
   | 'list'
   | 'catalog'
   | 'settings'
+  | 'account'
   | 'sidebar'
   | 'undo'
   | 'offline'
@@ -156,6 +157,14 @@ const PATHS: Readonly<Record<IconName, ReactNode>> = {
       <path d="M20 7h-9M14 17H5" />
       <circle cx="17" cy="17" r="3" />
       <circle cx="7" cy="7" r="3" />
+    </>
+  ),
+  // Lucide «circle-user-round»: la cuenta (ADR-014)
+  account: (
+    <>
+      <path d="M18 20a6 6 0 0 0-12 0" />
+      <circle cx="12" cy="10" r="4" />
+      <circle cx="12" cy="12" r="10" />
     </>
   ),
   // Lucide «panel-left»: encoger o desplegar la barra lateral
