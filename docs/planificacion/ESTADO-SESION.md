@@ -16,8 +16,8 @@
   - los textos legales y el registro de actividades, en la versión 6.
 - **Comprobado:** `check` (1 645 pruebas; JS inicial de 146,8 KB) y los E2E de la cuenta, de vincular Steam, de la sincronización, de la importación, de los datos, de las llaves y del buzón, en Chromium y WebKit.
 - **Queda:**
-  1. poner el secreto `ACCOUNT_PEPPER` en `ga-web` (`wrangler secret put`) y guardar una copia en el gestor de contraseñas: si se pierde, nadie puede entrar con email;
-  2. pasar a `main` y desplegar (la migración `0005` la aplica `deploy-web`);
+  1. poner el secreto `ACCOUNT_PEPPER` en `ga-web` y guardar una copia en el gestor de contraseñas: si se pierde, nadie puede entrar con email. El modo automático no dejó al asistente escribirlo (ni en `.env.local` ni en Cloudflare). Se genera con `node -e "process.stdout.write(require('node:crypto').randomBytes(32).toString('base64url'))"` y se pone con `cmd /c "npx wrangler secret put ACCOUNT_PEPPER -c apps/web/wrangler.jsonc < fichero"` (con `cmd`, para que no se cuele un salto de línea). Sin él, las rutas de email responden `accounts_disabled`; Steam vinculado funciona igual;
+  2. pasar a `main` y desplegar: `git push origin cuentas:main` (avance rápido; lo bloqueó el modo automático). `deploy-web` aplica la migración `0005`. Después, `npm run smoke:web` y comprobar `POST /api/v1/account/login` con datos inventados (400 `invalid_login` si el secreto está; 503 si no);
   3. probarlo en los dispositivos: crear la cuenta en el PC, entrar en el iPhone y que el gestor de contraseñas la guarde, y vincular su Steam;
   4. por decidir con el usuario: una entrada «Cuenta» o «Iniciar sesión» en la barra lateral.
 
