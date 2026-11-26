@@ -4,7 +4,13 @@
 // o cuando la interfaz pide activar, emparejar o recuperar. La sincronización nunca pregunta
 // (RF-26): va sola al arrancar, al volver el foco o la red, al cambiar la visibilidad y unos 2 s
 // después de cada cambio local.
-import type { ApiErrorCode, DeviceInfo, PasskeyInfo } from '@gameagenda/core/api';
+import type {
+  AccountResponse as AccountInfo,
+  ApiErrorCode,
+  DeviceInfo,
+  PasskeyInfo,
+} from '@gameagenda/core/api';
+import type { AccountRecord } from './account-state.ts';
 
 /**
  * - `off`: este navegador no sincroniza (nunca se activó, se desemparejó o se borró la agenda).
@@ -102,7 +108,20 @@ export interface RedeemInput {
   readonly label: string;
 }
 
-export type { DeviceInfo };
+/** Cuentas (ADR-014): el email y la contraseña, tal como los escribe el usuario. */
+export interface LoginInput {
+  readonly email: string;
+  /** Nunca sale del dispositivo: viaja lo que sale de ella con PBKDF2 (`account-key.ts`). */
+  readonly password: string;
+}
+
+export interface CreateAccountInput extends LoginInput, ActivateInput {}
+
+export interface LogInInput extends LoginInput {
+  readonly label: string;
+}
+
+export type { AccountInfo, AccountRecord, DeviceInfo };
 
 /**
  * El servicio `sync` de `AppServices`. Las operaciones cargan el motor si hace falta y lanzan
@@ -157,6 +176,29 @@ export interface SyncService {
   listPasskeys(): Promise<readonly PasskeyInfo[]>;
   /** Quita una llave (deja de abrir la agenda) y pide al llavero que la olvide, si puede. */
   removePasskey(id: string): Promise<readonly PasskeyInfo[]>;
+  /**
+   * Cuentas (ADR-014). «Crear cuenta»: como `activate`, con un email y una contraseña para entrar
+   * desde otros dispositivos. Errores: `email_taken`, `accounts_disabled` y los de `activate`.
+   */
+  createAccount(input: CreateAccountInput): Promise<{ readonly recoveryCode: string }>;
+  /**
+   * «Iniciar sesión»: se une a la agenda de esa cuenta, como `redeemRecoveryCode` (las entradas
+   * locales se juntan con las de la agenda). Errores: `invalid_login` (el email no tiene cuenta o
+   * la contraseña no vale), `too_many_attempts`, `already_paired`, `accounts_disabled`…
+   */
+  logIn(input: LogInInput): Promise<void>;
+  /** Lo que tiene la cuenta en el servidor (email y contraseña, Steam vinculado). */
+  account(): Promise<AccountInfo>;
+  /** Pone o cambia el email y la contraseña de la agenda. Errores: `email_taken`… */
+  setLoginDetails(input: LoginInput): Promise<AccountInfo>;
+  /** Quita el email y la contraseña: la agenda sigue, con sus llaves y su código. */
+  removeLoginDetails(): Promise<AccountInfo>;
+  /** Desvincula la cuenta de Steam de la agenda. */
+  unlinkSteam(): Promise<AccountInfo>;
+  /** Lo que este dispositivo sabe de la cuenta (`meta.account`), sin preguntar al servidor. */
+  localAccount(): Promise<AccountRecord>;
+  /** Enciende o apaga «Actualizar sola» en este dispositivo. */
+  setSteamAuto(on: boolean): Promise<void>;
   /**
    * Revoca un dispositivo. Si es este (`self: true`), es «Desemparejar este dispositivo»: el
    * servidor quita las cookies, el estado pasa a `off` y la agenda local se queda como está. Una

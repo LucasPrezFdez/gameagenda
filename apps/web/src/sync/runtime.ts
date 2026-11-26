@@ -8,12 +8,19 @@
 // Por eso `meta.syncState` solo cambia con `updateRecord`, que relee lo guardado y no lo vuelve a
 // crear si ya no está; la ronda que se encuentra sin él acaba con `aborted` y no se trata como
 // buena; y borrar la agenda del servidor espera su turno en el Web Lock.
-import { type PasskeyInfo, parseCode } from '@gameagenda/core/api';
+import {
+  type AccountResponse,
+  normalizeEmail,
+  type PasskeyInfo,
+  parseCode,
+} from '@gameagenda/core/api';
 import type { HlcClock } from '@gameagenda/core/sync';
 import type { CopyReminderStore } from '../data/copy-reminder.ts';
 import { type GameAgendaDb, META_KEYS } from '../db/database.ts';
 import { es } from '../i18n/es.ts';
 import type { NoticeCenter } from '../notices/notice-center.ts';
+import { deriveAuthKey } from './account-key.ts';
+import { type AccountRecord, parseAccountRecord } from './account-state.ts';
 import { createApiClient, type FetchLike, type SyncApi } from './api-client.ts';
 import { createSyncEngine, type EngineOptions, type RoundResult } from './engine.ts';
 import {
@@ -34,8 +41,11 @@ import {
 import { countPendingEntries, newRecord, parseSyncRecord, type SyncRecord } from './state.ts';
 import {
   type ActivateInput,
+  type CreateAccountInput,
   type DeviceInfo,
   type InboxSink,
+  type LogInInput,
+  type LoginInput,
   type RedeemInput,
   type SyncActivity,
   SyncError,
@@ -130,6 +140,13 @@ export interface SyncRuntime {
   createPasskey(): Promise<readonly PasskeyInfo[]>;
   listPasskeys(): Promise<readonly PasskeyInfo[]>;
   removePasskey(id: string): Promise<readonly PasskeyInfo[]>;
+  /** Ver `SyncService.createAccount` y las demás de las cuentas (ADR-014). */
+  createAccount(input: CreateAccountInput): Promise<{ recoveryCode: string }>;
+  logIn(input: LogInInput): Promise<void>;
+  account(): Promise<AccountResponse>;
+  setLoginDetails(input: LoginInput): Promise<AccountResponse>;
+  removeLoginDetails(): Promise<AccountResponse>;
+  unlinkSteam(): Promise<AccountResponse>;
   /** Ver `SyncService.revokeDevice`. */
   revokeDevice(id: string): Promise<{ self: boolean }>;
   /** Ver `SyncService.deleteServerAgenda` (con un 401, rechaza con `unauthorized`). */
@@ -173,10 +190,24 @@ export function createRuntime(host: RuntimeHost): SyncRuntime {
   let resumed = false;
   let removeOffline: (() => void) | null = null;
 
-  /** Ya no sincroniza: fuera el estado y el cursor. */
+  /** Ya no sincroniza: fuera el estado, el cursor y lo que se sabe de la cuenta. */
   async function clearRecord(): Promise<void> {
-    await db.meta.bulkDelete([META_KEYS.syncState, META_KEYS.syncCursor]);
+    await db.meta.bulkDelete([META_KEYS.syncState, META_KEYS.syncCursor, META_KEYS.account]);
     host.setRecord(null);
+  }
+
+  /** Cambia `meta.account` (ADR-014) partiendo de lo guardado. */
+  async function updateAccount(patch: Partial<AccountRecord>): Promise<void> {
+    await db.transaction('rw', db.meta, async () => {
+      const current = parseAccountRecord((await db.meta.get(META_KEYS.account))?.value);
+      await db.meta.put({ key: META_KEYS.account, value: { ...current, ...patch } });
+    });
+  }
+
+  /** Lo que dice el servidor de la cuenta, apuntado en local (para la actualización de Steam). */
+  async function rememberAccount(info: AccountResponse): Promise<AccountResponse> {
+    await updateAccount({ steamLinked: info.steam !== null });
+    return info;
   }
 
   /**
@@ -437,6 +468,35 @@ export function createRuntime(host: RuntimeHost): SyncRuntime {
         );
       return passkeys;
     },
+    async createAccount({ email, password, label, minAge }) {
+      const authKey = await deriveAuthKey(email, password);
+      const { deviceId, recoveryCode } = await api.createAccount({ email, authKey, minAge, label });
+      // Lo de antes de este dispositivo (otra cuenta que se cerró) ya no vale.
+      await db.meta.delete(META_KEYS.account);
+      await updateAccount({ email: normalizeEmail(email) });
+      await join(deviceId, false);
+      return { recoveryCode };
+    },
+    async logIn({ email, password, label }) {
+      const authKey = await deriveAuthKey(email, password);
+      const { deviceId } = await api.logIn({ email, authKey, label });
+      await db.meta.delete(META_KEYS.account);
+      await updateAccount({ email: normalizeEmail(email) });
+      await join(deviceId, false);
+    },
+    account: async () => rememberAccount(await authed(() => api.account())),
+    async setLoginDetails({ email, password }) {
+      const authKey = await deriveAuthKey(email, password);
+      const info = await authed(() => api.setLoginDetails({ email, authKey }));
+      await updateAccount({ email: normalizeEmail(email) });
+      return rememberAccount(info);
+    },
+    async removeLoginDetails() {
+      const info = await authed(() => api.removeLoginDetails());
+      await updateAccount({ email: null });
+      return rememberAccount(info);
+    },
+    unlinkSteam: async () => rememberAccount(await authed(() => api.unlinkSteam())),
     async revokeDevice(id) {
       // Desemparejar este dispositivo: sin rondas nuevas durante la llamada. La que ya esté en
       // marcha acaba, y su 401 (o su 200) tardío ya no vuelve a crear el estado (`updateRecord`).

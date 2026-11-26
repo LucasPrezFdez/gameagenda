@@ -5,9 +5,12 @@
 // módulo solo va en el *chunk* diferido del motor). Los errores son `SyncError` con el código de la
 // micro-API, `network` o `bad_response`.
 import {
+  ACCOUNT_KDF,
+  type AccountResponse,
   API_BASE,
   API_ERRORS,
   type ApiErrorCode,
+  accountResponseSchema,
   type CreateAgendaResponse,
   createAgendaResponseSchema,
   type DevicesResponse,
@@ -74,6 +77,21 @@ export interface SyncApi {
   /** Un reto para entrar con una llave (sin cookie). */
   passkeyChallenge(): Promise<PasskeyChallengeResponse>;
   redeemPasskey(body: PasskeyRedeemRequest): Promise<RedeemResponse>;
+  /**
+   * Cuentas (ADR-014): crear la agenda con email y contraseña (`authKey`, que sale de ella en el
+   * dispositivo), entrar con ellos, lo que tiene la cuenta, ponerlos o quitarlos y desvincular Steam.
+   */
+  createAccount(input: {
+    email: string;
+    authKey: string;
+    minAge: number;
+    label: string;
+  }): Promise<CreateAgendaResponse>;
+  logIn(input: { email: string; authKey: string; label: string }): Promise<RedeemResponse>;
+  account(): Promise<AccountResponse>;
+  setLoginDetails(input: { email: string; authKey: string }): Promise<AccountResponse>;
+  removeLoginDetails(): Promise<AccountResponse>;
+  unlinkSteam(): Promise<AccountResponse>;
 }
 
 interface Schema<T> {
@@ -159,5 +177,18 @@ export function createApiClient(options: ApiClientOptions = {}): SyncApi {
       post(`/passkeys/${encodeURIComponent(id)}/remove`, {}, passkeysResponseSchema),
     passkeyChallenge: () => post('/passkeys/challenge', {}, passkeyChallengeResponseSchema),
     redeemPasskey: (body) => post('/passkeys/redeem', body, redeemResponseSchema),
+    createAccount: ({ email, authKey, minAge, label }) =>
+      post(
+        '/account',
+        { email, authKey, kdf: ACCOUNT_KDF, ageConfirmed: true, minAge, label },
+        createAgendaResponseSchema,
+      ),
+    logIn: ({ email, authKey, label }) =>
+      post('/account/login', { email, authKey, kdf: ACCOUNT_KDF, label }, redeemResponseSchema),
+    account: () => call('GET', '/account', undefined, accountResponseSchema),
+    setLoginDetails: ({ email, authKey }) =>
+      post('/account/login-details', { email, authKey, kdf: ACCOUNT_KDF }, accountResponseSchema),
+    removeLoginDetails: () => post('/account/login-details/remove', {}, accountResponseSchema),
+    unlinkSteam: () => post('/steam/unlink', {}, accountResponseSchema),
   };
 }

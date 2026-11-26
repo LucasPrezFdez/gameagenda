@@ -9,7 +9,7 @@
 // borrados de CA4.3 completos van en sus propias pruebas.
 import { DEFAULT_MIN_AGE, DEVICE_LABEL_MAX as LABEL_MAX } from '@gameagenda/core/api';
 import type { Page } from '@playwright/test';
-import { capture, expectAccessible, setup, toast } from './helpers.ts';
+import { capture, expectAccessible, openNoEmail, setup, toast } from './helpers.ts';
 import { expectStored } from './storage.ts';
 import {
   expect,
@@ -78,7 +78,8 @@ async function activate(page: Page, label?: string): Promise<string> {
   if (label !== undefined) {
     await page.getByRole('textbox', { name: 'Nombre de este dispositivo' }).fill(label);
   }
-  await page.getByRole('checkbox', { name: `Tengo ${DEFAULT_MIN_AGE} años o más` }).check();
+  const noEmail = await openNoEmail(page);
+  await noEmail.getByRole('checkbox', { name: `Tengo ${DEFAULT_MIN_AGE} años o más` }).check();
   await page.getByRole('button', { name: 'Activar sincronización' }).click();
   await expect(page.getByRole('heading', { name: 'Tu código de recuperación' })).toBeFocused();
   const code = (await codeText(page)) ?? '';
@@ -120,8 +121,9 @@ test('activar: pide la edad, enseña el código de recuperación una vez y queda
   await expectAccessible(page, 'Sincronización sin activar');
 
   // Sin la casilla de edad no se activa: lo dice junto a la casilla y le lleva el foco.
+  const noEmail = await openNoEmail(section);
   await section.getByRole('button', { name: 'Activar sincronización' }).click();
-  const age = section.getByRole('checkbox', { name: `Tengo ${DEFAULT_MIN_AGE} años o más` });
+  const age = noEmail.getByRole('checkbox', { name: `Tengo ${DEFAULT_MIN_AGE} años o más` });
   await expect(age).toBeFocused();
   await expect(age).toHaveAttribute('aria-invalid', 'true');
   await expect(age).toHaveAccessibleDescription(

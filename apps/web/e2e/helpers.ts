@@ -180,6 +180,18 @@ function escapeRegExp(text: string): string {
 }
 
 /** axe-core sin violaciones graves ni críticas (RNF-09, CA1.10). */
+/**
+ * «Sincronizar sin email» (ADR-014): va cerrado en «Otras formas de entrar» de Ajustes › Cuenta y
+ * sincronización. Lo abre, si no lo está, y devuelve su caja (con su casilla de edad y su botón).
+ */
+export async function openNoEmail(scope: Page | Locator): Promise<Locator> {
+  const details = scope.locator('details.sync__details');
+  if (!(await details.evaluate((d) => (d as HTMLDetailsElement).open))) {
+    await details.locator('summary').click();
+  }
+  return details;
+}
+
 export async function expectAccessible(page: Page, label: string) {
   // Con una animación a medias (p. ej., la entrada del aviso), el contraste medido sería falso.
   // Solo las de tiempo: las que mueve el desplazamiento (el fundido de las filas de chips,

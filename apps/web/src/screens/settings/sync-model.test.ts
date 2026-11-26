@@ -378,7 +378,7 @@ describe('desemparejar el último dispositivo con la agenda', () => {
   });
 
   it('la pregunta dice que la copia sincronizada se queda en el servidor', () => {
-    expect(es.syncPanel.leaveConfirmLast).toMatch(/^¿Desemparejar este dispositivo\?/);
+    expect(es.syncPanel.leaveConfirmLast).toMatch(/^¿Cerrar sesión en este dispositivo\?/);
     expect(es.syncPanel.leaveConfirmLast).toMatch(/se quedará en el servidor/);
     expect(es.syncPanel.leaveConfirmLast).toMatch(/«Borrar todos mis datos»/);
   });

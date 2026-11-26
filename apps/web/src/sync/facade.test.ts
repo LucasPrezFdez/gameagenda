@@ -64,6 +64,12 @@ function fakeRuntime() {
     createPasskey: async () => [],
     listPasskeys: async () => [],
     removePasskey: async () => [],
+    createAccount: async () => ({ recoveryCode: 'R' }),
+    logIn: async () => undefined,
+    account: async () => ({ hasLogin: false, steam: null }),
+    setLoginDetails: async () => ({ hasLogin: true, steam: null }),
+    removeLoginDetails: async () => ({ hasLogin: false, steam: null }),
+    unlinkSteam: async () => ({ hasLogin: false, steam: null }),
     deleteServerAgenda: async () => undefined,
     forget: async () => undefined,
   };

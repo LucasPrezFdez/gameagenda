@@ -11,7 +11,7 @@ import { DEFAULT_MIN_AGE } from '@gameagenda/core/api';
 import type { APIRequestContext, Page } from '@playwright/test';
 import { E2E_API_COOKIE } from '../e2e-api-plugin.ts';
 import { privacyPolicy } from '../src/legal/texts.ts';
-import { expectAccessible, openPalette, setup, toast } from './helpers.ts';
+import { expectAccessible, openNoEmail, openPalette, setup, toast } from './helpers.ts';
 import { expectStored } from './storage.ts';
 import { expect, serverAgenda, test } from './sync-server.ts';
 
@@ -53,7 +53,8 @@ function overflow(page: Page): Promise<number> {
 
 async function activate(page: Page): Promise<void> {
   await openSync(page);
-  await page.getByRole('checkbox', { name: `Tengo ${DEFAULT_MIN_AGE} años o más` }).check();
+  const noEmail = await openNoEmail(page);
+  await noEmail.getByRole('checkbox', { name: `Tengo ${DEFAULT_MIN_AGE} años o más` }).check();
   await page.getByRole('button', { name: 'Activar sincronización' }).click();
   await page.getByRole('button', { name: 'Ya lo he guardado' }).click();
   await expect(page.locator('[data-sync-status]')).toContainText('Sincronizado', {

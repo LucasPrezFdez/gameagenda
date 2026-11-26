@@ -21,7 +21,7 @@
 // dispositivo y sin red) no se repite aquí.
 import { DEFAULT_MIN_AGE } from '@gameagenda/core/api';
 import type { BrowserContext, Page } from '@playwright/test';
-import { capture, openPalette, setup, toast, waitForSearch } from './helpers.ts';
+import { capture, openNoEmail, openPalette, setup, toast, waitForSearch } from './helpers.ts';
 import { expectStored, storedEntry, storedKeys, storedMeta } from './storage.ts';
 import {
   deviceCookies,
@@ -199,7 +199,8 @@ async function activate(page: Page, label: string): Promise<string> {
   await openSync(page);
   const section = syncSection(page);
   await section.getByRole('textbox', { name: 'Nombre de este dispositivo' }).fill(label);
-  await section.getByRole('checkbox', { name: `Tengo ${DEFAULT_MIN_AGE} años o más` }).check();
+  const noEmail = await openNoEmail(section);
+  await noEmail.getByRole('checkbox', { name: `Tengo ${DEFAULT_MIN_AGE} años o más` }).check();
   await section.getByRole('button', { name: 'Activar sincronización' }).click();
   await expect(section.getByRole('heading', { name: 'Tu código de recuperación' })).toBeFocused();
   const code = await shownCode(page);
@@ -628,21 +629,21 @@ test('Ajustes: desemparejar otro lo deja fuera en su siguiente ronda (401) con s
   await openSync(b);
   await expect(syncSection(b).locator('[data-sync-unpaired="server"]')).toBeVisible();
 
-  // A se desempareja a sí mismo: deja de sincronizar y conserva la agenda. Ya es el último con la
-  // agenda, y la pregunta dice que la copia sincronizada se queda en el servidor.
-  await section.getByRole('button', { name: 'Desemparejar este dispositivo' }).click();
+  // A cierra la sesión en sí mismo: deja de sincronizar y conserva la agenda. Ya es el último con
+  // la agenda, y la pregunta dice que la copia sincronizada se queda en el servidor.
+  await section.getByRole('button', { name: 'Cerrar sesión' }).click();
   const group = section.getByRole('group', {
-    name: '¿Desemparejar este dispositivo?',
+    name: '¿Cerrar sesión en este dispositivo?',
     exact: false,
   });
   await expect(group).toContainText('Es el último que sincroniza tu agenda');
-  const confirm = group.getByRole('button', { name: 'Desemparejar este dispositivo' });
+  const confirm = group.getByRole('button', { name: 'Cerrar sesión' });
   await expect(confirm).toBeFocused();
   await confirm.click();
   await expect(
-    section.getByText('Este dispositivo ya no sincroniza. Tu agenda sigue aquí.'),
+    section.getByText('Has cerrado la sesión en este dispositivo. Tu agenda sigue aquí.'),
   ).toBeVisible();
-  await expect(section.getByRole('heading', { name: 'Empezar a sincronizar' })).toBeFocused();
+  await expect(section.getByRole('heading', { name: 'Tu cuenta' })).toBeFocused();
   expect(await deviceCookies(context)).toEqual([]);
   expect((await syncState(a))?.status).toBe('off');
   await openList(a);
@@ -768,7 +769,8 @@ test('purga semanal de D1: cada dispositivo recibe un reset y queda igual que D1
   await expectStored(b, TERRARIA, { deletedAt: expect.any(String) });
   await expect(b.getByRole('heading', { name: 'Quiero jugar (2)' })).toBeVisible();
 
-  // El mantenimiento de un lunes, pasados más de 90 días: D1 purga la lápida, y la `seq` y
+  // El mantenimiento de un lunes, pasados más de 90 días: D1 deja la lápida, que es de Steam, solo
+  // con `deletedAt` (ADR-014: así la importación no lo vuelve a añadir), y la `seq` y
   // `purged_seq` suben juntas.
   const deviceId = (await syncState(a))?.deviceId ?? '';
   const before = await serverAgenda(a, { device: deviceId });
@@ -777,17 +779,22 @@ test('purga semanal de D1: cada dispositivo recibe un reset y queda igual que D1
   expect(server?.seq).toBe((before?.seq ?? 0) + 1);
   expect(server?.purgedSeq).toBe(server?.seq);
   const serverIds = (server?.entries ?? []).map((e) => e.id);
-  expect(serverIds).toEqual([HADES_II, CELESTE]);
+  expect(serverIds).toEqual([TERRARIA, HADES_II, CELESTE]);
 
-  // Cada uno, en su siguiente ronda, recibe un reset (una vez) y queda como D1: sin la lápida, y
-  // con todo lo vivo a la vista.
+  // Cada uno, en su siguiente ronda, recibe un reset (una vez) y queda como D1: la lápida, sin su
+  // contenido, y todo lo vivo a la vista.
   for (const page of [a, b]) {
     const resets = watchResets(page);
     const rounds = await successes(page);
     await refocus(page);
     await waitForRound(page, rounds);
     await expect.poll(() => resets.includes(true)).toBe(true);
-    await expect.poll(() => storedEntry(page, TERRARIA)).toBeNull();
+    await expect
+      .poll(async () => {
+        const stored = (await storedEntry(page, TERRARIA)) as { hlc?: object } | null;
+        return Object.keys(stored?.hlc ?? {});
+      })
+      .toEqual(['deletedAt']);
     expect(await storedKeys(page, 'entries')).toEqual(serverIds);
     await expect(page.getByRole('heading', { name: 'Quiero jugar (2)' })).toBeVisible();
     await expect(row(page, 'Celeste')).toHaveCount(1);

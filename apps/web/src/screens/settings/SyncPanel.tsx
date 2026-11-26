@@ -1,15 +1,18 @@
-// Ajustes › Sincronización (M4; §9.1, §9.6, §11.2 y §11.4; ADR-011). Va en el *chunk* diferido de
+// Ajustes › Cuenta y sincronización (M4; §9.1, §9.6, §11.2 y §11.4; ADR-011; las cuentas con
+// email y contraseña, ADR-014, en `AccountPanel.tsx`). Va en el *chunk* diferido de
 // Ajustes, sin Zod: de `@gameagenda/core/api` solo usa las constantes y los códigos, que no lo
 // importan. El motor (con Zod) lo carga la fachada al activar o emparejar, y el QR (`qr.ts`, con
 // `uqr`) va en su propio *chunk*, que se descarga al pedir un código. Cuatro vistas, según el
 // estado de `SyncService`:
-// - sin sincronizar: qué guarda, el nombre del dispositivo, la declaración de edad y «Activar
-//   sincronización»; aparte, canjear un código de emparejamiento o el de recuperación;
+// - sin sincronizar: «Iniciar sesión» y «Crear cuenta» (con qué se guarda y la declaración de
+//   edad), el nombre del dispositivo y, en «Otras formas de entrar», canjear un código de
+//   emparejamiento o el de recuperación, entrar con una llave y sincronizar sin email;
 // - recién activada (o con un código de recuperación nuevo): el código, una sola vez;
-// - emparejada: el estado, «Emparejar otro dispositivo» (código y QR de 10 min), los dispositivos,
+// - emparejada: el estado, la cuenta, «Emparejar otro dispositivo» (código y QR de 10 min), los dispositivos,
 //   las llaves de acceso (ADR-013), el *token* del Atajo de iOS (se ve una vez, con los pasos para crear el atajo), un código de
 //   recuperación nuevo y «Desemparejar este dispositivo»;
-// - desemparejada (por el servidor o sin cookies): lo dice y ofrece el código de recuperación.
+// - desemparejada (por el servidor o sin cookies): lo dice y ofrece iniciar sesión otra vez o el
+//   código de recuperación.
 // La sincronización en sí nunca pregunta (RF-26): aquí solo hay gestos explícitos. Las
 // confirmaciones van en el sitio, nunca en un modal (§9.6), y el foco sigue a cada cambio de vista,
 // también cuando la cambia el servidor (un 401). Lo que llega solo, sin un gesto (otro dispositivo
@@ -40,13 +43,9 @@ import { LegalParts } from '../../legal/LegalParts.tsx';
 import { peekPendingPairingCode, takePendingPairingCode } from '../../router/pairing-link.ts';
 import { pairingUrl } from '../../router/routes.ts';
 import { LABEL_MAX } from '../../sync/device-label.ts';
-import {
-  type DeviceInfo,
-  SyncError,
-  type SyncErrorCode,
-  type SyncService,
-  type SyncState,
-} from '../../sync/types.ts';
+import type { DeviceInfo, SyncService, SyncState } from '../../sync/types.ts';
+import { AccountForms, AccountSection } from './AccountPanel.tsx';
+import { accountTexts } from './account-texts.ts';
 import type { QrDrawing } from './qr.ts';
 import {
   cleanDeviceLabel,
@@ -78,39 +77,12 @@ import {
   syncViewOf,
   viewHeading,
 } from './sync-model.ts';
+import { attempt, ConfirmAction, describedBy, focusWhenReady } from './sync-ui.tsx';
 
 const t = es.syncPanel;
 const loadQr = () => import('./qr.ts');
 /** Mientras se ve un código de emparejamiento, cada cuánto se mira si el otro ya lo ha canjeado. */
 const PAIRING_POLL_MS = 5000;
-
-type Outcome<T> =
-  | { readonly ok: true; readonly value: T }
-  | { readonly ok: false; readonly code: SyncErrorCode };
-
-/** Una operación de `SyncService`: un `SyncError` es un resultado; lo demás va al registro. */
-async function attempt<T>(run: () => Promise<T>): Promise<Outcome<T>> {
-  try {
-    return { ok: true, value: await run() };
-  } catch (error) {
-    if (error instanceof SyncError) return { ok: false, code: error.code };
-    logError('storage', error);
-    return { ok: false, code: 'internal' };
-  }
-}
-
-/**
- * Lleva el foco a `id` en cuanto exista (tras un cambio de vista puede tardar un fotograma). Los
- * encabezados que lo reciben llevan `tabIndex={-1}` (WCAG 2.4.3).
- */
-function focusWhenReady(id: string, tries = 10): void {
-  const element = document.getElementById(id);
-  if (element) {
-    element.focus();
-    return;
-  }
-  if (tries > 0) requestAnimationFrame(() => focusWhenReady(id, tries - 1));
-}
 
 /** Vuelve a pintar cada `ms` (para «hace 5 minutos» y la cuenta atrás). */
 function useTick(ms: number, enabled = true): void {
@@ -120,11 +92,6 @@ function useTick(ms: number, enabled = true): void {
     const timer = setInterval(() => setTick((n) => n + 1), ms);
     return () => clearInterval(timer);
   }, [ms, enabled]);
-}
-
-function describedBy(...ids: (string | false | null | undefined)[]): string | undefined {
-  const list = ids.filter((id): id is string => typeof id === 'string' && id !== '');
-  return list.length > 0 ? list.join(' ') : undefined;
 }
 
 async function copyText(text: string): Promise<boolean> {
@@ -394,21 +361,28 @@ export function OffView({
   linkCode,
   iosTab,
   labelProps,
+  knownEmail,
   onActivating,
   onActivated,
   onJoined,
+  onLoggedIn,
 }: {
   sync: SyncService;
   ids: PanelIds;
   linkCode: string | null;
   iosTab: boolean;
   labelProps: LabelProps;
+  /** El email con que se entró en este dispositivo la última vez (`meta.account`), o `''`. */
+  knownEmail: string;
   onActivating: (busy: boolean) => void;
   onActivated: (recoveryCode: string) => void;
   onJoined: () => void;
+  onLoggedIn: () => void;
 }) {
   const id = useId();
   const [age, setAge] = useState(false);
+  // «Sincronizar sin email»: lo de dentro solo existe abierto (así no hay dos casillas de edad).
+  const [noEmailOpen, setNoEmailOpen] = useState(false);
   const [ageError, setAgeError] = useState(false);
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
@@ -435,51 +409,25 @@ export function OffView({
 
   return (
     <>
-      <div className="sync__block">
-        <p>{t.intro}</p>
-        <SyncDisclosure />
-      </div>
+      <AccountForms
+        key={knownEmail}
+        sync={sync}
+        headingId={ids.off}
+        initialEmail={knownEmail}
+        allowSignUp
+        takeLabel={labelProps.takeLabel}
+        onBusy={onActivating}
+        onSignedUp={onActivated}
+        onLoggedIn={onLoggedIn}
+        otherWaysId={ids.otherWays}
+        disclosure={<SyncDisclosure />}
+      />
       <DeviceNameField {...labelProps} />
-      <section className="sync__block" aria-labelledby={ids.off}>
-        <h3 id={ids.off} tabIndex={-1} className="settings__subtitle">
-          {t.activateTitle}
+      <section className="sync__block" aria-labelledby={ids.otherWays}>
+        <h3 id={ids.otherWays} tabIndex={-1} className="settings__subtitle">
+          {accountTexts.otherWaysTitle}
         </h3>
-        <form
-          className="sync__form"
-          noValidate
-          onSubmit={(event) => {
-            event.preventDefault();
-            void activate();
-          }}
-        >
-          <label className="settings__choice">
-            <input
-              id={ageId}
-              type="checkbox"
-              checked={age}
-              aria-invalid={ageError ? true : undefined}
-              aria-describedby={ageError ? `${ageId}-error` : undefined}
-              onChange={(event) => {
-                setAge(event.target.checked);
-                if (event.target.checked) setAgeError(false);
-              }}
-            />
-            {t.age(DEFAULT_MIN_AGE)}
-          </label>
-          {ageError && (
-            <p id={`${ageId}-error`} className="sync__error">
-              {t.ageMissing(DEFAULT_MIN_AGE)}
-            </p>
-          )}
-          <div className="settings__buttons">
-            <button type="submit" className="btn btn--primary" aria-disabled={busy}>
-              {busy ? t.activating : t.activate}
-            </button>
-          </div>
-          <div className="settings__import-result" role="status">
-            {failure !== null && <p className="sync__error">{failure}</p>}
-          </div>
-        </form>
+        <p>{accountTexts.otherWaysIntro}</p>
       </section>
       <JoinForm
         sync={sync}
@@ -499,6 +447,58 @@ export function OffView({
         takeLabel={labelProps.takeLabel}
         onJoined={onJoined}
       />
+      {/* Cerrado: es la forma menos habitual, y así la edad y el aviso no salen dos veces. */}
+      <details
+        className="sync__block sync__details"
+        open={noEmailOpen}
+        onToggle={(event) => setNoEmailOpen(event.currentTarget.open)}
+      >
+        <summary id={ids.activate} className="settings__subtitle">
+          {t.activateTitle}
+        </summary>
+        {noEmailOpen && (
+          <>
+            <p>{t.intro}</p>
+            <SyncDisclosure />
+            <form
+              className="sync__form"
+              noValidate
+              onSubmit={(event) => {
+                event.preventDefault();
+                void activate();
+              }}
+            >
+              <label className="settings__choice">
+                <input
+                  id={ageId}
+                  type="checkbox"
+                  checked={age}
+                  aria-invalid={ageError ? true : undefined}
+                  aria-describedby={ageError ? `${ageId}-error` : undefined}
+                  onChange={(event) => {
+                    setAge(event.target.checked);
+                    if (event.target.checked) setAgeError(false);
+                  }}
+                />
+                {t.age(DEFAULT_MIN_AGE)}
+              </label>
+              {ageError && (
+                <p id={`${ageId}-error`} className="sync__error">
+                  {t.ageMissing(DEFAULT_MIN_AGE)}
+                </p>
+              )}
+              <div className="settings__buttons">
+                <button type="submit" className="btn btn--primary" aria-disabled={busy}>
+                  {busy ? t.activating : t.activate}
+                </button>
+              </div>
+              <div className="settings__import-result" role="status">
+                {failure !== null && <p className="sync__error">{failure}</p>}
+              </div>
+            </form>
+          </>
+        )}
+      </details>
     </>
   );
 }
@@ -1436,99 +1436,6 @@ function InboxSection({
   );
 }
 
-/** Una acción con confirmación en el sitio (sin modal, §9.6). `run` devuelve el error, o `null`. */
-function ConfirmAction({
-  headingId,
-  title,
-  intro,
-  action,
-  question,
-  confirm,
-  busyLabel,
-  danger,
-  run,
-}: {
-  headingId: string;
-  title: string;
-  intro: string;
-  action: string;
-  question: string;
-  confirm: string;
-  /** El texto del botón de confirmar mientras espera («Desemparejando…»). */
-  busyLabel: string;
-  danger: boolean;
-  run: () => Promise<string | null>;
-}) {
-  const id = useId();
-  const [confirming, setConfirming] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [failure, setFailure] = useState<string | null>(null);
-
-  async function go(): Promise<void> {
-    if (busy) return;
-    setBusy(true);
-    setFailure(null);
-    const error = await run();
-    setBusy(false);
-    if (error !== null) setFailure(error);
-    else setConfirming(false);
-  }
-
-  return (
-    <section className="sync__block" aria-labelledby={headingId}>
-      <h3 id={headingId} tabIndex={-1} className="settings__subtitle">
-        {title}
-      </h3>
-      <p>{intro}</p>
-      {confirming ? (
-        // biome-ignore lint/a11y/useSemanticElements: una confirmación con su pregunta y dos botones, no un formulario.
-        <div className="sync__confirm" role="group" aria-labelledby={`${id}-question`}>
-          <p id={`${id}-question`}>{question}</p>
-          <div className="settings__buttons">
-            <button
-              type="button"
-              className="btn"
-              onClick={() => {
-                setConfirming(false);
-                setFailure(null);
-                focusWhenReady(`${id}-start`);
-              }}
-            >
-              {t.cancel}
-            </button>
-            <button
-              id={`${id}-do`}
-              type="button"
-              className={danger ? 'btn btn--danger' : 'btn btn--primary'}
-              aria-disabled={busy}
-              onClick={() => void go()}
-            >
-              {busy ? busyLabel : confirm}
-            </button>
-          </div>
-          <div className="settings__import-result" role="status">
-            {failure !== null && <p className="sync__error">{failure}</p>}
-          </div>
-        </div>
-      ) : (
-        <div className="settings__buttons">
-          <button
-            id={`${id}-start`}
-            type="button"
-            className={danger ? 'btn btn--danger' : 'btn'}
-            onClick={() => {
-              setConfirming(true);
-              focusWhenReady(`${id}-do`);
-            }}
-          >
-            {action}
-          </button>
-        </div>
-      )}
-    </section>
-  );
-}
-
 /** Emparejada (o restaurando, CA4.3): estado, emparejar otro, dispositivos y lo demás. */
 export function PairedView({
   sync,
@@ -1584,6 +1491,7 @@ export function PairedView({
     <>
       {fromLink && <p className="sync__note">{t.fromLinkPaired}</p>}
       <StatusSection sync={sync} state={state} headingId={ids.status} />
+      <AccountSection sync={sync} headingId={ids.account} notify={notify} />
       <PairingSection sync={sync} headingId={ids.pairing} knownIds={knownIds} onPaired={onPaired} />
       <DevicesSection
         sync={sync}
@@ -1625,7 +1533,7 @@ export function PairedView({
         // El último con la agenda: su copia sincronizada se queda en el servidor, y se dice.
         question={isLastAppDevice(list) ? t.leaveConfirmLast : t.leaveConfirm}
         confirm={t.leave}
-        busyLabel={t.unpairing}
+        busyLabel={t.leaving}
         danger
         run={async () => {
           // El propio id: el de la lista o, si aún no ha llegado, el que se guardó al emparejar.
@@ -1655,7 +1563,9 @@ export function UnpairedView({
   linkCode,
   iosTab,
   labelProps,
+  knownEmail,
   onJoined,
+  onLoggedIn,
   onForgot,
 }: {
   sync: SyncService;
@@ -1664,7 +1574,9 @@ export function UnpairedView({
   linkCode: string | null;
   iosTab: boolean;
   labelProps: LabelProps;
+  knownEmail: string;
   onJoined: () => void;
+  onLoggedIn: () => void;
   onForgot: () => void;
 }) {
   return (
@@ -1681,6 +1593,19 @@ export function UnpairedView({
       <div className="sync__block">
         <SyncDisclosure />
       </div>
+      <AccountForms
+        key={knownEmail}
+        sync={sync}
+        headingId={ids.account}
+        initialEmail={knownEmail}
+        allowSignUp={false}
+        takeLabel={labelProps.takeLabel}
+        onBusy={() => {}}
+        onSignedUp={() => {}}
+        onLoggedIn={onLoggedIn}
+        otherWaysId={ids.join}
+        disclosure={null}
+      />
       <DeviceNameField {...labelProps} />
       <JoinForm
         sync={sync}
@@ -1734,6 +1659,9 @@ export interface PanelIds {
   readonly reveal: string;
   readonly passkeys: string;
   readonly passkeyJoin: string;
+  readonly account: string;
+  readonly otherWays: string;
+  readonly activate: string;
 }
 
 export function SyncPanel() {
@@ -1755,6 +1683,9 @@ export function SyncPanel() {
       reveal: `${base}-reveal`,
       passkeys: `${base}-passkeys`,
       passkeyJoin: `${base}-passkey-join`,
+      account: `${base}-account`,
+      otherWays: `${base}-other-ways`,
+      activate: `${base}-activate`,
     }),
     [base],
   );
@@ -1778,6 +1709,18 @@ export function SyncPanel() {
   const [activating, setActivating] = useState(false);
   const [message, setMessage] = useState<PanelMessage | null>(null);
   const messageCount = useRef(0);
+  // El email con que se entró aquí la última vez (ADR-014), para rellenar «Iniciar sesión».
+  const [knownEmail, setKnownEmail] = useState('');
+  useEffect(() => {
+    if (state.status === 'paired') return;
+    let live = true;
+    void sync.localAccount().then((account) => {
+      if (live) setKnownEmail(account.email ?? '');
+    });
+    return () => {
+      live = false;
+    };
+  }, [sync, state.status]);
 
   const labelId = `${base}-label`;
   const labelProps: LabelProps = {
@@ -1843,6 +1786,11 @@ export function SyncPanel() {
     show(t.joined, 'paired');
     focusWhenReady(ids.status);
   };
+  const onLoggedIn = () => {
+    setLink(null);
+    show(accountTexts.loggedIn, 'paired');
+    focusWhenReady(ids.status);
+  };
   const onLeft = () => {
     show(t.left, 'off');
     focusWhenReady(ids.off);
@@ -1879,6 +1827,7 @@ export function SyncPanel() {
           linkCode={linkCode}
           iosTab={iosTab}
           labelProps={labelProps}
+          knownEmail={knownEmail}
           onActivating={setActivating}
           onActivated={(code) => {
             setMessage(null);
@@ -1886,6 +1835,7 @@ export function SyncPanel() {
             setRevealed(code);
           }}
           onJoined={onJoined}
+          onLoggedIn={onLoggedIn}
         />
       );
       break;
@@ -1915,7 +1865,9 @@ export function SyncPanel() {
           linkCode={linkCode}
           iosTab={iosTab}
           labelProps={labelProps}
+          knownEmail={knownEmail}
           onJoined={onJoined}
+          onLoggedIn={onLoggedIn}
           onForgot={onLeft}
         />
       );

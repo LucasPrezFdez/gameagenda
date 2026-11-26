@@ -372,6 +372,56 @@
   color: var(--danger);
 }
 
+/*
+ * La cuenta (ADR-014): «Iniciar sesión» y «Crear cuenta», como el conmutador de Lista y Cuadrícula
+ * (`.view-toggle`), con texto; y el campo de la contraseña con su botón «Mostrar» al lado.
+ */
+.sync__modes {
+  align-self: flex-start;
+  max-width: 100%;
+}
+
+.sync__mode {
+  min-height: 32px;
+  background: transparent;
+}
+
+.sync__mode[aria-pressed="true"] {
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  font-weight: 600;
+}
+
+/* «Sincronizar sin email», cerrado: el resumen es su título, con el triángulo del navegador. */
+.sync__details > summary {
+  cursor: pointer;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.sync__details[open] > summary {
+  margin-bottom: 4px;
+}
+
+.sync__password {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+
+.sync__password .field {
+  flex: 1;
+  min-width: 0;
+}
+
+/* A 320 px, «Mostrar la contraseña» no cabe al lado del campo: va debajo. */
+@media (max-width: 400px) {
+  .sync__password {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
 .sync__note {
   padding: 10px 14px;
   border-radius: var(--radius);

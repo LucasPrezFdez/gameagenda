@@ -162,7 +162,8 @@ test('rutas de apoyo: dos dispositivos, reloj, interruptor, purga y «Borrar tod
   });
   await configureServer(page, { syncEnabled: true });
 
-  // Borrado hoy y purgado el lunes que cae pasados 90 días: `purged_seq` sube y no quedan filas.
+  // Borrado hoy y purgado el lunes que cae pasados 90 días: `purged_seq` sube y de la lápida, que
+  // es de Steam, solo queda `deletedAt` (ADR-014: así la importación no lo vuelve a añadir).
   const deleted = exampleOps('steam:620', { deletedAt: new Date().toISOString() }, Date.now() + 1);
   const second = await callApi(page, 'POST', '/api/v1/sync', {
     cursor: first.json.cursor,
@@ -174,7 +175,7 @@ test('rutas de apoyo: dos dispositivos, reloj, interruptor, purga y «Borrar tod
   expect(new Date(ranAt).getUTCDay()).toBe(1);
   expect(Date.parse(ranAt) - Date.now()).toBeGreaterThan(91 * DAY - 60_000);
   const purged = await serverAgenda(page, { device: deviceId });
-  expect(purged?.rows.op).toBe(0);
+  expect(purged?.rows.op).toBe(1);
   expect(purged?.purgedSeq).toBeGreaterThan(0);
   // La seq sube con la purga y purged_seq pasa a ser esa seq nueva: todo dispositivo que sincronizó
   // antes recibe reset. La época, de 16 cifras hexadecimales, no cambia.

@@ -6,6 +6,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { es } from '../../i18n/es.ts';
 import type { SyncService, SyncState } from '../../sync/types.ts';
+import { accountTexts } from './account-texts.ts';
 import {
   JoinForm,
   type LabelProps,
@@ -49,6 +50,14 @@ const sync: SyncService = {
   createPasskey: never,
   listPasskeys: never,
   removePasskey: never,
+  createAccount: never,
+  logIn: never,
+  account: never,
+  setLoginDetails: never,
+  removeLoginDetails: never,
+  unlinkSteam: never,
+  localAccount: never,
+  setSteamAuto: never,
   deleteServerAgenda: never,
   syncNow: never,
   forget: never,
@@ -70,6 +79,9 @@ const ids: PanelIds = {
   reveal: 'reveal',
   passkeys: 'passkeys',
   passkeyJoin: 'passkey-join',
+  account: 'account',
+  otherWays: 'other-ways',
+  activate: 'activate',
 };
 
 const labelProps: LabelProps = {
@@ -88,9 +100,11 @@ describe('el aviso del gesto que crea las cookies (§11.2)', () => {
       linkCode: null,
       iosTab: false,
       labelProps,
+      knownEmail: '',
       onActivating: noop,
       onActivated: noop,
       onJoined: noop,
+      onLoggedIn: noop,
     }),
   );
   const unpaired = renderToStaticMarkup(
@@ -101,7 +115,9 @@ describe('el aviso del gesto que crea las cookies (§11.2)', () => {
       linkCode: null,
       iosTab: false,
       labelProps,
+      knownEmail: 'yo@example.com',
       onJoined: noop,
+      onLoggedIn: noop,
       onForgot: noop,
     }),
   );
@@ -119,6 +135,19 @@ describe('el aviso del gesto que crea las cookies (§11.2)', () => {
     expect(legal).toBeGreaterThan(unpaired.indexOf(t.unpairedTitle));
     expect(legal).toBeLessThan(unpaired.indexOf(t.rejoinTitle));
     expect(legal).toBeLessThan(unpaired.indexOf(t.useRecovery));
+  });
+
+  it('también junto a «Iniciar sesión» y «Crear cuenta» (ADR-014): las dos crean las cookies', () => {
+    // Sin email conocido, sale «Crear cuenta», con el aviso entre su encabezado y su botón.
+    const submit = (text: string) => `aria-disabled="false">${text}</button>`;
+    const signUp = off.indexOf(submit(accountTexts.signUp));
+    const heading = off.indexOf(`>${accountTexts.accountTitle}</h3>`);
+    expect(heading).toBeGreaterThan(0);
+    expect(off.lastIndexOf('data-sync-legal', signUp)).toBeGreaterThan(heading);
+    // Desemparejado, «Iniciar sesión», con el aviso de arriba antes (como emparejar o recuperar).
+    const logIn = unpaired.indexOf(submit(accountTexts.logIn));
+    expect(logIn).toBeGreaterThan(unpaired.indexOf(`>${accountTexts.logInAgainTitle}</h3>`));
+    expect(unpaired.indexOf('data-sync-legal')).toBeLessThan(logIn);
   });
 });
 

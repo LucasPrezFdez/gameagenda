@@ -418,7 +418,7 @@ export const es = {
       keyboard: 'Teclado y gestos',
       data: 'Datos',
       privacy: 'Privacidad',
-      sync: 'Sincronización',
+      sync: 'Cuenta y sincronización',
       performance: 'Rendimiento',
       about: 'Acerca de',
     } satisfies Record<SettingsSection, string>,
@@ -633,23 +633,24 @@ export const es = {
         : `Hemos apuntado ${formatCount(titles.length)} juegos desde el Atajo de iOS.`,
   },
 
-  /** Ajustes › Sincronización (M4; §9.1, §11.2 y §11.4). */
+  /** Ajustes › Cuenta y sincronización (M4; §9.1, §11.2 y §11.4; las cuentas, ADR-014). */
   syncPanel: {
     loading: 'Cargando el estado de la sincronización…',
-    // Sin sincronizar o desemparejado. Las cookies las crea el gesto de activar, emparejar o
-    // recuperar, y se avisa junto a él (§11.2).
+
+    // Sin sincronizar o desemparejado. Las cookies las crea el gesto de crear la cuenta, entrar,
+    // activar, emparejar o recuperar, y se avisa junto a él (§11.2).
     intro:
-      'Ten la misma agenda en el móvil y en el PC, con una copia fuera de este dispositivo. Se sincroniza sola, también cuando vuelve la conexión.',
+      'Sin email ni contraseña: tu agenda se sincroniza igual, y en otros dispositivos entras con un código o una llave de acceso.',
     stored:
-      'Guardamos tu agenda (juegos, estados, marcas, fechas y notas) y el nombre de cada dispositivo en servidores de Cloudflare en la Unión Europea. No pedimos email, nombre ni contraseña.',
+      'Guardamos tu agenda (juegos, estados, marcas, fechas y notas) y el nombre de cada dispositivo en servidores de Cloudflare en la Unión Europea. No pedimos tu nombre.',
     cookie:
-      'Al activar o emparejar (también con el código de recuperación), este dispositivo guarda dos cookies: una lo identifica ante el servidor y la otra, sin datos, indica que está emparejado. Solo sirven para sincronizar, y se borran al desemparejarlo o al borrar la agenda sincronizada.',
+      'Al crear la cuenta, iniciar sesión o emparejar (también con un código o una llave), este dispositivo guarda dos cookies: una lo identifica ante el servidor y la otra, sin datos, indica que está emparejado. Solo sirven para sincronizar, y se borran al cerrar la sesión o al borrar la agenda sincronizada.',
     deviceName: 'Nombre de este dispositivo',
     deviceNameHint: 'Así lo reconocerás en la lista de dispositivos.',
     deviceNameMissing: 'Escribe un nombre para este dispositivo.',
     /** Nombre por defecto en la app de escritorio (Tauri, ADR-010). */
     desktopLabel: 'App de escritorio',
-    activateTitle: 'Empezar a sincronizar',
+    activateTitle: 'Sincronizar sin email',
     age: (age: number) => `Tengo ${age} años o más`,
     ageMissing: (age: number) =>
       `Para sincronizar tienes que tener ${age} años o más. Si es tu caso, marca la casilla.`,
@@ -818,14 +819,18 @@ export const es = {
     newRecoveryDo: 'Crear código nuevo',
     newRecoveryCreating: 'Creando el código…',
 
-    leaveTitle: 'Desemparejar este dispositivo',
-    leaveIntro: 'Dejará de sincronizar. Tu agenda se queda en este dispositivo y en los demás.',
-    leave: 'Desemparejar este dispositivo',
-    leaveConfirm: '¿Desemparejar este dispositivo? Podrás volver a emparejarlo con un código.',
+    leaveTitle: 'Cerrar sesión en este dispositivo',
+    leaveIntro:
+      'Dejará de sincronizar. Tu agenda se queda en este dispositivo y en los demás. Para quitarla también de aquí, después usa «Borrar todo» en Ajustes › Datos.',
+    leave: 'Cerrar sesión',
+    leaveConfirm:
+      '¿Cerrar sesión en este dispositivo? Podrás volver a entrar con tu email, un código o una llave de acceso.',
     /** Si la lista no tiene otro dispositivo con la agenda (`app`): su copia se queda en D1. */
     leaveConfirmLast:
-      '¿Desemparejar este dispositivo? Es el último que sincroniza tu agenda: la copia sincronizada se quedará en el servidor, y podrás recuperarla con tu código de recuperación. Para borrarla, usa antes «Borrar todos mis datos» en Ajustes › Datos, que borra también lo de este dispositivo.',
-    left: 'Este dispositivo ya no sincroniza. Tu agenda sigue aquí.',
+      '¿Cerrar sesión en este dispositivo? Es el último que sincroniza tu agenda: la copia sincronizada se quedará en el servidor, y podrás volver a entrar con tu email, tu código de recuperación o una llave. Para borrarla, usa antes «Borrar todos mis datos» en Ajustes › Datos, que borra también lo de este dispositivo.',
+    /** Mientras espera al servidor. */
+    leaving: 'Cerrando la sesión…',
+    left: 'Has cerrado la sesión en este dispositivo. Tu agenda sigue aquí.',
 
     // Desemparejado (§11.4): por el servidor (401) o porque se borraron las cookies.
     unpairedTitle: 'Este dispositivo ya no sincroniza',

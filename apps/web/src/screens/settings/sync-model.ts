@@ -2,15 +2,20 @@
 // para probarlo con Vitest. Va en el *chunk* diferido de Ajustes. De `@gameagenda/core/api` solo
 // usa los códigos y las constantes, que no importan Zod (`api/constants.ts` y `api/codes.ts`).
 import {
+  ACCOUNT_PASSWORD_MAX,
+  ACCOUNT_PASSWORD_MIN,
   CODE_GROUP,
+  normalizeEmail,
   PAIRING_TTL_MS,
   PASSKEYS_MAX,
   type PasskeyInfo,
   parseCode,
+  passwordProblem,
 } from '@gameagenda/core/api';
 import { es } from '../../i18n/es.ts';
 import { defaultDeviceLabel, LABEL_MAX } from '../../sync/device-label.ts';
 import type { DeviceInfo, SyncErrorCode, SyncState } from '../../sync/types.ts';
+import { accountTexts } from './account-texts.ts';
 
 /** Qué se ve en la sección, según el estado de la sincronización (sin el código recién creado). */
 export type SyncView = 'loading' | 'off' | 'paired' | 'unpaired';
@@ -156,7 +161,12 @@ export type SyncOperation =
   | 'passkeyJoin'
   | 'passkeyCreate'
   | 'passkeyRemove'
-  | 'passkeys';
+  | 'passkeys'
+  /** Cuentas (ADR-014). */
+  | 'logIn'
+  | 'signUp'
+  | 'account'
+  | 'loginDetails';
 
 /**
  * Por qué «Borrar todos mis datos» no ha borrado nada: con la sincronización activada, no borra lo
@@ -203,6 +213,14 @@ export function syncErrorText(code: SyncErrorCode, operation: SyncOperation): st
       return t.passkeysFull(PASSKEYS_MAX);
     case 'passkeys_disabled':
       return t.passkeysDisabled;
+    case 'invalid_login':
+      return accountTexts.errors.invalidLogin;
+    case 'email_taken':
+      return accountTexts.errors.emailTaken;
+    case 'too_many_attempts':
+      return accountTexts.errors.tooManyAttempts;
+    case 'accounts_disabled':
+      return accountTexts.errors.accountsDisabled;
     case 'storage':
       return t.storage;
     case 'unavailable':
@@ -210,6 +228,41 @@ export function syncErrorText(code: SyncErrorCode, operation: SyncOperation): st
     default:
       return t.server;
   }
+}
+
+/** Un campo del formulario de la cuenta que no vale, con su texto. */
+export interface FieldProblem {
+  readonly field: 'email' | 'password';
+  readonly message: string;
+}
+
+/**
+ * Lo que falta o no vale en el email y la contraseña (ADR-014), por orden: lo primero recibe el
+ * foco. Al entrar, la contraseña solo tiene que estar: las reglas son para crearla (`fresh`).
+ */
+export function loginProblems(
+  email: string,
+  password: string,
+  fresh: boolean,
+): readonly FieldProblem[] {
+  const t = accountTexts;
+  const problems: FieldProblem[] = [];
+  if (email.trim() === '') problems.push({ field: 'email', message: t.emailMissing });
+  else if (normalizeEmail(email) === null) {
+    problems.push({ field: 'email', message: t.emailInvalid });
+  }
+  if (password === '') problems.push({ field: 'password', message: t.passwordMissing });
+  else if (fresh) {
+    const problem = passwordProblem(password, email);
+    if (problem === 'too_short') {
+      problems.push({ field: 'password', message: t.passwordTooShort(ACCOUNT_PASSWORD_MIN) });
+    } else if (problem === 'too_long') {
+      problems.push({ field: 'password', message: t.passwordTooLong(ACCOUNT_PASSWORD_MAX) });
+    } else if (problem === 'same_as_email') {
+      problems.push({ field: 'password', message: t.passwordSameAsEmail });
+    }
+  }
+  return problems;
 }
 
 /** Línea de estado de una agenda emparejada (o restaurándose), con `role="status"`. */

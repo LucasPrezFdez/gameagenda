@@ -13,6 +13,7 @@ import type { CopyReminderStore } from '../data/copy-reminder.ts';
 import { onTableChange } from '../db/changes.ts';
 import { type GameAgendaDb, META_KEYS } from '../db/database.ts';
 import type { NoticeCenter } from '../notices/notice-center.ts';
+import { type AccountRecord, EMPTY_ACCOUNT, parseAccountRecord } from './account-state.ts';
 import type { FetchLike } from './api-client.ts';
 import { installSyncTestHooks, syncTestOptions } from './e2e-hooks.ts';
 import type { EngineOptions } from './engine.ts';
@@ -428,6 +429,40 @@ export function createSyncService(options: SyncServiceOptions): SyncController {
       requireActive();
       return (await ensureRuntime()).removePasskey(id);
     },
+    async createAccount(input) {
+      return (await ensureRuntime()).createAccount(input);
+    },
+    async logIn(input) {
+      await (await ensureRuntime()).logIn(input);
+    },
+    async account() {
+      requireActive();
+      return (await ensureRuntime()).account();
+    },
+    async setLoginDetails(input) {
+      requireActive();
+      return (await ensureRuntime()).setLoginDetails(input);
+    },
+    async removeLoginDetails() {
+      requireActive();
+      return (await ensureRuntime()).removeLoginDetails();
+    },
+    async unlinkSteam() {
+      requireActive();
+      return (await ensureRuntime()).unlinkSteam();
+    },
+    async localAccount(): Promise<AccountRecord> {
+      if (db === null) return EMPTY_ACCOUNT;
+      return parseAccountRecord((await db.meta.get(META_KEYS.account))?.value);
+    },
+    async setSteamAuto(on) {
+      if (db === null) return;
+      const store = db;
+      await store.transaction('rw', store.meta, async () => {
+        const current = parseAccountRecord((await store.meta.get(META_KEYS.account))?.value);
+        await store.meta.put({ key: META_KEYS.account, value: { ...current, steamAuto: on } });
+      });
+    },
     async deleteServerAgenda() {
       if (db === null || snapshot.status === 'off') return;
       await (await ensureRuntime()).deleteServerAgenda();
@@ -442,7 +477,7 @@ export function createSyncService(options: SyncServiceOptions): SyncController {
     },
     async forget() {
       if (db === null || record === null) return;
-      await db.meta.bulkDelete([META_KEYS.syncState, META_KEYS.syncCursor]);
+      await db.meta.bulkDelete([META_KEYS.syncState, META_KEYS.syncCursor, META_KEYS.account]);
       record = null;
       update();
     },

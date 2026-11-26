@@ -50,6 +50,11 @@ export const META_KEYS = {
    * `{ "<appid>": ms }` (ver `db/resolve-memory-storage.ts`). Es de este dispositivo.
    */
   resolveAsked: 'resolveAsked',
+  /**
+   * Cuentas (ADR-014): lo que este dispositivo sabe de la cuenta, `{email, steamLinked, steamAuto,
+   * steamCheckedAt}` (ver `src/sync/account-state.ts`). Se borra con `syncState`.
+   */
+  account: 'account',
 } as const;
 
 export type GameAgendaDb = Dexie & {

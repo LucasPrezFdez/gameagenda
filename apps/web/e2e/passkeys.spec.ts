@@ -7,7 +7,7 @@
 // `Permissions-Policy` de `public/_headers`, así que esto prueba también la de producción. WebKit
 // no tiene autenticador virtual.
 import type { CDPSession, Page } from '@playwright/test';
-import { capture, expectAccessible, setup } from './helpers.ts';
+import { capture, expectAccessible, openNoEmail, setup } from './helpers.ts';
 import { expect, test as syncTest } from './sync-server.ts';
 
 const test = syncTest.extend({
@@ -61,7 +61,7 @@ test('guardar una llave al activar, entrar con ella en otro dispositivo y quitar
   await openSync(page);
   const section = syncSection(page);
   await section.getByRole('textbox', { name: 'Nombre de este dispositivo' }).fill('PC de prueba');
-  await section.getByRole('checkbox', { name: /años o más/ }).check();
+  await (await openNoEmail(section)).getByRole('checkbox', { name: /años o más/ }).check();
   await section.getByRole('button', { name: 'Activar sincronización' }).click();
   await expect(section.getByRole('heading', { name: 'Tu código de recuperación' })).toBeFocused();
 
@@ -130,7 +130,7 @@ test('una llave quitada no abre la agenda, y lo dice; cerrar el diálogo no dice
   const pc = await virtualAuthenticator(page);
   await openSync(page);
   const section = syncSection(page);
-  await section.getByRole('checkbox', { name: /años o más/ }).check();
+  await (await openNoEmail(section)).getByRole('checkbox', { name: /años o más/ }).check();
   await section.getByRole('button', { name: 'Activar sincronización' }).click();
   await section.getByRole('button', { name: 'Crear una llave de acceso' }).click();
   await expect(section.getByText(/^Hemos guardado la llave\./)).toBeVisible();
@@ -153,7 +153,7 @@ test('una llave quitada no abre la agenda, y lo dice; cerrar el diálogo no dice
   const phoneSection = syncSection(phone);
   await phoneSection.getByRole('button', { name: 'Entrar con una llave de acceso' }).click();
   await expect(phoneSection.getByText(/^Esa llave no ha abierto ninguna agenda/)).toBeVisible();
-  await expect(phoneSection.getByRole('button', { name: 'Activar sincronización' })).toBeVisible();
+  await expect(phoneSection.getByRole('heading', { name: 'Tu cuenta' })).toBeVisible();
 
   // Sin verificar al usuario (como cerrar el diálogo de Windows Hello): vuelve sin mensaje.
   await keys.cdp.send('WebAuthn.setUserVerified', {
