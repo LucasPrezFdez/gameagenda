@@ -19,16 +19,16 @@ export const INBOX_PATH = '/api/v1/inbox';
 export const INBOX_MESSAGES: Readonly<Partial<Record<ApiErrorCode | 'queued', string>>> = {
   queued: 'Hecho. Lo apuntaremos en GameAgenda en cuanto se sincronice.',
   unauthorized:
-    'Este atajo ya no vale. Crea un token nuevo en GameAgenda, en Ajustes › Sincronización.',
+    'Este atajo ya no vale. Crea un token nuevo en GameAgenda, en Ajustes › Cuenta y sincronización.',
   invalid_link: 'Eso no es un enlace de un juego de Steam.',
   inbox_full:
     'Hay demasiados juegos esperando. Abre GameAgenda para que se apunten y vuelve a probar.',
   rate_limited: 'Demasiados envíos seguidos. Vuelve a probar dentro de un minuto.',
   sync_disabled: 'GameAgenda no puede apuntar juegos así ahora mismo. Vuelve a probar más tarde.',
   unsupported_media_type:
-    'El atajo no está bien hecho: el cuerpo de la solicitud tiene que ser JSON. Revisa los pasos en Ajustes › Sincronización.',
+    'El atajo no está bien hecho: el cuerpo de la solicitud tiene que ser JSON. Revisa los pasos en Ajustes › Cuenta y sincronización.',
   invalid_body:
-    'El atajo no está bien hecho: el JSON tiene que llevar solo el campo url. Revisa los pasos en Ajustes › Sincronización.',
+    'El atajo no está bien hecho: el JSON tiene que llevar solo el campo url. Revisa los pasos en Ajustes › Cuenta y sincronización.',
   payload_too_large: 'Lo que manda el atajo es demasiado largo: comparte solo el enlace del juego.',
   internal: 'Algo ha fallado en GameAgenda. Vuelve a probar dentro de un rato.',
 };

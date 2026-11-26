@@ -446,7 +446,7 @@ export const es = {
     deleteAllHintSynced:
       'Borra tu lista y tus ajustes de este dispositivo, y tu agenda sincronizada del servidor. Tus otros dispositivos dejarán de sincronizar, pero conservarán su lista. No se puede deshacer.',
     deleteAllHintUnpaired:
-      'Borra tu lista y tus ajustes de este dispositivo. Como ya no está emparejado, tu agenda sincronizada no se borra: recupérala antes con tu código en Ajustes › Sincronización, o bórrala desde otro dispositivo emparejado. No se puede deshacer.',
+      'Borra tu lista y tus ajustes de este dispositivo. Como ya no está emparejado, tu agenda sincronizada no se borra: recupérala antes con tu código en Ajustes › Cuenta y sincronización, o bórrala desde otro dispositivo emparejado. No se puede deshacer.',
     deleteServerOffline:
       'No hay conexión y no podemos borrar tu agenda sincronizada, así que no hemos borrado nada. Vuelve a intentarlo cuando tengas conexión.',
     deleteServerDisabled:
@@ -456,7 +456,7 @@ export const es = {
     // El servidor responde 401: este dispositivo ya no está emparejado (revocado desde otro, o la
     // agenda ya no existe). No se da por borrada: puede seguir en D1 con los demás.
     deleteServerUnpaired:
-      'Este dispositivo ya no está emparejado y no podemos borrar tu agenda sincronizada desde aquí, así que no hemos borrado nada. Bórrala desde otro dispositivo emparejado, o recupérala antes con tu código en Ajustes › Sincronización. Para borrar solo lo de este dispositivo, pulsa otra vez «Borrar todo».',
+      'Este dispositivo ya no está emparejado y no podemos borrar tu agenda sincronizada desde aquí, así que no hemos borrado nada. Bórrala desde otro dispositivo emparejado, o recupérala antes con tu código en Ajustes › Cuenta y sincronización. Para borrar solo lo de este dispositivo, pulsa otra vez «Borrar todo».',
     deletedAllSynced:
       'Hemos borrado todos tus datos de este dispositivo y tu agenda sincronizada del servidor.',
     deleteConfirmLabel: 'Escribe BORRAR para confirmar',
@@ -658,7 +658,7 @@ export const es = {
     activating: 'Activando…',
     joinTitle: 'Ya sincronizo en otro dispositivo',
     joinIntro:
-      'En el otro dispositivo, abre Ajustes › Sincronización y pulsa «Emparejar otro dispositivo». Escribe aquí el código que te dé, o tu código de recuperación.',
+      'En el otro dispositivo, abre Ajustes › Cuenta y sincronización y pulsa «Emparejar otro dispositivo». Escribe aquí el código que te dé, o tu código de recuperación.',
     code: 'Código',
     codeHint: '28 letras y números, con guiones o sin ellos.',
     codeInvalid:
@@ -712,7 +712,7 @@ export const es = {
 
     pairTitle: 'Emparejar otro dispositivo',
     pairIntro:
-      'Abre GameAgenda en el otro dispositivo y ve a Ajustes › Sincronización. Escanea el QR con su cámara, o escribe el código en «Ya sincronizo en otro dispositivo».',
+      'Abre GameAgenda en el otro dispositivo y ve a Ajustes › Cuenta y sincronización. Escanea el QR con su cámara, o escribe el código en «Ya sincronizo en otro dispositivo».',
     pairHome:
       'En un iPhone o un iPad con GameAgenda en la pantalla de inicio, ábrela desde ahí y escribe el código: la cámara abriría el enlace en Safari, que guarda sus datos aparte.',
     pairCreate: 'Emparejar otro dispositivo',
