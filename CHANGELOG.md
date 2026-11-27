@@ -43,6 +43,8 @@ Cambios de GameAgenda por versión. Cada hito cierra una versión SemVer 0.x (§
 
 #### Ingeniería
 
+- **CA4.6 medido en producción** (27-11-2026; DECISIONES §10.59; `docs/medidas/ca4.6-20261127-produccion.md`): no se cumple. De 206 peticiones a la micro-API del 16 al 27-11-2026, el p50 es de 2,4 ms y el p99, de 19,1 ms (de 5), por las peticiones frías y la importación de Steam. Ninguna se cortó: todas acabaron en `success`, sin `exceededCpu`.
+- **CA2.1 para M3, cumplido** (27-11-2026): 24 ejecuciones programadas de `catalog.yml` seguidas en verde, del 03 al 26-11-2026. M3 pedía 7.
 - **Cuentas y Steam vinculado** (26-11-2026, en producción desde el 26-11-2026; ADR-014, DECISIONES §10.58):
   - micro-API: `/api/v1/account` (crear, entrar, ver, poner y quitar el email y la contraseña), con HMAC-SHA256 y el secreto `ACCOUNT_PEPPER`, `RL_LOGIN`, el freno por email (`login_throttle`), y `steam/link`, `refresh` (202 `unlinked` o `too_soon`) y `unlink`, con `steam_link`; migración `0005_cuentas.sql` e interruptor `ACCOUNTS_ENABLED`;
   - app: PBKDF2 en el dispositivo (`sync/account-key.ts`), `meta.account`, `AccountPanel.tsx` y `SteamLinkSection.tsx`, la actualización diaria (`steam/auto-refresh.ts` y su disparador) y `gatherSteamData`, compartida con la importación;

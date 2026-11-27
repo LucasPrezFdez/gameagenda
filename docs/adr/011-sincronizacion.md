@@ -346,6 +346,7 @@ Lo detalla DECISIONES §10.41.
   - En caliente, el peor p99 es 2,38 ms, en `sync` con 200 operaciones. Bajar 1 000 cambios se queda en 2,22 ms, y el resto no pasa de 1,6 ms.
   - La primera petición de un *isolate* nuevo cuesta ≈6 ms, porque Hono y Zod preparan cosas la primera vez.
 - **Lo que cierra CA4.6** es el p99 del panel de Workers en producción (parte 5).
+- **En producción, del 16 al 27-11-2026** (`docs/medidas/ca4.6-20261127-produccion.md`, DECISIONES §10.59): **no se cumple.** De 206 peticiones, el p50 es de 2,4 ms y el p99, de 19,1 ms. Sin la prueba del 16-11 ni la importación de Steam, el p99 es de 13,0 ms, y en una tarde con una sola versión, de 9,0 ms. Ninguna se cortó: todas acabaron en `success`, sin `exceededCpu`. La cola son peticiones frías (unas 19 al día y 15 versiones del Worker en 11 días) y la importación de Steam (p99 de 31,5 ms en su hora). Queda por decidir si se abaratan las rutas en frío, se enciende Workers Logs o se ajusta el criterio.
 
 ### Despliegue (16-11-2026; parte 5)
 
@@ -399,7 +400,7 @@ Lo detalla DECISIONES §10.47.
 - Bien, porque el Atajo de iOS apunta sin abrir la app con un *token* que solo puede dejar enlaces, y lo apuntado pasa por la misma agenda que un enlace pegado.
 - Mal, porque sin sincronizar un juego recién publicado se queda con el título del enlace hasta que llega al catálogo (normalmente, al día siguiente).
 - **Pendiente:**
-  - **parte 5, lo que queda** (desplegado el 16-11-2026: ver «Despliegue»): el p99 de CA4.6 en el panel de Workers tras una semana de uso, y las pruebas en el iPhone (CA4.3 con los datos de Safari, CA4.5 con el Atajo de verdad y el QR con la app en la pantalla de inicio).
+  - **parte 5, lo que queda** (desplegado el 16-11-2026: ver «Despliegue»): decidir qué se hace con CA4.6, que en producción no se cumple (p99 de 19,1 ms el 27-11-2026; ver «CPU por petición»), y las pruebas en el iPhone (CA4.3 con los datos de Safari, CA4.5 con el Atajo de verdad y el QR con la app en la pantalla de inicio).
 - **A verificar:**
   - que `navigator.standalone` solo existe en iOS: si Safari de macOS lo diera como `false`, la nota de Safari saldría en un Mac.
   - (Comprobado al desplegar: el plan gratuito admite la jurisdicción UE de D1 y el *binding* `ratelimits`.)

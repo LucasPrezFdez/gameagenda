@@ -145,6 +145,8 @@ Solo aditiva (§10.47): la versión anterior del código funciona con la base nu
 
 En `redeem`, ≈2,9 ms (p50) son de los *streams* de Node que lo rodean en la prueba (el Steam falso que reparte los trozos y el lector), que en `workerd` son nativos: lo que añade el Worker son ≈0,25 ms (`.cache/steam-probe/stream-cost.mts`). `redeem` tiene su propio presupuesto en el script, 10 ms (el límite gratuito); el resto, el de CA4.6. La primera petición de un *isolate* es como la de las demás rutas (de 2 a 10 ms). Lo que cierra la medida es el panel de Workers.
 
+**En producción (27-11-2026; `docs/medidas/ca4.6-20261127-produccion.md`, DECISIONES §10.59):** en la hora de la primera importación de verdad, el 21-11-2026, 48 peticiones y 84 llamadas a Steam, con un p50 de 2,2 ms, un p95 de 19,1 ms y un p99 de 31,5 ms. No cumple los 10 ms del factor de la decisión, aunque ninguna petición se cortó. El panel no da la ruta, así que no se sabe cuánto es de los logros y cuánto de `redeem`.
+
 ### Confirmación
 
 - **Micro-API**, con `app.request()`, D1 sobre `node:sqlite` y aserciones de OpenID con la forma de las de Steam (`fixtures/steam/openid/`), firmadas por un Steam falso que contesta `check_authentication` recalculando la firma (`worker/test/steam-support.ts`):

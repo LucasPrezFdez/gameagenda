@@ -32,3 +32,5 @@ El `tail` recogió 22 de las 24 peticiones: le faltan una lista de dispositivos 
 ## Siguiente
 
 Mirar el p99 de «CPU time» en el panel de Workers (`ga-web` › Métricas) tras una semana de uso con varios dispositivos, y apuntarlo aquí.
+
+**Hecho el 27-11-2026** en `ca4.6-20261127-produccion.md`, que sustituye a esta muestra: de 206 peticiones, un p99 de 19,1 ms, sin ninguna cortada.
