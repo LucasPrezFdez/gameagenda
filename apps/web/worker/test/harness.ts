@@ -226,6 +226,8 @@ export interface HarnessOptions {
   pageSize?: number;
   /** Tope diario de llamadas a Steam. */
   steamDailyCalls?: number;
+  /** Tope de lo que pasa `redeem`; por defecto, `TEST_IMPORT_MAX_BYTES` (1 MiB). */
+  steamImportMaxBytes?: number;
 }
 
 export function createHarness(overrides: Partial<Env> = {}, options: HarnessOptions = {}): Harness {
@@ -266,7 +268,8 @@ export function createHarness(overrides: Partial<Env> = {}, options: HarnessOpti
     ...(options.pageSize === undefined ? {} : { pageSize: options.pageSize }),
     ...(options.steamDailyCalls === undefined ? {} : { steamDailyCalls: options.steamDailyCalls }),
     // Con 16 MiB, cada prueba del tope movería 17 MiB: con 1 MiB, la Web API falsa manda 2.
-    steamImportMaxBytes: TEST_IMPORT_MAX_BYTES,
+    // `scripts/api-cpu.ts` mide `redeem` con el de producción.
+    steamImportMaxBytes: options.steamImportMaxBytes ?? TEST_IMPORT_MAX_BYTES,
   });
   let nextIp = 1;
   const harness: Harness = {

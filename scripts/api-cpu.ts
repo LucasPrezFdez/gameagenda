@@ -1,7 +1,7 @@
-// CA4.6 (§15.7 de prototipe.md): CPU de la micro-API por petición, en el p99, frente a los 5 ms del
-// criterio (el límite gratuito de Workers es de 10 ms). En producción lo dice el panel de Workers;
-// esto lo estima en local, antes de desplegar, con la misma `createApp()` que el Worker, en V8 (el
-// motor de `workerd`).
+// CA4.6 (§15.7 de prototipe.md): CPU de la micro-API por petición. En producción, CA4.6 pide la
+// mediana (≤5 ms) y que no se corte ninguna, y lo dice el panel de Workers (DECISIONES §10.60).
+// Esto estima cada ruta en local, antes de desplegar, con el p99 en caliente frente a 5 ms: con la
+// misma `createApp()` que el Worker, en V8 (el motor de `workerd`).
 //
 // - Cada ruta se llama con `app.request()` sobre la D1 de las pruebas (`node:sqlite`). En Workers,
 //   el tiempo de D1 no es CPU del Worker (es otra máquina), así que se mide aparte y se resta. Lo
@@ -11,12 +11,14 @@
 //   ha atendido otras). «Primera»: la primera de esa ruta en un proceso nuevo, tras preparar los
 //   datos con otras rutas (en «crear agenda» y «resolve que pregunta», la primera petición del
 //   proceso). Antes se carga lo que solo Node carga tarde (`warmNodeOnly`). La carga del módulo
-//   (Zod, Hono) es el arranque del *isolate*, aparte.
+//   (Zod, Hono) es el arranque del *isolate*, aparte, y también `warmUp()`, que el Worker llama al
+//   arrancar (el *router* y los esquemas; DECISIONES §10.60): el arnés lo llama igual.
 //
 // Uso: node scripts/api-cpu.ts            (todo; ≈20 s)
 //      node scripts/api-cpu.ts --first=X  (solo la primera petición de X; lo usa el modo completo)
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { STEAM_IMPORT_MAX_BYTES } from '@gameagenda/core/api';
 import type { D1PreparedStatement, D1Result } from '../apps/web/worker/env.ts';
 import { SqliteD1 } from '../apps/web/worker/test/d1-sqlite.ts';
 import {
@@ -35,9 +37,10 @@ import {
   pkce,
 } from '../apps/web/worker/test/steam-support.ts';
 import { addOps, hlc } from '../apps/web/worker/test/sync-support.ts';
+import { warmUp } from '../apps/web/worker/warm-up.ts';
 
-/** El criterio CA4.6, en ms. */
-const BUDGET_MS = 5;
+/** El presupuesto del p99 en caliente, en ms (en producción, CA4.6 pide la mediana). */
+export const BUDGET_MS = 5;
 const WARMUP = 30;
 const RUNS = 300;
 /** La biblioteca de `redeem` (ADR-012): con 5 000 juegos, ≈1,7 MB. */
@@ -99,7 +102,7 @@ async function filled(pc: Client, entries: number): Promise<number> {
   return cursor;
 }
 
-const SCENARIOS: Scenario[] = [
+export const SCENARIOS: Scenario[] = [
   {
     name: 'agenda',
     what: 'Activar la sincronización (crear agenda)',
@@ -321,13 +324,17 @@ async function nodeStreamsBaseline(): Promise<number> {
   );
 }
 
-function harness(): { h: Harness; db: TimedD1 } {
+/** El arnés de las pruebas, con el tope de `redeem` de producción (16 MiB). */
+export function harness(): { h: Harness; db: TimedD1 } {
   const db = new TimedD1();
-  return { h: createHarness({}, { db }), db };
+  const h = createHarness({}, { db, steamImportMaxBytes: STEAM_IMPORT_MAX_BYTES });
+  // Como `index.ts` al arrancar el *isolate*.
+  warmUp(h.app);
+  return { h, db };
 }
 
 /** CPU de una petición: lo que tarda `app.request()` menos lo que pasa dentro de D1. */
-async function measure(db: TimedD1, call: () => Promise<number>): Promise<number> {
+export async function measure(db: TimedD1, call: () => Promise<number>): Promise<number> {
   db.spent = 0;
   const start = performance.now();
   const status = await call();
@@ -394,7 +401,7 @@ async function main(): Promise<void> {
   console.log('|---|---|---|---|---|');
   for (const row of rows) console.log(row);
   console.log(
-    `\nPeor p99 de las demás rutas: ${worst.toFixed(2)} ms (CA4.6: ≤${BUDGET_MS} ms). Node ${process.version}.`,
+    `\nPeor p99 de las demás rutas: ${worst.toFixed(2)} ms (presupuesto en caliente: ≤${BUDGET_MS} ms). Node ${process.version}.`,
   );
   const streams = await nodeStreamsBaseline();
   console.log(
@@ -403,4 +410,5 @@ async function main(): Promise<void> {
   if (over) process.exitCode = 1;
 }
 
-await main();
+// Solo al ejecutarlo: `api-cpu.test.ts` importa los escenarios.
+if (import.meta.main) await main();
