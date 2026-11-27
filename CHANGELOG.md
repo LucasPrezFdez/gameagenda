@@ -43,7 +43,8 @@ Cambios de GameAgenda por versión. Cada hito cierra una versión SemVer 0.x (§
 
 #### Ingeniería
 
-- **CA4.6 medido en producción** (27-11-2026; DECISIONES §10.59; `docs/medidas/ca4.6-20261127-produccion.md`): no se cumple. De 206 peticiones a la micro-API del 16 al 27-11-2026, el p50 es de 2,4 ms y el p99, de 19,1 ms (de 5), por las peticiones frías y la importación de Steam. Ninguna se cortó: todas acabaron en `success`, sin `exceededCpu`.
+- **La micro-API, preparada al arrancar** (27-11-2026; DECISIONES §10.60): `worker/warm-up.ts` monta el *router* de Hono y prepara los esquemas de Zod en el ámbito global, y no en la primera petición de cada *isolate*. En local, esa primera petición baja de 7,5 a 4,6 ms; el arranque en `workerd`, de ≈50 a ≈59 ms. `test/warm-up.test.ts` comprueba que no falta ningún esquema y que no hace E/S.
+- **CA4.6 medido en producción** (27-11-2026; DECISIONES §10.59; `docs/medidas/ca4.6-20261127-produccion.md`): de 206 peticiones a la micro-API del 16 al 27-11-2026, el p50 es de 2,4 ms y el p99, de 19,1 ms, por las peticiones frías y la importación de Steam. Ninguna se cortó: todas acabaron en `success`, sin `exceededCpu`. Con el criterio nuevo (abajo, en «Cambiado»), se cumple.
 - **CA2.1 para M3, cumplido** (27-11-2026): 24 ejecuciones programadas de `catalog.yml` seguidas en verde, del 03 al 26-11-2026. M3 pedía 7.
 - **Cuentas y Steam vinculado** (26-11-2026, en producción desde el 26-11-2026; ADR-014, DECISIONES §10.58):
   - micro-API: `/api/v1/account` (crear, entrar, ver, poner y quitar el email y la contraseña), con HMAC-SHA256 y el secreto `ACCOUNT_PEPPER`, `RL_LOGIN`, el freno por email (`login_throttle`), y `steam/link`, `refresh` (202 `unlinked` o `too_soon`) y `unlink`, con `steam_link`; migración `0005_cuentas.sql` e interruptor `ACCOUNTS_ENABLED`;
@@ -85,6 +86,7 @@ Cambios de GameAgenda por versión. Cada hito cierra una versión SemVer 0.x (§
 
 ### Cambiado
 
+- **CA4.6 pide otra cosa** (27-11-2026; §15.7, DECISIONES §10.60): en producción, durante al menos una semana, una mediana de ≤5 ms de CPU por petición y ninguna petición cortada (`exceededCpu`), en vez de un p99 de ≤5 ms. El p99 se sigue apuntando. Cloudflare no corta por una petición suelta que se pase, y con poco tráfico el p99 lo marcan las primeras peticiones de cada *isolate*.
 - **La app se adapta a cualquier pantalla** (20-11-2026, en producción; DECISIONES §10.51):
   - en pantallas anchas, el contenido crece hasta 1 440 px y las filas de Mi lista enseñan «Juego en» y una fecha según el estado; la ficha va junto a la lista, sin hueco entre las dos;
   - en la tablet, la barra lateral empieza encogida y Ajustes pone su índice en pestañas;

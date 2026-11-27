@@ -1,8 +1,10 @@
 # CA4.6 · CPU de la micro-API en producción (panel de Workers, 27-11-2026)
 
-**Criterio (§15.7):** CPU del Worker ≤5 ms por petición en el p99. El límite gratuito es de 10 ms.
+**Criterio (§15.7), desde el 27-11-2026:** en producción, durante al menos una semana de uso, mediana ≤5 ms por petición y ninguna cortada por pasarse de CPU (`exceededCpu`). El p99 se apunta, pero no decide (DECISIONES §10.60). **Con él, CA4.6 se cumple:** mediana de 2,4 ms y ninguna cortada en 206 peticiones.
 
-**Resultado: no se cumple.** Del 16 al 27-11-2026, `ga-web` atendió 206 peticiones HTTP. El p50 es de 2,4 ms, pero el p99 llega a 19,1 ms. Sin la prueba del 16-11 y sin la importación de Steam, el p99 baja a 13,0 ms, y en la tarde más tranquila se queda en 9,0 ms. Aun así, no se cortó ninguna petición: las 206 acabaron en `success`, sin errores, sin excepciones y sin `exceededCpu`.
+**El criterio de antes:** CPU del Worker ≤5 ms por petición en el p99. El límite gratuito es de 10 ms.
+
+**Resultado con el criterio de antes: no se cumple.** Del 16 al 27-11-2026, `ga-web` atendió 206 peticiones HTTP. El p50 es de 2,4 ms, pero el p99 llega a 19,1 ms. Sin la prueba del 16-11 y sin la importación de Steam, el p99 baja a 13,0 ms, y en la tarde más tranquila se queda en 9,0 ms. Aun así, no se cortó ninguna petición: las 206 acabaron en `success`, sin errores, sin excepciones y sin `exceededCpu`.
 
 Esto sustituye a la primera muestra (`ca4.6-20261116-produccion.md`), que se tomó con `wrangler tail` y solo 22 peticiones.
 
@@ -73,7 +75,9 @@ Los cuantiles de CPU vienen en microsegundos. Para quitar un tramo de tiempo se 
 
 ## Siguiente
 
-Lo decide el usuario (ver DECISIONES §10.59):
+**Decidido el 27-11-2026 (DECISIONES §10.60):** las opciones 1 y 3. El criterio cambia como dice la 3, y el Worker prepara al arrancar el *router* y los esquemas de Zod (`apps/web/worker/warm-up.ts`); en local, la primera petición baja de 7,5 a 4,6 ms. Queda repetir la consulta una semana después de desplegarlo.
+
+Las opciones que se dieron (DECISIONES §10.59):
 
 1. **Abaratar las rutas en frío, empezando por Steam:** medir en local la primera petición de cada ruta en un *isolate* nuevo (con `scripts/api-cpu.ts` en frío y un perfil de CPU de `workerd`), y quitar lo que se prepara en la primera llamada.
 2. **Ver la CPU por ruta en producción** encendiendo Workers Logs (`observability` en `wrangler.jsonc`). Guarda los metadatos de cada petición (la ruta y el país, entre otros) durante 3 días, así que pediría tocar la política de privacidad y el registro de actividades.
