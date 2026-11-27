@@ -5,8 +5,11 @@
 import { createApp } from './app.ts';
 import type { Env, ExecutionContext, ScheduledController } from './env.ts';
 import { purgeSteamTickets, runMaintenance, STEAM_PURGE_CRON } from './maintenance.ts';
+import { warmUp } from './warm-up.ts';
 
 const app = createApp();
+// Al arrancar el *isolate*, no en su primera petición (CA4.6; DECISIONES §10.60).
+warmUp(app);
 
 export default {
   fetch: app.fetch,
