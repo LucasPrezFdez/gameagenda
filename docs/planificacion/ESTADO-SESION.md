@@ -10,7 +10,7 @@
 - **`apps/web/worker/warm-up.ts`**, llamado desde `index.ts`: monta el *router* de Hono y prepara los 18 esquemas de Zod en el ámbito global. En local, la primera petición de un proceso nuevo baja de 7,5 a 4,6 ms; en `workerd` (`wrangler check startup`), el arranque sube de ≈50 a ≈59 ms, de 1 000. `test/warm-up.test.ts`: no falta ningún esquema (comprobado quitando uno), no hace E/S y la micro-API responde igual.
 - **Descartado:** peticiones de mentira al arrancar (E/S en el ámbito global), `hono/quick` (no mejora), Workers Logs (privacidad), el plan de pago y lotes de Steam más pequeños (sin datos).
 - **Queda:**
-  1. pasar a `main` y desplegar (un cambio de código: lanza el CI y `deploy-web`), y `npm run smoke:web`;
+  1. ~~pasar a `main` y desplegar~~: **en producción desde el 27-11-2026** (`main` en `f7c6d6b`; `ci` 46000472697 y `deploy-web` 46001102837, en verde; `smoke:web`, «Todo en orden»). La micro-API responde (404 en JSON y 400 `invalid_body`), y las 3 primeras peticiones tras el despliegue gastaron de 1,6 a 1,8 ms, todas en `success`; antes, la primera tras un despliegue iba de 13 a 16 ms. Son muy pocas: lo que vale es la medida de la semana;
   2. repetir la consulta de `docs/medidas/ca4.6-20261127-produccion.md` hacia el 04-12-2026 y apuntar cuánto bajan las primeras peticiones.
 - **El *script* de la sonda** (la primera petición en un proceso nuevo, con y sin calentamiento) se quedó en el *scratchpad* de la sesión: no hace falta para repetirlo, que basta con la consulta.
 
